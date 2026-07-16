@@ -80,7 +80,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         name: "description",
         content:
-          "NEXORA is your personal AI operating system. Productivity, projects, studies, content, translation and agents — unified in one intelligent workspace.",
+          "One intelligent workspace for productivity, projects, learning, content and translation. Meet NEXORA.",
       },
       { name: "theme-color", content: "#0a0a0b" },
       { name: "author", content: "NEXORA" },
@@ -88,7 +88,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         property: "og:description",
         content:
-          "One intelligent workspace for everything you do. Productivity, learning, content, translation and agents — powered by AI.",
+          "One intelligent workspace for productivity, projects, learning, content and translation. Meet NEXORA.",
       },
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: "NEXORA" },
@@ -96,11 +96,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:title", content: "NEXORA — Your Personal AI Operating System" },
       {
         name: "twitter:description",
-        content: "The intelligent workspace for everything you do.",
+        content: "One intelligent workspace for productivity, projects, learning, content and translation. Meet NEXORA.",
       },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-title", content: "NEXORA" },
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/6a712ae6-117a-4a0c-8391-ad00fb6cdc32/id-preview-d1a46c79--d8c0127f-dba3-4b59-a665-c0390e80af60.lovable.app-1784244151527.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/6a712ae6-117a-4a0c-8391-ad00fb6cdc32/id-preview-d1a46c79--d8c0127f-dba3-4b59-a665-c0390e80af60.lovable.app-1784244151527.png" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
