@@ -9,38 +9,261 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as ShellRouteImport } from './routes/_shell'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ShellTranslateRouteImport } from './routes/_shell.translate'
+import { Route as ShellStudiesRouteImport } from './routes/_shell.studies'
+import { Route as ShellSettingsRouteImport } from './routes/_shell.settings'
+import { Route as ShellProjectsRouteImport } from './routes/_shell.projects'
+import { Route as ShellProductivityRouteImport } from './routes/_shell.productivity'
+import { Route as ShellPremiumRouteImport } from './routes/_shell.premium'
+import { Route as ShellFinanceRouteImport } from './routes/_shell.finance'
+import { Route as ShellDocumentsRouteImport } from './routes/_shell.documents'
+import { Route as ShellDashboardRouteImport } from './routes/_shell.dashboard'
+import { Route as ShellContentRouteImport } from './routes/_shell.content'
+import { Route as ShellAssistantRouteImport } from './routes/_shell.assistant'
+import { Route as ShellAgentsRouteImport } from './routes/_shell.agents'
 
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ShellRoute = ShellRouteImport.update({
+  id: '/_shell',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ShellTranslateRoute = ShellTranslateRouteImport.update({
+  id: '/translate',
+  path: '/translate',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellStudiesRoute = ShellStudiesRouteImport.update({
+  id: '/studies',
+  path: '/studies',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellSettingsRoute = ShellSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellProjectsRoute = ShellProjectsRouteImport.update({
+  id: '/projects',
+  path: '/projects',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellProductivityRoute = ShellProductivityRouteImport.update({
+  id: '/productivity',
+  path: '/productivity',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellPremiumRoute = ShellPremiumRouteImport.update({
+  id: '/premium',
+  path: '/premium',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellFinanceRoute = ShellFinanceRouteImport.update({
+  id: '/finance',
+  path: '/finance',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellDocumentsRoute = ShellDocumentsRouteImport.update({
+  id: '/documents',
+  path: '/documents',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellDashboardRoute = ShellDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellContentRoute = ShellContentRouteImport.update({
+  id: '/content',
+  path: '/content',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellAssistantRoute = ShellAssistantRouteImport.update({
+  id: '/assistant',
+  path: '/assistant',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellAgentsRoute = ShellAgentsRouteImport.update({
+  id: '/agents',
+  path: '/agents',
+  getParentRoute: () => ShellRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/onboarding': typeof OnboardingRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/agents': typeof ShellAgentsRoute
+  '/assistant': typeof ShellAssistantRoute
+  '/content': typeof ShellContentRoute
+  '/dashboard': typeof ShellDashboardRoute
+  '/documents': typeof ShellDocumentsRoute
+  '/finance': typeof ShellFinanceRoute
+  '/premium': typeof ShellPremiumRoute
+  '/productivity': typeof ShellProductivityRoute
+  '/projects': typeof ShellProjectsRoute
+  '/settings': typeof ShellSettingsRoute
+  '/studies': typeof ShellStudiesRoute
+  '/translate': typeof ShellTranslateRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/onboarding': typeof OnboardingRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/agents': typeof ShellAgentsRoute
+  '/assistant': typeof ShellAssistantRoute
+  '/content': typeof ShellContentRoute
+  '/dashboard': typeof ShellDashboardRoute
+  '/documents': typeof ShellDocumentsRoute
+  '/finance': typeof ShellFinanceRoute
+  '/premium': typeof ShellPremiumRoute
+  '/productivity': typeof ShellProductivityRoute
+  '/projects': typeof ShellProjectsRoute
+  '/settings': typeof ShellSettingsRoute
+  '/studies': typeof ShellStudiesRoute
+  '/translate': typeof ShellTranslateRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_shell': typeof ShellRouteWithChildren
+  '/auth': typeof AuthRoute
+  '/onboarding': typeof OnboardingRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/_shell/agents': typeof ShellAgentsRoute
+  '/_shell/assistant': typeof ShellAssistantRoute
+  '/_shell/content': typeof ShellContentRoute
+  '/_shell/dashboard': typeof ShellDashboardRoute
+  '/_shell/documents': typeof ShellDocumentsRoute
+  '/_shell/finance': typeof ShellFinanceRoute
+  '/_shell/premium': typeof ShellPremiumRoute
+  '/_shell/productivity': typeof ShellProductivityRoute
+  '/_shell/projects': typeof ShellProjectsRoute
+  '/_shell/settings': typeof ShellSettingsRoute
+  '/_shell/studies': typeof ShellStudiesRoute
+  '/_shell/translate': typeof ShellTranslateRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/onboarding'
+    | '/sitemap.xml'
+    | '/agents'
+    | '/assistant'
+    | '/content'
+    | '/dashboard'
+    | '/documents'
+    | '/finance'
+    | '/premium'
+    | '/productivity'
+    | '/projects'
+    | '/settings'
+    | '/studies'
+    | '/translate'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/auth'
+    | '/onboarding'
+    | '/sitemap.xml'
+    | '/agents'
+    | '/assistant'
+    | '/content'
+    | '/dashboard'
+    | '/documents'
+    | '/finance'
+    | '/premium'
+    | '/productivity'
+    | '/projects'
+    | '/settings'
+    | '/studies'
+    | '/translate'
+  id:
+    | '__root__'
+    | '/'
+    | '/_shell'
+    | '/auth'
+    | '/onboarding'
+    | '/sitemap.xml'
+    | '/_shell/agents'
+    | '/_shell/assistant'
+    | '/_shell/content'
+    | '/_shell/dashboard'
+    | '/_shell/documents'
+    | '/_shell/finance'
+    | '/_shell/premium'
+    | '/_shell/productivity'
+    | '/_shell/projects'
+    | '/_shell/settings'
+    | '/_shell/studies'
+    | '/_shell/translate'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ShellRoute: typeof ShellRouteWithChildren
+  AuthRoute: typeof AuthRoute
+  OnboardingRoute: typeof OnboardingRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_shell': {
+      id: '/_shell'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof ShellRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,22 +271,132 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_shell/translate': {
+      id: '/_shell/translate'
+      path: '/translate'
+      fullPath: '/translate'
+      preLoaderRoute: typeof ShellTranslateRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/studies': {
+      id: '/_shell/studies'
+      path: '/studies'
+      fullPath: '/studies'
+      preLoaderRoute: typeof ShellStudiesRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/settings': {
+      id: '/_shell/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof ShellSettingsRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/projects': {
+      id: '/_shell/projects'
+      path: '/projects'
+      fullPath: '/projects'
+      preLoaderRoute: typeof ShellProjectsRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/productivity': {
+      id: '/_shell/productivity'
+      path: '/productivity'
+      fullPath: '/productivity'
+      preLoaderRoute: typeof ShellProductivityRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/premium': {
+      id: '/_shell/premium'
+      path: '/premium'
+      fullPath: '/premium'
+      preLoaderRoute: typeof ShellPremiumRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/finance': {
+      id: '/_shell/finance'
+      path: '/finance'
+      fullPath: '/finance'
+      preLoaderRoute: typeof ShellFinanceRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/documents': {
+      id: '/_shell/documents'
+      path: '/documents'
+      fullPath: '/documents'
+      preLoaderRoute: typeof ShellDocumentsRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/dashboard': {
+      id: '/_shell/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof ShellDashboardRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/content': {
+      id: '/_shell/content'
+      path: '/content'
+      fullPath: '/content'
+      preLoaderRoute: typeof ShellContentRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/assistant': {
+      id: '/_shell/assistant'
+      path: '/assistant'
+      fullPath: '/assistant'
+      preLoaderRoute: typeof ShellAssistantRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/agents': {
+      id: '/_shell/agents'
+      path: '/agents'
+      fullPath: '/agents'
+      preLoaderRoute: typeof ShellAgentsRouteImport
+      parentRoute: typeof ShellRoute
+    }
   }
 }
 
+interface ShellRouteChildren {
+  ShellAgentsRoute: typeof ShellAgentsRoute
+  ShellAssistantRoute: typeof ShellAssistantRoute
+  ShellContentRoute: typeof ShellContentRoute
+  ShellDashboardRoute: typeof ShellDashboardRoute
+  ShellDocumentsRoute: typeof ShellDocumentsRoute
+  ShellFinanceRoute: typeof ShellFinanceRoute
+  ShellPremiumRoute: typeof ShellPremiumRoute
+  ShellProductivityRoute: typeof ShellProductivityRoute
+  ShellProjectsRoute: typeof ShellProjectsRoute
+  ShellSettingsRoute: typeof ShellSettingsRoute
+  ShellStudiesRoute: typeof ShellStudiesRoute
+  ShellTranslateRoute: typeof ShellTranslateRoute
+}
+
+const ShellRouteChildren: ShellRouteChildren = {
+  ShellAgentsRoute: ShellAgentsRoute,
+  ShellAssistantRoute: ShellAssistantRoute,
+  ShellContentRoute: ShellContentRoute,
+  ShellDashboardRoute: ShellDashboardRoute,
+  ShellDocumentsRoute: ShellDocumentsRoute,
+  ShellFinanceRoute: ShellFinanceRoute,
+  ShellPremiumRoute: ShellPremiumRoute,
+  ShellProductivityRoute: ShellProductivityRoute,
+  ShellProjectsRoute: ShellProjectsRoute,
+  ShellSettingsRoute: ShellSettingsRoute,
+  ShellStudiesRoute: ShellStudiesRoute,
+  ShellTranslateRoute: ShellTranslateRoute,
+}
+
+const ShellRouteWithChildren = ShellRoute._addFileChildren(ShellRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ShellRoute: ShellRouteWithChildren,
+  AuthRoute: AuthRoute,
+  OnboardingRoute: OnboardingRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
