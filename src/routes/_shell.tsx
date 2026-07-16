@@ -1,0 +1,179 @@
+import { createFileRoute, Outlet, redirect, Link, useRouterState, useNavigate } from "@tanstack/react-router";
+import { LogOut, Menu, Search, User } from "lucide-react";
+import { useState } from "react";
+
+import { useAuth } from "@/lib/auth-context";
+import { MODULES } from "@/lib/modules";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { GlobalSearch } from "@/components/global-search";
+
+export const Route = createFileRoute("/_shell")({
+  ssr: false,
+  beforeLoad: () => {
+    if (typeof window === "undefined") return;
+    const raw = window.localStorage.getItem("nexora.session");
+    if (!raw) throw redirect({ to: "/auth", search: { mode: "signin" } });
+  },
+  component: ShellLayout,
+});
+
+function ShellLayout() {
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  const groups = {
+    core: MODULES.filter((m) => m.group === "core"),
+    modules: MODULES.filter((m) => m.group === "modules"),
+    system: MODULES.filter((m) => m.group === "system"),
+  };
+
+  async function handleSignOut() {
+    await signOut();
+    navigate({ to: "/auth", search: { mode: "signin" }, replace: true });
+  }
+
+  const Sidebar = (
+    <aside className="flex h-full w-full flex-col bg-sidebar text-sidebar-foreground">
+      <div className="flex h-16 shrink-0 items-center gap-2 px-5">
+        <img src="/nexora-icon.png" alt="" width={26} height={26} className="rounded-md" />
+        <span className="font-display text-xl">NEXORA</span>
+      </div>
+      <nav className="scrollbar-hidden flex-1 space-y-6 overflow-y-auto px-3 pb-6">
+        {(["core", "modules", "system"] as const).map((g) => (
+          <div key={g}>
+            <p className="mb-2 px-3 text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
+              {g === "core" ? "Overview" : g === "modules" ? "Modules" : "System"}
+            </p>
+            <ul className="space-y-0.5">
+              {groups[g].map((m) => {
+                const active = pathname.startsWith(m.path);
+                return (
+                  <li key={m.id}>
+                    <Link
+                      to={m.path}
+                      onClick={() => setMobileOpen(false)}
+                      className={`group flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
+                        active
+                          ? "bg-sidebar-accent text-foreground"
+                          : "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground"
+                      }`}
+                    >
+                      <m.icon className="h-4 w-4 shrink-0" />
+                      <span className="flex-1">{m.label}</span>
+                      {m.premium && (
+                        <span className="rounded-full bg-[color:var(--gold)]/15 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider text-gold">
+                          Pro
+                        </span>
+                      )}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ))}
+      </nav>
+    </aside>
+  );
+
+  return (
+    <div className="flex min-h-screen w-full bg-background">
+      {/* Desktop sidebar */}
+      <div className="hidden w-64 shrink-0 border-r border-sidebar-border md:block">
+        {Sidebar}
+      </div>
+
+      {/* Main */}
+      <div className="flex min-w-0 flex-1 flex-col">
+        {/* Top bar */}
+        <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border bg-background/70 px-4 backdrop-blur md:px-6">
+          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="md:hidden">
+                <Menu className="h-5 w-5" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-72 border-r border-sidebar-border bg-sidebar p-0">
+              {Sidebar}
+            </SheetContent>
+          </Sheet>
+
+          <button
+            onClick={() => setSearchOpen(true)}
+            className="flex flex-1 items-center gap-2 rounded-full border border-border bg-surface px-4 py-2 text-left text-sm text-muted-foreground transition hover:border-foreground/20 md:max-w-md"
+          >
+            <Search className="h-4 w-4" />
+            <span className="flex-1">Search or ask NEXORA…</span>
+            <kbd className="hidden rounded border border-border bg-background px-1.5 py-0.5 text-[10px] md:inline">
+              ⌘K
+            </kbd>
+          </button>
+
+          <div className="ml-auto flex items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex h-9 w-9 items-center justify-center rounded-full bg-surface-elevated text-sm font-medium">
+                  {user?.name?.[0]?.toUpperCase() ?? "N"}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium">{user?.name ?? "Explorer"}</span>
+                    <span className="text-xs font-normal text-muted-foreground">{user?.email}</span>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate({ to: "/settings" })}>
+                  <User className="mr-2 h-4 w-4" /> Profile & settings
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleSignOut}>
+                  <LogOut className="mr-2 h-4 w-4" /> Sign out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </header>
+
+        <main className="flex-1 pb-24 md:pb-6">
+          <Outlet />
+        </main>
+
+        {/* Bottom nav (mobile) */}
+        <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-border bg-background/80 backdrop-blur md:hidden">
+          <div className="grid grid-cols-5">
+            {groups.core.concat(groups.modules.slice(0, 3)).map((m) => {
+              const active = pathname.startsWith(m.path);
+              return (
+                <Link
+                  key={m.id}
+                  to={m.path}
+                  className={`flex flex-col items-center gap-1 py-2.5 text-[10px] ${
+                    active ? "text-gold" : "text-muted-foreground"
+                  }`}
+                >
+                  <m.icon className="h-5 w-5" />
+                  <span>{m.label}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
+      </div>
+
+      <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
+    </div>
+  );
+}
