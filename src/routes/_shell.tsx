@@ -1,6 +1,6 @@
-import { createFileRoute, Outlet, redirect, Link, useRouterState, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Outlet, Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import { LogOut, Menu, Search, User } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useAuth } from "@/lib/auth-context";
 import { MODULES } from "@/lib/modules";
@@ -18,20 +18,44 @@ import { GlobalSearch } from "@/components/global-search";
 
 export const Route = createFileRoute("/_shell")({
   ssr: false,
-  beforeLoad: () => {
-    if (typeof window === "undefined") return;
-    const raw = window.localStorage.getItem("nexora.session");
-    if (!raw) throw redirect({ to: "/auth", search: { mode: "signin" } });
-  },
   component: ShellLayout,
 });
 
+function FullPageLoader() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background">
+      <div
+        className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-foreground"
+        role="status"
+        aria-label="Loading"
+      />
+    </div>
+  );
+}
+
 function ShellLayout() {
-  const { user, signOut } = useAuth();
+  const { user, loading, isAuthenticated, signOut } = useAuth();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+
+  // Guard runs client-side against the real Supabase session (instead of a
+  // "nexora.session" localStorage flag that was never written anywhere).
+  useEffect(() => {
+    if (!loading && !isAuthenticated) {
+      navigate({ to: "/auth", search: { mode: "signin" }, replace: true });
+    }
+  }, [loading, isAuthenticated, navigate]);
+
+  if (loading) {
+    return <FullPageLoader />;
+  }
+
+  if (!isAuthenticated) {
+    // Redirect effect above is already in flight; avoid flashing protected content.
+    return null;
+  }
 
   const groups = {
     core: MODULES.filter((m) => m.group === "core"),
