@@ -3,6 +3,7 @@ import { LogOut, Menu, Search, User } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { useAuth } from "@/lib/auth-context";
+import { useProfile } from "@/hooks/use-profile";
 import { MODULES } from "@/lib/modules";
 import { Button } from "@/components/ui/button";
 import {
@@ -34,27 +35,35 @@ function FullPageLoader() {
 }
 
 function ShellLayout() {
-  const { user, loading, isAuthenticated, signOut } = useAuth();
+  const { user, loading: authLoading, isAuthenticated, signOut } = useAuth();
+  const { data: profile, isLoading: profileLoading } = useProfile();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
 
-  // Guard runs client-side against the real Supabase session (instead of a
-  // "nexora.session" localStorage flag that was never written anywhere).
+  // Guard 1: real Supabase session (replaces the old "nexora.session"
+  // localStorage flag, which was never written anywhere).
   useEffect(() => {
-    if (!loading && !isAuthenticated) {
+    if (!authLoading && !isAuthenticated) {
       navigate({ to: "/auth", search: { mode: "signin" }, replace: true });
     }
-  }, [loading, isAuthenticated, navigate]);
+  }, [authLoading, isAuthenticated, navigate]);
 
-  if (loading) {
+  // Guard 2: onboarding must be completed before any protected module is
+  // reachable. This is the single source of truth for that rule — every
+  // route nested under this layout goes through it.
+  useEffect(() => {
+    if (!authLoading && isAuthenticated && !profileLoading && profile && !profile.onboarded) {
+      navigate({ to: "/onboarding", replace: true });
+    }
+  }, [authLoading, isAuthenticated, profileLoading, profile, navigate]);
+
+  const ready =
+    !authLoading && isAuthenticated && !profileLoading && !!profile?.onboarded;
+
+  if (!ready) {
     return <FullPageLoader />;
-  }
-
-  if (!isAuthenticated) {
-    // Redirect effect above is already in flight; avoid flashing protected content.
-    return null;
   }
 
   const groups = {
