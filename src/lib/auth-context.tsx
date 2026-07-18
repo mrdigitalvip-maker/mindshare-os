@@ -24,14 +24,21 @@ export type NexoraUser = {
   plan?: "free" | "pro";
 };
 
+type SignUpResult = {
+  /** true when Supabase requires email confirmation before a session exists */
+  needsEmailConfirmation: boolean;
+};
+
 type AuthContextValue = {
   user: NexoraUser | null;
   loading: boolean;
   isAuthenticated: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, name?: string) => Promise<void>;
+  signUp: (email: string, password: string, name?: string) => Promise<SignUpResult>;
+  signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
+  updatePassword: (newPassword: string) => Promise<void>;
   updateUser: (patch: Partial<NexoraUser>) => Promise<void>;
 };
 
@@ -94,8 +101,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const signUp: AuthContextValue["signUp"] = async (email, password, name) => {
       const emailRedirectTo =
-        typeof window !== "undefined" ? window.location.origin : undefined;
-      const { error } = await supabase.auth.signUp({
+        typeof window !== "undefined" ? `${window.location.origin}/confirm-email` : undefined;
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -104,6 +111,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         },
       });
       if (error) throw error;
+      // With "Confirm email" enabled, Supabase creates the user but returns
+      // no active session until the confirmation link is clicked.
+      return { needsEmailConfirmation: !data.session };
+    };
+
+    const signInWithGoogle: AuthContextValue["signInWithGoogle"] = async () => {
+      const redirectTo =
+        typeof window !== "undefined" ? `${window.location.origin}/dashboard` : undefined;
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo },
+      });
+      if (error) throw error;
+      // Browser navigates away to Google; nothing else to do here.
     };
 
     const signOut: AuthContextValue["signOut"] = async () => {
@@ -119,6 +140,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo,
       });
+      if (error) throw error;
+    };
+
+    const updatePassword: AuthContextValue["updatePassword"] = async (newPassword) => {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
     };
 
@@ -144,8 +170,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAuthenticated: !!session && !!user,
       signIn,
       signUp,
+      signInWithGoogle,
       signOut,
       resetPassword,
+      updatePassword,
       updateUser,
     };
   }, [user, loading, session]);
