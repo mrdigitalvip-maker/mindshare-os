@@ -1,7 +1,8 @@
-import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, ArrowLeft } from "lucide-react";
+import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,11 +10,6 @@ import { Label } from "@/components/ui/label";
 
 export const Route = createFileRoute("/onboarding")({
   ssr: false,
-  beforeLoad: () => {
-    if (typeof window === "undefined") return;
-    const raw = window.localStorage.getItem("nexora.session");
-    if (!raw) throw redirect({ to: "/auth", search: { mode: "signup" } });
-  },
   head: () => ({ meta: [{ title: "Welcome — NEXORA" }, { name: "robots", content: "noindex" }] }),
   component: Onboarding,
 });
@@ -41,25 +37,65 @@ const LANGUAGES = [
   { code: "fr", label: "Français" },
 ];
 
+function FullPageLoader() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background">
+      <div
+        className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-foreground"
+        role="status"
+        aria-label="Loading"
+      />
+    </div>
+  );
+}
+
 function Onboarding() {
   const navigate = useNavigate();
-  const { user, updateUser } = useAuth();
+  const { user, loading: authLoading, isAuthenticated, updateUser } = useAuth();
+
+  // Same real-session guard used in _shell.tsx — replaces the old
+  // "nexora.session" localStorage check, which was never written anywhere
+  // and made this route effectively unreachable after a real login.
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      navigate({ to: "/auth", search: { mode: "signup" }, replace: true });
+    }
+  }, [authLoading, isAuthenticated, navigate]);
+
   const [step, setStep] = useState(0);
   const [name, setName] = useState(user?.name ?? "");
   const [profession, setProfession] = useState("");
   const [goals, setGoals] = useState<string[]>([]);
   const [language, setLanguage] = useState("en");
+  const [submitting, setSubmitting] = useState(false);
 
-  function next() {
+  if (authLoading) {
+    return <FullPageLoader />;
+  }
+
+  if (!isAuthenticated) {
+    return null;
+  }
+
+  async function next() {
     if (step === STEPS.length - 1) {
-      updateUser({ name, onboarded: true });
+      setSubmitting(true);
       try {
-        localStorage.setItem(
-          "nexora.preferences",
-          JSON.stringify({ profession, goals, language }),
-        );
-      } catch {}
-      navigate({ to: "/dashboard" });
+        await updateUser({ name, onboarded: true });
+        try {
+          localStorage.setItem(
+            "nexora.preferences",
+            JSON.stringify({ profession, goals, language }),
+          );
+        } catch {
+          // Non-critical: local prefs cache only, safe to ignore if storage is unavailable.
+        }
+        navigate({ to: "/dashboard" });
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Couldn't save your profile");
+      } finally {
+        setSubmitting(false);
+      }
       return;
     }
     setStep((s) => s + 1);
@@ -181,13 +217,13 @@ function Onboarding() {
         <Button
           variant="ghost"
           onClick={() => setStep((s) => Math.max(0, s - 1))}
-          disabled={step === 0}
+          disabled={step === 0 || submitting}
         >
           <ArrowLeft className="mr-1 h-4 w-4" /> Back
         </Button>
-        <Button onClick={next} className="rounded-full px-6">
-          {step === STEPS.length - 1 ? "Enter NEXORA" : "Continue"}
-          <ArrowRight className="ml-1 h-4 w-4" />
+        <Button onClick={next} className="rounded-full px-6" disabled={submitting} aria-busy={submitting}>
+          {submitting ? "Saving…" : step === STEPS.length - 1 ? "Enter NEXORA" : "Continue"}
+          {!submitting && <ArrowRight className="ml-1 h-4 w-4" />}
         </Button>
       </div>
     </div>
