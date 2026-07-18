@@ -28,24 +28,29 @@ export const Route = createFileRoute("/auth")({
 function AuthPage() {
   const { mode = "signin" } = Route.useSearch();
   const navigate = useNavigate();
-  const { signIn, signUp, resetPassword } = useAuth();
+  const { signIn, signUp, signInWithGoogle, resetPassword } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [sent, setSent] = useState<"signup" | "forgot" | null>(null);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     try {
       if (mode === "signup") {
-        await signUp(email, password, name);
-        toast.success("Welcome to NEXORA");
-        navigate({ to: "/onboarding" });
+        const { needsEmailConfirmation } = await signUp(email, password, name);
+        if (needsEmailConfirmation) {
+          setSent("signup");
+        } else {
+          toast.success("Welcome to NEXORA");
+          navigate({ to: "/onboarding" });
+        }
       } else if (mode === "forgot") {
         await resetPassword(email);
-        toast.success("Recovery email sent (mock).");
-        navigate({ to: "/auth", search: { mode: "signin" } });
+        setSent("forgot");
       } else {
         await signIn(email, password);
         toast.success("Welcome back");
@@ -55,6 +60,17 @@ function AuthPage() {
       toast.error(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function onGoogleSignIn() {
+    setGoogleLoading(true);
+    try {
+      await signInWithGoogle();
+      // Browser redirects to Google; component unmounts, no need to reset loading.
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't start Google sign-in");
+      setGoogleLoading(false);
     }
   }
 
@@ -95,114 +111,131 @@ function AuthPage() {
             </Link>
           </div>
 
-          <h1 className="font-display text-3xl">{title}</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {mode === "signup"
-              ? "Start free. Upgrade whenever you're ready."
-              : mode === "forgot"
-                ? "We'll email you a reset link."
-                : "Sign in to continue to your workspace."}
-          </p>
-
-          <form className="mt-8 space-y-4" onSubmit={onSubmit}>
-            {mode === "signup" && (
-              <div className="space-y-1.5">
-                <Label htmlFor="name">Name</Label>
-                <Input
-                  id="name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Alex Rivera"
-                  required
-                />
-              </div>
-            )}
-            <div className="space-y-1.5">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@nexora.app"
-                required
-              />
+          {sent ? (
+            <div role="status" aria-live="polite">
+              <h1 className="font-display text-3xl">Check your email</h1>
+              <p className="mt-3 text-sm text-muted-foreground">
+                {sent === "signup"
+                  ? `We sent a confirmation link to ${email}. Click it to activate your account.`
+                  : `We sent a password reset link to ${email}. Click it to choose a new password.`}
+              </p>
+              <button
+                onClick={() => {
+                  setSent(null);
+                  navigate({ to: "/auth", search: { mode: "signin" } });
+                }}
+                className="mt-8 inline-flex items-center justify-center rounded-full bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition hover:opacity-90"
+              >
+                Back to sign in
+              </button>
             </div>
-            {mode !== "forgot" && (
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="password">Password</Label>
-                  {mode === "signin" && (
-                    <Link
-                      to="/auth"
-                      search={{ mode: "forgot" }}
-                      className="text-xs text-muted-foreground hover:text-foreground"
-                    >
-                      Forgot?
-                    </Link>
-                  )}
-                </div>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  required
-                  minLength={6}
-                />
-              </div>
-            )}
-            <Button type="submit" className="w-full rounded-full" disabled={loading}>
-              {loading ? "Please wait…" : cta}
-            </Button>
-          </form>
-
-          {mode !== "forgot" && (
+          ) : (
             <>
-              <div className="my-6 flex items-center gap-3 text-xs text-muted-foreground">
-                <div className="h-px flex-1 bg-border" />
-                <span>or continue with</span>
-                <div className="h-px flex-1 bg-border" />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  variant="outline"
-                  className="rounded-full"
-                  disabled
-                  title="Available once Cloud is connected"
-                >
-                  Google
+              <h1 className="font-display text-3xl">{title}</h1>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {mode === "signup"
+                  ? "Start free. Upgrade whenever you're ready."
+                  : mode === "forgot"
+                    ? "We'll email you a reset link."
+                    : "Sign in to continue to your workspace."}
+              </p>
+
+              <form className="mt-8 space-y-4" onSubmit={onSubmit}>
+                {mode === "signup" && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="name">Name</Label>
+                    <Input
+                      id="name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Alex Rivera"
+                      autoComplete="name"
+                      required
+                    />
+                  </div>
+                )}
+                <div className="space-y-1.5">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@nexora.app"
+                    autoComplete="email"
+                    required
+                  />
+                </div>
+                {mode !== "forgot" && (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="password">Password</Label>
+                      {mode === "signin" && (
+                        <Link
+                          to="/auth"
+                          search={{ mode: "forgot" }}
+                          className="text-xs text-muted-foreground hover:text-foreground"
+                        >
+                          Forgot?
+                        </Link>
+                      )}
+                    </div>
+                    <Input
+                      id="password"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                      required
+                      minLength={6}
+                    />
+                  </div>
+                )}
+                <Button type="submit" className="w-full rounded-full" disabled={loading} aria-busy={loading}>
+                  {loading ? "Please wait…" : cta}
                 </Button>
-                <Button
-                  variant="outline"
-                  className="rounded-full"
-                  disabled
-                  title="Available once Cloud is connected"
-                >
-                  Apple
-                </Button>
-              </div>
+              </form>
+
+              {mode !== "forgot" && (
+                <>
+                  <div className="my-6 flex items-center gap-3 text-xs text-muted-foreground">
+                    <div className="h-px flex-1 bg-border" />
+                    <span>or continue with</span>
+                    <div className="h-px flex-1 bg-border" />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full rounded-full"
+                    onClick={onGoogleSignIn}
+                    disabled={googleLoading}
+                    aria-busy={googleLoading}
+                  >
+                    {googleLoading ? "Redirecting…" : "Continue with Google"}
+                  </Button>
+                </>
+              )}
+
+              <p className="mt-8 text-center text-sm text-muted-foreground">
+                {mode === "signup" ? (
+                  <>
+                    Already have an account?{" "}
+                    <Link to="/auth" search={{ mode: "signin" }} className="text-foreground hover:underline">
+                      Sign in
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    New to NEXORA?{" "}
+                    <Link to="/auth" search={{ mode: "signup" }} className="text-foreground hover:underline">
+                      Create an account
+                    </Link>
+                  </>
+                )}
+              </p>
             </>
           )}
-
-          <p className="mt-8 text-center text-sm text-muted-foreground">
-            {mode === "signup" ? (
-              <>
-                Already have an account?{" "}
-                <Link to="/auth" search={{ mode: "signin" }} className="text-foreground hover:underline">
-                  Sign in
-                </Link>
-              </>
-            ) : (
-              <>
-                New to NEXORA?{" "}
-                <Link to="/auth" search={{ mode: "signup" }} className="text-foreground hover:underline">
-                  Create an account
-                </Link>
-              </>
-            )}
-          </p>
         </motion.div>
       </div>
     </div>
