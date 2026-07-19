@@ -2,7 +2,7 @@
   "name": "NEXORA — Your Personal AI Operating System",
   "short_name": "NEXORA",
   "description": "A personal AI operating system that centralizes productivity, learning, content, translation and automations.",
-  "start_url": "/",
+  "start_url": "/dashboard",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
