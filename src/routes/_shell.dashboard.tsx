@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import { useAuth } from "@/lib/auth-context";
+import { useProfile } from "@/hooks/use-profile";
 import { PageShell } from "@/components/page-shell";
 import { Button } from "@/components/ui/button";
 import { MODULES } from "@/lib/modules";
@@ -30,6 +31,8 @@ function greeting() {
 
 function Dashboard() {
   const { user } = useAuth();
+  const { data: profile } = useProfile();
+  const displayName = profile?.full_name ?? user?.name ?? "friend";
   const quickModules = MODULES.filter((m) => m.group === "modules").slice(0, 6);
 
   return (
@@ -44,7 +47,7 @@ function Dashboard() {
           })}
         </p>
         <h1 className="mt-2 font-display text-4xl md:text-5xl">
-          {greeting()}, <span className="text-gold">{user?.name ?? "friend"}</span>.
+          {greeting()}, <span className="text-gold">{displayName}</span>.
         </h1>
         <p className="mt-2 max-w-xl text-muted-foreground">
           Here's your day at a glance. NEXORA is thinking with you.
