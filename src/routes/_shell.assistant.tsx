@@ -1,17 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useRef, useEffect } from "react";
+import { useRef, useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Sparkles, Send, Mic, Plus, Star } from "lucide-react";
+import { Sparkles, Send, Mic, Plus } from "lucide-react";
+import { toast } from "sonner";
+
 import { PageShell } from "@/components/page-shell";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { useChat, type ChatMessage } from "@/hooks/use-chat";
 
 export const Route = createFileRoute("/_shell/assistant")({
   head: () => ({ meta: [{ title: "Assistant — NEXORA" }] }),
   component: Assistant,
 });
-
-type Msg = { id: string; role: "user" | "assistant"; content: string };
 
 const SUGGESTIONS = [
   "Plan my week around 3 focus goals",
@@ -21,25 +22,36 @@ const SUGGESTIONS = [
 ];
 
 function Assistant() {
-  const [messages, setMessages] = useState<Msg[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
+  const { sendMessage, isSending } = useChat();
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  function send(text: string) {
-    if (!text.trim()) return;
-    const user: Msg = { id: crypto.randomUUID(), role: "user", content: text };
-    const reply: Msg = {
-      id: crypto.randomUUID(),
-      role: "assistant",
-      content:
-        "NEXORA's AI engine will handle this once your model provider is connected. This UI is production-ready and will stream real responses.",
-    };
-    setMessages((m) => [...m, user, reply]);
+  async function send(text: string) {
+    const trimmed = text.trim();
+    if (!trimmed || isSending) return;
+
     setInput("");
+    const optimisticUser: ChatMessage = {
+      id: crypto.randomUUID(),
+      role: "user",
+      content: trimmed,
+    };
+    setMessages((m) => [...m, optimisticUser]);
+
+    try {
+      const { assistantMessage } = await sendMessage({ content: trimmed, history: messages });
+      setMessages((m) => [...m, assistantMessage]);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't reach the assistant");
+      // Roll back the optimistic user message so the composer reflects
+      // what was actually saved.
+      setMessages((m) => m.filter((msg) => msg.id !== optimisticUser.id));
+    }
   }
 
   return (
@@ -67,7 +79,8 @@ function Assistant() {
                 <button
                   key={s}
                   onClick={() => send(s)}
-                  className="glass rounded-xl p-4 text-left text-sm transition hover:border-[color:var(--gold)]/40"
+                  disabled={isSending}
+                  className="glass rounded-xl p-4 text-left text-sm transition hover:border-[color:var(--gold)]/40 disabled:opacity-50"
                 >
                   {s}
                 </button>
@@ -77,21 +90,30 @@ function Assistant() {
         ) : (
           <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
             {messages.map((m) => (
-              <div
-                key={m.id}
-                className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
-              >
-                <div
-                  className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm ${
-                    m.role === "user"
-                      ? "bg-primary text-primary-foreground"
-                      : "glass"
-                  }`}
-                >
-                  {m.content}
+              <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+                <div className="flex max-w-[85%] flex-col gap-1">
+                  <div
+                    className={`rounded-2xl px-4 py-3 text-sm ${
+                      m.role === "user" ? "bg-primary text-primary-foreground" : "glass"
+                    }`}
+                  >
+                    {m.content}
+                  </div>
+                  {m.role === "assistant" && m.provider && (
+                    <span className="px-1 text-[10px] uppercase tracking-widest text-muted-foreground">
+                      via {m.provider}
+                    </span>
+                  )}
                 </div>
               </div>
             ))}
+            {isSending && (
+              <div className="flex justify-start">
+                <div className="glass rounded-2xl px-4 py-3 text-sm text-muted-foreground">
+                  Thinking…
+                </div>
+              </div>
+            )}
             <div ref={endRef} />
           </div>
         )}
@@ -99,7 +121,7 @@ function Assistant() {
         {/* Composer */}
         <div className="sticky bottom-24 mx-auto w-full max-w-3xl md:bottom-6">
           <div className="glass flex items-end gap-2 rounded-3xl p-2 shadow-[var(--shadow-elevated)]">
-            <Button variant="ghost" size="icon" className="rounded-full">
+            <Button variant="ghost" size="icon" className="rounded-full" disabled>
               <Plus className="h-4 w-4" />
             </Button>
             <Textarea
@@ -113,24 +135,22 @@ function Assistant() {
               }}
               placeholder="Message NEXORA…"
               rows={1}
+              disabled={isSending}
               className="min-h-10 resize-none border-0 bg-transparent focus-visible:ring-0"
             />
-            <Button variant="ghost" size="icon" className="rounded-full">
+            <Button variant="ghost" size="icon" className="rounded-full" disabled>
               <Mic className="h-4 w-4" />
             </Button>
             <Button
               size="icon"
               className="rounded-full"
               onClick={() => send(input)}
-              disabled={!input.trim()}
+              disabled={!input.trim() || isSending}
+              aria-busy={isSending}
             >
               <Send className="h-4 w-4" />
             </Button>
           </div>
-          <p className="mt-2 text-center text-[10px] text-muted-foreground">
-            <Star className="mr-1 inline h-3 w-3" />
-            History and memory will persist once Cloud is connected.
-          </p>
         </div>
       </div>
     </PageShell>
