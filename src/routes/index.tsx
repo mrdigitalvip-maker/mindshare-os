@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   Sparkles,
@@ -11,6 +12,9 @@ import {
   Shield,
   Globe,
 } from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
+import { useProfile } from "@/hooks/use-profile";
+import { FullPageLoader } from "@/components/full-page-loader";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/")({
@@ -37,6 +41,34 @@ const FEATURES = [
 ];
 
 export default function Landing() {
+  const navigate = Route.useNavigate();
+  const { loading: authLoading, isAuthenticated } = useAuth();
+  const { data: profile, isLoading: profileLoading } = useProfile();
+
+  // If a valid session already exists (e.g. the installed PWA was just
+  // reopened), skip the marketing page entirely instead of asking the
+  // user to sign in again.
+  useEffect(() => {
+    if (authLoading || !isAuthenticated) return;
+    if (profileLoading) return;
+    if (profile && !profile.onboarded) {
+      navigate({ to: "/onboarding", replace: true });
+    } else if (profile?.onboarded) {
+      navigate({ to: "/dashboard", replace: true });
+    }
+  }, [authLoading, isAuthenticated, profileLoading, profile, navigate]);
+
+  // Brief check only — avoids flashing the landing page for someone who's
+  // already logged in. Anonymous visitors clear this almost instantly.
+  if (authLoading || (isAuthenticated && profileLoading)) {
+    return <FullPageLoader />;
+  }
+
+  if (isAuthenticated) {
+    // Redirect effect above is already in flight.
+    return null;
+  }
+
   return (
     <div className="min-h-screen">
       {/* Nav */}
@@ -75,7 +107,7 @@ export default function Landing() {
               <span className="h-1.5 w-1.5 rounded-full bg-gold" />
               Introducing NEXORA
             </span>
-            <h1 className="mt-6 font-display text-5xl leading-[1.05] md:text-7xl">
+            <h1 className="mt-6 font-display text-4xl leading-[1.05] sm:text-5xl md:text-7xl">
               Your Personal <span className="text-gold italic">AI</span>
               <br />
               Operating System
