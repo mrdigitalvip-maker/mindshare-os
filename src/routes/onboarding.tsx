@@ -9,6 +9,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { FullPageLoader } from "@/components/full-page-loader";
 
 export const Route = createFileRoute("/onboarding")({
   ssr: false,
@@ -67,18 +68,6 @@ const INTERESTS = [
   "AI agents",
   "Automation",
 ];
-
-function FullPageLoader() {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div
-        className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-foreground"
-        role="status"
-        aria-label="Loading"
-      />
-    </div>
-  );
-}
 
 function initials(name: string) {
   return (
