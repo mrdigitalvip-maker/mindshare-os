@@ -223,7 +223,7 @@ function Dashboard() {
 
         </div>
 
-      </motion.section>        <div className="mt-10">
+      </motion.section>      <div className="mt-10">
 
         <DashboardSection
           title="Today's Overview"
@@ -380,7 +380,7 @@ function Dashboard() {
 
         </DashboardSection>
 
-      </div>       <div className="mt-12">
+      </div>      <div className="mt-12">
 
         <DashboardSection
           title="Recent Projects"
@@ -593,7 +593,7 @@ function Dashboard() {
 
         </div>
 
-      </div>       <div className="mt-12 grid gap-6 lg:grid-cols-2">
+      </div>      <div className="mt-12 grid gap-6 lg:grid-cols-2">
 
         <DashboardSection
           title="Recent Activity"
