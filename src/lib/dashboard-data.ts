@@ -31,7 +31,7 @@ export type DashboardSuggestion = {
 export type DashboardQuickAction = {
   id: string;
   title: string;
- description: string;
+  description: string;
   icon: LucideIcon;
   path: string;
 };
@@ -224,3 +224,17 @@ export const DASHBOARD_ACTIVITY: DashboardActivity[] = [
     time: "Yesterday",
   },
 ];
+
+/* ---------------------------------------------------------------- */
+/* Compatibility exports (OLD + NEW Dashboard)                      */
+/* ---------------------------------------------------------------- */
+
+export const dashboardStats = DASHBOARD_STATS;
+
+export const aiSuggestions = DASHBOARD_SUGGESTIONS;
+
+export const recentProjects = DASHBOARD_PROJECTS;
+
+export const todayAgenda = DASHBOARD_ACTIVITY;
+
+export const quickActions = DASHBOARD_QUICK_ACTIONS;
