@@ -6,6 +6,8 @@ import { useAuth } from "@/lib/auth-context";
 import { useProfile } from "@/hooks/use-profile";
 import { MODULES } from "@/lib/modules";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { FullPageLoader } from "@/components/full-page-loader";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,16 +24,9 @@ export const Route = createFileRoute("/_shell")({
   component: ShellLayout,
 });
 
-function FullPageLoader() {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div
-        className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-foreground"
-        role="status"
-        aria-label="Loading"
-      />
-    </div>
-  );
+function initials(name?: string | null) {
+  if (!name) return "N";
+  return name.trim()[0]?.toUpperCase() ?? "N";
 }
 
 function ShellLayout() {
@@ -51,8 +46,8 @@ function ShellLayout() {
   }, [authLoading, isAuthenticated, navigate]);
 
   // Guard 2: onboarding must be completed before any protected module is
-  // reachable. This is the single source of truth for that rule — every
-  // route nested under this layout goes through it.
+  // reachable. Single source of truth — every route nested under this
+  // layout goes through it.
   useEffect(() => {
     if (!authLoading && isAuthenticated && !profileLoading && profile && !profile.onboarded) {
       navigate({ to: "/onboarding", replace: true });
@@ -65,6 +60,8 @@ function ShellLayout() {
   if (!ready) {
     return <FullPageLoader />;
   }
+
+  const displayName = profile?.full_name ?? user?.name ?? undefined;
 
   const groups = {
     core: MODULES.filter((m) => m.group === "core"),
@@ -130,62 +127,78 @@ function ShellLayout() {
 
       {/* Main */}
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* Top bar */}
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border bg-background/70 px-4 backdrop-blur md:px-6">
-          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="md:hidden">
-                <Menu className="h-5 w-5" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-72 border-r border-sidebar-border bg-sidebar p-0">
-              {Sidebar}
-            </SheetContent>
-          </Sheet>
+        {/* Top bar — extra top padding accounts for the iOS status bar / notch
+            when the app runs standalone (installed PWA). */}
+        <header
+          className="sticky top-0 z-30 border-b border-border bg-background/70 px-4 backdrop-blur md:px-6"
+          style={{ paddingTop: "env(safe-area-inset-top)" }}
+        >
+          <div className="flex h-16 items-center gap-3">
+            <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="md:hidden">
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-72 border-r border-sidebar-border bg-sidebar p-0">
+                {Sidebar}
+              </SheetContent>
+            </Sheet>
 
-          <button
-            onClick={() => setSearchOpen(true)}
-            className="flex flex-1 items-center gap-2 rounded-full border border-border bg-surface px-4 py-2 text-left text-sm text-muted-foreground transition hover:border-foreground/20 md:max-w-md"
-          >
-            <Search className="h-4 w-4" />
-            <span className="flex-1">Search or ask NEXORA…</span>
-            <kbd className="hidden rounded border border-border bg-background px-1.5 py-0.5 text-[10px] md:inline">
-              ⌘K
-            </kbd>
-          </button>
+            <button
+              onClick={() => setSearchOpen(true)}
+              className="flex flex-1 items-center gap-2 rounded-full border border-border bg-surface px-4 py-2 text-left text-sm text-muted-foreground transition hover:border-foreground/20 md:max-w-md"
+            >
+              <Search className="h-4 w-4" />
+              <span className="flex-1">Search or ask NEXORA…</span>
+              <kbd className="hidden rounded border border-border bg-background px-1.5 py-0.5 text-[10px] md:inline">
+                ⌘K
+              </kbd>
+            </button>
 
-          <div className="ml-auto flex items-center gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="flex h-9 w-9 items-center justify-center rounded-full bg-surface-elevated text-sm font-medium">
-                  {user?.name?.[0]?.toUpperCase() ?? "N"}
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium">{user?.name ?? "Explorer"}</span>
-                    <span className="text-xs font-normal text-muted-foreground">{user?.email}</span>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => navigate({ to: "/settings" })}>
-                  <User className="mr-2 h-4 w-4" /> Profile & settings
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleSignOut}>
-                  <LogOut className="mr-2 h-4 w-4" /> Sign out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <div className="ml-auto flex items-center gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-surface-elevated text-sm font-medium"
+                    aria-label="Account menu"
+                  >
+                    <Avatar className="h-9 w-9">
+                      <AvatarImage src={profile?.avatar_url ?? undefined} alt="" />
+                      <AvatarFallback>{initials(displayName)}</AvatarFallback>
+                    </Avatar>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium">{displayName ?? "Explorer"}</span>
+                      <span className="text-xs font-normal text-muted-foreground">{user?.email}</span>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => navigate({ to: "/settings" })}>
+                    <User className="mr-2 h-4 w-4" /> Profile & settings
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleSignOut}>
+                    <LogOut className="mr-2 h-4 w-4" /> Sign out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </header>
 
-        <main className="flex-1 pb-24 md:pb-6">
+        <main className="flex-1 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-6">
           <Outlet />
         </main>
 
-        {/* Bottom nav (mobile) */}
-        <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-border bg-background/80 backdrop-blur md:hidden">
+        {/* Bottom nav (mobile) — extra bottom padding accounts for the home
+            indicator on notched devices. */}
+        <nav
+          className="fixed bottom-0 left-0 right-0 z-30 border-t border-border bg-background/80 backdrop-blur md:hidden"
+          style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+        >
           <div className="grid grid-cols-5">
             {groups.core.concat(groups.modules.slice(0, 3)).map((m) => {
               const active = pathname.startsWith(m.path);
