@@ -10,7 +10,9 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as ConfirmEmailRouteImport } from './routes/confirm-email'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ShellRouteImport } from './routes/_shell'
 import { Route as IndexRouteImport } from './routes/index'
@@ -32,9 +34,19 @@ const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OnboardingRoute = OnboardingRouteImport.update({
   id: '/onboarding',
   path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConfirmEmailRoute = ConfirmEmailRouteImport.update({
+  id: '/confirm-email',
+  path: '/confirm-email',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -115,7 +127,9 @@ const ShellAgentsRoute = ShellAgentsRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/confirm-email': typeof ConfirmEmailRoute
   '/onboarding': typeof OnboardingRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/agents': typeof ShellAgentsRoute
   '/assistant': typeof ShellAssistantRoute
@@ -133,7 +147,9 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/confirm-email': typeof ConfirmEmailRoute
   '/onboarding': typeof OnboardingRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/agents': typeof ShellAgentsRoute
   '/assistant': typeof ShellAssistantRoute
@@ -153,7 +169,9 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_shell': typeof ShellRouteWithChildren
   '/auth': typeof AuthRoute
+  '/confirm-email': typeof ConfirmEmailRoute
   '/onboarding': typeof OnboardingRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/_shell/agents': typeof ShellAgentsRoute
   '/_shell/assistant': typeof ShellAssistantRoute
@@ -173,7 +191,9 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/confirm-email'
     | '/onboarding'
+    | '/reset-password'
     | '/sitemap.xml'
     | '/agents'
     | '/assistant'
@@ -191,7 +211,9 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/confirm-email'
     | '/onboarding'
+    | '/reset-password'
     | '/sitemap.xml'
     | '/agents'
     | '/assistant'
@@ -210,7 +232,9 @@ export interface FileRouteTypes {
     | '/'
     | '/_shell'
     | '/auth'
+    | '/confirm-email'
     | '/onboarding'
+    | '/reset-password'
     | '/sitemap.xml'
     | '/_shell/agents'
     | '/_shell/assistant'
@@ -230,7 +254,9 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ShellRoute: typeof ShellRouteWithChildren
   AuthRoute: typeof AuthRoute
+  ConfirmEmailRoute: typeof ConfirmEmailRoute
   OnboardingRoute: typeof OnboardingRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
 }
 
@@ -243,11 +269,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/onboarding': {
       id: '/onboarding'
       path: '/onboarding'
       fullPath: '/onboarding'
       preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/confirm-email': {
+      id: '/confirm-email'
+      path: '/confirm-email'
+      fullPath: '/confirm-email'
+      preLoaderRoute: typeof ConfirmEmailRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -394,7 +434,9 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ShellRoute: ShellRouteWithChildren,
   AuthRoute: AuthRoute,
+  ConfirmEmailRoute: ConfirmEmailRoute,
   OnboardingRoute: OnboardingRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
 }
 export const routeTree = rootRouteImport
