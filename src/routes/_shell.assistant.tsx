@@ -1,10 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Sparkles, Send, Mic, Plus, Star } from "lucide-react";
+import { Sparkles, Send, Mic, Plus, Star, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { PageShell } from "@/components/page-shell";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { supabase } from "@/lib/supabase";
 
 export const Route = createFileRoute("/_shell/assistant")({
   head: () => ({ meta: [{ title: "Assistant — NEXORA" }] }),
@@ -23,23 +25,51 @@ const SUGGESTIONS = [
 function Assistant() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
+  const [sending, setSending] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  function send(text: string) {
-    if (!text.trim()) return;
-    const user: Msg = { id: crypto.randomUUID(), role: "user", content: text };
-    const reply: Msg = {
-      id: crypto.randomUUID(),
-      role: "assistant",
-      content:
-        "NEXORA's AI engine will handle this once your model provider is connected. This UI is production-ready and will stream real responses.",
-    };
-    setMessages((m) => [...m, user, reply]);
+  async function send(text: string) {
+    if (!text.trim() || sending) return;
+    const userMsg: Msg = { id: crypto.randomUUID(), role: "user", content: text };
+    const nextHistory = [...messages, userMsg];
+    setMessages(nextHistory);
     setInput("");
+    setSending(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke("ai-chat", {
+        body: {
+          messages: nextHistory.map(({ role, content }) => ({ role, content })),
+        },
+      });
+      if (error) throw error;
+      const content =
+        typeof data?.content === "string" && data.content.trim().length > 0
+          ? data.content
+          : "The assistant returned an empty response.";
+      setMessages((m) => [
+        ...m,
+        { id: crypto.randomUUID(), role: "assistant", content },
+      ]);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Something went wrong";
+      toast.error(message);
+      setMessages((m) => [
+        ...m,
+        {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content:
+            "I couldn't reach the AI service. Please try again in a moment.",
+        },
+      ]);
+    } finally {
+      setSending(false);
+    }
   }
 
   return (
