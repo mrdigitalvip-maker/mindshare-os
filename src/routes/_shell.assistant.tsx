@@ -152,9 +152,13 @@ function Assistant() {
               size="icon"
               className="rounded-full"
               onClick={() => send(input)}
-              disabled={!input.trim()}
+              disabled={!input.trim() || sending}
             >
-              <Send className="h-4 w-4" />
+              {sending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
             </Button>
           </div>
           <p className="mt-2 text-center text-[10px] text-muted-foreground">
