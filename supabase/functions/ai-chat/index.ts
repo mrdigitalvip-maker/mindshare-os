@@ -1,95 +1,97 @@
-// Setup type definitions for built-in Supabase Runtime APIs
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { withSupabase } from "jsr:@supabase/server@^1";
-
-// AI gateway for the NEXORA Assistant.
-// Tries Google AI Studio (Gemini) first, falls back to Grok (xAI) if it
-// fails. Stateless — conversation persistence (ai_conversations/ai_messages)
-// is the frontend's responsibility, done directly against Supabase so RLS
-// stays the single source of truth for who can read/write what.
+// NEXORA Assistant — AI gateway Edge Function.
 //
-// Required secrets (Project Settings → Edge Functions → Secrets):
-//   GOOGLE_AI_API_KEY
-//   XAI_API_KEY
+// Contract (unchanged, so the frontend keeps working):
+//   POST { messages: [{ role: "user"|"assistant"|"system", content: string }] }
+//   ->   { content: string, provider: "gemini" | "grok" }
+//
+// Tries Gemini first, falls back to Grok. On explicit Gemini failure it
+// still tries Grok; if Grok is the only one configured, it is used directly.
+// Every step is logged so failures are visible in `supabase functions logs`.
+
+// deno-lint-ignore-file no-explicit-any
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 interface ChatMessage {
   role: "user" | "assistant" | "system";
   content: string;
 }
 
-interface ReqPayload {
-  messages: ChatMessage[];
+const CORS_HEADERS: Record<string, string> = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
+function json(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json", ...CORS_HEADERS },
+  });
 }
 
-interface ProviderResult {
-  content: string;
-  provider: "gemini" | "grok";
+/** Reads the first env var that is set among the given names. */
+function readEnv(...names: string[]): string | undefined {
+  for (const n of names) {
+    const v = Deno.env.get(n);
+    if (v && v.trim().length > 0) return v.trim();
+  }
+  return undefined;
 }
 
-function isValidPayload(value: unknown): value is ReqPayload {
-  if (!value || typeof value !== "object") return false;
-  const body = value as Record<string, unknown>;
-  if (!Array.isArray(body.messages) || body.messages.length === 0) return false;
-  return body.messages.every(
-    (m) =>
-      m &&
-      typeof m === "object" &&
-      typeof (m as ChatMessage).role === "string" &&
-      typeof (m as ChatMessage).content === "string" &&
-      (m as ChatMessage).content.trim().length > 0,
-  );
-}
-
-/**
- * Calls Google AI Studio (Gemini). Model name is current as of this
- * writing — verify against https://ai.google.dev/gemini-api/docs/models
- * if this ever starts returning 404.
- */
-async function callGemini(messages: ChatMessage[], apiKey: string): Promise<ProviderResult> {
+async function callGemini(
+  messages: ChatMessage[],
+  apiKey: string,
+): Promise<string> {
   const contents = messages
     .filter((m) => m.role !== "system")
     .map((m) => ({
       role: m.role === "assistant" ? "model" : "user",
       parts: [{ text: m.content }],
     }));
-
   const systemInstruction = messages.find((m) => m.role === "system")?.content;
 
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents,
-        ...(systemInstruction
-          ? { systemInstruction: { parts: [{ text: systemInstruction }] } }
-          : {}),
-      }),
-    },
-  );
+  const endpoint =
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+  console.log("[ai-chat] -> Gemini", endpoint);
 
-  if (!res.ok) {
-    const errText = await res.text().catch(() => "");
-    throw new Error(`Gemini request failed (${res.status}): ${errText}`);
+  const res = await fetch(`${endpoint}?key=${apiKey}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents,
+      ...(systemInstruction
+        ? { systemInstruction: { parts: [{ text: systemInstruction }] } }
+        : {}),
+    }),
+  });
+
+  const raw = await res.text();
+  console.log("[ai-chat] Gemini status", res.status, "body", raw.slice(0, 400));
+
+  if (!res.ok) throw new Error(`Gemini ${res.status}: ${raw.slice(0, 300)}`);
+
+  let data: any;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    throw new Error("Gemini returned non-JSON response");
   }
-
-  const data = await res.json();
   const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
   if (typeof text !== "string" || !text.trim()) {
     throw new Error("Gemini returned an empty response");
   }
-
-  return { content: text, provider: "gemini" };
+  return text;
 }
 
-/**
- * Calls Grok (xAI) via its OpenAI-compatible endpoint. Model name is
- * current as of this writing — verify against https://docs.x.ai if this
- * ever starts returning 404.
- */
-async function callGrok(messages: ChatMessage[], apiKey: string): Promise<ProviderResult> {
-  const res = await fetch("https://api.x.ai/v1/chat/completions", {
+async function callGrok(
+  messages: ChatMessage[],
+  apiKey: string,
+): Promise<string> {
+  const endpoint = "https://api.x.ai/v1/chat/completions";
+  console.log("[ai-chat] -> Grok", endpoint);
+
+  const res = await fetch(endpoint, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -101,71 +103,111 @@ async function callGrok(messages: ChatMessage[], apiKey: string): Promise<Provid
     }),
   });
 
-  if (!res.ok) {
-    const errText = await res.text().catch(() => "");
-    throw new Error(`Grok request failed (${res.status}): ${errText}`);
-  }
+  const raw = await res.text();
+  console.log("[ai-chat] Grok status", res.status, "body", raw.slice(0, 400));
 
-  const data = await res.json();
+  if (!res.ok) throw new Error(`Grok ${res.status}: ${raw.slice(0, 300)}`);
+
+  let data: any;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    throw new Error("Grok returned non-JSON response");
+  }
   const text = data?.choices?.[0]?.message?.content;
   if (typeof text !== "string" || !text.trim()) {
     throw new Error("Grok returned an empty response");
   }
-
-  return { content: text, provider: "grok" };
+  return text;
 }
 
-console.info("ai-chat function started");
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: CORS_HEADERS });
+  }
+  if (req.method !== "POST") {
+    return json({ error: "Method not allowed" }, 405);
+  }
 
-export default {
-  // auth: "user" requires a valid end-user JWT (the logged-in NEXORA
-  // session). withSupabase validates it, builds an RLS-scoped
-  // ctx.supabase, and handles CORS — none of that is done by hand here.
-  fetch: withSupabase({ auth: "user" }, async (req, ctx) => {
-    let payload: unknown;
-    try {
-      payload = await req.json();
-    } catch {
-      return Response.json({ error: "Invalid JSON body" }, { status: 400 });
-    }
+  console.log("[ai-chat] request received");
 
-    if (!isValidPayload(payload)) {
-      return Response.json(
-        { error: "Body must include a non-empty `messages` array" },
-        { status: 400 },
-      );
-    }
+  let payload: { messages?: ChatMessage[] };
+  try {
+    payload = await req.json();
+  } catch {
+    return json({ error: "Invalid JSON body" }, 400);
+  }
 
-    const googleKey = Deno.env.get("GOOGLE_AI_API_KEY");
-    const xaiKey = Deno.env.get("XAI_API_KEY");
-
-    if (!googleKey && !xaiKey) {
-      return Response.json({ error: "No AI provider configured" }, { status: 500 });
-    }
-
-    const errors: string[] = [];
-
-    if (googleKey) {
-      try {
-        const result = await callGemini(payload.messages, googleKey);
-        return Response.json(result);
-      } catch (err) {
-        errors.push(err instanceof Error ? err.message : "Unknown Gemini error");
-      }
-    }
-
-    if (xaiKey) {
-      try {
-        const result = await callGrok(payload.messages, xaiKey);
-        return Response.json(result);
-      } catch (err) {
-        errors.push(err instanceof Error ? err.message : "Unknown Grok error");
-      }
-    }
-
-    return Response.json(
-      { error: "All AI providers failed", details: errors },
-      { status: 502 },
+  const messages = Array.isArray(payload?.messages) ? payload.messages : [];
+  const valid =
+    messages.length > 0 &&
+    messages.every(
+      (m) =>
+        m &&
+        typeof m.role === "string" &&
+        typeof m.content === "string" &&
+        m.content.trim().length > 0,
     );
-  }),
-};
+  if (!valid) {
+    return json(
+      { error: "Body must include a non-empty `messages` array" },
+      400,
+    );
+  }
+
+  // Support several possible secret names so whichever the user configured
+  // works out of the box.
+  const geminiKey = readEnv(
+    "GOOGLE_AI_API_KEY",
+    "GOOGLE_API_KEY",
+    "GEMINI_API_KEY",
+  );
+  const grokKey = readEnv("XAI_API_KEY", "GROK_API_KEY");
+
+  console.log(
+    "[ai-chat] keys present -> gemini:",
+    !!geminiKey,
+    "grok:",
+    !!grokKey,
+  );
+
+  if (!geminiKey && !grokKey) {
+    return json(
+      {
+        error:
+          "No AI provider configured. Set GOOGLE_AI_API_KEY and/or XAI_API_KEY in Edge Function secrets.",
+      },
+      500,
+    );
+  }
+
+  const errors: string[] = [];
+
+  // Try Gemini first, then Grok. If Gemini isn't configured, go straight to Grok.
+  if (geminiKey) {
+    try {
+      const content = await callGemini(messages, geminiKey);
+      return json({ content, provider: "gemini" });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[ai-chat] Gemini failed:", msg);
+      errors.push(`gemini: ${msg}`);
+    }
+  }
+
+  if (grokKey) {
+    try {
+      const content = await callGrok(messages, grokKey);
+      return json({ content, provider: "grok" });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[ai-chat] Grok failed:", msg);
+      errors.push(`grok: ${msg}`);
+    }
+  }
+
+  return json(
+    { error: "All AI providers failed", details: errors },
+    502,
+  );
+});
