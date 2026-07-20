@@ -1,19 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Sparkles, Send, Mic, Plus, Star, Loader2 } from "lucide-react";
+import { Sparkles, Send, Mic, Plus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { PageShell } from "@/components/page-shell";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { supabase } from "@/lib/supabase";
+import { useChat, type ChatMessage } from "@/hooks/use-chat";
 
 export const Route = createFileRoute("/_shell/assistant")({
   head: () => ({ meta: [{ title: "Assistant — NEXORA" }] }),
   component: Assistant,
 });
-
-type Msg = { id: string; role: "user" | "assistant"; content: string };
 
 const SUGGESTIONS = [
   "Plan my week around 3 focus goals",
@@ -23,37 +21,38 @@ const SUGGESTIONS = [
 ];
 
 function Assistant() {
-  const [messages, setMessages] = useState<Msg[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
-  const [sending, setSending] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
+  const { sendMessage, isSending } = useChat();
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   async function send(text: string) {
-    if (!text.trim() || sending) return;
-    const userMsg: Msg = { id: crypto.randomUUID(), role: "user", content: text };
-    const nextHistory = [...messages, userMsg];
-    setMessages(nextHistory);
+    if (!text.trim() || isSending) return;
+
+    const optimisticUser: ChatMessage = {
+      id: crypto.randomUUID(),
+      role: "user",
+      content: text,
+    };
+    const historyBeforeSend = messages;
+    setMessages((m) => [...m, optimisticUser]);
     setInput("");
-    setSending(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke("ai-chat", {
-        body: {
-          messages: nextHistory.map(({ role, content }) => ({ role, content })),
-        },
+      const { userMessage, assistantMessage } = await sendMessage({
+        content: text,
+        history: historyBeforeSend,
       });
-      if (error) throw error;
-      const content =
-        typeof data?.content === "string" && data.content.trim().length > 0
-          ? data.content
-          : "The assistant returned an empty response.";
+      // Replace the optimistic user message with the persisted one (real
+      // id from the database) and append the assistant's reply.
       setMessages((m) => [
-        ...m,
-        { id: crypto.randomUUID(), role: "assistant", content },
+        ...m.filter((msg) => msg.id !== optimisticUser.id),
+        userMessage,
+        assistantMessage,
       ]);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Something went wrong";
@@ -63,12 +62,9 @@ function Assistant() {
         {
           id: crypto.randomUUID(),
           role: "assistant",
-          content:
-            "I couldn't reach the AI service. Please try again in a moment.",
+          content: "I couldn't reach the AI service. Please try again in a moment.",
         },
       ]);
-    } finally {
-      setSending(false);
     }
   }
 
@@ -97,7 +93,8 @@ function Assistant() {
                 <button
                   key={s}
                   onClick={() => send(s)}
-                  className="glass rounded-xl p-4 text-left text-sm transition hover:border-[color:var(--gold)]/40"
+                  disabled={isSending}
+                  className="glass rounded-xl p-4 text-left text-sm transition hover:border-[color:var(--gold)]/40 disabled:opacity-50"
                 >
                   {s}
                 </button>
@@ -129,7 +126,7 @@ function Assistant() {
         {/* Composer */}
         <div className="sticky bottom-24 mx-auto w-full max-w-3xl md:bottom-6">
           <div className="glass flex items-end gap-2 rounded-3xl p-2 shadow-[var(--shadow-elevated)]">
-            <Button variant="ghost" size="icon" className="rounded-full">
+            <Button variant="ghost" size="icon" className="rounded-full" disabled>
               <Plus className="h-4 w-4" />
             </Button>
             <Textarea
@@ -143,28 +140,26 @@ function Assistant() {
               }}
               placeholder="Message NEXORA…"
               rows={1}
+              disabled={isSending}
               className="min-h-10 resize-none border-0 bg-transparent focus-visible:ring-0"
             />
-            <Button variant="ghost" size="icon" className="rounded-full">
+            <Button variant="ghost" size="icon" className="rounded-full" disabled>
               <Mic className="h-4 w-4" />
             </Button>
             <Button
               size="icon"
               className="rounded-full"
               onClick={() => send(input)}
-              disabled={!input.trim() || sending}
+              disabled={!input.trim() || isSending}
+              aria-busy={isSending}
             >
-              {sending ? (
+              {isSending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <Send className="h-4 w-4" />
               )}
             </Button>
           </div>
-          <p className="mt-2 text-center text-[10px] text-muted-foreground">
-            <Star className="mr-1 inline h-3 w-3" />
-            History and memory will persist once Cloud is connected.
-          </p>
         </div>
       </div>
     </PageShell>
