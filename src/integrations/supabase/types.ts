@@ -79,6 +79,7 @@ export type Database = {
         Row: {
           id: string;
           user_id: string;
+          title: string | null;
           model: string | null;
           created_at: string | null;
           updated_at: string | null;
@@ -87,6 +88,38 @@ export type Database = {
           id?: string;
         };
         Update: Partial<Database["public"]["Tables"]["ai_conversations"]["Row"]>;
+      };
+      ai_messages: {
+        Row: {
+          id: string;
+          conversation_id: string;
+          role: string | null;
+          content: string | null;
+          tokens: number | null;
+          created_at: string | null;
+        };
+        Insert: Partial<Omit<Database["public"]["Tables"]["ai_messages"]["Row"], "id">> & {
+          id?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["ai_messages"]["Row"]>;
+      };
+      subscriptions: {
+        Row: {
+          id: string;
+          user_id: string;
+          stripe_customer_id: string | null;
+          stripe_subscription_id: string | null;
+          status: string | null;
+          price_id: string | null;
+          cancel_at_period_end: boolean | null;
+          current_period_end: string | null;
+          created_at: string | null;
+          updated_at: string | null;
+        };
+        Insert: Partial<Omit<Database["public"]["Tables"]["subscriptions"]["Row"], "id">> & {
+          id?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["subscriptions"]["Row"]>;
       };
       notifications: {
         Row: {

@@ -24,7 +24,27 @@ function Assistant() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
-  const { sendMessage, isSending } = useChat();
+  const { sendMessage, isSending, loadConversationHistory } = useChat();
+
+  useEffect(() => {
+    let cancelled = false;
+
+    loadConversationHistory()
+      .then((history) => {
+        if (!cancelled) {
+          setMessages(history);
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          toast.error(error instanceof Error ? error.message : "Failed to load conversation history");
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [loadConversationHistory]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });

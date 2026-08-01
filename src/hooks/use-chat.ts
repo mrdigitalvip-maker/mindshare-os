@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useCallback, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
@@ -36,6 +36,18 @@ async function ensureConversation(userId: string, existingId: string | null): Pr
   return data.id as string;
 }
 
+function normalizeChatMessage(message: {
+  id: string;
+  role: string | null;
+  content: string | null;
+}): ChatMessage {
+  return {
+    id: message.id,
+    role: message.role === "assistant" ? "assistant" : "user",
+    content: message.content ?? "",
+  };
+}
+
 /**
  * Handles a single-conversation Assistant chat: lazily creates the
  * `ai_conversations` row on the first message, persists every user and
@@ -49,6 +61,33 @@ async function ensureConversation(userId: string, existingId: string | null): Pr
 export function useChat() {
   const { user } = useAuth();
   const conversationIdRef = useRef<string | null>(null);
+
+  const loadConversationHistory = useCallback(async (): Promise<ChatMessage[]> => {
+    if (!user) return [];
+
+    const { data: latestConversation, error: conversationError } = await supabase
+      .from("ai_conversations")
+      .select("id")
+      .eq("user_id", user.id)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (conversationError) throw conversationError;
+    if (!latestConversation?.id) return [];
+
+    conversationIdRef.current = latestConversation.id;
+
+    const { data: rows, error: historyError } = await supabase
+      .from("ai_messages")
+      .select("id, role, content")
+      .eq("conversation_id", latestConversation.id)
+      .order("created_at", { ascending: true });
+
+    if (historyError) throw historyError;
+
+    return (rows ?? []).map(normalizeChatMessage);
+  }, [user]);
 
   const mutation = useMutation({
     mutationFn: async ({ content, history }: SendMessageInput): Promise<SendMessageResult> => {
@@ -106,5 +145,6 @@ export function useChat() {
   return {
     sendMessage: mutation.mutateAsync,
     isSending: mutation.isPending,
+    loadConversationHistory,
   };
 }

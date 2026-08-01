@@ -1,7 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useState } from "react";
 import { Crown, Check, Sparkles } from "lucide-react";
+import { toast } from "sonner";
 import { PageShell, PageHeader } from "@/components/page-shell";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/lib/supabase";
+import { useSubscription } from "@/hooks/use-subscription";
 
 export const Route = createFileRoute("/_shell/premium")({
   head: () => ({ meta: [{ title: "Premium — NEXORA" }] }),
@@ -19,6 +23,24 @@ const PRO = [
 ];
 
 function Premium() {
+  const [checkingOut, setCheckingOut] = useState(false);
+  const { data: subscription } = useSubscription();
+
+  async function startCheckout() {
+    setCheckingOut(true);
+    try {
+      const { data, error } = await supabase.functions.invoke<{ url: string }>("create-checkout-session");
+      if (error) throw error;
+      if (!data?.url) throw new Error("No checkout URL returned by the Stripe edge function.");
+      window.location.assign(data.url);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to start checkout.";
+      toast.error(message);
+    } finally {
+      setCheckingOut(false);
+    }
+  }
+
   return (
     <PageShell>
       <PageHeader
@@ -26,6 +48,9 @@ function Premium() {
         title="Choose your NEXORA"
         description="Free forever. Upgrade to Pro when you're ready to go deeper."
       />
+      <div className="mt-4 text-sm text-muted-foreground">
+        Current status: <span className="font-medium text-foreground">{subscription?.isPremium ? "Premium" : "Free"}</span>
+      </div>
       <div className="mt-10 grid gap-6 md:grid-cols-2">
         <Card
           badge="Current"
@@ -43,14 +68,20 @@ function Premium() {
           period="per month"
           features={PRO}
           cta={
-            <Button className="rounded-full" disabled title="Payments unlock when Cloud is connected">
-              <Crown className="mr-1 h-4 w-4" /> Upgrade to Pro
+            <Button
+              className="rounded-full"
+              onClick={startCheckout}
+              disabled={checkingOut || subscription?.isPremium}
+              title="Start a Stripe checkout session"
+            >
+              <Crown className="mr-1 h-4 w-4" />
+              {checkingOut ? "Starting checkout..." : subscription?.isPremium ? "Premium active" : "Upgrade to Pro"}
             </Button>
           }
         />
       </div>
       <p className="mt-6 text-center text-xs text-muted-foreground">
-        Payments will activate through Stripe and Google Play Billing once Cloud is connected.
+        Stripe checkout is wired through the public edge function and will redirect back to the Premium route.
       </p>
     </PageShell>
   );
