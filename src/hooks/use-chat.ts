@@ -2,6 +2,7 @@ import { useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
+import { sendAiChat, type AiMessage } from "@/lib/ai-service";
 
 export type ChatRole = "user" | "assistant";
 
@@ -19,7 +20,7 @@ interface SendMessageInput {
 interface SendMessageResult {
   userMessage: ChatMessage;
   assistantMessage: ChatMessage;
-  provider: "gemini" | "grok";
+  provider: "openai";
 }
 
 async function ensureConversation(userId: string, existingId: string | null): Promise<string> {
@@ -39,7 +40,7 @@ async function ensureConversation(userId: string, existingId: string | null): Pr
  * Handles a single-conversation Assistant chat: lazily creates the
  * `ai_conversations` row on the first message, persists every user and
  * assistant message to `ai_messages`, and calls the `ai-chat` Edge
- * Function for the model response (Gemini, falling back to Grok).
+ * Function for the model response using OpenAI GPT-5.
  *
  * Schema note: `ai_messages` has no per-message provider column — which
  * model answered is tracked at the conversation level, in
@@ -63,18 +64,14 @@ export function useChat() {
         .single();
       if (userInsertError) throw userInsertError;
 
-      const payloadMessages = [...history, { role: "user" as const, content }].map((m) => ({
-        role: m.role,
-        content: m.content,
-      }));
+      const payloadMessages: AiMessage[] = [...history, { role: "user", content }].map(
+        (message) => ({
+          role: message.role === "assistant" ? "assistant" : "user",
+          content: message.content,
+        }),
+      );
 
-      const { data: aiData, error: aiError } = await supabase.functions.invoke<{
-        content: string;
-        provider: "gemini" | "grok";
-      }>("ai-chat", { body: { messages: payloadMessages } });
-
-      if (aiError) throw aiError;
-      if (!aiData) throw new Error("Empty response from the assistant");
+      const aiData = await sendAiChat(payloadMessages);
 
       const { data: assistantRow, error: assistantInsertError } = await supabase
         .from("ai_messages")
