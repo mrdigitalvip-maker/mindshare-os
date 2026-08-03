@@ -9,48 +9,29 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as ShellRouteImport } from './routes/_shell'
-import { Route as AuthRouteImport } from './routes/auth'
-import { Route as ConfirmEmailRouteImport } from './routes/confirm-email'
-import { Route as OnboardingRouteImport } from './routes/onboarding'
-import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
-import { Route as ShellAgentsRouteImport } from './routes/_shell.agents'
-import { Route as ShellAssistantRouteImport } from './routes/_shell.assistant'
-import { Route as ShellContentRouteImport } from './routes/_shell.content'
-import { Route as ShellDashboardRouteImport } from './routes/_shell.dashboard'
-import { Route as ShellDocumentsRouteImport } from './routes/_shell.documents'
-import { Route as ShellFinanceRouteImport } from './routes/_shell.finance'
-import { Route as ShellPremiumRouteImport } from './routes/_shell.premium'
-import { Route as ShellProductivityRouteImport } from './routes/_shell.productivity'
-import { Route as ShellProjectsRouteImport } from './routes/_shell.projects'
-import { Route as ShellSettingsRouteImport } from './routes/_shell.settings'
-import { Route as ShellStudiesRouteImport } from './routes/_shell.studies'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as ConfirmEmailRouteImport } from './routes/confirm-email'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as ShellRouteImport } from './routes/_shell'
+import { Route as IndexRouteImport } from './routes/index'
 import { Route as ShellTranslateRouteImport } from './routes/_shell.translate'
+import { Route as ShellStudiesRouteImport } from './routes/_shell.studies'
+import { Route as ShellSettingsRouteImport } from './routes/_shell.settings'
+import { Route as ShellProjectsRouteImport } from './routes/_shell.projects'
+import { Route as ShellProductivityRouteImport } from './routes/_shell.productivity'
+import { Route as ShellPremiumRouteImport } from './routes/_shell.premium'
+import { Route as ShellFinanceRouteImport } from './routes/_shell.finance'
+import { Route as ShellDocumentsRouteImport } from './routes/_shell.documents'
+import { Route as ShellDashboardRouteImport } from './routes/_shell.dashboard'
+import { Route as ShellContentRouteImport } from './routes/_shell.content'
+import { Route as ShellAssistantRouteImport } from './routes/_shell.assistant'
+import { Route as ShellAgentsRouteImport } from './routes/_shell.agents'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ShellRoute = ShellRouteImport.update({
-  id: '/_shell',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthRoute = AuthRouteImport.update({
-  id: '/auth',
-  path: '/auth',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ConfirmEmailRoute = ConfirmEmailRouteImport.update({
-  id: '/confirm-email',
-  path: '/confirm-email',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const OnboardingRoute = OnboardingRouteImport.update({
-  id: '/onboarding',
-  path: '/onboarding',
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
@@ -58,59 +39,33 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
   path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
-  id: '/sitemap.xml',
-  path: '/sitemap.xml',
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ShellAgentsRoute = ShellAgentsRouteImport.update({
-  id: '/agents',
-  path: '/agents',
-  getParentRoute: () => ShellRoute,
+const ConfirmEmailRoute = ConfirmEmailRouteImport.update({
+  id: '/confirm-email',
+  path: '/confirm-email',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const ShellAssistantRoute = ShellAssistantRouteImport.update({
-  id: '/assistant',
-  path: '/assistant',
-  getParentRoute: () => ShellRoute,
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const ShellContentRoute = ShellContentRouteImport.update({
-  id: '/content',
-  path: '/content',
-  getParentRoute: () => ShellRoute,
+const ShellRoute = ShellRouteImport.update({
+  id: '/_shell',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const ShellDashboardRoute = ShellDashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => ShellRoute,
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const ShellDocumentsRoute = ShellDocumentsRouteImport.update({
-  id: '/documents',
-  path: '/documents',
-  getParentRoute: () => ShellRoute,
-} as any)
-const ShellFinanceRoute = ShellFinanceRouteImport.update({
-  id: '/finance',
-  path: '/finance',
-  getParentRoute: () => ShellRoute,
-} as any)
-const ShellPremiumRoute = ShellPremiumRouteImport.update({
-  id: '/premium',
-  path: '/premium',
-  getParentRoute: () => ShellRoute,
-} as any)
-const ShellProductivityRoute = ShellProductivityRouteImport.update({
-  id: '/productivity',
-  path: '/productivity',
-  getParentRoute: () => ShellRoute,
-} as any)
-const ShellProjectsRoute = ShellProjectsRouteImport.update({
-  id: '/projects',
-  path: '/projects',
-  getParentRoute: () => ShellRoute,
-} as any)
-const ShellSettingsRoute = ShellSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
+const ShellTranslateRoute = ShellTranslateRouteImport.update({
+  id: '/translate',
+  path: '/translate',
   getParentRoute: () => ShellRoute,
 } as any)
 const ShellStudiesRoute = ShellStudiesRouteImport.update({
@@ -118,9 +73,54 @@ const ShellStudiesRoute = ShellStudiesRouteImport.update({
   path: '/studies',
   getParentRoute: () => ShellRoute,
 } as any)
-const ShellTranslateRoute = ShellTranslateRouteImport.update({
-  id: '/translate',
-  path: '/translate',
+const ShellSettingsRoute = ShellSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellProjectsRoute = ShellProjectsRouteImport.update({
+  id: '/projects',
+  path: '/projects',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellProductivityRoute = ShellProductivityRouteImport.update({
+  id: '/productivity',
+  path: '/productivity',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellPremiumRoute = ShellPremiumRouteImport.update({
+  id: '/premium',
+  path: '/premium',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellFinanceRoute = ShellFinanceRouteImport.update({
+  id: '/finance',
+  path: '/finance',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellDocumentsRoute = ShellDocumentsRouteImport.update({
+  id: '/documents',
+  path: '/documents',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellDashboardRoute = ShellDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellContentRoute = ShellContentRouteImport.update({
+  id: '/content',
+  path: '/content',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellAssistantRoute = ShellAssistantRouteImport.update({
+  id: '/assistant',
+  path: '/assistant',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellAgentsRoute = ShellAgentsRouteImport.update({
+  id: '/agents',
+  path: '/agents',
   getParentRoute: () => ShellRoute,
 } as any)
 
@@ -262,39 +262,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_shell': {
-      id: '/_shell'
-      path: ''
-      fullPath: '/'
-      preLoaderRoute: typeof ShellRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth': {
-      id: '/auth'
-      path: '/auth'
-      fullPath: '/auth'
-      preLoaderRoute: typeof AuthRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/confirm-email': {
-      id: '/confirm-email'
-      path: '/confirm-email'
-      fullPath: '/confirm-email'
-      preLoaderRoute: typeof ConfirmEmailRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/onboarding': {
-      id: '/onboarding'
-      path: '/onboarding'
-      fullPath: '/onboarding'
-      preLoaderRoute: typeof OnboardingRouteImport
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reset-password': {
@@ -304,81 +276,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/sitemap.xml': {
-      id: '/sitemap.xml'
-      path: '/sitemap.xml'
-      fullPath: '/sitemap.xml'
-      preLoaderRoute: typeof SitemapDotxmlRouteImport
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_shell/agents': {
-      id: '/_shell/agents'
-      path: '/agents'
-      fullPath: '/agents'
-      preLoaderRoute: typeof ShellAgentsRouteImport
-      parentRoute: typeof ShellRoute
+    '/confirm-email': {
+      id: '/confirm-email'
+      path: '/confirm-email'
+      fullPath: '/confirm-email'
+      preLoaderRoute: typeof ConfirmEmailRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_shell/assistant': {
-      id: '/_shell/assistant'
-      path: '/assistant'
-      fullPath: '/assistant'
-      preLoaderRoute: typeof ShellAssistantRouteImport
-      parentRoute: typeof ShellRoute
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_shell/content': {
-      id: '/_shell/content'
-      path: '/content'
-      fullPath: '/content'
-      preLoaderRoute: typeof ShellContentRouteImport
-      parentRoute: typeof ShellRoute
+    '/_shell': {
+      id: '/_shell'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof ShellRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_shell/dashboard': {
-      id: '/_shell/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof ShellDashboardRouteImport
-      parentRoute: typeof ShellRoute
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_shell/documents': {
-      id: '/_shell/documents'
-      path: '/documents'
-      fullPath: '/documents'
-      preLoaderRoute: typeof ShellDocumentsRouteImport
-      parentRoute: typeof ShellRoute
-    }
-    '/_shell/finance': {
-      id: '/_shell/finance'
-      path: '/finance'
-      fullPath: '/finance'
-      preLoaderRoute: typeof ShellFinanceRouteImport
-      parentRoute: typeof ShellRoute
-    }
-    '/_shell/premium': {
-      id: '/_shell/premium'
-      path: '/premium'
-      fullPath: '/premium'
-      preLoaderRoute: typeof ShellPremiumRouteImport
-      parentRoute: typeof ShellRoute
-    }
-    '/_shell/productivity': {
-      id: '/_shell/productivity'
-      path: '/productivity'
-      fullPath: '/productivity'
-      preLoaderRoute: typeof ShellProductivityRouteImport
-      parentRoute: typeof ShellRoute
-    }
-    '/_shell/projects': {
-      id: '/_shell/projects'
-      path: '/projects'
-      fullPath: '/projects'
-      preLoaderRoute: typeof ShellProjectsRouteImport
-      parentRoute: typeof ShellRoute
-    }
-    '/_shell/settings': {
-      id: '/_shell/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof ShellSettingsRouteImport
+    '/_shell/translate': {
+      id: '/_shell/translate'
+      path: '/translate'
+      fullPath: '/translate'
+      preLoaderRoute: typeof ShellTranslateRouteImport
       parentRoute: typeof ShellRoute
     }
     '/_shell/studies': {
@@ -388,11 +325,74 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShellStudiesRouteImport
       parentRoute: typeof ShellRoute
     }
-    '/_shell/translate': {
-      id: '/_shell/translate'
-      path: '/translate'
-      fullPath: '/translate'
-      preLoaderRoute: typeof ShellTranslateRouteImport
+    '/_shell/settings': {
+      id: '/_shell/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof ShellSettingsRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/projects': {
+      id: '/_shell/projects'
+      path: '/projects'
+      fullPath: '/projects'
+      preLoaderRoute: typeof ShellProjectsRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/productivity': {
+      id: '/_shell/productivity'
+      path: '/productivity'
+      fullPath: '/productivity'
+      preLoaderRoute: typeof ShellProductivityRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/premium': {
+      id: '/_shell/premium'
+      path: '/premium'
+      fullPath: '/premium'
+      preLoaderRoute: typeof ShellPremiumRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/finance': {
+      id: '/_shell/finance'
+      path: '/finance'
+      fullPath: '/finance'
+      preLoaderRoute: typeof ShellFinanceRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/documents': {
+      id: '/_shell/documents'
+      path: '/documents'
+      fullPath: '/documents'
+      preLoaderRoute: typeof ShellDocumentsRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/dashboard': {
+      id: '/_shell/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof ShellDashboardRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/content': {
+      id: '/_shell/content'
+      path: '/content'
+      fullPath: '/content'
+      preLoaderRoute: typeof ShellContentRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/assistant': {
+      id: '/_shell/assistant'
+      path: '/assistant'
+      fullPath: '/assistant'
+      preLoaderRoute: typeof ShellAssistantRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/agents': {
+      id: '/_shell/agents'
+      path: '/agents'
+      fullPath: '/agents'
+      preLoaderRoute: typeof ShellAgentsRouteImport
       parentRoute: typeof ShellRoute
     }
   }
@@ -442,13 +442,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

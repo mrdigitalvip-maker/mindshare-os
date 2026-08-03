@@ -48,10 +48,10 @@ Deno.serve(async (req) => {
     );
   }
 
-  const stripePriceId = Deno.env.get("STRIPE_PRICE_ID");
+  const stripePriceId = Deno.env.get("STRIPE_PRICE_MONTHLY");
   if (!stripePriceId) {
     return Response.json(
-      { error: "Missing STRIPE_PRICE_ID edge secret. Confirm the real Stripe Price ID manually." },
+      { error: "Missing STRIPE_PRICE_MONTHLY edge secret." },
       { status: 500, headers: CORS_HEADERS },
     );
   }
@@ -64,30 +64,50 @@ Deno.serve(async (req) => {
     );
   }
 
-  const stripe = new Stripe(stripeSecretKey, {
-    apiVersion: "2025-02-24.acacia",
-  });
+  const stripe = new Stripe(stripeSecretKey);
 
-  const session = await stripe.checkout.sessions.create({
-    mode: "subscription",
-    line_items: [{ price: stripePriceId, quantity: 1 }],
-    customer_email: user.email ?? undefined,
-    client_reference_id: user.id,
-    metadata: {
-      user_id: user.id,
-      plan: "pro",
-    },
-    success_url: `${appUrl}/premium?checkout=success`,
-    cancel_url: `${appUrl}/premium?checkout=cancelled`,
-    allow_promotion_codes: true,
-  });
+  try {
+    const session = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      line_items: [{ price: stripePriceId, quantity: 1 }],
+      customer_email: user.email ?? undefined,
+      client_reference_id: user.id,
+      metadata: {
+        user_id: user.id,
+        plan: "pro",
+      },
+      subscription_data: {
+        metadata: {
+          user_id: user.id,
+          plan: "pro",
+        },
+      },
+      success_url: `${appUrl}/premium?checkout=success`,
+      cancel_url: `${appUrl}/premium?checkout=cancelled`,
+      allow_promotion_codes: true,
+    });
 
-  if (!session.url) {
+    if (!session.url) {
+      return Response.json(
+        { error: "Stripe checkout session was created without a redirect URL" },
+        { status: 502, headers: CORS_HEADERS },
+      );
+    }
+
+    return Response.json({ url: session.url }, { headers: CORS_HEADERS });
+  } catch (error) {
+    const err = error as { message?: string; type?: string; code?: string; statusCode?: number };
+    console.error("[create-checkout-session] Stripe error", {
+      type: err?.type,
+      code: err?.code,
+      message: err?.message,
+    });
     return Response.json(
-      { error: "Stripe checkout session was created without a redirect URL" },
-      { status: 502, headers: CORS_HEADERS },
+      {
+        error: err?.message ?? "Stripe checkout session creation failed",
+        stripe: { type: err?.type ?? null, code: err?.code ?? null },
+      },
+      { status: err?.statusCode && err.statusCode < 500 ? 400 : 502, headers: CORS_HEADERS },
     );
   }
-
-  return Response.json({ url: session.url }, { headers: CORS_HEADERS });
 });
