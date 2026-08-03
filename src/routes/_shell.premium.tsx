@@ -6,6 +6,8 @@ import { PageShell, PageHeader } from "@/components/page-shell";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
 import { useSubscription } from "@/hooks/use-subscription";
+import { DEMO_MODE } from "@/lib/demo/config";
+
 
 export const Route = createFileRoute("/_shell/premium")({
   head: () => ({ meta: [{ title: "Premium — NEXORA" }] }),
