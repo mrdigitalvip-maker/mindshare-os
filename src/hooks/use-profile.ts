@@ -132,18 +132,24 @@ export async function uploadAvatar(
   const ext = file.name.split(".").pop() ?? "jpg";
   const path = `${userId}/avatar-${Date.now()}.${ext}`;
 
-  const { error } = await supabase.storage
-    .from("avatars")
-    .upload(path, file, {
-      upsert: true,
-      cacheControl: "3600",
-    });
+  return withDemoFallback(
+    async () => {
+      const { error } = await supabase.storage
+        .from("avatars")
+        .upload(path, file, {
+          upsert: true,
+          cacheControl: "3600",
+        });
 
-  if (error) throw error;
+      if (error) throw error;
 
-  const { data } = supabase.storage
-    .from("avatars")
-    .getPublicUrl(path);
+      const { data } = supabase.storage.from("avatars").getPublicUrl(path);
 
-  return data.publicUrl;
+      return data.publicUrl;
+    },
+    // Local preview URL keeps the avatar flow usable without Storage.
+    () => (typeof URL !== "undefined" ? URL.createObjectURL(file) : ""),
+    "avatar upload",
+  );
 }
+
