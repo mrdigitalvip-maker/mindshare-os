@@ -1,6 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
+import { withDemoFallback } from "@/lib/demo/fallback";
+import { demoProfile } from "@/lib/demo/demo-data";
+
 
 export interface Profile {
   id: string;
