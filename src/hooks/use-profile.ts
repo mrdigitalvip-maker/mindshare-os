@@ -42,6 +42,15 @@ function profileQueryKey(userId?: string) {
   return ["profile", userId] as const;
 }
 
+function buildDemoProfile(userId?: string, name?: string, email?: string): Profile {
+  return {
+    ...demoProfile,
+    id: userId ?? demoProfile.id,
+    full_name: name ?? demoProfile.full_name,
+    username: email?.split("@")[0] ?? demoProfile.username,
+  } as Profile;
+}
+
 export function useProfile() {
   const { user, isAuthenticated } = useAuth();
 
@@ -49,19 +58,26 @@ export function useProfile() {
     queryKey: profileQueryKey(user?.id),
     enabled: isAuthenticated && !!user,
     staleTime: 60000,
-    queryFn: async (): Promise<Profile | null> => {
-      if (!user) return null;
+    queryFn: async (): Promise<Profile | null> =>
+      withDemoFallback(
+        async () => {
+          if (!user) return null;
 
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .maybeSingle();
+          const { data, error } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", user.id)
+            .maybeSingle();
 
-      if (error) throw error;
+          if (error) throw error;
 
-      return data as Profile | null;
-    },
+          // A missing profile row would leave the shell stuck on its loader —
+          // serve a coherent placeholder instead.
+          return (data as Profile | null) ?? buildDemoProfile(user.id, user.name, user.email);
+        },
+        () => buildDemoProfile(user?.id, user?.name, user?.email),
+        "profile",
+      ),
   });
 }
 
@@ -71,20 +87,35 @@ export function useUpdateProfile() {
 
   return useMutation({
     mutationFn: async (patch: ProfileUpdate): Promise<Profile> => {
-      if (!user) {
-        throw new Error("You must be signed in to update your profile.");
-      }
+      const current =
+        queryClient.getQueryData<Profile>(profileQueryKey(user?.id)) ??
+        buildDemoProfile(user?.id, user?.name, user?.email);
+      const optimistic: Profile = {
+        ...current,
+        ...patch,
+        updated_at: new Date().toISOString(),
+      } as Profile;
 
-      const { data, error } = await supabase
-        .from("profiles")
-        .update(patch)
-        .eq("id", user.id)
-        .select("*")
-        .single();
+      return withDemoFallback(
+        async () => {
+          if (!user) {
+            throw new Error("You must be signed in to update your profile.");
+          }
 
-      if (error) throw error;
+          const { data, error } = await supabase
+            .from("profiles")
+            .update(patch)
+            .eq("id", user.id)
+            .select("*")
+            .single();
 
-      return data as Profile;
+          if (error) throw error;
+
+          return data as Profile;
+        },
+        optimistic,
+        "profile update",
+      );
     },
 
     onSuccess: (profile) => {
@@ -92,6 +123,7 @@ export function useUpdateProfile() {
     },
   });
 }
+
 
 export async function uploadAvatar(
   userId: string,
