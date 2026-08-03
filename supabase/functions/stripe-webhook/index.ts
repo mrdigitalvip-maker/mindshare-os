@@ -8,12 +8,11 @@ const CORS_HEADERS = {
 };
 
 type SubscriptionRow = {
-  id: string;
   user_id: string;
   stripe_customer_id: string | null;
   stripe_subscription_id: string | null;
+  plan: string | null;
   status: string | null;
-  price_id: string | null;
   cancel_at_period_end: boolean | null;
   current_period_end: string | null;
   updated_at: string | null;
@@ -35,23 +34,19 @@ async function updateSubscriptionRecord(
   userId: string,
   payload: Partial<SubscriptionRow>,
 ) {
-  const { error } = await supabase
-    .from("subscriptions")
-    .upsert(
-      {
-        user_id: userId,
-        stripe_customer_id: payload.stripe_customer_id ?? null,
-        stripe_subscription_id: payload.stripe_subscription_id ?? null,
-        status: payload.status ?? null,
-        price_id: payload.price_id ?? null,
-        cancel_at_period_end: payload.cancel_at_period_end ?? null,
-        current_period_end: payload.current_period_end ?? null,
-        updated_at: new Date().toISOString(),
-      },
-      {
-        onConflict: "user_id",
-      },
-    );
+  const { error } = await supabase.from("subscriptions").upsert(
+    {
+      user_id: userId,
+      stripe_customer_id: payload.stripe_customer_id ?? null,
+      stripe_subscription_id: payload.stripe_subscription_id ?? null,
+      plan: payload.plan ?? null,
+      status: payload.status ?? null,
+      cancel_at_period_end: payload.cancel_at_period_end ?? null,
+      current_period_end: payload.current_period_end ?? null,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id" },
+  );
 
   if (error) {
     throw error;
@@ -66,7 +61,7 @@ Deno.serve(async (req) => {
   const stripeWebhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
   if (!stripeWebhookSecret) {
     return Response.json(
-      { error: "Missing STRIPE_WEBHOOK_SECRET edge secret. Configure the Stripe webhook signing secret manually." },
+      { error: "Missing STRIPE_WEBHOOK_SECRET edge secret." },
       { status: 500, headers: CORS_HEADERS },
     );
   }
@@ -85,13 +80,12 @@ Deno.serve(async (req) => {
   }
 
   const rawBody = await req.text();
-  const stripe = new Stripe(stripeSecretKey, {
-    apiVersion: "2025-02-24.acacia",
-  });
+  const stripe = new Stripe(stripeSecretKey);
 
   let event: Stripe.Event;
   try {
-    event = stripe.webhooks.constructEvent(rawBody, signature, stripeWebhookSecret);
+    // Deno requires the async variant (WebCrypto-based signature verification).
+    event = await stripe.webhooks.constructEventAsync(rawBody, signature, stripeWebhookSecret);
   } catch (error) {
     return Response.json(
       {
@@ -102,63 +96,69 @@ Deno.serve(async (req) => {
     );
   }
 
-  const supabase = getSupabaseAdminClient();
+  try {
+    const supabase = getSupabaseAdminClient();
 
-  switch (event.type) {
-    case "checkout.session.completed": {
-      const session = event.data.object as Stripe.Checkout.Session;
-      const userId = session.metadata?.user_id ?? session.client_reference_id;
-      if (!userId) {
-        return Response.json({ received: true }, { headers: CORS_HEADERS });
+    switch (event.type) {
+      case "checkout.session.completed": {
+        const session = event.data.object as Stripe.Checkout.Session;
+        const userId = session.metadata?.user_id ?? session.client_reference_id;
+        if (!userId) break;
+
+        const customerId = typeof session.customer === "string" ? session.customer : session.customer?.id;
+        const subscriptionId = typeof session.subscription === "string" ? session.subscription : undefined;
+
+        await updateSubscriptionRecord(supabase, userId, {
+          stripe_customer_id: customerId ?? null,
+          stripe_subscription_id: subscriptionId ?? null,
+          plan: session.metadata?.plan ?? "pro",
+          status: "active",
+          cancel_at_period_end: false,
+        });
+        break;
       }
 
-      const customerId = typeof session.customer === "string" ? session.customer : session.customer?.id;
-      const subscriptionId = typeof session.subscription === "string" ? session.subscription : undefined;
+      case "customer.subscription.updated": {
+        const subscription = event.data.object as Stripe.Subscription;
+        const customerId =
+          typeof subscription.customer === "string" ? subscription.customer : subscription.customer?.id;
+        const userId = subscription.metadata?.user_id;
+        if (!userId) break;
 
-      await updateSubscriptionRecord(supabase, userId, {
-        stripe_customer_id: customerId ?? null,
-        stripe_subscription_id: subscriptionId ?? null,
-        status: "active",
-        price_id: session.metadata?.price_id ?? null,
-        cancel_at_period_end: false,
-      });
-      break;
-    }
+        const periodEnd = (subscription as unknown as { current_period_end?: number }).current_period_end;
 
-    case "customer.subscription.updated": {
-      const subscription = event.data.object as Stripe.Subscription;
-      const customerId = typeof subscription.customer === "string" ? subscription.customer : subscription.customer?.id;
-      const userId = subscription.metadata?.user_id;
-      if (!userId) {
-        return Response.json({ received: true }, { headers: CORS_HEADERS });
+        await updateSubscriptionRecord(supabase, userId, {
+          stripe_customer_id: customerId ?? null,
+          stripe_subscription_id: subscription.id,
+          plan: subscription.metadata?.plan ?? "pro",
+          status: subscription.status,
+          cancel_at_period_end: subscription.cancel_at_period_end,
+          current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
+        });
+        break;
       }
 
-      await updateSubscriptionRecord(supabase, userId, {
-        stripe_customer_id: customerId ?? null,
-        stripe_subscription_id: subscription.id,
-        status: subscription.status,
-        price_id: subscription.items.data[0]?.price.id ?? null,
-        cancel_at_period_end: subscription.cancel_at_period_end,
-        current_period_end: new Date((subscription.current_period_end ?? 0) * 1000).toISOString(),
-      });
-      break;
-    }
+      case "customer.subscription.deleted": {
+        const subscription = event.data.object as Stripe.Subscription;
+        const userId = subscription.metadata?.user_id;
+        if (!userId) break;
 
-    case "customer.subscription.deleted": {
-      const subscription = event.data.object as Stripe.Subscription;
-      const userId = subscription.metadata?.user_id;
-      if (!userId) {
-        return Response.json({ received: true }, { headers: CORS_HEADERS });
+        const periodEnd = (subscription as unknown as { current_period_end?: number }).current_period_end;
+
+        await updateSubscriptionRecord(supabase, userId, {
+          stripe_subscription_id: subscription.id,
+          plan: "free",
+          status: "canceled",
+          cancel_at_period_end: true,
+          current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
+        });
+        break;
       }
-
-      await updateSubscriptionRecord(supabase, userId, {
-        stripe_subscription_id: subscription.id,
-        status: "canceled",
-        cancel_at_period_end: true,
-        current_period_end: new Date((subscription.current_period_end ?? 0) * 1000).toISOString(),
-      });
-      break;
     }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("[stripe-webhook] handler error", { type: event.type, message });
+    return Response.json({ error: message, event: event.type }, { status: 500, headers: CORS_HEADERS });
   }
 
   return Response.json({ received: true }, { headers: CORS_HEADERS });
