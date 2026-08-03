@@ -3,6 +3,8 @@ import { Target, CalendarDays, Zap, Brain, type LucideIcon } from "lucide-react"
 
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/lib/supabase";
+import { withDemoFallback } from "@/lib/demo/fallback";
+import { demoCounters, type DemoCounters } from "@/lib/demo/demo-data";
 
 import { dashboardQueryKeys } from "./query-keys";
 
@@ -14,6 +16,41 @@ export type DashboardStat = {
   icon: LucideIcon;
 };
 
+function buildStats(counters: DemoCounters): DashboardStat[] {
+  const { openTasks, dueSoon, projectCount, completionRate, conversationCount } = counters;
+
+  return [
+    {
+      id: "focus",
+      label: "Focus Today",
+      value: `${Math.max(1, openTasks)} Blocks`,
+      hint: `${openTasks} active tasks`,
+      icon: Target,
+    },
+    {
+      id: "agenda",
+      label: "Agenda",
+      value: `${Math.max(0, dueSoon)} Events`,
+      hint: dueSoon > 0 ? "Upcoming workload" : "No upcoming tasks",
+      icon: CalendarDays,
+    },
+    {
+      id: "momentum",
+      label: "Momentum",
+      value: `${Math.max(1, projectCount)} Projects`,
+      hint: `${completionRate}% average progress`,
+      icon: Zap,
+    },
+    {
+      id: "ai-usage",
+      label: "AI Usage",
+      value: `${Math.max(0, conversationCount)} Chats`,
+      hint: "Active AI workspace",
+      icon: Brain,
+    },
+  ];
+}
+
 export function useDashboardStats() {
   const { user, isAuthenticated } = useAuth();
 
@@ -21,75 +58,56 @@ export function useDashboardStats() {
     queryKey: dashboardQueryKeys.stats(user?.id),
     enabled: isAuthenticated && !!user,
     staleTime: 60_000,
-    queryFn: async (): Promise<DashboardStat[]> => {
-      if (!user) return [];
+    queryFn: async (): Promise<DashboardStat[]> =>
+      withDemoFallback(
+        async () => {
+          if (!user) return buildStats(demoCounters);
 
-      const { data: projects, error: projectsError } = await supabase
-        .from("projects")
-        .select("id, progress, status, updated_at")
-        .eq("user_id", user.id)
-        .order("updated_at", { ascending: false });
+          const { data: projects, error: projectsError } = await supabase
+            .from("projects")
+            .select("id, progress, status, updated_at")
+            .eq("user_id", user.id)
+            .order("updated_at", { ascending: false });
 
-      const { data: tasks, error: tasksError } = await supabase
-        .from("tasks")
-        .select("id, completed, due_date")
-        .eq("user_id", user.id)
-        .order("due_date", { ascending: true });
+          const { data: tasks, error: tasksError } = await supabase
+            .from("tasks")
+            .select("id, completed, due_date")
+            .eq("user_id", user.id)
+            .order("due_date", { ascending: true });
 
-      const { data: conversations, error: conversationsError } = await supabase
-        .from("ai_conversations")
-        .select("id, updated_at")
-        .eq("user_id", user.id)
-        .order("updated_at", { ascending: false });
+          const { data: conversations, error: conversationsError } = await supabase
+            .from("ai_conversations")
+            .select("id, updated_at")
+            .eq("user_id", user.id)
+            .order("updated_at", { ascending: false });
 
-      if (projectsError) throw projectsError;
-      if (tasksError) throw tasksError;
-      if (conversationsError) throw conversationsError;
+          if (projectsError) throw projectsError;
+          if (tasksError) throw tasksError;
+          if (conversationsError) throw conversationsError;
 
-      const projectCount = projects?.length ?? 0;
-      const totalProgress =
-        projects?.reduce((accumulator, project) => accumulator + (project.progress ?? 0), 0) ?? 0;
-      const completionRate = projectCount === 0 ? 0 : Math.round(totalProgress / projectCount);
+          const projectCount = projects?.length ?? 0;
+          const totalProgress =
+            projects?.reduce((acc, project) => acc + (project.progress ?? 0), 0) ?? 0;
+          const completionRate =
+            projectCount === 0 ? 0 : Math.round(totalProgress / projectCount);
 
-      const openTasks = tasks?.filter((task) => task.completed !== true).length ?? 0;
-      const dueSoon =
-        tasks?.filter((task) => {
-          if (!task.due_date) return false;
-          return new Date(task.due_date).getTime() > Date.now();
-        }).length ?? 0;
+          const openTasks = tasks?.filter((task) => task.completed !== true).length ?? 0;
+          const dueSoon =
+            tasks?.filter((task) => {
+              if (!task.due_date) return false;
+              return new Date(task.due_date).getTime() > Date.now();
+            }).length ?? 0;
 
-      const conversationCount = conversations?.length ?? 0;
-
-      return [
-        {
-          id: "focus",
-          label: "Focus Today",
-          value: `${Math.max(1, openTasks)} Blocks`,
-          hint: `${openTasks} active tasks`,
-          icon: Target,
+          return buildStats({
+            openTasks,
+            dueSoon,
+            projectCount,
+            completionRate,
+            conversationCount: conversations?.length ?? 0,
+          });
         },
-        {
-          id: "agenda",
-          label: "Agenda",
-          value: `${Math.max(0, dueSoon)} Events`,
-          hint: dueSoon > 0 ? "Upcoming workload" : "No upcoming tasks",
-          icon: CalendarDays,
-        },
-        {
-          id: "momentum",
-          label: "Momentum",
-          value: `${Math.max(1, projectCount)} Projects`,
-          hint: `${completionRate}% average progress`,
-          icon: Zap,
-        },
-        {
-          id: "ai-usage",
-          label: "AI Usage",
-          value: `${Math.max(0, conversationCount)} Chats`,
-          hint: "Active AI workspace",
-          icon: Brain,
-        },
-      ];
-    },
+        () => buildStats(demoCounters),
+        "dashboard stats",
+      ),
   });
 }

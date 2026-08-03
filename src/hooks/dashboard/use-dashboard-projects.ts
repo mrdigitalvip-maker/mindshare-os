@@ -2,6 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/lib/supabase";
+import { withDemoFallback } from "@/lib/demo/fallback";
+import { demoProjects } from "@/lib/demo/demo-data";
 
 import { dashboardQueryKeys } from "./query-keys";
 
@@ -19,24 +21,31 @@ export function useDashboardProjects() {
     queryKey: dashboardQueryKeys.projects(user?.id),
     enabled: isAuthenticated && !!user,
     staleTime: 60_000,
-    queryFn: async (): Promise<DashboardProject[]> => {
-      if (!user) return [];
+    queryFn: async (): Promise<DashboardProject[]> =>
+      withDemoFallback(
+        async () => {
+          if (!user) return demoProjects;
 
-      const { data, error } = await supabase
-        .from("projects")
-        .select("id, title, progress, updated_at")
-        .eq("user_id", user.id)
-        .order("updated_at", { ascending: false })
-        .limit(3);
+          const { data, error } = await supabase
+            .from("projects")
+            .select("id, title, progress, updated_at")
+            .eq("user_id", user.id)
+            .order("updated_at", { ascending: false })
+            .limit(3);
 
-      if (error) throw error;
+          if (error) throw error;
 
-      return (data ?? []).map((project, index) => ({
-        id: project.id,
-        title: project.title ?? "Untitled project",
-        progress: Math.round(project.progress ?? 0),
-        color: ["bg-emerald-500", "bg-sky-500", "bg-amber-500"][index % 3],
-      }));
-    },
+          const rows = (data ?? []).map((project, index) => ({
+            id: project.id,
+            title: project.title ?? "Untitled project",
+            progress: Math.round(project.progress ?? 0),
+            color: ["bg-emerald-500", "bg-sky-500", "bg-amber-500"][index % 3],
+          }));
+
+          return rows.length > 0 ? rows : demoProjects;
+        },
+        demoProjects,
+        "dashboard projects",
+      ),
   });
 }
