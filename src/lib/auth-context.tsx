@@ -14,6 +14,16 @@ import {
 } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
+import { DEMO_MODE } from "@/lib/demo/config";
+
+/** Temporary demo session used while the backend is unavailable. */
+const DEMO_USER: NexoraUser = {
+  id: "demo-user",
+  email: "demo@nexora.os",
+  name: "Alex Nexora",
+  onboarded: true,
+  plan: "free",
+};
 
 export type NexoraUser = {
   id: string;
@@ -74,6 +84,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (DEMO_MODE) {
+      // Fallback layer: keep the whole app navigable without a backend.
+      setUser(DEMO_USER);
+      setSession({ user: { id: DEMO_USER.id } } as unknown as Session);
+      setLoading(false);
+      return;
+    }
+
     // Register listener first to avoid missing events during initial hydration.
     const { data: sub } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
@@ -95,11 +113,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<AuthContextValue>(() => {
     const signIn: AuthContextValue["signIn"] = async (email, password) => {
+      if (DEMO_MODE) {
+        setUser({ ...DEMO_USER, email });
+        setSession({ user: { id: DEMO_USER.id } } as unknown as Session);
+        return;
+      }
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
     };
 
     const signUp: AuthContextValue["signUp"] = async (email, password, name) => {
+      if (DEMO_MODE) {
+        setUser({ ...DEMO_USER, email, name: name ?? DEMO_USER.name });
+        setSession({ user: { id: DEMO_USER.id } } as unknown as Session);
+        return { needsEmailConfirmation: false };
+      }
       const emailRedirectTo =
         typeof window !== "undefined" ? `${window.location.origin}/confirm-email` : undefined;
       const { data, error } = await supabase.auth.signUp({
@@ -117,6 +145,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     const signInWithGoogle: AuthContextValue["signInWithGoogle"] = async () => {
+      if (DEMO_MODE) {
+        setUser(DEMO_USER);
+        setSession({ user: { id: DEMO_USER.id } } as unknown as Session);
+        return;
+      }
       const redirectTo =
         typeof window !== "undefined" ? `${window.location.origin}/dashboard` : undefined;
       const { error } = await supabase.auth.signInWithOAuth({
@@ -128,11 +161,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     const signOut: AuthContextValue["signOut"] = async () => {
+      if (DEMO_MODE) {
+        setUser(null);
+        setSession(null);
+        return;
+      }
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
     };
 
     const resetPassword: AuthContextValue["resetPassword"] = async (email) => {
+      if (DEMO_MODE) return;
       const redirectTo =
         typeof window !== "undefined"
           ? `${window.location.origin}/reset-password`
@@ -144,11 +183,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     const updatePassword: AuthContextValue["updatePassword"] = async (newPassword) => {
+      if (DEMO_MODE) return;
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
     };
 
     const updateUser: AuthContextValue["updateUser"] = async (patch) => {
+      if (DEMO_MODE) {
+        setUser((prev) => ({ ...(prev ?? DEMO_USER), ...patch }));
+        return;
+      }
       // TODO: persist profile fields (name, avatarUrl, onboarded, plan) into
       // a dedicated `profiles` table via Supabase once the schema exists.
       // For now, mirror them into `user_metadata` so the mapped NexoraUser
