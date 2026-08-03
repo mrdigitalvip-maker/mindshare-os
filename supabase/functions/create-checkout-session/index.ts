@@ -48,10 +48,10 @@ Deno.serve(async (req) => {
     );
   }
 
-  const stripePriceId = Deno.env.get("STRIPE_PRICE_ID");
+  const stripePriceId = Deno.env.get("STRIPE_PRICE_MONTHLY");
   if (!stripePriceId) {
     return Response.json(
-      { error: "Missing STRIPE_PRICE_ID edge secret. Confirm the real Stripe Price ID manually." },
+      { error: "Missing STRIPE_PRICE_MONTHLY edge secret." },
       { status: 500, headers: CORS_HEADERS },
     );
   }
