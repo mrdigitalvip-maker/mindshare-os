@@ -3,6 +3,7 @@ import { useMutation } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
 import { sendAiChat, type AiMessage } from "@/lib/ai-service";
+import { withDemoFallback } from "@/lib/demo/fallback";
 
 export type ChatRole = "user" | "assistant";
 
@@ -23,17 +24,10 @@ interface SendMessageResult {
   provider: "openai";
 }
 
-async function ensureConversation(userId: string, existingId: string | null): Promise<string> {
-  if (existingId) return existingId;
-
-  const { data, error } = await supabase
-    .from("ai_conversations")
-    .insert({ user_id: userId })
-    .select("id")
-    .single();
-
-  if (error) throw error;
-  return data.id as string;
+function localId(): string {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `local-${Date.now()}-${Math.round(Math.random() * 1e6)}`;
 }
 
 function normalizeChatMessage(message: {
@@ -52,56 +46,87 @@ function normalizeChatMessage(message: {
  * Handles a single-conversation Assistant chat: lazily creates the
  * `ai_conversations` row on the first message, persists every user and
  * assistant message to `ai_messages`, and calls the `ai-chat` Edge
- * Function for the model response using OpenAI GPT-5.
+ * Function for the model response.
  *
- * Schema note: `ai_messages` has no per-message provider column — which
- * model answered is tracked at the conversation level, in
- * `ai_conversations.model`, updated after every exchange.
+ * Persistence is best-effort: when the backend is unavailable (demo mode or
+ * a failing request) the conversation still works in-memory through the
+ * temporary fallback layer in `src/lib/demo/*`.
  */
 export function useChat() {
   const { user } = useAuth();
   const conversationIdRef = useRef<string | null>(null);
 
-  const loadConversationHistory = useCallback(async (): Promise<ChatMessage[]> => {
-    if (!user) return [];
+  const loadConversationHistory = useCallback(
+    async (): Promise<ChatMessage[]> =>
+      withDemoFallback(
+        async () => {
+          if (!user) return [];
 
-    const { data: latestConversation, error: conversationError } = await supabase
-      .from("ai_conversations")
-      .select("id")
-      .eq("user_id", user.id)
-      .order("updated_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+          const { data: latestConversation, error: conversationError } = await supabase
+            .from("ai_conversations")
+            .select("id")
+            .eq("user_id", user.id)
+            .order("updated_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
 
-    if (conversationError) throw conversationError;
-    if (!latestConversation?.id) return [];
+          if (conversationError) throw conversationError;
+          if (!latestConversation?.id) return [];
 
-    conversationIdRef.current = latestConversation.id;
+          conversationIdRef.current = latestConversation.id;
 
-    const { data: rows, error: historyError } = await supabase
-      .from("ai_messages")
-      .select("id, role, content")
-      .eq("conversation_id", latestConversation.id)
-      .order("created_at", { ascending: true });
+          const { data: rows, error: historyError } = await supabase
+            .from("ai_messages")
+            .select("id, role, content")
+            .eq("conversation_id", latestConversation.id)
+            .order("created_at", { ascending: true });
 
-    if (historyError) throw historyError;
+          if (historyError) throw historyError;
 
-    return (rows ?? []).map(normalizeChatMessage);
-  }, [user]);
+          return (rows ?? []).map(normalizeChatMessage);
+        },
+        [] as ChatMessage[],
+        "chat history",
+      ),
+    [user],
+  );
 
   const mutation = useMutation({
     mutationFn: async ({ content, history }: SendMessageInput): Promise<SendMessageResult> => {
-      if (!user) throw new Error("You must be signed in to chat.");
+      const conversationId = await withDemoFallback<string | null>(
+        async () => {
+          if (!user) return null;
+          if (conversationIdRef.current) return conversationIdRef.current;
 
-      const conversationId = await ensureConversation(user.id, conversationIdRef.current);
+          const { data, error } = await supabase
+            .from("ai_conversations")
+            .insert({ user_id: user.id })
+            .select("id")
+            .single();
+
+          if (error) throw error;
+          return data.id as string;
+        },
+        null,
+        "conversation create",
+      );
       conversationIdRef.current = conversationId;
 
-      const { data: userRow, error: userInsertError } = await supabase
-        .from("ai_messages")
-        .insert({ conversation_id: conversationId, role: "user", content })
-        .select("id, role, content")
-        .single();
-      if (userInsertError) throw userInsertError;
+      const userMessage = await withDemoFallback<ChatMessage>(
+        async () => {
+          if (!conversationId) return { id: localId(), role: "user", content };
+
+          const { data, error } = await supabase
+            .from("ai_messages")
+            .insert({ conversation_id: conversationId, role: "user", content })
+            .select("id, role, content")
+            .single();
+          if (error) throw error;
+          return normalizeChatMessage(data);
+        },
+        () => ({ id: localId(), role: "user" as const, content }),
+        "persist user message",
+      );
 
       const payloadMessages: AiMessage[] = [...history, { role: "user", content }].map(
         (message) => ({
@@ -112,33 +137,37 @@ export function useChat() {
 
       const aiData = await sendAiChat(payloadMessages);
 
-      const { data: assistantRow, error: assistantInsertError } = await supabase
-        .from("ai_messages")
-        .insert({
-          conversation_id: conversationId,
-          role: "assistant",
-          content: aiData.content,
-        })
-        .select("id, role, content")
-        .single();
-      if (assistantInsertError) throw assistantInsertError;
+      const assistantMessage = await withDemoFallback<ChatMessage>(
+        async () => {
+          if (!conversationId) {
+            return { id: localId(), role: "assistant", content: aiData.content };
+          }
 
-      // Track which provider answered at the conversation level (schema
-      // has no per-message provider column).
-      await supabase
-        .from("ai_conversations")
-        .update({ model: aiData.provider, updated_at: new Date().toISOString() })
-        .eq("id", conversationId);
+          const { data, error } = await supabase
+            .from("ai_messages")
+            .insert({
+              conversation_id: conversationId,
+              role: "assistant",
+              content: aiData.content,
+            })
+            .select("id, role, content")
+            .single();
+          if (error) throw error;
 
-      return {
-        userMessage: { id: userRow.id as string, role: "user", content: userRow.content as string },
-        assistantMessage: {
-          id: assistantRow.id as string,
-          role: "assistant",
-          content: assistantRow.content as string,
+          // Track which provider answered at the conversation level (schema
+          // has no per-message provider column).
+          await supabase
+            .from("ai_conversations")
+            .update({ model: aiData.provider, updated_at: new Date().toISOString() })
+            .eq("id", conversationId);
+
+          return normalizeChatMessage(data);
         },
-        provider: aiData.provider,
-      };
+        () => ({ id: localId(), role: "assistant" as const, content: aiData.content }),
+        "persist assistant message",
+      );
+
+      return { userMessage, assistantMessage, provider: aiData.provider };
     },
   });
 
