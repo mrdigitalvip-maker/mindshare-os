@@ -54,7 +54,7 @@ export const ProfileService = {
           .eq("id", user.id)
           .maybeSingle();
         if (error) throw error;
-        return (data as Profile | null) ?? buildDemoProfile(user.id, user.name, user.email);
+        return data as Profile | null;
       },
       () => buildDemoProfile(user?.id, user?.name, user?.email),
       "profile",

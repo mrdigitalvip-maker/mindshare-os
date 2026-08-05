@@ -6,11 +6,7 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 
 if (!hasSupabaseCredentials) {
-  // Avoid throwing at module import time so the app can still render (demo
-  // mode) while credentials are being provisioned.
-  console.warn(
-    "[nexora] Missing Supabase environment variables — running in demo/fallback mode. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to go live.",
-  );
+  console.warn("[nexora] Missing Supabase environment variables.");
 }
 
 // `createClient` throws when the URL is empty, which would blank the whole
@@ -18,6 +14,11 @@ if (!hasSupabaseCredentials) {
 // guarded by the demo fallback layer.
 const PLACEHOLDER_URL = "https://demo.supabase.co";
 const PLACEHOLDER_KEY = "public-anon-key-placeholder";
+
+// Realtime is browser-only in this frontend. Supabase eagerly resolves its
+// WebSocket constructor, so provide an inert SSR constructor to keep route
+// rendering compatible with Node runtimes that do not expose WebSocket.
+const serverRealtimeTransport = class ServerRealtimeTransport {} as typeof WebSocket;
 
 export const supabase = createClient(
   supabaseUrl || PLACEHOLDER_URL,
@@ -28,6 +29,7 @@ export const supabase = createClient(
       autoRefreshToken: true,
       detectSessionInUrl: true,
     },
+    realtime: typeof window === "undefined" ? { transport: serverRealtimeTransport } : undefined,
   },
 );
 

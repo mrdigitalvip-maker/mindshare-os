@@ -36,7 +36,7 @@
 
 - Supabase remains isolated in integration/hook/service infrastructure, not in module routes. Future migration should replace service implementations, not page contracts.
 - Stripe checkout is exposed to the Premium page through `SubscriptionService.createCheckoutUrl()`, keeping Stripe/Supabase invocation out of the screen.
-- OpenAI assistant calls remain centralized through `src/lib/ai-service.ts` and `src/hooks/use-chat.ts`; future provider changes should remain behind that boundary.
+- OpenAI assistant calls are centralized through `src/services/ai-service.ts` and consumed by `src/hooks/use-chat.ts`; future provider changes should remain behind that boundary.
 
 ## Problems found
 
@@ -73,3 +73,11 @@
 - AI Edge Function invocation and deterministic fallback now live in the public `AIService` boundary, removing the duplicate legacy AI service.
 - ESLint now treats shared UI primitive exports as the intentional library pattern they are, so lint completes without false-positive Fast Refresh warnings.
 - Remaining direct Supabase access is limited to infrastructure-facing auth, chat persistence, and dashboard query adapters; moving those behind injectable production adapters is the next integration-only step and does not require UI changes.
+
+## Final regression audit
+
+- Demo behavior is now explicit (`VITE_DEMO_MODE=true`); missing credentials no longer enable mocks automatically.
+- Live Supabase, Stripe, and AI errors propagate to their callers instead of being converted into simulated success.
+- Workspace local storage is guarded by the same centralized demo switch and cannot be read or mutated in live mode.
+- A missing real profile row remains missing in live mode rather than being replaced by a demo profile.
+- Formatting-only changes to both Stripe Edge Functions were discarded; their secrets, metadata, webhook verification, JSON responses, and `public.subscriptions` contracts are unchanged from the pre-branch implementation.

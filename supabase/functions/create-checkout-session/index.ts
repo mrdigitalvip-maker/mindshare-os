@@ -59,10 +59,7 @@ Deno.serve(async (req) => {
   const appUrl = Deno.env.get("APP_URL") ?? Deno.env.get("SITE_URL");
   if (!appUrl) {
     return Response.json(
-      {
-        error:
-          "Missing APP_URL or SITE_URL edge secret. Set the public app origin for success/cancel redirects.",
-      },
+      { error: "Missing APP_URL or SITE_URL edge secret. Set the public app origin for success/cancel redirects." },
       { status: 500, headers: CORS_HEADERS },
     );
   }
