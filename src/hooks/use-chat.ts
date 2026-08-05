@@ -2,7 +2,7 @@ import { useCallback, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
-import { sendAiChat, type AiMessage } from "@/lib/ai-service";
+import { AIService, type AiMessage } from "@/services/ai-service";
 import { withDemoFallback } from "@/lib/demo/fallback";
 
 export type ChatRole = "user" | "assistant";
@@ -135,7 +135,7 @@ export function useChat() {
         }),
       );
 
-      const aiData = await sendAiChat(payloadMessages);
+      const aiData = await AIService.sendChat(payloadMessages);
 
       const assistantMessage = await withDemoFallback<ChatMessage>(
         async () => {

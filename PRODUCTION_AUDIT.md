@@ -65,3 +65,11 @@
 4. Configure OpenAI provider secrets and keep assistant calls behind `AIService`/chat service boundaries.
 5. Add E2E tests against real auth/onboarding/checkout/assistant flows after credentials are available.
 6. Address existing advisory bundle-size warnings with code-splitting once product behavior is locked.
+
+## Follow-up architecture hardening
+
+- Profile reads, writes, and avatar uploads now pass through `ProfileService`; the React Query hook only coordinates cache state.
+- Subscription entitlement resolution now passes through `SubscriptionStatusService`; Stripe-derived table semantics remain isolated from the UI.
+- AI Edge Function invocation and deterministic fallback now live in the public `AIService` boundary, removing the duplicate legacy AI service.
+- ESLint now treats shared UI primitive exports as the intentional library pattern they are, so lint completes without false-positive Fast Refresh warnings.
+- Remaining direct Supabase access is limited to infrastructure-facing auth, chat persistence, and dashboard query adapters; moving those behind injectable production adapters is the next integration-only step and does not require UI changes.
