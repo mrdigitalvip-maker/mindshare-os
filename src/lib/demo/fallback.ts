@@ -20,7 +20,6 @@ export async function withDemoFallback<T>(
   try {
     return await run();
   } catch (error) {
-    // eslint-disable-next-line no-console
     console.warn(`[nexora:fallback] ${label} failed, serving demo data.`, error);
     return resolveFallback();
   }

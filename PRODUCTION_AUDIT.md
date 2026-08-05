@@ -1,63 +1,67 @@
-# NEXORA Production Readiness Audit
+# MindShare OS / NEXORA Frontend Architecture Audit
 
-## Repository map
-- Runtime: TanStack Start + React 19 + Vite, with the app bootstrapped from `src/start.ts`, router creation in `src/router.tsx`, and the root shell in `src/routes/__root.tsx`.
-- Route layer: file routes live in `src/routes`. Public routes are `/`, `/auth`, `/confirm-email`, `/reset-password`, `/onboarding`, and `/sitemap.xml`. Protected application routes are nested under `/_shell` and exposed as `/dashboard`, `/assistant`, `/projects`, `/productivity`, `/studies`, `/finance`, `/content`, `/translate`, `/documents`, `/agents`, `/premium`, and `/settings`.
-- Components: shared layout primitives live in `src/components/page-shell.tsx`; dashboard-specific components live in `src/components/dashboard`; shadcn/Radix UI primitives live in `src/components/ui`; global command navigation lives in `src/components/global-search.tsx`.
-- Hooks: auth/profile/subscription/chat hooks live in `src/hooks`; dashboard data hooks live in `src/hooks/dashboard`; the local workspace adapter added during remediation lives in `src/hooks/use-workspace.ts`.
-- Services and integrations: Supabase client is in `src/lib/supabase.ts`; AI invocation is in `src/lib/ai-service.ts`; demo fallback config/data are in `src/lib/demo`; shared module metadata is in `src/lib/modules.ts`; local temporary workspace contracts are in `src/lib/workspace-service.ts`.
-- Edge functions: `supabase/functions/ai-chat`, `supabase/functions/create-checkout-session`, and `supabase/functions/stripe-webhook` implement the OpenAI and Stripe server integrations.
+## Scope reviewed
 
-## API integration map
-- Supabase Auth: sign-in, sign-up, Google OAuth, sign-out, password reset, and password update are handled by `src/lib/auth-context.tsx`.
-- Supabase Database: profile reads/updates, subscription reads, AI conversation/message persistence, and dashboard queries target `profiles`, `subscriptions`, `ai_conversations`, `ai_messages`, `projects`, `tasks`, `documents`, and `activity_logs`.
-- Supabase Storage: avatar upload targets the `avatars` bucket.
-- Supabase Edge Functions: the client invokes `ai-chat` from `src/lib/ai-service.ts` and `create-checkout-session` from the Premium screen.
-- OpenAI: `supabase/functions/ai-chat/index.ts` calls the configured provider and stores responses through the app’s chat flow.
-- Stripe: `create-checkout-session` creates subscription checkout sessions; `stripe-webhook` upserts subscription status into Supabase.
+- Folder structure, routing, shell navigation, public/auth/protected pages, dashboard, module screens, hooks, providers, service boundaries, Supabase client usage, Stripe checkout entrypoint, OpenAI assistant entrypoint, mock data, generated route tree, build/lint output, imports/exports, and disconnected UI actions.
 
-## What already works
-- App builds successfully for client, SSR, and Nitro/Cloudflare output.
-- Public marketing, auth, onboarding, protected shell navigation, dashboard, assistant, premium, and settings routes are present.
-- Auth and profile flows are integrated with Supabase, with demo fallback protection when credentials are absent.
-- Assistant flow persists conversations/messages when backend is available and returns coherent fallback replies when offline.
-- Stripe checkout and webhook function contracts exist.
-- Dashboard has real query hooks with fallback data.
+## Route map
 
-## What partially works
-- Projects, productivity, documents, studies, content, finance, translate, and agents existed mostly as static cards or empty states.
-- Premium checkout works only when Stripe/Supabase environment is configured; demo mode simulates checkout.
-- Settings exposes profile save and avatar upload, but many settings sections are informational only.
-- Sitemap existed but had no production base URL fallback.
+- Public: `/`, `/auth`, `/confirm-email`, `/reset-password`, `/onboarding`, `/sitemap.xml`.
+- Protected shell: `/dashboard`, `/assistant`, `/projects`, `/productivity`, `/studies`, `/finance`, `/content`, `/translate`, `/documents`, `/agents`, `/premium`, `/settings`.
+- Navigation sources: file routes in `src/routes`, module metadata in `src/lib/modules.ts`, global command navigation in `src/components/global-search.tsx`, and protected shell navigation in `src/routes/_shell.tsx`.
 
-## Broken or disconnected flows found
-- Several module CTAs were visually clickable but had no stateful behavior.
-- Translation always displayed a provider-not-connected placeholder instead of producing any output.
-- Documents upload, project creation, task creation, content creation, finance goals, study plans, and agents had no connected temporary adapter.
-- Sitemap generated empty `<loc>` origins unless a project URL was manually filled in.
+## Component map
 
-## Placeholders and TODOs found
-- Temporary demo/fallback layer is intentional and documented while Supabase/OpenAI/Stripe are not fully provisioned.
-- `src/routes/sitemap[.]xml.ts` had a TODO for the project URL; this was replaced with an environment-driven production fallback.
-- Disabled attachment/microphone assistant controls remain intentional until those provider contracts exist.
-- Premium finance/agents gating remains visible by design and routes are preserved.
+- App/root: `src/routes/__root.tsx`, `src/router.tsx`, `src/start.ts`, `src/server.ts`.
+- Layout/navigation: `src/components/page-shell.tsx`, `src/components/global-search.tsx`, `src/routes/_shell.tsx`.
+- Dashboard: `src/routes/_shell.dashboard.tsx` plus `src/components/dashboard/*`.
+- UI primitives: `src/components/ui/*`.
+- Feature routes: every `src/routes/_shell.*.tsx` module route.
 
-## Duplicated code and architecture concerns
-- Module pages repeated similar card/list/empty-state patterns. A future pass should extract module dashboard cards once behavior stabilizes.
-- Demo/fallback and local workspace state are separate layers. They should converge into repository-backed services when the real backend tables/functions are finalized.
-- UI primitive files export helpers alongside components, which triggers React Fast Refresh warnings but not production build failures.
-- Route tree is generated and should not be edited manually; formatting touched it only through automated formatting.
+## Hook and provider map
 
-## Production blockers
-1. Provision real Supabase project variables and verify RLS policies for every referenced table/bucket.
-2. Deploy and configure edge function secrets: OpenAI provider keys, Stripe secret key, Stripe price ID, webhook secret, and app URL.
-3. Replace local workspace adapter with real tables/functions for project/task/document/content/study/finance/agent workflows.
-4. Add E2E coverage for auth, onboarding, module navigation, assistant fallback/live mode, and checkout redirect.
-5. Resolve bundle-size warnings through route-level/code-splitting optimization.
+- Providers: root `QueryClientProvider`, `AuthProvider`, and `Toaster`.
+- Auth/profile/subscription/chat hooks: `src/lib/auth-context.tsx`, `src/hooks/use-profile.ts`, `src/hooks/use-subscription.ts`, `src/hooks/use-chat.ts`.
+- Dashboard hooks: `src/hooks/dashboard/*`.
+- Frontend mock-service consumption now lives behind `src/services/*` for module workflows and billing checkout entrypoints.
 
-## Execution priority
-1. Keep the whole app navigable and prevent dead screens with temporary adapters.
-2. Wire module CTAs to persistent local state without changing routes, brand, UX, or database contracts.
-3. Fix production metadata/sitemap defaults.
-4. Run lint/build checks and commit a stable branch.
-5. Next iteration: connect the temporary workspace adapter to Supabase-backed service methods feature by feature.
+## Service architecture created
+
+- `src/services/mock-data.ts`: single coherent mock data source for projects, tasks, studies, documents, chats-adjacent module data, finance goals, notifications, and user-facing workspace content.
+- `src/services/local-store.ts`: storage adapter that persists mock service data without tying screens to `localStorage`.
+- `src/services/workspace-services.ts`: definitive frontend service boundary for `ProjectService`, `ProductivityService`, `DocumentService`, `ContentService`, `StudyService`, `FinanceService`, `AgentService`, `TranslationService`, and `SubscriptionService`.
+- `src/services/index.ts`: stable export surface for future Supabase/Stripe/OpenAI implementations.
+
+## Integrations prepared
+
+- Supabase remains isolated in integration/hook/service infrastructure, not in module routes. Future migration should replace service implementations, not page contracts.
+- Stripe checkout is exposed to the Premium page through `SubscriptionService.createCheckoutUrl()`, keeping Stripe/Supabase invocation out of the screen.
+- OpenAI assistant calls remain centralized through `src/lib/ai-service.ts` and `src/hooks/use-chat.ts`; future provider changes should remain behind that boundary.
+
+## Problems found
+
+- The previous local workspace adapter was too broad and temporary-looking (`src/lib/workspace-service.ts`, `src/hooks/use-workspace.ts`).
+- Multiple module routes owned persistence details directly instead of consuming a service boundary.
+- Premium route invoked Supabase Edge Functions directly from the screen.
+- Dashboard suggestion buttons and recent-project actions looked clickable but had no connected navigation.
+- Dashboard mini-module cards were visually interactive but not navigable.
+- Sitemap previously had an empty base URL placeholder.
+- Lint showed many Prettier violations before formatting, plus non-blocking Fast Refresh warnings in existing UI primitive files.
+
+## Problems corrected
+
+- Replaced the temporary workspace adapter with named services and a single mock data/store layer.
+- Refactored module routes to call services instead of direct storage/helpers.
+- Refactored Premium checkout to use `SubscriptionService` instead of direct Supabase usage in the route.
+- Connected dashboard AI suggestion actions, recent project buttons, and mini-module tiles to navigation.
+- Kept routes, branding, colors, typography, animation primitives, spacing classes, and overall visual language intact.
+- Preserved Supabase schema and Edge Function contracts; no real backend integration was added.
+
+## Remaining production blockers that depend only on real integrations
+
+1. Configure real Supabase env vars, RLS, storage bucket policies, and table data for the existing contracts.
+2. Swap mock service internals for Supabase implementations behind the same service names.
+3. Configure Stripe secrets/price/webhook and keep Premium routed through `SubscriptionService`.
+4. Configure OpenAI provider secrets and keep assistant calls behind `AIService`/chat service boundaries.
+5. Add E2E tests against real auth/onboarding/checkout/assistant flows after credentials are available.
+6. Address existing advisory bundle-size warnings with code-splitting once product behavior is locked.

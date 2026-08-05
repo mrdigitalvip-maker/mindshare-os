@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import {
   ArrowRight,
@@ -46,6 +46,7 @@ function greeting() {
 }
 
 function Dashboard() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { data: profile } = useProfile();
   const { data: stats = [] } = useDashboardStats();
@@ -153,6 +154,7 @@ function Dashboard() {
                 title={item.title}
                 description={item.description}
                 action={item.action}
+                onAction={() => navigate({ to: "/assistant" })}
               />
             ))}
           </div>
@@ -184,9 +186,11 @@ function Dashboard() {
               >
                 <div className="flex items-center justify-between">
                   <h3 className="font-display text-xl">{project.title}</h3>
-                  <Button size="sm" className="rounded-full">
-                    Continue <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
+                  <Link to="/projects">
+                    <Button size="sm" className="rounded-full">
+                      Continue <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </Link>
                 </div>
                 <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-surface-elevated">
                   <div
@@ -261,11 +265,21 @@ function Dashboard() {
 }
 
 function MiniModule({ icon, title }: { icon: React.ReactNode; title: string }) {
+  const pathByTitle: Record<string, string> = {
+    Projects: "/projects",
+    Studies: "/studies",
+    Content: "/content",
+    Translate: "/translate",
+  };
+
   return (
-    <div className="glass rounded-2xl p-5 transition hover:border-gold/30">
+    <Link
+      to={pathByTitle[title] ?? "/dashboard"}
+      className="glass rounded-2xl p-5 transition hover:border-gold/30"
+    >
       <div className="w-fit rounded-xl bg-surface-elevated p-3">{icon}</div>
       <h4 className="mt-5 font-medium">{title}</h4>
-    </div>
+    </Link>
   );
 }
 

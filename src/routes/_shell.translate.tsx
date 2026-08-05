@@ -1,11 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Languages, ArrowRightLeft, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { PageShell, PageHeader } from "@/components/page-shell";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { translateText } from "@/lib/workspace-service";
+import { TranslationService } from "@/services";
 import {
   Select,
   SelectContent,
@@ -32,7 +32,17 @@ function Translate() {
   const [source, setSource] = useState("en");
   const [target, setTarget] = useState("pt");
   const [text, setText] = useState("");
-  const translated = translateText(text, source, target);
+  const [translated, setTranslated] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    void TranslationService.translate(text, source, target).then((result) => {
+      if (!cancelled) setTranslated(result);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [source, target, text]);
 
   return (
     <PageShell>

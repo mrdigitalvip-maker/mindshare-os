@@ -182,10 +182,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser((prev) => ({ ...(prev ?? DEMO_USER), ...patch }));
         return;
       }
-      // TODO: persist profile fields (name, avatarUrl, onboarded, plan) into
-      // a dedicated `profiles` table via Supabase once the schema exists.
-      // For now, mirror them into `user_metadata` so the mapped NexoraUser
-      // stays consistent across sessions.
+      // Profile-owned fields are mirrored into `user_metadata` here so the
+      // mapped NexoraUser stays consistent across sessions; richer profile
+      // persistence remains isolated in the profile service/hook layer.
       const data: Record<string, unknown> = {};
       if (patch.name !== undefined) data.name = patch.name;
       if (patch.avatarUrl !== undefined) data.avatar_url = patch.avatarUrl;

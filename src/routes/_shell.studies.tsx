@@ -1,32 +1,32 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { GraduationCap, BookOpen, Brain, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { PageShell, PageHeader } from "@/components/page-shell";
 import { Button } from "@/components/ui/button";
-import { useWorkspace } from "@/hooks/use-workspace";
-import { makeWorkspaceId } from "@/lib/workspace-service";
+import { StudyService, type StudyPlan } from "@/services";
 
 export const Route = createFileRoute("/_shell/studies")({
   head: () => ({ meta: [{ title: "Studies — NEXORA" }] }),
   component: Studies,
 });
+
 function Studies() {
-  const { state, update } = useWorkspace();
-  function add() {
-    update((s) => ({
-      ...s,
-      studies: [
-        {
-          id: makeWorkspaceId("study"),
-          title: `Study plan ${s.studies.length + 1}`,
-          progress: 0,
-          nextSession: "Tomorrow, 09:00",
-        },
-        ...s.studies,
-      ],
-    }));
+  const [plans, setPlans] = useState<StudyPlan[]>([]);
+  const averageProgress = Math.round(
+    plans.reduce((total, plan) => total + plan.progress, 0) / Math.max(plans.length, 1),
+  );
+
+  useEffect(() => {
+    void StudyService.listPlans().then(setPlans);
+  }, []);
+
+  async function addPlan() {
+    const created = await StudyService.createPlan();
+    setPlans((current) => [created, ...current]);
     toast.success("Study plan created");
   }
+
   return (
     <PageShell>
       <PageHeader
@@ -34,36 +34,31 @@ function Studies() {
         title="Studies"
         description="Learn faster with AI-guided study sessions."
         actions={
-          <Button className="rounded-full" onClick={add}>
-            <Plus className="mr-1 h-4 w-4" />
-            New plan
+          <Button className="rounded-full" onClick={addPlan}>
+            <Plus className="mr-1 h-4 w-4" /> New plan
           </Button>
         }
       />
       <div className="mt-8 grid gap-4 md:grid-cols-3">
         {[
-          { icon: BookOpen, title: "Study plans", copy: `${state.studies.length} active` },
+          { icon: BookOpen, title: "Study plans", copy: `${plans.length} active` },
           { icon: Brain, title: "Flashcards", copy: "Smart spaced repetition" },
-          {
-            icon: GraduationCap,
-            title: "Progress",
-            copy: `${Math.round(state.studies.reduce((a, s) => a + s.progress, 0) / Math.max(state.studies.length, 1))}% average`,
-          },
-        ].map((c) => (
-          <div key={c.title} className="glass rounded-2xl p-6">
-            <c.icon className="h-5 w-5 text-gold" />
-            <h3 className="mt-3 font-display text-xl">{c.title}</h3>
-            <p className="mt-1 text-sm text-muted-foreground">{c.copy}</p>
+          { icon: GraduationCap, title: "Progress", copy: `${averageProgress}% average` },
+        ].map((card) => (
+          <div key={card.title} className="glass rounded-2xl p-6">
+            <card.icon className="h-5 w-5 text-gold" />
+            <h3 className="mt-3 font-display text-xl">{card.title}</h3>
+            <p className="mt-1 text-sm text-muted-foreground">{card.copy}</p>
           </div>
         ))}
       </div>
       <div className="mt-6 grid gap-4 md:grid-cols-2">
-        {state.studies.map((s) => (
-          <article key={s.id} className="glass rounded-2xl p-5">
-            <h3 className="font-display text-xl">{s.title}</h3>
-            <p className="mt-1 text-sm text-muted-foreground">Next session: {s.nextSession}</p>
+        {plans.map((plan) => (
+          <article key={plan.id} className="glass rounded-2xl p-5">
+            <h3 className="font-display text-xl">{plan.title}</h3>
+            <p className="mt-1 text-sm text-muted-foreground">Next session: {plan.nextSession}</p>
             <div className="mt-4 h-2 rounded-full bg-surface">
-              <div className="h-full rounded-full bg-gold" style={{ width: `${s.progress}%` }} />
+              <div className="h-full rounded-full bg-gold" style={{ width: `${plan.progress}%` }} />
             </div>
           </article>
         ))}

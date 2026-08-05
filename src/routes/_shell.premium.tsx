@@ -4,9 +4,8 @@ import { Crown, Check, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { PageShell, PageHeader } from "@/components/page-shell";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/lib/supabase";
 import { useSubscription } from "@/hooks/use-subscription";
-import { DEMO_MODE } from "@/lib/demo/config";
+import { SubscriptionService } from "@/services";
 
 export const Route = createFileRoute("/_shell/premium")({
   head: () => ({ meta: [{ title: "Premium — NEXORA" }] }),
@@ -30,18 +29,12 @@ function Premium() {
   async function startCheckout() {
     setCheckingOut(true);
     try {
-      if (DEMO_MODE) {
-        // Temporary fallback: Stripe is not reachable in demo mode.
-        await new Promise((resolve) => setTimeout(resolve, 600));
+      const checkoutUrl = await SubscriptionService.createCheckoutUrl();
+      if (!checkoutUrl) {
         toast.success("Demo mode: checkout simulated. Stripe opens once billing is enabled.");
         return;
       }
-      const { data, error } = await supabase.functions.invoke<{ url: string }>(
-        "create-checkout-session",
-      );
-      if (error) throw error;
-      if (!data?.url) throw new Error("No checkout URL returned by the Stripe edge function.");
-      window.location.assign(data.url);
+      window.location.assign(checkoutUrl);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unable to start checkout.";
       toast.error(message);

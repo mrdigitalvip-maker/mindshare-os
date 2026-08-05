@@ -6,9 +6,10 @@ type Props = {
   title: string;
   description: string;
   action?: string;
+  onAction?: () => void;
 };
 
-export function DashboardAiCard({ title, description, action = "Open" }: Props) {
+export function DashboardAiCard({ title, description, action = "Open", onAction }: Props) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -42,7 +43,7 @@ export function DashboardAiCard({ title, description, action = "Open" }: Props) 
 
         <p className="mt-3 text-sm text-muted-foreground leading-6">{description}</p>
 
-        <Button size="sm" className="mt-6 rounded-full">
+        <Button size="sm" className="mt-6 rounded-full" onClick={onAction}>
           {action}
 
           <ArrowRight className="ml-2 h-4 w-4" />

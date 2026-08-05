@@ -8,7 +8,6 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undef
 if (!hasSupabaseCredentials) {
   // Avoid throwing at module import time so the app can still render (demo
   // mode) while credentials are being provisioned.
-  // eslint-disable-next-line no-console
   console.warn(
     "[nexora] Missing Supabase environment variables — running in demo/fallback mode. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to go live.",
   );

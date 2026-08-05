@@ -1,10 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { FolderKanban, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { PageShell, PageHeader } from "@/components/page-shell";
 import { Button } from "@/components/ui/button";
-import { useWorkspace } from "@/hooks/use-workspace";
-import { makeWorkspaceId, nextProjectColor } from "@/lib/workspace-service";
+import { ProjectService, type Project } from "@/services";
 
 export const Route = createFileRoute("/_shell/projects")({
   head: () => ({ meta: [{ title: "Projects — NEXORA" }] }),
@@ -12,24 +12,18 @@ export const Route = createFileRoute("/_shell/projects")({
 });
 
 function Projects() {
-  const { state, update } = useWorkspace();
-  function addProject() {
-    const title = `New project ${state.projects.length + 1}`;
-    update((s) => ({
-      ...s,
-      projects: [
-        {
-          id: makeWorkspaceId("project"),
-          title,
-          progress: 0,
-          color: nextProjectColor(s.projects.length),
-          updatedAt: new Date().toISOString(),
-        },
-        ...s.projects,
-      ],
-    }));
+  const [projects, setProjects] = useState<Project[]>([]);
+
+  useEffect(() => {
+    void ProjectService.list().then(setProjects);
+  }, []);
+
+  async function addProject() {
+    const created = await ProjectService.create();
+    setProjects((current) => [created, ...current]);
     toast.success("Project created");
   }
+
   return (
     <PageShell>
       <PageHeader
@@ -43,17 +37,20 @@ function Projects() {
         }
       />
       <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {state.projects.map((p) => (
-          <article key={p.id} className="glass rounded-2xl p-6">
-            <div className={`h-2 w-16 rounded-full ${p.color}`} />
-            <h3 className="mt-4 font-display text-xl">{p.title}</h3>
+        {projects.map((project) => (
+          <article key={project.id} className="glass rounded-2xl p-6">
+            <div className={`h-2 w-16 rounded-full ${project.color}`} />
+            <h3 className="mt-4 font-display text-xl">{project.title}</h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              Updated {new Date(p.updatedAt).toLocaleDateString()}
+              Updated {new Date(project.updatedAt).toLocaleDateString()}
             </p>
             <div className="mt-5 h-2 rounded-full bg-surface">
-              <div className="h-full rounded-full bg-gold" style={{ width: `${p.progress}%` }} />
+              <div
+                className="h-full rounded-full bg-gold"
+                style={{ width: `${project.progress}%` }}
+              />
             </div>
-            <p className="mt-2 text-xs text-muted-foreground">{p.progress}% complete</p>
+            <p className="mt-2 text-xs text-muted-foreground">{project.progress}% complete</p>
           </article>
         ))}
         <button
