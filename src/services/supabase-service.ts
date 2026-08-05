@@ -7,8 +7,8 @@ export async function getRequiredUserId(): Promise<string> {
   return data.user.id;
 }
 
-export function assertSupportedSchema(feature: string, tables: string[]): never {
+export function throwUnsyncedSchema(feature: string, tables: string[]): never {
   throw new Error(
-    `${feature} is unavailable because the required Supabase schema is not present (${tables.join(", ")}).`,
+    `${feature} is unavailable until local Supabase types are regenerated for: ${tables.join(", ")}.`,
   );
 }

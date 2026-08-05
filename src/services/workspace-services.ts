@@ -1,7 +1,7 @@
 import { DEMO_MODE } from "@/lib/demo/config";
 import { supabase } from "@/lib/supabase";
 import { createId, readMockDatabase, updateMockDatabase } from "./local-store";
-import { assertSupportedSchema, getRequiredUserId } from "./supabase-service";
+import { throwUnsyncedSchema, getRequiredUserId } from "./supabase-service";
 import type {
   Agent,
   ContentDraft,
@@ -315,12 +315,12 @@ export const DocumentService = {
 
 export const ContentService = {
   async listDrafts(): Promise<ContentDraft[]> {
-    if (!DEMO_MODE) return assertSupportedSchema("Content", ["content drafts"]);
+    if (!DEMO_MODE) return throwUnsyncedSchema("Content", ["content drafts"]);
     await delay();
     return readMockDatabase().drafts;
   },
   async createDraft(): Promise<ContentDraft> {
-    if (!DEMO_MODE) return assertSupportedSchema("Content", ["content drafts"]);
+    if (!DEMO_MODE) return throwUnsyncedSchema("Content", ["content drafts"]);
     await delay();
     let created!: ContentDraft;
     updateMockDatabase((db) => {
@@ -338,12 +338,12 @@ export const ContentService = {
 
 export const StudyService = {
   async listPlans(): Promise<StudyPlan[]> {
-    if (!DEMO_MODE) return assertSupportedSchema("Studies", ["study_subjects", "study_sessions"]);
+    if (!DEMO_MODE) return throwUnsyncedSchema("Studies", ["study_subjects", "study_sessions"]);
     await delay();
     return readMockDatabase().studies;
   },
   async createPlan(): Promise<StudyPlan> {
-    if (!DEMO_MODE) return assertSupportedSchema("Studies", ["study_subjects", "study_sessions"]);
+    if (!DEMO_MODE) return throwUnsyncedSchema("Studies", ["study_subjects", "study_sessions"]);
     await delay();
     let created!: StudyPlan;
     updateMockDatabase((db) => {
@@ -362,13 +362,13 @@ export const StudyService = {
 export const FinanceService = {
   async listGoals(): Promise<FinanceGoal[]> {
     if (!DEMO_MODE)
-      return assertSupportedSchema("Finance", ["finance_accounts", "finance_transactions"]);
+      return throwUnsyncedSchema("Finance", ["finance_accounts", "finance_transactions"]);
     await delay();
     return readMockDatabase().financeGoals;
   },
   async createGoal(): Promise<FinanceGoal> {
     if (!DEMO_MODE)
-      return assertSupportedSchema("Finance", ["finance_accounts", "finance_transactions"]);
+      return throwUnsyncedSchema("Finance", ["finance_accounts", "finance_transactions"]);
     await delay();
     let created!: FinanceGoal;
     updateMockDatabase((db) => {
@@ -386,12 +386,12 @@ export const FinanceService = {
 
 export const AgentService = {
   async list(): Promise<Agent[]> {
-    if (!DEMO_MODE) return assertSupportedSchema("Agents", ["agents", "agent_runs"]);
+    if (!DEMO_MODE) return throwUnsyncedSchema("Agents", ["agents", "agent_runs"]);
     await delay();
     return readMockDatabase().agents;
   },
   async createDraft(): Promise<Agent> {
-    if (!DEMO_MODE) return assertSupportedSchema("Agents", ["agents", "agent_runs"]);
+    if (!DEMO_MODE) return throwUnsyncedSchema("Agents", ["agents", "agent_runs"]);
     await delay();
     let created!: Agent;
     updateMockDatabase((db) => {
@@ -409,7 +409,7 @@ export const AgentService = {
 
 export const TranslationService = {
   async translate(text: string, source: string, target: string): Promise<string> {
-    if (!DEMO_MODE) return assertSupportedSchema("Translation provider", ["translations"]);
+    if (!DEMO_MODE) return throwUnsyncedSchema("Translation provider", ["translations"]);
     await delay();
     if (!text.trim()) return "";
     if (source === target) return text;

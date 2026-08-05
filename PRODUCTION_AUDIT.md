@@ -92,3 +92,12 @@
 - `user_preferences`, `study_subjects`, `study_sessions`, `finance_accounts`, `finance_transactions`, `agents`, `agent_runs`, and `translations` are not present in the confirmed type and require a separately reviewed schema phase.
 - The `avatars` bucket is referenced by the existing profile contract but Storage buckets and policies are not represented by generated database types; its existence and per-user policies require manual confirmation.
 - The checked-in `subscriptions` type has no `plan` column even though the unchanged Stripe webhook writes one. Frontend entitlement checks no longer select that unconfirmed column and derive access only from `status`; generated types/schema must be reconciled before changing webhook behavior.
+
+## Phase 3 schema synchronization audit
+
+- Manual SQL Editor verification confirms that `activity_logs`, `agent_runs`, `agents`, `ai_conversations`, `ai_messages`, `api_keys`, `documents`, `files`, `finance_accounts`, `finance_transactions`, `notes`, `notifications`, `profiles`, `projects`, `study_sessions`, `study_subjects`, `subscriptions`, `tasks`, `translations`, and `user_preferences` exist with RLS enabled in project `qoxtwbhpovkxfiambwgz`.
+- The checked-in `src/integrations/supabase/types.ts` remains stale and contains only nine of those tables. Table existence is therefore confirmed, but columns for the additional tables are not available in this repository.
+- Supabase CLI is not installed in the execution environment, and no local `supabase/config.toml` or linked-project metadata is versioned. Types were not manually invented or partially patched.
+- The required manual generation command is `supabase gen types typescript --project-id qoxtwbhpovkxfiambwgz > src/integrations/supabase/types.ts` (or `supabase gen types typescript --linked > src/integrations/supabase/types.ts` after linking).
+- Settings, studies, finance, agents, translations, content/files, and subscription-column reconciliation must remain blocked until that generated diff confirms their exact columns. Existing errors now describe this as a local type synchronization requirement rather than claiming the real tables do not exist.
+- No schema, migration, RLS policy, bucket, Auth, Edge Function, Stripe, or OpenAI changes were made in this phase.

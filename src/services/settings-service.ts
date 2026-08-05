@@ -1,9 +1,9 @@
 import { DEMO_MODE } from "@/lib/demo/config";
-import { assertSupportedSchema } from "./supabase-service";
+import { throwUnsyncedSchema } from "./supabase-service";
 
 export const SettingsService = {
   getNotificationDefaults() {
-    if (!DEMO_MODE) return assertSupportedSchema("User preferences", ["user_preferences"]);
+    if (!DEMO_MODE) return throwUnsyncedSchema("User preferences", ["user_preferences"]);
     return { dailyBriefing: true, goalReminders: true };
   },
 };
