@@ -10,7 +10,7 @@ if (!hasSupabaseCredentials) {
   // mode) while credentials are being provisioned.
   // eslint-disable-next-line no-console
   console.warn(
-    "[nexora] Missing Supabase environment variables — running in demo/fallback mode. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to go live."
+    "[nexora] Missing Supabase environment variables — running in demo/fallback mode. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to go live.",
   );
 }
 
@@ -29,7 +29,7 @@ export const supabase = createClient(
       autoRefreshToken: true,
       detectSessionInUrl: true,
     },
-  }
+  },
 );
 
 export { hasSupabaseCredentials };

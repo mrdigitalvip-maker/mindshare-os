@@ -12,10 +12,7 @@ import { Label } from "@/components/ui/label";
 export const Route = createFileRoute("/reset-password")({
   ssr: false,
   head: () => ({
-    meta: [
-      { title: "Reset password — NEXORA" },
-      { name: "robots", content: "noindex" },
-    ],
+    meta: [{ title: "Reset password — NEXORA" }, { name: "robots", content: "noindex" }],
   }),
   component: ResetPasswordPage,
 });
@@ -120,7 +117,12 @@ function ResetPasswordPage() {
               disabled={!ready}
             />
           </div>
-          <Button type="submit" className="w-full rounded-full" disabled={loading || !ready} aria-busy={loading}>
+          <Button
+            type="submit"
+            className="w-full rounded-full"
+            disabled={loading || !ready}
+            aria-busy={loading}
+          >
             {loading ? "Saving…" : ready ? "Update password" : "Verifying link…"}
           </Button>
         </form>

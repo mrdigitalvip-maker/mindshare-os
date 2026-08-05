@@ -32,7 +32,11 @@ export const Route = createFileRoute("/")({
 });
 
 const FEATURES = [
-  { icon: Sparkles, title: "AI Assistant", copy: "A thoughtful companion that learns your rhythm." },
+  {
+    icon: Sparkles,
+    title: "AI Assistant",
+    copy: "A thoughtful companion that learns your rhythm.",
+  },
   { icon: FolderKanban, title: "Projects", copy: "Plan, ship and reflect. All in one canvas." },
   { icon: FileText, title: "Documents", copy: "Read, summarize and question any file." },
   { icon: Languages, title: "Translate", copy: "Seamless multilingual writing and speech." },
@@ -79,16 +83,26 @@ export default function Landing() {
             <span className="font-display text-xl tracking-tight">NEXORA</span>
           </Link>
           <nav className="hidden items-center gap-8 text-sm text-muted-foreground md:flex">
-            <a href="#features" className="hover:text-foreground">Features</a>
-            <a href="#modules" className="hover:text-foreground">Modules</a>
-            <Link to="/premium" className="hover:text-foreground">Premium</Link>
+            <a href="#features" className="hover:text-foreground">
+              Features
+            </a>
+            <a href="#modules" className="hover:text-foreground">
+              Modules
+            </a>
+            <Link to="/premium" className="hover:text-foreground">
+              Premium
+            </Link>
           </nav>
           <div className="flex items-center gap-2">
             <Link to="/auth">
-              <Button variant="ghost" size="sm">Sign in</Button>
+              <Button variant="ghost" size="sm">
+                Sign in
+              </Button>
             </Link>
             <Link to="/auth" search={{ mode: "signup" }}>
-              <Button size="sm" className="rounded-full">Get started</Button>
+              <Button size="sm" className="rounded-full">
+                Get started
+              </Button>
             </Link>
           </div>
         </div>
@@ -113,8 +127,8 @@ export default function Landing() {
               Operating System
             </h1>
             <p className="mx-auto mt-6 max-w-xl text-lg text-muted-foreground">
-              One intelligent workspace for productivity, projects, learning,
-              content and translation. NEXORA works with you — every day.
+              One intelligent workspace for productivity, projects, learning, content and
+              translation. NEXORA works with you — every day.
             </p>
             <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
               <Link to="/auth" search={{ mode: "signup" }}>
@@ -169,9 +183,7 @@ export default function Landing() {
         <div className="mx-auto max-w-6xl px-6 py-24">
           <div className="max-w-2xl">
             <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Modules</p>
-            <h2 className="mt-3 font-display text-4xl md:text-5xl">
-              Everything you use, unified.
-            </h2>
+            <h2 className="mt-3 font-display text-4xl md:text-5xl">Everything you use, unified.</h2>
             <p className="mt-4 text-muted-foreground">
               Ten deeply integrated modules that share memory, context and taste.
             </p>

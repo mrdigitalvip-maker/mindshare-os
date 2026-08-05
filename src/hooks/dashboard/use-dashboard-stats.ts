@@ -88,8 +88,7 @@ export function useDashboardStats() {
           const projectCount = projects?.length ?? 0;
           const totalProgress =
             projects?.reduce((acc, project) => acc + (project.progress ?? 0), 0) ?? 0;
-          const completionRate =
-            projectCount === 0 ? 0 : Math.round(totalProgress / projectCount);
+          const completionRate = projectCount === 0 ? 0 : Math.round(totalProgress / projectCount);
 
           const openTasks = tasks?.filter((task) => task.completed !== true).length ?? 0;
           const dueSoon =

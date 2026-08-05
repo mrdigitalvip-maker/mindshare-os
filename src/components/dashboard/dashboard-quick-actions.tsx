@@ -3,25 +3,15 @@ import { ArrowRight } from "lucide-react";
 import { MODULES } from "@/lib/modules";
 
 export function DashboardQuickActions() {
-
-  const modules = MODULES.filter(
-    module => module.group === "modules"
-  ).slice(0,6);
+  const modules = MODULES.filter((module) => module.group === "modules").slice(0, 6);
 
   return (
-
     <section>
-
-      <h2 className="mb-5 font-display text-2xl">
-        Quick Actions
-      </h2>
+      <h2 className="mb-5 font-display text-2xl">Quick Actions</h2>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-
-        {modules.map(module => (
-
+        {modules.map((module) => (
           <Link
-
             key={module.id}
 
             to={module.path}
@@ -36,11 +26,8 @@ export function DashboardQuickActions() {
               transition-all
               hover:border-[color:var(--gold)]
             "
-
           >
-
             <div className="flex items-center justify-between">
-
               <div
                 className="
                   flex
@@ -52,8 +39,7 @@ export function DashboardQuickActions() {
                   bg-surface-elevated
                 "
               >
-                <module.icon className="h-6 w-6"/>
-
+                <module.icon className="h-6 w-6" />
               </div>
 
               <ArrowRight
@@ -65,25 +51,14 @@ export function DashboardQuickActions() {
                   group-hover:translate-x-1
                 "
               />
-
             </div>
 
-            <h3 className="mt-5 font-medium">
-              {module.label}
-            </h3>
+            <h3 className="mt-5 font-medium">{module.label}</h3>
 
-            <p className="mt-2 text-sm text-muted-foreground">
-              {module.description}
-            </p>
-
+            <p className="mt-2 text-sm text-muted-foreground">{module.description}</p>
           </Link>
-
         ))}
-
       </div>
-
     </section>
-
   );
-
 }

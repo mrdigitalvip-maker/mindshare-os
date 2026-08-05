@@ -7,10 +7,7 @@ import { useAuth } from "@/lib/auth-context";
 export const Route = createFileRoute("/confirm-email")({
   ssr: false,
   head: () => ({
-    meta: [
-      { title: "Email confirmed — NEXORA" },
-      { name: "robots", content: "noindex" },
-    ],
+    meta: [{ title: "Email confirmed — NEXORA" }, { name: "robots", content: "noindex" }],
   }),
   component: ConfirmEmailPage,
 });
@@ -58,8 +55,8 @@ function ConfirmEmailPage() {
           <>
             <h1 className="font-display text-3xl">Confirmation link invalid</h1>
             <p className="mt-3 text-sm text-muted-foreground">
-              This link may have expired or already been used. Try signing in — if your
-              email still isn't confirmed, request a new link.
+              This link may have expired or already been used. Try signing in — if your email still
+              isn't confirmed, request a new link.
             </p>
             <Link
               to="/auth"

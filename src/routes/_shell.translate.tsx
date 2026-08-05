@@ -1,9 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Languages, ArrowRightLeft } from "lucide-react";
+import { Languages, ArrowRightLeft, Copy } from "lucide-react";
+import { toast } from "sonner";
 import { PageShell, PageHeader } from "@/components/page-shell";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { translateText } from "@/lib/workspace-service";
 import {
   Select,
   SelectContent,
@@ -30,30 +32,50 @@ function Translate() {
   const [source, setSource] = useState("en");
   const [target, setTarget] = useState("pt");
   const [text, setText] = useState("");
+  const translated = translateText(text, source, target);
 
   return (
     <PageShell>
-      <PageHeader eyebrow="Modules" title="Translate" description="Fluent multilingual translation, tuned to context." />
+      <PageHeader
+        eyebrow="Modules"
+        title="Translate"
+        description="Fluent multilingual translation, tuned to context."
+      />
 
       <div className="mt-8 flex flex-wrap items-center gap-3">
         <Select value={source} onValueChange={setSource}>
-          <SelectTrigger className="w-40 rounded-full"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-40 rounded-full">
+            <SelectValue />
+          </SelectTrigger>
           <SelectContent>
-            {LANGS.map((l) => <SelectItem key={l.code} value={l.code}>{l.label}</SelectItem>)}
+            {LANGS.map((l) => (
+              <SelectItem key={l.code} value={l.code}>
+                {l.label}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
         <Button
           variant="ghost"
           size="icon"
           className="rounded-full"
-          onClick={() => { setSource(target); setTarget(source); }}
+          onClick={() => {
+            setSource(target);
+            setTarget(source);
+          }}
         >
           <ArrowRightLeft className="h-4 w-4" />
         </Button>
         <Select value={target} onValueChange={setTarget}>
-          <SelectTrigger className="w-40 rounded-full"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-40 rounded-full">
+            <SelectValue />
+          </SelectTrigger>
           <SelectContent>
-            {LANGS.map((l) => <SelectItem key={l.code} value={l.code}>{l.label}</SelectItem>)}
+            {LANGS.map((l) => (
+              <SelectItem key={l.code} value={l.code}>
+                {l.label}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
@@ -66,11 +88,24 @@ function Translate() {
           className="min-h-56 rounded-2xl bg-surface"
         />
         <div className="glass min-h-56 rounded-2xl p-4 text-sm text-muted-foreground">
-          {text ? (
-            <p className="text-foreground">
-              <Languages className="mr-2 inline h-4 w-4 text-gold" />
-              Translation appears here once the AI provider is connected.
-            </p>
+          {translated ? (
+            <div className="space-y-4 text-foreground">
+              <p>
+                <Languages className="mr-2 inline h-4 w-4 text-gold" />
+                {translated}
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-full"
+                onClick={() => {
+                  navigator.clipboard?.writeText(translated);
+                  toast.success("Translation copied");
+                }}
+              >
+                <Copy className="mr-1 h-3.5 w-3.5" /> Copy
+              </Button>
+            </div>
           ) : (
             <p>Translation will appear here.</p>
           )}

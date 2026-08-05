@@ -76,7 +76,10 @@ Deno.serve(async (req) => {
 
   const signature = req.headers.get("stripe-signature");
   if (!signature) {
-    return Response.json({ error: "Missing stripe-signature header" }, { status: 400, headers: CORS_HEADERS });
+    return Response.json(
+      { error: "Missing stripe-signature header" },
+      { status: 400, headers: CORS_HEADERS },
+    );
   }
 
   const rawBody = await req.text();
@@ -105,8 +108,10 @@ Deno.serve(async (req) => {
         const userId = session.metadata?.user_id ?? session.client_reference_id;
         if (!userId) break;
 
-        const customerId = typeof session.customer === "string" ? session.customer : session.customer?.id;
-        const subscriptionId = typeof session.subscription === "string" ? session.subscription : undefined;
+        const customerId =
+          typeof session.customer === "string" ? session.customer : session.customer?.id;
+        const subscriptionId =
+          typeof session.subscription === "string" ? session.subscription : undefined;
 
         await updateSubscriptionRecord(supabase, userId, {
           stripe_customer_id: customerId ?? null,
@@ -121,11 +126,14 @@ Deno.serve(async (req) => {
       case "customer.subscription.updated": {
         const subscription = event.data.object as Stripe.Subscription;
         const customerId =
-          typeof subscription.customer === "string" ? subscription.customer : subscription.customer?.id;
+          typeof subscription.customer === "string"
+            ? subscription.customer
+            : subscription.customer?.id;
         const userId = subscription.metadata?.user_id;
         if (!userId) break;
 
-        const periodEnd = (subscription as unknown as { current_period_end?: number }).current_period_end;
+        const periodEnd = (subscription as unknown as { current_period_end?: number })
+          .current_period_end;
 
         await updateSubscriptionRecord(supabase, userId, {
           stripe_customer_id: customerId ?? null,
@@ -143,7 +151,8 @@ Deno.serve(async (req) => {
         const userId = subscription.metadata?.user_id;
         if (!userId) break;
 
-        const periodEnd = (subscription as unknown as { current_period_end?: number }).current_period_end;
+        const periodEnd = (subscription as unknown as { current_period_end?: number })
+          .current_period_end;
 
         await updateSubscriptionRecord(supabase, userId, {
           stripe_subscription_id: subscription.id,
@@ -158,7 +167,10 @@ Deno.serve(async (req) => {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error("[stripe-webhook] handler error", { type: event.type, message });
-    return Response.json({ error: message, event: event.type }, { status: 500, headers: CORS_HEADERS });
+    return Response.json(
+      { error: message, event: event.type },
+      { status: 500, headers: CORS_HEADERS },
+    );
   }
 
   return Response.json({ received: true }, { headers: CORS_HEADERS });

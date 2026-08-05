@@ -1,7 +1,19 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Bell, Lock, Globe, Palette, User, HelpCircle, LogOut, Crown, Info, Shield, Camera } from "lucide-react";
+import {
+  Bell,
+  Lock,
+  Globe,
+  Palette,
+  User,
+  HelpCircle,
+  LogOut,
+  Crown,
+  Info,
+  Shield,
+  Camera,
+} from "lucide-react";
 
 import { useAuth } from "@/lib/auth-context";
 import { useProfile, useUpdateProfile, uploadAvatar } from "@/hooks/use-profile";
@@ -143,7 +155,12 @@ function Settings() {
                 <Input value={user?.email ?? ""} readOnly disabled />
               </div>
             </div>
-            <Button className="mt-4 rounded-full" onClick={onSave} disabled={saving} aria-busy={saving}>
+            <Button
+              className="mt-4 rounded-full"
+              onClick={onSave}
+              disabled={saving}
+              aria-busy={saving}
+            >
               {saving ? "Saving…" : "Save changes"}
             </Button>
           </Section>
@@ -189,7 +206,15 @@ function Settings() {
   );
 }
 
-function Section({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
+function Section({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+}) {
   return (
     <section className="glass rounded-2xl p-6">
       <h2 className="font-display text-xl">{title}</h2>
@@ -199,7 +224,15 @@ function Section({ title, description, children }: { title: string; description?
   );
 }
 
-function Row({ label, desc, children }: { label: string; desc: string; children: React.ReactNode }) {
+function Row({
+  label,
+  desc,
+  children,
+}: {
+  label: string;
+  desc: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="flex items-center justify-between gap-6">
       <div>

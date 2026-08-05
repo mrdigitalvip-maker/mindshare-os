@@ -18,12 +18,32 @@ export const Route = createFileRoute("/onboarding")({
 });
 
 const STEPS = [
-  { key: "name", title: "What should we call you?", hint: "Your full name, as you'd like to see it." },
-  { key: "avatar", title: "Add a profile photo", hint: "Optional — you can always change this later." },
+  {
+    key: "name",
+    title: "What should we call you?",
+    hint: "Your full name, as you'd like to see it.",
+  },
+  {
+    key: "avatar",
+    title: "Add a profile photo",
+    hint: "Optional — you can always change this later.",
+  },
   { key: "language", title: "Choose your language", hint: "You can change this anytime." },
-  { key: "country", title: "Where are you based?", hint: "Helps us tailor time and content to you." },
-  { key: "goal", title: "What's your main goal with NEXORA?", hint: "Pick the one that fits best." },
-  { key: "interests", title: "Anything else you're into?", hint: "Optional — pick as many as you like." },
+  {
+    key: "country",
+    title: "Where are you based?",
+    hint: "Helps us tailor time and content to you.",
+  },
+  {
+    key: "goal",
+    title: "What's your main goal with NEXORA?",
+    hint: "Pick the one that fits best.",
+  },
+  {
+    key: "interests",
+    title: "Anything else you're into?",
+    hint: "Optional — pick as many as you like.",
+  },
 ] as const;
 
 const LANGUAGES = [
@@ -34,17 +54,66 @@ const LANGUAGES = [
 ];
 
 const COUNTRIES = [
-  "Brazil", "Portugal", "United States", "United Kingdom", "Canada", "France",
-  "Spain", "Germany", "Italy", "Mexico", "Argentina", "Chile", "Colombia",
-  "Peru", "Uruguay", "Paraguay", "Bolivia", "Venezuela", "Ecuador",
-  "Costa Rica", "Panama", "Guatemala", "Dominican Republic", "Cuba",
-  "Angola", "Mozambique", "Cape Verde", "Guinea-Bissau",
-  "São Tomé and Príncipe", "Equatorial Guinea", "East Timor",
-  "Switzerland", "Belgium", "Netherlands", "Austria", "Ireland",
-  "Australia", "New Zealand", "Japan", "South Korea", "China", "India",
-  "South Africa", "Nigeria", "Egypt", "Morocco", "Senegal", "Ivory Coast",
-  "Sweden", "Norway", "Denmark", "Finland", "Poland", "Greece", "Turkey",
-  "United Arab Emirates", "Saudi Arabia", "Israel", "Singapore", "Other",
+  "Brazil",
+  "Portugal",
+  "United States",
+  "United Kingdom",
+  "Canada",
+  "France",
+  "Spain",
+  "Germany",
+  "Italy",
+  "Mexico",
+  "Argentina",
+  "Chile",
+  "Colombia",
+  "Peru",
+  "Uruguay",
+  "Paraguay",
+  "Bolivia",
+  "Venezuela",
+  "Ecuador",
+  "Costa Rica",
+  "Panama",
+  "Guatemala",
+  "Dominican Republic",
+  "Cuba",
+  "Angola",
+  "Mozambique",
+  "Cape Verde",
+  "Guinea-Bissau",
+  "São Tomé and Príncipe",
+  "Equatorial Guinea",
+  "East Timor",
+  "Switzerland",
+  "Belgium",
+  "Netherlands",
+  "Austria",
+  "Ireland",
+  "Australia",
+  "New Zealand",
+  "Japan",
+  "South Korea",
+  "China",
+  "India",
+  "South Africa",
+  "Nigeria",
+  "Egypt",
+  "Morocco",
+  "Senegal",
+  "Ivory Coast",
+  "Sweden",
+  "Norway",
+  "Denmark",
+  "Finland",
+  "Poland",
+  "Greece",
+  "Turkey",
+  "United Arab Emirates",
+  "Saudi Arabia",
+  "Israel",
+  "Singapore",
+  "Other",
 ];
 
 const PRIMARY_GOALS = [
@@ -100,10 +169,7 @@ function Onboarding() {
     }
   }, [profileLoading, profile, navigate]);
 
-  const detectedTimezone = useMemo(
-    () => Intl.DateTimeFormat().resolvedOptions().timeZone,
-    [],
-  );
+  const detectedTimezone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, []);
 
   const [step, setStep] = useState(0);
   const [name, setName] = useState(user?.name ?? "");

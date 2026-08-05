@@ -75,7 +75,11 @@ function AuthPage() {
   }
 
   const title =
-    mode === "signup" ? "Create your NEXORA" : mode === "forgot" ? "Reset your password" : "Welcome back";
+    mode === "signup"
+      ? "Create your NEXORA"
+      : mode === "forgot"
+        ? "Reset your password"
+        : "Welcome back";
   const cta = mode === "signup" ? "Create account" : mode === "forgot" ? "Send email" : "Sign in";
 
   return (
@@ -90,7 +94,8 @@ function AuthPage() {
           </Link>
           <div>
             <p className="font-display text-4xl leading-tight">
-              "The first workspace that <span className="text-gold italic">actually</span> feels personal."
+              "The first workspace that <span className="text-gold italic">actually</span> feels
+              personal."
             </p>
             <p className="mt-4 text-sm text-muted-foreground">— early access user</p>
           </div>
@@ -192,7 +197,12 @@ function AuthPage() {
                     />
                   </div>
                 )}
-                <Button type="submit" className="w-full rounded-full" disabled={loading} aria-busy={loading}>
+                <Button
+                  type="submit"
+                  className="w-full rounded-full"
+                  disabled={loading}
+                  aria-busy={loading}
+                >
                   {loading ? "Please wait…" : cta}
                 </Button>
               </form>
@@ -221,14 +231,22 @@ function AuthPage() {
                 {mode === "signup" ? (
                   <>
                     Already have an account?{" "}
-                    <Link to="/auth" search={{ mode: "signin" }} className="text-foreground hover:underline">
+                    <Link
+                      to="/auth"
+                      search={{ mode: "signin" }}
+                      className="text-foreground hover:underline"
+                    >
                       Sign in
                     </Link>
                   </>
                 ) : (
                   <>
                     New to NEXORA?{" "}
-                    <Link to="/auth" search={{ mode: "signup" }} className="text-foreground hover:underline">
+                    <Link
+                      to="/auth"
+                      search={{ mode: "signup" }}
+                      className="text-foreground hover:underline"
+                    >
                       Create an account
                     </Link>
                   </>

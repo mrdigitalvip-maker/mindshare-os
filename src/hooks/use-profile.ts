@@ -4,7 +4,6 @@ import { useAuth } from "@/lib/auth-context";
 import { withDemoFallback } from "@/lib/demo/fallback";
 import { demoProfile } from "@/lib/demo/demo-data";
 
-
 export interface Profile {
   id: string;
   full_name: string | null;
@@ -18,7 +17,7 @@ export interface Profile {
   preferences: Record<string, unknown>;
   plan: string | null;
   onboarded: boolean | null;
-  email_notifications: boolean |null;
+  email_notifications: boolean | null;
   push_notifications: boolean | null;
   created_at: string;
   updated_at: string;
@@ -124,22 +123,16 @@ export function useUpdateProfile() {
   });
 }
 
-
-export async function uploadAvatar(
-  userId: string,
-  file: File
-): Promise<string> {
+export async function uploadAvatar(userId: string, file: File): Promise<string> {
   const ext = file.name.split(".").pop() ?? "jpg";
   const path = `${userId}/avatar-${Date.now()}.${ext}`;
 
   return withDemoFallback(
     async () => {
-      const { error } = await supabase.storage
-        .from("avatars")
-        .upload(path, file, {
-          upsert: true,
-          cacheControl: "3600",
-        });
+      const { error } = await supabase.storage.from("avatars").upload(path, file, {
+        upsert: true,
+        cacheControl: "3600",
+      });
 
       if (error) throw error;
 
@@ -152,4 +145,3 @@ export async function uploadAvatar(
     "avatar upload",
   );
 }
-
