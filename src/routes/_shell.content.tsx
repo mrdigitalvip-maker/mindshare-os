@@ -15,13 +15,21 @@ function Content() {
   const [drafts, setDrafts] = useState<ContentDraft[]>([]);
 
   useEffect(() => {
-    void ContentService.listDrafts().then(setDrafts);
+    void ContentService.listDrafts()
+      .then(setDrafts)
+      .catch((error: unknown) => {
+        toast.error(error instanceof Error ? error.message : "Unable to load data");
+      });
   }, []);
 
   async function addDraft() {
-    const created = await ContentService.createDraft();
-    setDrafts((current) => [created, ...current]);
-    toast.success("Draft created");
+    try {
+      const created = await ContentService.createDraft();
+      setDrafts((current) => [created, ...current]);
+      toast.success("Draft created");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to create draft");
+    }
   }
 
   return (

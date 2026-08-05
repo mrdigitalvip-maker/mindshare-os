@@ -17,13 +17,21 @@ function Finance() {
   const target = goals.reduce((total, goal) => total + goal.target, 0);
 
   useEffect(() => {
-    void FinanceService.listGoals().then(setGoals);
+    void FinanceService.listGoals()
+      .then(setGoals)
+      .catch((error: unknown) => {
+        toast.error(error instanceof Error ? error.message : "Unable to load data");
+      });
   }, []);
 
   async function addGoal() {
-    const created = await FinanceService.createGoal();
-    setGoals((current) => [created, ...current]);
-    toast.success("Finance goal added");
+    try {
+      const created = await FinanceService.createGoal();
+      setGoals((current) => [created, ...current]);
+      toast.success("Finance goal added");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to add finance goal");
+    }
   }
 
   return (

@@ -65,8 +65,7 @@ export const ProfileService = {
       async () => {
         const { data, error } = await supabase
           .from("profiles")
-          .update(patch)
-          .eq("id", userId)
+          .upsert({ id: userId, ...patch }, { onConflict: "id" })
           .select("*")
           .single();
         if (error) throw error;

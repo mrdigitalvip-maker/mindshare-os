@@ -24,7 +24,7 @@ export const SubscriptionStatusService = {
         if (!userId) return FREE_SUBSCRIPTION;
         const { data: subscription, error } = await supabase
           .from("subscriptions")
-          .select("status, plan, current_period_end, updated_at")
+          .select("status, current_period_end, updated_at")
           .eq("user_id", userId)
           .order("updated_at", { ascending: false })
           .limit(1)

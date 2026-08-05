@@ -36,9 +36,16 @@ function Translate() {
 
   useEffect(() => {
     let cancelled = false;
-    void TranslationService.translate(text, source, target).then((result) => {
-      if (!cancelled) setTranslated(result);
-    });
+    void TranslationService.translate(text, source, target)
+      .then((result) => {
+        if (!cancelled) setTranslated(result);
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setTranslated("");
+          toast.error(error instanceof Error ? error.message : "Translation failed");
+        }
+      });
     return () => {
       cancelled = true;
     };

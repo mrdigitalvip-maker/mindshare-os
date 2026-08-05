@@ -15,13 +15,21 @@ function Projects() {
   const [projects, setProjects] = useState<Project[]>([]);
 
   useEffect(() => {
-    void ProjectService.list().then(setProjects);
+    void ProjectService.list()
+      .then(setProjects)
+      .catch((error: unknown) => {
+        toast.error(error instanceof Error ? error.message : "Unable to load data");
+      });
   }, []);
 
   async function addProject() {
-    const created = await ProjectService.create();
-    setProjects((current) => [created, ...current]);
-    toast.success("Project created");
+    try {
+      const created = await ProjectService.create();
+      setProjects((current) => [created, ...current]);
+      toast.success("Project created");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to create project");
+    }
   }
 
   return (

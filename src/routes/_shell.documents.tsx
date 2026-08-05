@@ -15,13 +15,21 @@ function Documents() {
   const [documents, setDocuments] = useState<Document[]>([]);
 
   useEffect(() => {
-    void DocumentService.list().then(setDocuments);
+    void DocumentService.list()
+      .then(setDocuments)
+      .catch((error: unknown) => {
+        toast.error(error instanceof Error ? error.message : "Unable to load data");
+      });
   }, []);
 
   async function addDoc() {
-    const created = await DocumentService.createUploadRecord();
-    setDocuments((current) => [created, ...current]);
-    toast.success("Document added");
+    try {
+      const created = await DocumentService.createUploadRecord();
+      setDocuments((current) => [created, ...current]);
+      toast.success("Document added");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to add document");
+    }
   }
 
   return (

@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 
 import { hasSupabaseCredentials } from "@/lib/demo/config";
 
@@ -20,7 +21,7 @@ const PLACEHOLDER_KEY = "public-anon-key-placeholder";
 // rendering compatible with Node runtimes that do not expose WebSocket.
 const serverRealtimeTransport = class ServerRealtimeTransport {} as typeof WebSocket;
 
-export const supabase = createClient(
+export const supabase = createClient<Database>(
   supabaseUrl || PLACEHOLDER_URL,
   supabaseAnonKey || PLACEHOLDER_KEY,
   {

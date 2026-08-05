@@ -15,13 +15,21 @@ function Agents() {
   const [agents, setAgents] = useState<Agent[]>([]);
 
   useEffect(() => {
-    void AgentService.list().then(setAgents);
+    void AgentService.list()
+      .then(setAgents)
+      .catch((error: unknown) => {
+        toast.error(error instanceof Error ? error.message : "Unable to load data");
+      });
   }, []);
 
   async function addAgent() {
-    const created = await AgentService.createDraft();
-    setAgents((current) => [created, ...current]);
-    toast.success("Agent draft created");
+    try {
+      const created = await AgentService.createDraft();
+      setAgents((current) => [created, ...current]);
+      toast.success("Agent draft created");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to create agent");
+    }
   }
 
   return (

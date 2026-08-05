@@ -18,13 +18,21 @@ function Studies() {
   );
 
   useEffect(() => {
-    void StudyService.listPlans().then(setPlans);
+    void StudyService.listPlans()
+      .then(setPlans)
+      .catch((error: unknown) => {
+        toast.error(error instanceof Error ? error.message : "Unable to load data");
+      });
   }, []);
 
   async function addPlan() {
-    const created = await StudyService.createPlan();
-    setPlans((current) => [created, ...current]);
-    toast.success("Study plan created");
+    try {
+      const created = await StudyService.createPlan();
+      setPlans((current) => [created, ...current]);
+      toast.success("Study plan created");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to create study plan");
+    }
   }
 
   return (

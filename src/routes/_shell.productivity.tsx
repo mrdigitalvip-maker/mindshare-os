@@ -16,18 +16,30 @@ function Productivity() {
   const open = tasks.filter((task) => task.status === "open");
 
   useEffect(() => {
-    void ProductivityService.listTasks().then(setTasks);
+    void ProductivityService.listTasks()
+      .then(setTasks)
+      .catch((error: unknown) => {
+        toast.error(error instanceof Error ? error.message : "Unable to load data");
+      });
   }, []);
 
   async function addTask() {
-    const created = await ProductivityService.createTask();
-    setTasks((current) => [created, ...current]);
-    toast.success("Task added");
+    try {
+      const created = await ProductivityService.createTask();
+      setTasks((current) => [created, ...current]);
+      toast.success("Task added");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to add task");
+    }
   }
 
   async function toggle(id: string) {
-    const updated = await ProductivityService.toggleTask(id);
-    setTasks(updated);
+    try {
+      const updated = await ProductivityService.toggleTask(id);
+      setTasks(updated);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to update task");
+    }
   }
 
   return (
