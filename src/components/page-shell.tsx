@@ -12,7 +12,7 @@ export function PageHeader({
   actions?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-4 border-b border-border pb-5 md:flex-row md:items-end md:justify-between">
+    <header className="flex flex-col gap-4 border-b border-border pb-5 md:flex-row md:items-end md:justify-between">
       <div className="min-w-0 flex-1">
         {eyebrow && (
           <p className="text-[10px] uppercase tracking-[0.28em] text-muted-foreground md:text-xs">
@@ -28,7 +28,7 @@ export function PageHeader({
       </div>
 
       {actions && <div className="flex flex-wrap gap-2 w-full md:w-auto">{actions}</div>}
-    </div>
+    </header>
   );
 }
 
@@ -44,7 +44,10 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex min-h-[45vh] flex-col items-center justify-center rounded-3xl border border-dashed border-border bg-surface/40 px-5 py-10 text-center">
+    <div
+      role="status"
+      className="flex min-h-64 flex-col items-center justify-center rounded-3xl border border-dashed border-border bg-surface/40 px-5 py-10 text-center md:min-h-[45vh]"
+    >
       <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-surface-elevated">
         <Icon className="h-7 w-7 text-muted-foreground" />
       </div>
@@ -61,7 +64,7 @@ export function EmptyState({
 export function PageShell({ children }: { children: ReactNode }) {
   return (
     <main
-      className="
+      className="min-w-0 overflow-x-clip
         w-full
         min-h-[100dvh]
         px-4
