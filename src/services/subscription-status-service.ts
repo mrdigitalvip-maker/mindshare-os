@@ -1,12 +1,13 @@
 import { withDemoFallback } from "@/lib/demo/fallback";
 import { supabase } from "@/lib/supabase";
+import { getRequiredUserId } from "./supabase-service";
 
 export type SubscriptionStatus = {
   isPremium: boolean;
   status: string | null;
   plan: "free" | "pro";
   currentPeriodEnd: string | null;
-  source: "subscriptions" | "profile" | "demo";
+  source: "subscriptions" | "demo";
 };
 export const FREE_SUBSCRIPTION: SubscriptionStatus = {
   isPremium: false,
@@ -21,11 +22,14 @@ export const SubscriptionStatusService = {
   async get(userId?: string): Promise<SubscriptionStatus> {
     return withDemoFallback(
       async () => {
-        if (!userId) return FREE_SUBSCRIPTION;
+        const authenticatedUserId = await getRequiredUserId();
+        if (userId && userId !== authenticatedUserId) {
+          throw new Error("Subscriptions can only be read for the authenticated user.");
+        }
         const { data: subscription, error } = await supabase
           .from("subscriptions")
           .select("status, current_period_end, updated_at")
-          .eq("user_id", userId)
+          .eq("user_id", authenticatedUserId)
           .order("updated_at", { ascending: false })
           .limit(1)
           .maybeSingle();
@@ -41,19 +45,12 @@ export const SubscriptionStatusService = {
             source: "subscriptions",
           };
         }
-        const { data: profile, error: profileError } = await supabase
-          .from("profiles")
-          .select("plan")
-          .eq("id", userId)
-          .maybeSingle();
-        if (profileError) throw profileError;
-        const isPremium = (profile?.plan ?? "free") === "pro";
         return {
-          isPremium,
-          status: isPremium ? "active" : "free",
-          plan: isPremium ? "pro" : "free",
+          isPremium: false,
+          status: null,
+          plan: "free",
           currentPeriodEnd: null,
-          source: "profile",
+          source: "subscriptions",
         };
       },
       FREE_SUBSCRIPTION,

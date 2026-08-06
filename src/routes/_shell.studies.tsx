@@ -1,10 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
 import { GraduationCap, BookOpen, Brain, Plus } from "lucide-react";
 import { toast } from "sonner";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PageShell, PageHeader } from "@/components/page-shell";
 import { Button } from "@/components/ui/button";
-import { StudyService, type StudyPlan } from "@/services";
+import { StudyService, workspaceQueryKeys } from "@/services";
 
 export const Route = createFileRoute("/_shell/studies")({
   head: () => ({ meta: [{ title: "Studies — NEXORA" }] }),
@@ -12,27 +12,25 @@ export const Route = createFileRoute("/_shell/studies")({
 });
 
 function Studies() {
-  const [plans, setPlans] = useState<StudyPlan[]>([]);
+  const queryClient = useQueryClient();
+  const { data: plans = [] } = useQuery({
+    queryKey: workspaceQueryKeys.studies,
+    queryFn: () => StudyService.listPlans(),
+  });
   const averageProgress = Math.round(
     plans.reduce((total, plan) => total + plan.progress, 0) / Math.max(plans.length, 1),
   );
-
-  useEffect(() => {
-    void StudyService.listPlans()
-      .then(setPlans)
-      .catch((error: unknown) => {
-        toast.error(error instanceof Error ? error.message : "Unable to load data");
-      });
-  }, []);
-
-  async function addPlan() {
-    try {
-      const created = await StudyService.createPlan();
-      setPlans((current) => [created, ...current]);
+  const createMutation = useMutation({
+    mutationFn: () => StudyService.createPlan(),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: workspaceQueryKeys.studies });
       toast.success("Study plan created");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Unable to create study plan");
-    }
+    },
+    onError: (error: Error) => toast.error(error.message || "Unable to create study plan"),
+  });
+
+  function addPlan() {
+    createMutation.mutate();
   }
 
   return (

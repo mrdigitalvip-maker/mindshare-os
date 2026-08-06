@@ -1,10 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
 import { Wallet, TrendingUp, PiggyBank, Plus } from "lucide-react";
 import { toast } from "sonner";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PageShell, PageHeader } from "@/components/page-shell";
 import { Button } from "@/components/ui/button";
-import { FinanceService, type FinanceGoal } from "@/services";
+import { FinanceService, workspaceQueryKeys } from "@/services";
 
 export const Route = createFileRoute("/_shell/finance")({
   head: () => ({ meta: [{ title: "Finance — NEXORA" }] }),
@@ -12,26 +12,24 @@ export const Route = createFileRoute("/_shell/finance")({
 });
 
 function Finance() {
-  const [goals, setGoals] = useState<FinanceGoal[]>([]);
+  const queryClient = useQueryClient();
+  const { data: goals = [] } = useQuery({
+    queryKey: workspaceQueryKeys.finance,
+    queryFn: () => FinanceService.listGoals(),
+  });
   const saved = goals.reduce((total, goal) => total + goal.saved, 0);
   const target = goals.reduce((total, goal) => total + goal.target, 0);
-
-  useEffect(() => {
-    void FinanceService.listGoals()
-      .then(setGoals)
-      .catch((error: unknown) => {
-        toast.error(error instanceof Error ? error.message : "Unable to load data");
-      });
-  }, []);
-
-  async function addGoal() {
-    try {
-      const created = await FinanceService.createGoal();
-      setGoals((current) => [created, ...current]);
+  const createMutation = useMutation({
+    mutationFn: () => FinanceService.createGoal(),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: workspaceQueryKeys.finance });
       toast.success("Finance goal added");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Unable to add finance goal");
-    }
+    },
+    onError: (error: Error) => toast.error(error.message || "Unable to add finance goal"),
+  });
+
+  function addGoal() {
+    createMutation.mutate();
   }
 
   return (
