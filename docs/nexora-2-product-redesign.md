@@ -1,5 +1,33 @@
 # NEXORA 2.0 — product and technical redesign
 
+## Delivery history and continuation status
+
+The first NEXORA 2 delivery (`797bcb6`, originally referenced as `81391ec`) introduced the
+navigation, typography, Assistant retention migration and Data & History settings described
+below. The continuation branch deliberately keeps those contracts and migrations unchanged.
+
+This continuation replaces two previously decorative module screens with persisted workflows:
+
+- **Finance** now reads real accounts, transactions and aggregates; creates, edits and deletes
+  accounts and income/expense transactions; and provides localized currency, search, type filters
+  and transaction history. It does not display the earlier synthetic goals.
+- **Documents** now supports persisted metadata creation, opening/editing, duplication, deletion,
+  search, sorting and real update timestamps. Physical file upload remains explicitly separate
+  because the current service has no implemented Storage upload contract.
+
+The repository already contains functional authentication, Dashboard aggregation, Assistant,
+project/task CRUD, Productivity CRUD, search, notifications, translation and settings flows from
+work preceding this continuation. They were validated rather than rewritten.
+
+### Remaining release blockers
+
+NEXORA 2.0 must **not** yet be described as complete. Studies, Content and Agents still present
+primarily summary/list experiences and need full detail editors and lifecycle actions wired to
+their existing services. Projects also needs a dedicated detail surface for its associated tasks,
+and Documents needs a production Storage upload flow before arbitrary physical files can be
+opened or edited. Credential-dependent OAuth, billing, AI, push and persistence smoke tests still
+require a deployed Supabase environment.
+
 ## Initial audit
 
 The checkout already had a production-oriented foundation: TanStack Router, React Query,
