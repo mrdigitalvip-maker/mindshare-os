@@ -28,6 +28,7 @@ import { Route as ShellProjectsRouteImport } from './routes/_shell.projects'
 import { Route as ShellSettingsRouteImport } from './routes/_shell.settings'
 import { Route as ShellStudiesRouteImport } from './routes/_shell.studies'
 import { Route as ShellTranslateRouteImport } from './routes/_shell.translate'
+import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -123,10 +124,15 @@ const ShellTranslateRoute = ShellTranslateRouteImport.update({
   path: '/translate',
   getParentRoute: () => ShellRoute,
 } as any)
+const AuthCallbackRoute = AuthCallbackRouteImport.update({
+  id: '/callback',
+  path: '/callback',
+  getParentRoute: () => AuthRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/confirm-email': typeof ConfirmEmailRoute
   '/onboarding': typeof OnboardingRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -143,10 +149,11 @@ export interface FileRoutesByFullPath {
   '/settings': typeof ShellSettingsRoute
   '/studies': typeof ShellStudiesRoute
   '/translate': typeof ShellTranslateRoute
+  '/auth/callback': typeof AuthCallbackRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/confirm-email': typeof ConfirmEmailRoute
   '/onboarding': typeof OnboardingRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -163,12 +170,13 @@ export interface FileRoutesByTo {
   '/settings': typeof ShellSettingsRoute
   '/studies': typeof ShellStudiesRoute
   '/translate': typeof ShellTranslateRoute
+  '/auth/callback': typeof AuthCallbackRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_shell': typeof ShellRouteWithChildren
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/confirm-email': typeof ConfirmEmailRoute
   '/onboarding': typeof OnboardingRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -185,6 +193,7 @@ export interface FileRoutesById {
   '/_shell/settings': typeof ShellSettingsRoute
   '/_shell/studies': typeof ShellStudiesRoute
   '/_shell/translate': typeof ShellTranslateRoute
+  '/auth/callback': typeof AuthCallbackRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -207,6 +216,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/studies'
     | '/translate'
+    | '/auth/callback'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -227,6 +237,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/studies'
     | '/translate'
+    | '/auth/callback'
   id:
     | '__root__'
     | '/'
@@ -248,12 +259,13 @@ export interface FileRouteTypes {
     | '/_shell/settings'
     | '/_shell/studies'
     | '/_shell/translate'
+    | '/auth/callback'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ShellRoute: typeof ShellRouteWithChildren
-  AuthRoute: typeof AuthRoute
+  AuthRoute: typeof AuthRouteWithChildren
   ConfirmEmailRoute: typeof ConfirmEmailRoute
   OnboardingRoute: typeof OnboardingRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
@@ -395,6 +407,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShellTranslateRouteImport
       parentRoute: typeof ShellRoute
     }
+    '/auth/callback': {
+      id: '/auth/callback'
+      path: '/callback'
+      fullPath: '/auth/callback'
+      preLoaderRoute: typeof AuthCallbackRouteImport
+      parentRoute: typeof AuthRoute
+    }
   }
 }
 
@@ -430,10 +449,20 @@ const ShellRouteChildren: ShellRouteChildren = {
 
 const ShellRouteWithChildren = ShellRoute._addFileChildren(ShellRouteChildren)
 
+interface AuthRouteChildren {
+  AuthCallbackRoute: typeof AuthCallbackRoute
+}
+
+const AuthRouteChildren: AuthRouteChildren = {
+  AuthCallbackRoute: AuthCallbackRoute,
+}
+
+const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ShellRoute: ShellRouteWithChildren,
-  AuthRoute: AuthRoute,
+  AuthRoute: AuthRouteWithChildren,
   ConfirmEmailRoute: ConfirmEmailRoute,
   OnboardingRoute: OnboardingRoute,
   ResetPasswordRoute: ResetPasswordRoute,
