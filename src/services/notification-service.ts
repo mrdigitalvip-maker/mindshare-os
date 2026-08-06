@@ -8,22 +8,25 @@ export type NotificationRecord = {
   title: string;
   message: string;
   createdAt: string;
-  readAt: string | null;
+  isRead: boolean;
+  type: string | null;
 };
 
 export const NotificationService = {
   async list(): Promise<NotificationRecord[]> {
     if (DEMO_MODE)
       return readMockDatabase().notifications.map((item) => ({
-        ...item,
-        message: "",
+        id: item.id,
+        title: item.title,
+        message: item.body,
         createdAt: new Date().toISOString(),
-        readAt: null,
+        isRead: item.read,
+        type: null,
       }));
     const userId = await getRequiredUserId();
     const { data, error } = await supabase
       .from("notifications")
-      .select("id, title, message, created_at, read_at")
+      .select("id, title, message, created_at, is_read, type")
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
     if (error) throw error;
@@ -32,7 +35,8 @@ export const NotificationService = {
       title: row.title ?? "Notification",
       message: row.message ?? "",
       createdAt: row.created_at ?? new Date(0).toISOString(),
-      readAt: row.read_at,
+      isRead: row.is_read === true,
+      type: row.type,
     }));
   },
   async markRead(id: string): Promise<void> {
@@ -40,20 +44,29 @@ export const NotificationService = {
     const userId = await getRequiredUserId();
     const { error } = await supabase
       .from("notifications")
-      .update({ read_at: new Date().toISOString() })
+      .update({ is_read: true })
       .eq("id", id)
       .eq("user_id", userId);
     if (error) throw error;
   },
-  async unreadCount(): Promise<number> {
-    if (DEMO_MODE) return readMockDatabase().notifications.length;
+  async markAllRead(): Promise<void> {
+    if (DEMO_MODE) return;
     const userId = await getRequiredUserId();
-    const { count, error } = await supabase
+    const { error } = await supabase
       .from("notifications")
-      .select("id", { count: "exact", head: true })
+      .update({ is_read: true })
       .eq("user_id", userId)
-      .is("read_at", null);
+      .eq("is_read", false);
     if (error) throw error;
-    return count ?? 0;
+  },
+  async remove(id: string): Promise<void> {
+    if (DEMO_MODE) return;
+    const userId = await getRequiredUserId();
+    const { error } = await supabase
+      .from("notifications")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", userId);
+    if (error) throw error;
   },
 };

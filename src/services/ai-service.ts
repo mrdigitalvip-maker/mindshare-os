@@ -1,6 +1,7 @@
 import { demoAssistantReply } from "@/lib/demo/demo-data";
 import { DEMO_MODE, canCallBackend } from "@/lib/demo/config";
 import { supabase } from "@/lib/supabase";
+import { getRequiredUserId } from "./supabase-service";
 
 export type AiErrorCode =
   | "unauthorized"
@@ -122,10 +123,87 @@ export interface AiSendResult {
   capabilities: Record<AiCapability, boolean>;
 }
 
+export type AiConversation = { id: string; title: string; createdAt: string; updatedAt: string };
+
 export const AIService = {
-  async loadHistory(): Promise<{ conversationId: string | null; messages: AiChatMessage[] }> {
+  async listConversations(): Promise<AiConversation[]> {
+    if (DEMO_MODE) return [];
+    const userId = await getRequiredUserId();
+    const { data, error } = await supabase
+      .from("ai_conversations")
+      .select("id, title, created_at, updated_at")
+      .eq("user_id", userId)
+      .order("updated_at", { ascending: false });
+    if (error) throw error;
+    return (data ?? []).map((row) => ({
+      id: row.id,
+      title: row.title ?? "Untitled conversation",
+      createdAt: row.created_at ?? "",
+      updatedAt: row.updated_at ?? row.created_at ?? "",
+    }));
+  },
+
+  async loadHistory(
+    conversationId?: string | null,
+  ): Promise<{ conversationId: string | null; messages: AiChatMessage[] }> {
     if (DEMO_MODE) return { conversationId: null, messages: [] };
+    if (conversationId) {
+      const userId = await getRequiredUserId();
+      const { data: conversation, error: conversationError } = await supabase
+        .from("ai_conversations")
+        .select("id")
+        .eq("id", conversationId)
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (conversationError) throw conversationError;
+      if (!conversation)
+        throw new AIServiceError("resource_not_found", "Conversation was not found.");
+      const { data, error } = await supabase
+        .from("ai_messages")
+        .select("id, role, content, created_at")
+        .eq("conversation_id", conversationId)
+        .in("role", ["user", "assistant"])
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return {
+        conversationId,
+        messages: (data ?? [])
+          .filter(
+            (row): row is typeof row & { role: "user" | "assistant" } =>
+              row.role === "user" || row.role === "assistant",
+          )
+          .map((row) => ({
+            id: row.id,
+            role: row.role,
+            content: row.content ?? "",
+            created_at: row.created_at,
+          })),
+      };
+    }
     return invoke({ action: "history" });
+  },
+
+  async renameConversation(id: string, title: string): Promise<void> {
+    const userId = await getRequiredUserId();
+    const normalized = title.trim().slice(0, 80);
+    if (!normalized)
+      throw new AIServiceError("invalid_request", "Conversation title cannot be empty.");
+    const { error } = await supabase
+      .from("ai_conversations")
+      .update({ title: normalized, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .eq("user_id", userId);
+    if (error) throw error;
+  },
+
+  async deleteConversation(id: string): Promise<void> {
+    const userId = await getRequiredUserId();
+    const { error } = await supabase
+      .from("ai_conversations")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", userId);
+    if (error) throw error;
   },
 
   async sendChat(input: {

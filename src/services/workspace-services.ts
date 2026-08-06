@@ -46,16 +46,29 @@ export const ProjectService = {
       return readMockDatabase().projects;
     }
     const userId = await getRequiredUserId();
-    const { data, error } = await supabase
-      .from("projects")
-      .select("id, title, progress, updated_at")
-      .eq("user_id", userId)
-      .order("updated_at", { ascending: false });
+    const [{ data, error }, { data: tasks, error: tasksError }] = await Promise.all([
+      supabase
+        .from("projects")
+        .select("id, title, status, updated_at")
+        .eq("user_id", userId)
+        .order("updated_at", { ascending: false }),
+      supabase.from("tasks").select("project_id, completed").eq("user_id", userId),
+    ]);
     if (error) throw error;
+    if (tasksError) throw tasksError;
     return (data ?? []).map((row, index) => ({
       id: row.id,
       title: row.title ?? "Untitled project",
-      progress: Math.round(row.progress ?? 0),
+      progress: (() => {
+        const projectTasks = (tasks ?? []).filter((task) => task.project_id === row.id);
+        return projectTasks.length
+          ? Math.round(
+              (projectTasks.filter((task) => task.completed).length / projectTasks.length) * 100,
+            )
+          : row.status === "completed"
+            ? 100
+            : 0;
+      })(),
       color: colors[index % colors.length],
       updatedAt: row.updated_at ?? new Date(0).toISOString(),
     }));
@@ -66,14 +79,14 @@ export const ProjectService = {
       const cleanTitle = title?.trim() || "New project";
       const { data, error } = await supabase
         .from("projects")
-        .insert({ user_id: userId, title: cleanTitle, progress: 0, status: "active" })
-        .select("id, title, progress, updated_at")
+        .insert({ user_id: userId, title: cleanTitle, status: "active" })
+        .select("id, title, updated_at")
         .single();
       if (error) throw error;
       return {
         id: data.id,
         title: data.title ?? cleanTitle,
-        progress: Math.round(data.progress ?? 0),
+        progress: 0,
         color: colors[0],
         updatedAt: data.updated_at ?? new Date().toISOString(),
       };
@@ -103,9 +116,16 @@ export const ProjectService = {
       return;
     }
     const userId = await getRequiredUserId();
+    const update = {
+      ...(patch.title !== undefined ? { title: patch.title } : {}),
+      ...(patch.progress !== undefined
+        ? { status: patch.progress >= 100 ? "completed" : "active" }
+        : {}),
+      updated_at: new Date().toISOString(),
+    };
     const { error } = await supabase
       .from("projects")
-      .update({ ...patch, updated_at: new Date().toISOString() })
+      .update(update)
       .eq("id", id)
       .eq("user_id", userId);
     if (error) throw error;
