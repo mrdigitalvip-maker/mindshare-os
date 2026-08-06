@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
+import { formatDistanceToNow } from "date-fns";
 import {
   ArrowRight,
   Bell,
@@ -192,7 +193,7 @@ function Dashboard() {
           </Button>
         </div>
       ) : null}
-      <div className="mt-10">
+      <div className="mt-10" aria-busy={isLoading} aria-live="polite">
         <DashboardSection title="Workspace overview" subtitle="Real-time totals from your account.">
           {isLoading ? (
             <DashboardGrid>
@@ -212,7 +213,9 @@ function Dashboard() {
 
       <div className="mt-12 grid gap-6 xl:grid-cols-2">
         <DashboardSection title="Recent projects" subtitle="Continue where you left off.">
-          {data?.recentProjects.length ? (
+          {isLoading ? (
+            <DashboardListSkeleton />
+          ) : data?.recentProjects.length ? (
             <div className="space-y-3">
               {data.recentProjects.map((project) => (
                 <Link
@@ -246,7 +249,9 @@ function Dashboard() {
           )}
         </DashboardSection>
         <DashboardSection title="Recent activity" subtitle="Latest changes across your workspace.">
-          {data?.recentActivity.length ? (
+          {isLoading ? (
+            <DashboardListSkeleton />
+          ) : data?.recentActivity.length ? (
             <div className="space-y-3">
               {data.recentActivity.map((activity) => (
                 <div key={activity.id} className="glass flex items-center gap-3 rounded-2xl p-4">
@@ -280,7 +285,7 @@ function Dashboard() {
           title="Financial activity"
           subtitle="Totals calculated from your accounts and transactions."
         >
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-3" aria-busy={isLoading}>
             <Metric
               label="Income"
               value={formatMoney(data?.finance.income ?? 0)}
@@ -311,11 +316,19 @@ function formatMoney(value: number) {
   }).format(value);
 }
 function formatDate(value: string) {
-  return value
-    ? new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(
-        new Date(value),
-      )
-    : "Unknown date";
+  return value ? formatDistanceToNow(new Date(value), { addSuffix: true }) : "Unknown date";
+}
+function DashboardListSkeleton() {
+  return (
+    <div className="space-y-3" role="status" aria-label="Loading recent workspace activity">
+      {Array.from({ length: 3 }).map((_, index) => (
+        <div key={index} className="glass rounded-2xl p-5">
+          <Skeleton className="h-4 w-2/3" />
+          <Skeleton className="mt-3 h-3 w-1/3" />
+        </div>
+      ))}
+    </div>
+  );
 }
 function Snapshot({
   label,

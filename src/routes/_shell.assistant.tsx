@@ -6,6 +6,7 @@ import {
   Copy,
   Edit3,
   Loader2,
+  Menu,
   Plus,
   RefreshCw,
   Search,
@@ -18,6 +19,7 @@ import { PageShell } from "@/components/page-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useChat, type ChatMessage } from "@/hooks/use-chat";
 import { useAuth } from "@/lib/auth-context";
 import { AIService, AIServiceError, workspaceQueryKeys, type AiConversation } from "@/services";
@@ -42,8 +44,10 @@ function Assistant() {
   const [search, setSearch] = useState("");
   const [activeId, setActiveId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const shouldFollow = useRef(true);
   const { sendMessage, isSending, loadConversationHistory, startConversation } = useChat();
   const conversationsKey = ["workspace", user?.id, "ai-conversations"] as const;
@@ -68,6 +72,7 @@ function Assistant() {
   useEffect(() => {
     if (shouldFollow.current) endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isSending]);
+  useEffect(() => inputRef.current?.focus(), []);
 
   const visibleConversations = useMemo(
     () =>
@@ -84,6 +89,8 @@ function Assistant() {
     try {
       setMessages(await loadConversationHistory(id));
       setActiveId(id);
+      setHistoryOpen(false);
+      window.setTimeout(() => inputRef.current?.focus(), 0);
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : "Conversation could not be loaded.");
     }
@@ -94,6 +101,8 @@ function Assistant() {
     setMessages([]);
     setInput("");
     setLoadError(null);
+    setHistoryOpen(false);
+    window.setTimeout(() => inputRef.current?.focus(), 0);
   }
   async function send(text: string) {
     const normalized = text.trim();
@@ -146,73 +155,38 @@ function Assistant() {
     <PageShell>
       <div className="grid min-h-[calc(100dvh-9rem)] gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
         <aside className="glass hidden min-h-0 flex-col rounded-3xl p-3 lg:flex">
-          <Button onClick={createConversation} className="w-full rounded-xl">
-            <Plus className="mr-2 h-4 w-4" /> New conversation
-          </Button>
-          <div className="relative mt-3">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search conversations"
-              className="pl-9"
-            />
-          </div>
-          <div className="mt-4 min-h-0 flex-1 overflow-y-auto pr-1">
-            {conversations.isLoading ? (
-              <div className="flex justify-center p-6">
-                <Loader2 className="h-5 w-5 animate-spin" />
-              </div>
-            ) : (
-              Object.entries(grouped).map(([label, items]) => (
-                <div key={label} className="mb-5">
-                  <p className="mb-2 px-2 text-[10px] uppercase tracking-wider text-muted-foreground">
-                    {label}
-                  </p>
-                  {items.map((item) => (
-                    <div
-                      key={item.id}
-                      className={`group flex items-center rounded-xl ${activeId === item.id ? "bg-surface-elevated" : "hover:bg-surface-elevated/60"}`}
-                    >
-                      <button
-                        onClick={() => openConversation(item.id)}
-                        className="min-w-0 flex-1 truncate px-3 py-2 text-left text-sm"
-                      >
-                        {item.title}
-                      </button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 opacity-0 group-hover:opacity-100"
-                        onClick={() => renameConversation(item)}
-                        aria-label="Rename conversation"
-                      >
-                        <Edit3 className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 opacity-0 group-hover:opacity-100"
-                        onClick={() => removeConversation(item.id)}
-                        aria-label="Delete conversation"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              ))
-            )}
-          </div>
+          <ConversationList
+            {...{
+              activeId,
+              grouped,
+              search,
+              setSearch,
+              createConversation,
+              openConversation,
+              removeConversation,
+              renameConversation,
+            }}
+            loading={conversations.isLoading}
+          />
         </aside>
         <section className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-3xl border border-border bg-surface/40">
           <header className="flex items-center justify-between border-b border-border px-4 py-3">
             <div className="flex items-center gap-2 text-xs uppercase tracking-[0.25em] text-muted-foreground">
               <Sparkles className="h-4 w-4 text-gold" /> Assistant
             </div>
-            <Button variant="outline" size="sm" className="lg:hidden" onClick={createConversation}>
-              <Plus className="mr-1 h-4 w-4" /> New
-            </Button>
+            <div className="flex gap-2 lg:hidden">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setHistoryOpen(true)}
+                aria-label="Open conversation history"
+              >
+                <Menu />
+              </Button>
+              <Button variant="outline" size="sm" onClick={createConversation}>
+                <Plus /> New
+              </Button>
+            </div>
           </header>
           <div
             ref={scrollRef}
@@ -221,7 +195,9 @@ function Assistant() {
               shouldFollow.current =
                 element.scrollHeight - element.scrollTop - element.clientHeight < 120;
             }}
-            className="min-h-0 flex-1 overflow-y-auto px-4 py-6 md:px-8"
+            className="min-h-0 flex-1 overscroll-contain overflow-y-auto px-3 py-5 sm:px-4 md:px-8 md:py-6"
+            aria-live="polite"
+            aria-busy={isSending}
           >
             {!messages.length && !isSending ? (
               <div className="mx-auto flex h-full max-w-2xl flex-col items-center justify-center py-12 text-center">
@@ -265,8 +241,11 @@ function Assistant() {
                   />
                 ))}
                 {isSending && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <span className="flex gap-1">
+                  <div
+                    className="flex items-center gap-2 text-sm text-muted-foreground"
+                    role="status"
+                  >
+                    <span className="flex gap-1" aria-hidden="true">
                       <i className="h-2 w-2 animate-bounce rounded-full bg-gold" />
                       <i className="h-2 w-2 animate-bounce rounded-full bg-gold [animation-delay:120ms]" />
                       <i className="h-2 w-2 animate-bounce rounded-full bg-gold [animation-delay:240ms]" />
@@ -289,10 +268,14 @@ function Assistant() {
             )}
             <div className="glass mx-auto flex max-w-3xl items-end gap-2 rounded-2xl p-2">
               <Textarea
+                ref={inputRef}
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
                 onKeyDown={(event) => {
-                  if (event.key === "Enter" && !event.shiftKey) {
+                  if (event.key === "Escape") {
+                    event.preventDefault();
+                    setInput("");
+                  } else if (event.key === "Enter" && !event.shiftKey) {
                     event.preventDefault();
                     void send(input);
                   }
@@ -318,11 +301,31 @@ function Assistant() {
               </Button>
             </div>
             <p className="mt-2 text-center text-[11px] text-muted-foreground">
-              NEXORA can make mistakes. Review important information.
+              Enter or Ctrl + Enter to send · Shift + Enter for a new line · Esc to clear
             </p>
           </div>
         </section>
       </div>
+      <Sheet open={historyOpen} onOpenChange={setHistoryOpen}>
+        <SheetContent side="left" className="flex w-[min(90vw,22rem)] flex-col p-4">
+          <SheetHeader>
+            <SheetTitle>Conversation history</SheetTitle>
+          </SheetHeader>
+          <ConversationList
+            {...{
+              activeId,
+              grouped,
+              search,
+              setSearch,
+              createConversation,
+              openConversation,
+              removeConversation,
+              renameConversation,
+            }}
+            loading={conversations.isLoading}
+          />
+        </SheetContent>
+      </Sheet>
     </PageShell>
   );
 }
@@ -345,7 +348,7 @@ function Message({ message, onRegenerate }: { message: ChatMessage; onRegenerate
           <p className="whitespace-pre-wrap">{message.content}</p>
         )}
         <div
-          className={`mt-2 flex gap-1 opacity-0 transition group-hover:opacity-100 ${message.role === "user" ? "justify-end" : ""}`}
+          className={`mt-2 flex gap-1 opacity-100 transition md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 ${message.role === "user" ? "justify-end" : ""}`}
         >
           <Button
             size="icon"
@@ -370,6 +373,97 @@ function Message({ message, onRegenerate }: { message: ChatMessage; onRegenerate
         </div>
       </div>
     </div>
+  );
+}
+
+function ConversationList({
+  activeId,
+  grouped,
+  search,
+  setSearch,
+  loading,
+  createConversation,
+  openConversation,
+  removeConversation,
+  renameConversation,
+}: {
+  activeId: string | null;
+  grouped: Record<string, AiConversation[]>;
+  search: string;
+  setSearch: (value: string) => void;
+  loading: boolean;
+  createConversation: () => void;
+  openConversation: (id: string) => Promise<void>;
+  removeConversation: (id: string) => Promise<void>;
+  renameConversation: (item: AiConversation) => Promise<void>;
+}) {
+  return (
+    <>
+      <Button onClick={createConversation} className="mt-2 w-full rounded-xl">
+        <Plus /> New conversation
+      </Button>
+      <div className="relative mt-3">
+        <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+        <Input
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Search conversations"
+          aria-label="Search conversation history"
+          className="pl-9"
+        />
+      </div>
+      <div className="mt-4 min-h-0 flex-1 overscroll-contain overflow-y-auto pr-1">
+        {loading ? (
+          <div className="flex justify-center p-6" role="status" aria-label="Loading conversations">
+            <Loader2 className="h-5 w-5 animate-spin" />
+          </div>
+        ) : Object.keys(grouped).length === 0 ? (
+          <p className="px-3 py-8 text-center text-sm text-muted-foreground">
+            No conversations found.
+          </p>
+        ) : (
+          Object.entries(grouped).map(([label, items]) => (
+            <div key={label} className="mb-5">
+              <p className="mb-2 px-2 text-[10px] uppercase tracking-wider text-muted-foreground">
+                {label}
+              </p>
+              {items.map((item) => (
+                <div
+                  key={item.id}
+                  className={`group flex items-center rounded-xl transition-colors ${activeId === item.id ? "bg-surface-elevated" : "hover:bg-surface-elevated/60"}`}
+                >
+                  <button
+                    onClick={() => void openConversation(item.id)}
+                    aria-current={activeId === item.id ? "page" : undefined}
+                    className="min-h-10 min-w-0 flex-1 truncate rounded-xl px-3 py-2 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    {item.title}
+                  </button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
+                    onClick={() => void renameConversation(item)}
+                    aria-label={`Rename ${item.title}`}
+                  >
+                    <Edit3 />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
+                    onClick={() => void removeConversation(item.id)}
+                    aria-label={`Delete ${item.title}`}
+                  >
+                    <Trash2 />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          ))
+        )}
+      </div>
+    </>
   );
 }
 
