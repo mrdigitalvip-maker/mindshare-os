@@ -64,9 +64,10 @@ function ShellLayout() {
   const displayName = profile?.full_name ?? user?.name ?? undefined;
 
   const groups = {
-    core: MODULES.filter((m) => m.group === "core"),
-    modules: MODULES.filter((m) => m.group === "modules"),
-    system: MODULES.filter((m) => m.group === "system"),
+    principal: MODULES.filter((m) => m.category === "principal"),
+    work: MODULES.filter((m) => m.category === "work"),
+    personal: MODULES.filter((m) => m.category === "personal"),
+    account: MODULES.filter((m) => m.category === "account"),
   };
 
   async function handleSignOut() {
@@ -81,10 +82,16 @@ function ShellLayout() {
         <span className="font-display text-xl">NEXORA</span>
       </div>
       <nav className="scrollbar-hidden flex-1 space-y-6 overflow-y-auto px-3 pb-6">
-        {(["core", "modules", "system"] as const).map((g) => (
+        {(["principal", "work", "personal", "account"] as const).map((g) => (
           <div key={g}>
             <p className="mb-2 px-3 text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
-              {g === "core" ? "Overview" : g === "modules" ? "Modules" : "System"}
+              {g === "principal"
+                ? "Principal"
+                : g === "work"
+                  ? "Work"
+                  : g === "personal"
+                    ? "Personal"
+                    : "Account"}
             </p>
             <ul className="space-y-0.5">
               {groups[g].map((m) => {
@@ -204,7 +211,7 @@ function ShellLayout() {
           style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
         >
           <div className="grid grid-cols-5">
-            {groups.core.concat(groups.modules.slice(0, 3)).map((m) => {
+            {groups.principal.concat(groups.work.slice(0, 3)).map((m) => {
               const active = pathname.startsWith(m.path);
               return (
                 <Link

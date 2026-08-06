@@ -21,6 +21,7 @@ export type NexoraModule = {
   icon: LucideIcon;
   description: string;
   group: "core" | "modules" | "system";
+  category: "principal" | "work" | "personal" | "account";
   premium?: boolean;
 };
 
@@ -32,6 +33,7 @@ export const MODULES: NexoraModule[] = [
     icon: LayoutDashboard,
     description: "Your daily overview",
     group: "core",
+    category: "principal",
   },
   {
     id: "assistant",
@@ -40,6 +42,7 @@ export const MODULES: NexoraModule[] = [
     icon: Sparkles,
     description: "Talk to your AI",
     group: "core",
+    category: "principal",
   },
   {
     id: "projects",
@@ -48,6 +51,7 @@ export const MODULES: NexoraModule[] = [
     icon: FolderKanban,
     description: "Plan and ship your work",
     group: "modules",
+    category: "work",
   },
   {
     id: "productivity",
@@ -56,6 +60,7 @@ export const MODULES: NexoraModule[] = [
     icon: ListChecks,
     description: "Tasks, focus, calendar",
     group: "modules",
+    category: "work",
   },
   {
     id: "studies",
@@ -64,6 +69,7 @@ export const MODULES: NexoraModule[] = [
     icon: GraduationCap,
     description: "Learn faster with AI",
     group: "modules",
+    category: "personal",
   },
   {
     id: "finance",
@@ -72,6 +78,7 @@ export const MODULES: NexoraModule[] = [
     icon: Wallet,
     description: "Track and plan money",
     group: "modules",
+    category: "personal",
     premium: true,
   },
   {
@@ -81,6 +88,7 @@ export const MODULES: NexoraModule[] = [
     icon: PenLine,
     description: "Write, edit, publish",
     group: "modules",
+    category: "work",
   },
   {
     id: "translate",
@@ -89,6 +97,7 @@ export const MODULES: NexoraModule[] = [
     icon: Languages,
     description: "Multilingual, instant",
     group: "modules",
+    category: "personal",
   },
   {
     id: "documents",
@@ -97,6 +106,7 @@ export const MODULES: NexoraModule[] = [
     icon: FileText,
     description: "Read, summarize, ask",
     group: "modules",
+    category: "work",
   },
   {
     id: "agents",
@@ -105,6 +115,7 @@ export const MODULES: NexoraModule[] = [
     icon: Bot,
     description: "Custom AI agents",
     group: "modules",
+    category: "personal",
     premium: true,
   },
   {
@@ -114,6 +125,7 @@ export const MODULES: NexoraModule[] = [
     icon: Crown,
     description: "Unlock everything",
     group: "system",
+    category: "account",
   },
   {
     id: "settings",
@@ -122,5 +134,6 @@ export const MODULES: NexoraModule[] = [
     icon: Settings,
     description: "Preferences & account",
     group: "system",
+    category: "account",
   },
 ];
