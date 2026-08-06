@@ -19,7 +19,7 @@ const PLACEHOLDER_KEY = "public-anon-key-placeholder";
 // Realtime is browser-only in this frontend. Supabase eagerly resolves its
 // WebSocket constructor, so provide an inert SSR constructor to keep route
 // rendering compatible with Node runtimes that do not expose WebSocket.
-const serverRealtimeTransport = class ServerRealtimeTransport {} as typeof WebSocket;
+const serverRealtimeTransport = class ServerRealtimeTransport {} as unknown as typeof WebSocket;
 
 export const supabase = createClient<Database>(
   supabaseUrl || PLACEHOLDER_URL,

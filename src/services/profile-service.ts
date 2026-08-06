@@ -1,6 +1,7 @@
 import { demoProfile } from "@/lib/demo/demo-data";
 import { withDemoFallback } from "@/lib/demo/fallback";
 import { supabase } from "@/lib/supabase";
+import type { Json } from "@/integrations/supabase/types";
 
 export interface Profile {
   id: string;
@@ -65,7 +66,10 @@ export const ProfileService = {
       async () => {
         const { data, error } = await supabase
           .from("profiles")
-          .upsert({ id: userId, ...patch }, { onConflict: "id" })
+          .upsert(
+            { id: userId, ...patch, preferences: patch.preferences as Json | undefined },
+            { onConflict: "id" },
+          )
           .select("*")
           .single();
         if (error) throw error;

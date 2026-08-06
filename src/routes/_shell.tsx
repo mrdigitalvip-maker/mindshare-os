@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { GlobalSearch } from "@/components/global-search";
+import { NotificationCenter } from "@/components/notification-center";
 
 export const Route = createFileRoute("/_shell")({
   ssr: false,
@@ -157,6 +158,7 @@ function ShellLayout() {
             </button>
 
             <div className="ml-auto flex items-center gap-2">
+              <NotificationCenter />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button

@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 import {
   CommandDialog,
   CommandEmpty,
@@ -8,46 +9,48 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-  CommandSeparator,
 } from "@/components/ui/command";
+import { useAuth } from "@/lib/auth-context";
 import { MODULES } from "@/lib/modules";
-import { SearchService, type SearchResult } from "@/services/search-service";
+import { SearchService, workspaceQueryKeys, type SearchCategory } from "@/services";
 
 export function GlobalSearch({
   open,
   onOpenChange,
 }: {
   open: boolean;
-  onOpenChange: (v: boolean) => void;
+  onOpenChange: (value: boolean) => void;
 }) {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<SearchResult[]>([]);
+  const normalized = query.trim();
+  const {
+    data: results = [],
+    isFetching,
+    isError,
+  } = useQuery({
+    queryKey: workspaceQueryKeys.search(user?.id, normalized),
+    queryFn: () => SearchService.search(normalized),
+    enabled: open && normalized.length >= 2,
+    staleTime: 30_000,
+  });
+  const grouped = useMemo(
+    () =>
+      results.reduce<Record<SearchCategory, typeof results>>(
+        (groups, result) => {
+          (groups[result.category] ??= []).push(result);
+          return groups;
+        },
+        {} as Record<SearchCategory, typeof results>,
+      ),
+    [results],
+  );
 
   useEffect(() => {
-    if (!open) return;
-    let active = true;
-    const timer = window.setTimeout(() => {
-      void SearchService.search(query)
-        .then((items) => {
-          if (active) setResults(items);
-        })
-        .catch((error: unknown) => {
-          if (!active) return;
-          setResults([]);
-          toast.error(error instanceof Error ? error.message : "Search failed");
-        });
-    }, 150);
-    return () => {
-      active = false;
-      window.clearTimeout(timer);
-    };
-  }, [open, query]);
-
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
+    function onKey(event: KeyboardEvent) {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
         onOpenChange(!open);
       }
     }
@@ -57,52 +60,50 @@ export function GlobalSearch({
 
   return (
     <CommandDialog open={open} onOpenChange={onOpenChange}>
-      <CommandInput
-        placeholder="Search modules, ask anything…"
-        value={query}
-        onValueChange={setQuery}
-      />
+      <CommandInput placeholder="Search your workspace…" value={query} onValueChange={setQuery} />
       <CommandList>
-        <CommandEmpty>No results found.</CommandEmpty>
-        <CommandGroup heading="Modules">
-          {results.map((result) => {
-            const module = MODULES.find((item) => item.path === result.path) ?? MODULES[0];
-            const Icon = module.icon;
-            return (
-              <CommandItem
-                key={`${result.path}-${result.id}`}
-                value={`${result.title} ${result.description}`}
-                onSelect={() => {
-                  onOpenChange(false);
-                  navigate({ to: result.path });
-                }}
-              >
-                <Icon className="mr-2 h-4 w-4" />
-                <span>{result.title}</span>
-                <span className="ml-auto text-xs text-muted-foreground">{result.description}</span>
-              </CommandItem>
-            );
-          })}
-        </CommandGroup>
-        <CommandSeparator />
-        <CommandGroup heading="Quick actions">
-          <CommandItem
-            onSelect={() => {
-              onOpenChange(false);
-              navigate({ to: "/assistant" });
-            }}
-          >
-            Start a new conversation
-          </CommandItem>
-          <CommandItem
-            onSelect={() => {
-              onOpenChange(false);
-              navigate({ to: "/projects" });
-            }}
-          >
-            Create a project
-          </CommandItem>
-        </CommandGroup>
+        {isFetching && (
+          <div className="flex items-center justify-center gap-2 p-6 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" /> Searching your workspace
+          </div>
+        )}
+        {isError && (
+          <div className="p-6 text-center text-sm text-destructive">
+            Search could not be completed. Please try again.
+          </div>
+        )}
+        {!isFetching && normalized.length < 2 && (
+          <div className="p-6 text-center text-sm text-muted-foreground">
+            Type at least two characters to search.
+          </div>
+        )}
+        {!isFetching && normalized.length >= 2 && (
+          <CommandEmpty>No results found in your workspace.</CommandEmpty>
+        )}
+        {Object.entries(grouped).map(([category, items]) => (
+          <CommandGroup key={category} heading={category as SearchCategory}>
+            {items.map((result) => {
+              const module = MODULES.find((item) => item.path === result.path) ?? MODULES[0];
+              const Icon = module.icon;
+              return (
+                <CommandItem
+                  key={`${result.category}-${result.id}`}
+                  value={`${result.title} ${result.description}`}
+                  onSelect={() => {
+                    onOpenChange(false);
+                    navigate({ to: result.path });
+                  }}
+                >
+                  <Icon className="mr-2 h-4 w-4" />
+                  <span className="truncate">{result.title}</span>
+                  <span className="ml-auto max-w-40 truncate text-xs text-muted-foreground">
+                    {result.description}
+                  </span>
+                </CommandItem>
+              );
+            })}
+          </CommandGroup>
+        ))}
       </CommandList>
     </CommandDialog>
   );

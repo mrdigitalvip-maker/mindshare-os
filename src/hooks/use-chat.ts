@@ -13,11 +13,14 @@ interface SendMessageInput {
 export function useChat() {
   const conversationIdRef = useRef<string | null>(null);
 
-  const loadConversationHistory = useCallback(async (): Promise<ChatMessage[]> => {
-    const result = await AIService.loadHistory();
-    conversationIdRef.current = result.conversationId;
-    return result.messages;
-  }, []);
+  const loadConversationHistory = useCallback(
+    async (conversationId?: string | null): Promise<ChatMessage[]> => {
+      const result = await AIService.loadHistory(conversationId);
+      conversationIdRef.current = result.conversationId;
+      return result.messages;
+    },
+    [],
+  );
 
   const mutation = useMutation<AiSendResult, Error, SendMessageInput>({
     mutationFn: async ({ content, requestId }) => {
@@ -36,5 +39,9 @@ export function useChat() {
     sendMessage: mutation.mutateAsync,
     isSending: mutation.isPending,
     loadConversationHistory,
+    startConversation: () => {
+      conversationIdRef.current = null;
+    },
+    getConversationId: () => conversationIdRef.current,
   };
 }
