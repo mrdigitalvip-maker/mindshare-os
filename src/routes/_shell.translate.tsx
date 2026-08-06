@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Languages, ArrowRightLeft, Copy } from "lucide-react";
+import { Languages, ArrowRightLeft, Copy, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { PageShell, PageHeader } from "@/components/page-shell";
 import { Textarea } from "@/components/ui/textarea";
@@ -33,21 +33,34 @@ function Translate() {
   const [target, setTarget] = useState("pt");
   const [text, setText] = useState("");
   const [translated, setTranslated] = useState("");
+  const [isTranslating, setIsTranslating] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    void TranslationService.translate(text, source, target)
-      .then((result) => {
-        if (!cancelled) setTranslated(result);
-      })
-      .catch((error: unknown) => {
-        if (!cancelled) {
-          setTranslated("");
-          toast.error(error instanceof Error ? error.message : "Translation failed");
-        }
-      });
+    if (!text.trim()) {
+      setTranslated("");
+      setIsTranslating(false);
+      return;
+    }
+    setIsTranslating(true);
+    const timer = window.setTimeout(() => {
+      void TranslationService.translate(text, source, target)
+        .then((result) => {
+          if (!cancelled) setTranslated(result);
+        })
+        .catch((error: unknown) => {
+          if (!cancelled) {
+            setTranslated("");
+            toast.error(error instanceof Error ? error.message : "Translation failed");
+          }
+        })
+        .finally(() => {
+          if (!cancelled) setIsTranslating(false);
+        });
+    }, 600);
     return () => {
       cancelled = true;
+      window.clearTimeout(timer);
     };
   }, [source, target, text]);
 
@@ -105,7 +118,11 @@ function Translate() {
           className="min-h-56 rounded-2xl bg-surface"
         />
         <div className="glass min-h-56 rounded-2xl p-4 text-sm text-muted-foreground">
-          {translated ? (
+          {isTranslating ? (
+            <div className="flex min-h-48 items-center justify-center gap-2" aria-live="polite">
+              <Loader2 className="h-4 w-4 animate-spin" /> Translating…
+            </div>
+          ) : translated ? (
             <div className="space-y-4 text-foreground">
               <p>
                 <Languages className="mr-2 inline h-4 w-4 text-gold" />
@@ -115,9 +132,13 @@ function Translate() {
                 variant="outline"
                 size="sm"
                 className="rounded-full"
-                onClick={() => {
-                  navigator.clipboard?.writeText(translated);
-                  toast.success("Translation copied");
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(translated);
+                    toast.success("Translation copied");
+                  } catch {
+                    toast.error("Translation could not be copied");
+                  }
                 }}
               >
                 <Copy className="mr-1 h-3.5 w-3.5" /> Copy
