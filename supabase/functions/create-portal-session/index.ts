@@ -1,16 +1,13 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import Stripe from "npm:stripe@^18.0.0";
-
-const cors = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-const response = (code: string, status: number) =>
-  Response.json({ error: { code } }, { status, headers: cors });
+import { jsonResponse, preflightResponse, rejectDisallowedOrigin } from "../_shared/http.ts";
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+  const response = (code: string, status: number) => jsonResponse(req, { error: { code } }, status);
+  if (req.method === "OPTIONS") return preflightResponse(req);
+  const rejectedOrigin = rejectDisallowedOrigin(req);
+  if (rejectedOrigin) return rejectedOrigin;
   if (req.method !== "POST") return response("portal_unavailable", 405);
   const authorization = req.headers.get("Authorization");
   if (!authorization) return response("unauthorized", 401);
@@ -47,7 +44,7 @@ Deno.serve(async (req) => {
       customer: data.stripe_customer_id,
       return_url: returnUrl,
     });
-    return Response.json({ url: session.url }, { headers: cors });
+    return jsonResponse(req, { url: session.url });
   } catch (error) {
     const stripeError = error as { statusCode?: number; type?: string };
     console.error("[portal] Stripe request failed", { type: stripeError.type });
