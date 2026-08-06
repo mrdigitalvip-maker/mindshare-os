@@ -10,15 +10,20 @@ const JSON_HEADERS = { ...CORS_HEADERS, "Content-Type": "application/json" };
 
 type ErrorCode =
   | "unauthorized"
+  | "premium_required"
   | "invalid_request"
   | "free_limit_reached"
   | "premium_limit_reached"
+  | "action_limit_reached"
   | "input_too_large"
+  | "resource_not_found"
+  | "duplicate_request"
   | "provider_unavailable"
   | "provider_rate_limited"
   | "provider_error"
   | "persistence_error"
-  | "configuration_error";
+  | "configuration_error"
+  | "timeout";
 type Plan = "free" | "premium";
 type DbClient = ReturnType<typeof createClient>;
 
@@ -172,11 +177,256 @@ async function callOpenAI(apiKey: string, model: string, messages: unknown[], ma
     return { content, tokens: Number(payload?.usage?.completion_tokens) || null };
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
-      throw new Error("provider_unavailable");
+      throw new Error("timeout");
     }
     throw error;
   } finally {
     clearTimeout(timer);
+  }
+}
+
+type TypedAction =
+  "translation" | "agent_run" | "content_generation" | "study_assistance" | "document_analysis";
+
+const recentRequests = new Map<string, number>();
+const transientUsage = new Map<string, { day: string; count: number }>();
+
+const ACTION_LIMITS: Record<TypedAction, Record<Plan, number>> = {
+  translation: { free: 5, premium: 100 },
+  agent_run: { free: 0, premium: 30 },
+  content_generation: { free: 2, premium: 50 },
+  study_assistance: { free: 5, premium: 50 },
+  document_analysis: { free: 0, premium: 20 },
+};
+
+function actionInputLimit(action: TypedAction, plan: Plan) {
+  const premium = plan === "premium";
+  if (action === "translation") return premium ? 12000 : 1500;
+  if (action === "document_analysis") return premium ? 30000 : 0;
+  return premium ? 16000 : 2000;
+}
+
+function claimTransientUsage(userId: string, action: TypedAction, plan: Plan, requestKey: string) {
+  const now = Date.now();
+  for (const [key, timestamp] of recentRequests) {
+    if (now - timestamp > 86_400_000) recentRequests.delete(key);
+  }
+  if (recentRequests.has(requestKey)) throw new Error("duplicate_request");
+  const day = new Date().toISOString().slice(0, 10);
+  const key = `${userId}:${action}`;
+  const current = transientUsage.get(key);
+  const count = current?.day === day ? current.count : 0;
+  if (count >= ACTION_LIMITS[action][plan]) throw new Error("action_limit_reached");
+  recentRequests.set(requestKey, now);
+  transientUsage.set(key, { day, count: count + 1 });
+}
+
+async function persistentUsage(
+  supabase: DbClient,
+  userId: string,
+  action: TypedAction,
+): Promise<number> {
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+  if (action === "translation") {
+    const { count, error } = await supabase
+      .from("translations")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .gte("created_at", today.toISOString());
+    if (error) throw new Error("persistence_error");
+    return count ?? 0;
+  }
+  if (action === "content_generation") {
+    const { count, error } = await supabase
+      .from("documents")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("type", "draft")
+      .gte("created_at", today.toISOString());
+    if (error) throw new Error("persistence_error");
+    return count ?? 0;
+  }
+  if (action === "agent_run") {
+    const { data: agents, error } = await supabase
+      .from("agents")
+      .select("id")
+      .eq("user_id", userId);
+    if (error) throw new Error("persistence_error");
+    const ids = (agents ?? []).map((agent) => agent.id);
+    if (!ids.length) return 0;
+    const { count, error: countError } = await supabase
+      .from("agent_runs")
+      .select("id", { count: "exact", head: true })
+      .in("agent_id", ids)
+      .gte("started_at", today.toISOString());
+    if (countError) throw new Error("persistence_error");
+    return count ?? 0;
+  }
+  return 0;
+}
+
+async function executeTypedAction(
+  action: TypedAction,
+  body: Record<string, unknown>,
+  supabase: DbClient,
+  userId: string,
+  plan: Plan,
+  requestId: string,
+) {
+  if ((action === "agent_run" || action === "document_analysis") && plan !== "premium") {
+    throw new Error("premium_required");
+  }
+  const clientRequestId = typeof body.requestId === "string" ? body.requestId : "";
+  if (!clientRequestId) throw new Error("invalid_request");
+  if ((await persistentUsage(supabase, userId, action)) >= ACTION_LIMITS[action][plan]) {
+    throw new Error("action_limit_reached");
+  }
+  claimTransientUsage(userId, action, plan, `${userId}:${action}:${clientRequestId}`);
+  const policy = policyFor(plan);
+  const apiKey = Deno.env.get("OPENAI_API_KEY");
+  if (!apiKey) throw new Error("configuration_error");
+
+  let input = "";
+  let system = "";
+  let runId: string | undefined;
+  let persist: (() => Promise<string | undefined>) | undefined;
+
+  if (action === "translation") {
+    input = typeof body.text === "string" ? body.text.trim() : "";
+    const source = typeof body.sourceLanguage === "string" ? body.sourceLanguage : "auto";
+    const target = typeof body.targetLanguage === "string" ? body.targetLanguage : "";
+    if (!input || !target || source === target) throw new Error("invalid_request");
+    system = `Translate faithfully from ${source} to ${target}. Return only the translation, preserving meaning and formatting.`;
+    persist = async () => {
+      const result = await callOpenAI(
+        apiKey,
+        policy.model,
+        [
+          { role: "system", content: system },
+          { role: "user", content: input },
+        ],
+        policy.maxOutputTokens,
+      );
+      const { data, error } = await supabase
+        .from("translations")
+        .insert({
+          user_id: userId,
+          original_text: input,
+          translated_text: result.content,
+          source_language: source,
+          target_language: target,
+          provider: "openai",
+        })
+        .select("id")
+        .single();
+      if (error || !data) throw new Error("persistence_error");
+      return JSON.stringify({ content: result.content, resourceId: data.id });
+    };
+  } else if (action === "agent_run") {
+    input = typeof body.input === "string" ? body.input.trim() : "";
+    const agentId = typeof body.agentId === "string" ? body.agentId : "";
+    if (!agentId || !input) throw new Error("invalid_request");
+    const { data: agent, error } = await supabase
+      .from("agents")
+      .select("id, system_prompt, temperature, active")
+      .eq("id", agentId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error) throw new Error("persistence_error");
+    if (!agent) throw new Error("resource_not_found");
+    const { data: duplicate } = await supabase
+      .from("agent_runs")
+      .select("id")
+      .eq("agent_id", agentId)
+      .eq("input", input)
+      .in("status", ["queued", "running"])
+      .maybeSingle();
+    if (duplicate) throw new Error("duplicate_request");
+    const { data: run, error: runError } = await supabase
+      .from("agent_runs")
+      .insert({ agent_id: agentId, input, status: "running", started_at: new Date().toISOString() })
+      .select("id")
+      .single();
+    if (runError || !run) throw new Error("persistence_error");
+    runId = run.id;
+    system = agent.system_prompt?.trim() || "Complete the user's task safely and accurately.";
+  } else if (action === "document_analysis") {
+    const documentId = typeof body.documentId === "string" ? body.documentId : "";
+    const instruction =
+      typeof body.instruction === "string" ? body.instruction.trim() : "Summarize this document.";
+    const { data: document, error } = await supabase
+      .from("documents")
+      .select("content")
+      .eq("id", documentId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error) throw new Error("persistence_error");
+    if (!document) throw new Error("resource_not_found");
+    if (!document.content?.trim()) throw new Error("invalid_request");
+    input = `${instruction}\n\nDOCUMENT:\n${document.content}`;
+    system =
+      "Analyze only the supplied document text. Do not claim access to a physical file or external source.";
+  } else {
+    input = typeof body.text === "string" ? body.text.trim() : "";
+    const operation = typeof body.operation === "string" ? body.operation : "";
+    if (!input || !operation) throw new Error("invalid_request");
+    if (action === "content_generation") {
+      const allowed = ["draft", "rewrite", "summarize", "expand", "tone", "title"];
+      if (!allowed.includes(operation)) throw new Error("invalid_request");
+      system = `Perform the content operation '${operation}'. Return only the requested result. Never claim it was published.`;
+    } else {
+      const allowed = ["explain", "summarize", "questions", "flashcards", "study_plan"];
+      if (!allowed.includes(operation)) throw new Error("invalid_request");
+      system = `Provide study assistance using operation '${operation}'. Do not invent saved subjects or sessions.`;
+    }
+  }
+
+  if (input.length > actionInputLimit(action, plan)) throw new Error("input_too_large");
+  if (persist) {
+    const encoded = await persist();
+    return { ...JSON.parse(encoded!), requestId };
+  }
+  try {
+    const result = await callOpenAI(
+      apiKey,
+      policy.model,
+      [
+        { role: "system", content: system },
+        { role: "user", content: input },
+      ],
+      policy.maxOutputTokens,
+    );
+    if (runId) {
+      const { error } = await supabase
+        .from("agent_runs")
+        .update({
+          status: "completed",
+          output: result.content,
+          finished_at: new Date().toISOString(),
+        })
+        .eq("id", runId);
+      if (error) throw new Error("persistence_error");
+    }
+    if (action === "content_generation") {
+      const title =
+        typeof body.title === "string" && body.title.trim() ? body.title.trim() : "AI draft";
+      const { data, error } = await supabase
+        .from("documents")
+        .insert({ user_id: userId, title, type: "draft", content: result.content })
+        .select("id")
+        .single();
+      if (error || !data) throw new Error("persistence_error");
+      return { content: result.content, resourceId: data.id, requestId };
+    }
+    return { content: result.content, runId, requestId };
+  } catch (error) {
+    if (runId)
+      await supabase
+        .from("agent_runs")
+        .update({ status: "failed", finished_at: new Date().toISOString() })
+        .eq("id", runId);
+    throw error;
   }
 }
 
@@ -214,6 +464,26 @@ Deno.serve(async (req) => {
     if (body.action === "history") {
       const history = await loadLatestHistory(supabase, user.id);
       return json({ ok: true, data: history });
+    }
+    if (
+      [
+        "translation",
+        "agent_run",
+        "content_generation",
+        "study_assistance",
+        "document_analysis",
+      ].includes(body.action)
+    ) {
+      const plan = await resolvePlan(supabase, user.id);
+      const data = await executeTypedAction(
+        body.action as TypedAction,
+        body,
+        supabase,
+        user.id,
+        plan,
+        requestId,
+      );
+      return json({ ok: true, data });
     }
     if (
       body.action !== "send" ||
@@ -329,11 +599,11 @@ Deno.serve(async (req) => {
           basicChat: true,
           advancedChat: plan === "premium",
           agents: plan === "premium",
-          translations: plan === "premium",
-          contentGeneration: plan === "premium",
+          translations: true,
+          contentGeneration: true,
           documentAnalysis: plan === "premium",
-          studyAssistance: plan === "premium",
-          financialInsights: plan === "premium",
+          studyAssistance: true,
+          financialInsights: false,
         },
       },
     });
@@ -344,6 +614,20 @@ Deno.serve(async (req) => {
       return failure(code, "The AI provider is busy. Please try again later.", 429, requestId);
     if (code === "provider_unavailable")
       return failure(code, "The AI provider is temporarily unavailable.", 503, requestId);
+    if (code === "timeout") return failure(code, "The AI request timed out.", 504, requestId);
+    if (code === "premium_required")
+      return failure(code, "This action requires an active Premium subscription.", 403, requestId);
+    if (code === "action_limit_reached")
+      return failure(code, "The daily limit for this action has been reached.", 429, requestId);
+    if (code === "duplicate_request")
+      return failure(code, "This request was already submitted.", 409, requestId);
+    if (code === "resource_not_found")
+      return failure(code, "The requested resource was not found.", 404, requestId);
+    if (code === "input_too_large")
+      return failure(code, "This input is too large for your access level.", 413, requestId);
+    if (code === "invalid_request") return failure(code, "The request is invalid.", 400, requestId);
+    if (code === "configuration_error")
+      return failure(code, "The AI provider is not configured.", 503, requestId);
     if (code === "persistence_error" || code.endsWith("_failed")) {
       return failure("persistence_error", "The conversation could not be saved.", 500, requestId);
     }
