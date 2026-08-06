@@ -20,22 +20,14 @@ export function PageHeader({
           </p>
         )}
 
-        <h1 className="mt-2 font-display text-2xl leading-tight md:text-4xl">
-          {title}
-        </h1>
+        <h1 className="mt-2 font-display text-2xl leading-tight md:text-4xl">{title}</h1>
 
         {description && (
-          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-            {description}
-          </p>
+          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{description}</p>
         )}
       </div>
 
-      {actions && (
-        <div className="flex flex-wrap gap-2 w-full md:w-auto">
-          {actions}
-        </div>
-      )}
+      {actions && <div className="flex flex-wrap gap-2 w-full md:w-auto">{actions}</div>}
     </div>
   );
 }
@@ -57,28 +49,16 @@ export function EmptyState({
         <Icon className="h-7 w-7 text-muted-foreground" />
       </div>
 
-      <h3 className="font-display text-xl">
-        {title}
-      </h3>
+      <h3 className="font-display text-xl">{title}</h3>
 
-      <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-        {description}
-      </p>
+      <p className="mt-2 max-w-sm text-sm text-muted-foreground">{description}</p>
 
-      {action && (
-        <div className="mt-6 w-full flex justify-center">
-          {action}
-        </div>
-      )}
+      {action && <div className="mt-6 w-full flex justify-center">{action}</div>}
     </div>
   );
 }
 
-export function PageShell({
-  children,
-}: {
-  children: ReactNode;
-}) {
+export function PageShell({ children }: { children: ReactNode }) {
   return (
     <main
       className="

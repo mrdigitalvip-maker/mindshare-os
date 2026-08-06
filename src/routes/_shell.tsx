@@ -54,8 +54,7 @@ function ShellLayout() {
     }
   }, [authLoading, isAuthenticated, profileLoading, profile, navigate]);
 
-  const ready =
-    !authLoading && isAuthenticated && !profileLoading && !!profile?.onboarded;
+  const ready = !authLoading && isAuthenticated && !profileLoading && !!profile?.onboarded;
 
   if (!ready) {
     return <FullPageLoader />;
@@ -121,9 +120,7 @@ function ShellLayout() {
   return (
     <div className="flex min-h-screen w-full bg-background">
       {/* Desktop sidebar */}
-      <div className="hidden w-64 shrink-0 border-r border-sidebar-border md:block">
-        {Sidebar}
-      </div>
+      <div className="hidden w-64 shrink-0 border-r border-sidebar-border md:block">{Sidebar}</div>
 
       {/* Main */}
       <div className="flex min-w-0 flex-1 flex-col">
@@ -140,7 +137,10 @@ function ShellLayout() {
                   <Menu className="h-5 w-5" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="w-72 border-r border-sidebar-border bg-sidebar p-0">
+              <SheetContent
+                side="left"
+                className="w-72 border-r border-sidebar-border bg-sidebar p-0"
+              >
                 {Sidebar}
               </SheetContent>
             </Sheet>
@@ -173,7 +173,9 @@ function ShellLayout() {
                   <DropdownMenuLabel>
                     <div className="flex flex-col">
                       <span className="text-sm font-medium">{displayName ?? "Explorer"}</span>
-                      <span className="text-xs font-normal text-muted-foreground">{user?.email}</span>
+                      <span className="text-xs font-normal text-muted-foreground">
+                        {user?.email}
+                      </span>
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />

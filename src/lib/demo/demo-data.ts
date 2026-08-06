@@ -56,7 +56,11 @@ function clockOffset(minutesAgo: number): string {
 
 export const demoActivity = [
   { id: "demo-activity-1", title: "Assistant summarized Product Brief v2", time: clockOffset(12) },
-  { id: "demo-activity-2", title: "Task completed: Outline launch checklist", time: clockOffset(75) },
+  {
+    id: "demo-activity-2",
+    title: "Task completed: Outline launch checklist",
+    time: clockOffset(75),
+  },
   { id: "demo-activity-3", title: "Project updated: NEXORA Launch Plan", time: clockOffset(180) },
   { id: "demo-activity-4", title: "New note added to Q3 Study Roadmap", time: clockOffset(320) },
 ];

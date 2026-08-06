@@ -37,7 +37,9 @@ function Assistant() {
       })
       .catch((error) => {
         if (!cancelled) {
-          toast.error(error instanceof Error ? error.message : "Failed to load conversation history");
+          toast.error(
+            error instanceof Error ? error.message : "Failed to load conversation history",
+          );
         }
       });
 
@@ -106,7 +108,8 @@ function Assistant() {
             </motion.div>
             <h1 className="font-display text-4xl">How can I help you today?</h1>
             <p className="mt-3 max-w-md text-muted-foreground">
-              Ask anything. NEXORA remembers what matters and connects the dots across your workspace.
+              Ask anything. NEXORA remembers what matters and connects the dots across your
+              workspace.
             </p>
             <div className="mt-8 grid w-full max-w-xl gap-2 sm:grid-cols-2">
               {SUGGESTIONS.map((s) => (
@@ -130,9 +133,7 @@ function Assistant() {
               >
                 <div
                   className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm ${
-                    m.role === "user"
-                      ? "bg-primary text-primary-foreground"
-                      : "glass"
+                    m.role === "user" ? "bg-primary text-primary-foreground" : "glass"
                   }`}
                 >
                   {m.content}

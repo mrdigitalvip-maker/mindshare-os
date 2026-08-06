@@ -4,14 +4,7 @@
  * Public interface is intentionally preserved so no UI/component needs to
  * change. State is kept in sync via `supabase.auth.onAuthStateChange`.
  */
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react";
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 import { DEMO_MODE } from "@/lib/demo/config";
@@ -62,10 +55,8 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 function mapUser(user: User | null): NexoraUser | null {
   if (!user) return null;
   const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
-  const asString = (v: unknown): string | undefined =>
-    typeof v === "string" ? v : undefined;
-  const asBool = (v: unknown): boolean | undefined =>
-    typeof v === "boolean" ? v : undefined;
+  const asString = (v: unknown): string | undefined => (typeof v === "string" ? v : undefined);
+  const asBool = (v: unknown): boolean | undefined => (typeof v === "boolean" ? v : undefined);
   const plan = meta.plan === "pro" ? "pro" : meta.plan === "free" ? "free" : undefined;
 
   return {
@@ -173,9 +164,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const resetPassword: AuthContextValue["resetPassword"] = async (email) => {
       if (DEMO_MODE) return;
       const redirectTo =
-        typeof window !== "undefined"
-          ? `${window.location.origin}/reset-password`
-          : undefined;
+        typeof window !== "undefined" ? `${window.location.origin}/reset-password` : undefined;
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo,
       });
@@ -193,10 +182,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser((prev) => ({ ...(prev ?? DEMO_USER), ...patch }));
         return;
       }
-      // TODO: persist profile fields (name, avatarUrl, onboarded, plan) into
-      // a dedicated `profiles` table via Supabase once the schema exists.
-      // For now, mirror them into `user_metadata` so the mapped NexoraUser
-      // stays consistent across sessions.
+      // Profile-owned fields are mirrored into `user_metadata` here so the
+      // mapped NexoraUser stays consistent across sessions; richer profile
+      // persistence remains isolated in the profile service/hook layer.
       const data: Record<string, unknown> = {};
       if (patch.name !== undefined) data.name = patch.name;
       if (patch.avatarUrl !== undefined) data.avatar_url = patch.avatarUrl;

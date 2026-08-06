@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { toast } from "sonner";
 
 import { useAuth } from "@/lib/auth-context";
-import { supabase } from "@/lib/supabase";
+import { AuthService } from "@/services";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,10 +12,7 @@ import { Label } from "@/components/ui/label";
 export const Route = createFileRoute("/reset-password")({
   ssr: false,
   head: () => ({
-    meta: [
-      { title: "Reset password — NEXORA" },
-      { name: "robots", content: "noindex" },
-    ],
+    meta: [{ title: "Reset password — NEXORA" }, { name: "robots", content: "noindex" }],
   }),
   component: ResetPasswordPage,
 });
@@ -34,8 +31,8 @@ function ResetPasswordPage() {
     // true) has already parsed the recovery token from the email link and
     // created a temporary session. We just confirm it exists before showing
     // the form; if not, the link was invalid or expired.
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) setReady(true);
+    AuthService.hasRecoverySession().then((hasSession) => {
+      if (hasSession) setReady(true);
       else setInvalidLink(true);
     });
   }, []);
@@ -120,7 +117,12 @@ function ResetPasswordPage() {
               disabled={!ready}
             />
           </div>
-          <Button type="submit" className="w-full rounded-full" disabled={loading || !ready} aria-busy={loading}>
+          <Button
+            type="submit"
+            className="w-full rounded-full"
+            disabled={loading || !ready}
+            aria-busy={loading}
+          >
             {loading ? "Saving…" : ready ? "Update password" : "Verifying link…"}
           </Button>
         </form>

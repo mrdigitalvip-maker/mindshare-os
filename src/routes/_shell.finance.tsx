@@ -1,38 +1,84 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Wallet, TrendingUp, PiggyBank, Crown } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Wallet, TrendingUp, PiggyBank, Plus } from "lucide-react";
+import { toast } from "sonner";
 import { PageShell, PageHeader } from "@/components/page-shell";
-import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
+import { FinanceService, type FinanceGoal } from "@/services";
 
 export const Route = createFileRoute("/_shell/finance")({
   head: () => ({ meta: [{ title: "Finance — NEXORA" }] }),
-  component: () => (
+  component: Finance,
+});
+
+function Finance() {
+  const [goals, setGoals] = useState<FinanceGoal[]>([]);
+  const saved = goals.reduce((total, goal) => total + goal.saved, 0);
+  const target = goals.reduce((total, goal) => total + goal.target, 0);
+
+  useEffect(() => {
+    void FinanceService.listGoals()
+      .then(setGoals)
+      .catch((error: unknown) => {
+        toast.error(error instanceof Error ? error.message : "Unable to load data");
+      });
+  }, []);
+
+  async function addGoal() {
+    try {
+      const created = await FinanceService.createGoal();
+      setGoals((current) => [created, ...current]);
+      toast.success("Finance goal added");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to add finance goal");
+    }
+  }
+
+  return (
     <PageShell>
       <PageHeader
         eyebrow="Premium module"
         title="Finance"
         description="Track spending, plan budgets and forecast with AI."
         actions={
-          <Link to="/premium">
-            <Button className="rounded-full">
-              <Crown className="mr-1 h-4 w-4" /> Unlock with Pro
-            </Button>
-          </Link>
+          <Button className="rounded-full" onClick={addGoal}>
+            <Plus className="mr-1 h-4 w-4" /> New goal
+          </Button>
         }
       />
       <div className="mt-8 grid gap-4 md:grid-cols-3">
         {[
-          { icon: Wallet, title: "Accounts", copy: "Connect banks & wallets" },
-          { icon: TrendingUp, title: "Insights", copy: "AI-powered analysis" },
-          { icon: PiggyBank, title: "Goals", copy: "Save with intention" },
-        ].map((c) => (
-          <div key={c.title} className="glass rounded-2xl p-6 opacity-70">
-            <c.icon className="h-5 w-5 text-gold" />
-            <h3 className="mt-3 font-display text-xl">{c.title}</h3>
-            <p className="mt-1 text-sm text-muted-foreground">{c.copy}</p>
+          { icon: Wallet, title: "Accounts", copy: "$0 connected" },
+          {
+            icon: TrendingUp,
+            title: "Insights",
+            copy: target ? `${Math.round((saved / target) * 100)}% toward goals` : "No goals yet",
+          },
+          { icon: PiggyBank, title: "Goals", copy: `${goals.length} active` },
+        ].map((card) => (
+          <div key={card.title} className="glass rounded-2xl p-6 opacity-70">
+            <card.icon className="h-5 w-5 text-gold" />
+            <h3 className="mt-3 font-display text-xl">{card.title}</h3>
+            <p className="mt-1 text-sm text-muted-foreground">{card.copy}</p>
           </div>
         ))}
       </div>
+      <div className="mt-6 grid gap-4 md:grid-cols-2">
+        {goals.map((goal) => (
+          <article key={goal.id} className="glass rounded-2xl p-5">
+            <h3 className="font-display text-xl">{goal.title}</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              ${goal.saved.toLocaleString()} of ${goal.target.toLocaleString()}
+            </p>
+            <div className="mt-4 h-2 rounded-full bg-surface">
+              <div
+                className="h-full rounded-full bg-gold"
+                style={{ width: `${Math.min(100, Math.round((goal.saved / goal.target) * 100))}%` }}
+              />
+            </div>
+          </article>
+        ))}
+      </div>
     </PageShell>
-  ),
-});
+  );
+}

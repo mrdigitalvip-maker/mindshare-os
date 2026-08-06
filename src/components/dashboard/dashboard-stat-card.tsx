@@ -48,17 +48,11 @@ export function DashboardStatCard({
 
       <div className="relative z-10 flex items-start justify-between">
         <div>
-          <p className="text-xs uppercase tracking-[0.30em] text-muted-foreground">
-            {label}
-          </p>
+          <p className="text-xs uppercase tracking-[0.30em] text-muted-foreground">{label}</p>
 
-          <h3 className="mt-4 font-display text-4xl">
-            {value}
-          </h3>
+          <h3 className="mt-4 font-display text-4xl">{value}</h3>
 
-          <p className="mt-2 text-sm text-muted-foreground">
-            {hint}
-          </p>
+          <p className="mt-2 text-sm text-muted-foreground">{hint}</p>
         </div>
 
         <div
