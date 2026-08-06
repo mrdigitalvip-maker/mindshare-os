@@ -4,6 +4,8 @@ export type Project = {
   progress: number;
   color: string;
   updatedAt: string;
+  description?: string;
+  status?: string;
 };
 export type Task = {
   id: string;
@@ -11,6 +13,10 @@ export type Task = {
   status: "open" | "done";
   due: string;
   focusMinutes: number;
+  description?: string;
+  priority?: string;
+  dueDate?: string | null;
+  projectId?: string | null;
 };
 export type Document = {
   id: string;
