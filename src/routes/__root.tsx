@@ -148,6 +148,19 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  useEffect(() => {
+    if (!("serviceWorker" in navigator) || import.meta.env.DEV) return;
+
+    navigator.serviceWorker.register("/sw.js").catch((error: unknown) => {
+      reportLovableError(
+        error instanceof Error ? error : new Error("Service worker registration failed"),
+        {
+          boundary: "service_worker_registration",
+        },
+      );
+    });
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>

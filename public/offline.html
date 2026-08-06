@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0a0a0b" />
+    <title>NEXORA — Offline</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: system-ui, sans-serif;
+        background: #0a0a0b;
+        color: #fafafa;
+      }
+      body {
+        min-height: 100vh;
+        margin: 0;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        box-sizing: border-box;
+      }
+      main {
+        max-width: 440px;
+        text-align: center;
+      }
+      img {
+        width: 64px;
+        height: 64px;
+        border-radius: 14px;
+      }
+      h1 {
+        margin: 24px 0 8px;
+        font-size: 2rem;
+      }
+      p {
+        color: #a1a1aa;
+        line-height: 1.6;
+      }
+      button {
+        margin-top: 16px;
+        border: 0;
+        border-radius: 999px;
+        padding: 10px 18px;
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <img src="/nexora-icon.png" alt="" />
+      <h1>You're offline</h1>
+      <p>NEXORA needs a connection to sync your workspace. Reconnect and try again.</p>
+      <button type="button" onclick="location.reload()">Try again</button>
+    </main>
+  </body>
+</html>
