@@ -2,112 +2,86 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import Stripe from "npm:stripe@^18.0.0";
 
-const CORS_HEADERS = {
+const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+const json = (body: unknown, status = 200) => Response.json(body, { status, headers: cors });
+const fail = (code: string, status: number) => json({ error: { code } }, status);
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: CORS_HEADERS });
-  }
+  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+  if (req.method !== "POST") return fail("checkout_error", 405);
 
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader) {
-    return Response.json({ error: "Unauthorized" }, { status: 401, headers: CORS_HEADERS });
-  }
-
+  const authorization = req.headers.get("Authorization");
+  if (!authorization) return fail("unauthorized", 401);
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+  const priceId = Deno.env.get("STRIPE_PRICE_MONTHLY");
+  const appUrlValue = Deno.env.get("APP_URL");
+  if (!supabaseUrl || !anonKey || !stripeKey || !priceId || !appUrlValue) {
+    return fail("configuration_error", 500);
+  }
+  if (!priceId.startsWith("price_")) return fail("invalid_price", 500);
 
-  if (!supabaseUrl || !supabaseAnonKey) {
-    return Response.json(
-      { error: "Missing SUPABASE_URL or SUPABASE_ANON_KEY edge secrets" },
-      { status: 500, headers: CORS_HEADERS },
-    );
+  let appUrl: URL;
+  try {
+    appUrl = new URL(appUrlValue);
+    if (!["http:", "https:"].includes(appUrl.protocol)) throw new Error();
+  } catch {
+    return fail("configuration_error", 500);
   }
 
-  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-    global: { headers: { Authorization: authHeader } },
+  const supabase = createClient(supabaseUrl, anonKey, {
+    global: { headers: { Authorization: authorization } },
   });
-
   const {
     data: { user },
     error: authError,
   } = await supabase.auth.getUser();
+  if (authError || !user) return fail("unauthorized", 401);
 
-  if (authError || !user) {
-    return Response.json({ error: "Invalid session" }, { status: 401, headers: CORS_HEADERS });
+  const { data: existing, error: lookupError } = await supabase
+    .from("subscriptions")
+    .select("status, stripe_customer_id, stripe_subscription_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (lookupError) return fail("persistence_error", 500);
+  if (existing && ["active", "trialing"].includes(existing.status ?? "")) {
+    return fail("subscription_exists", 409);
   }
 
-  const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY");
-  if (!stripeSecretKey) {
-    return Response.json(
-      { error: "Missing STRIPE_SECRET_KEY edge secret" },
-      { status: 500, headers: CORS_HEADERS },
-    );
-  }
-
-  const stripePriceId = Deno.env.get("STRIPE_PRICE_MONTHLY");
-  if (!stripePriceId) {
-    return Response.json(
-      { error: "Missing STRIPE_PRICE_MONTHLY edge secret." },
-      { status: 500, headers: CORS_HEADERS },
-    );
-  }
-
-  const appUrl = Deno.env.get("APP_URL") ?? Deno.env.get("SITE_URL");
-  if (!appUrl) {
-    return Response.json(
-      { error: "Missing APP_URL or SITE_URL edge secret. Set the public app origin for success/cancel redirects." },
-      { status: 500, headers: CORS_HEADERS },
-    );
-  }
-
-  const stripe = new Stripe(stripeSecretKey);
-
+  const stripe = new Stripe(stripeKey);
   try {
+    const price = await stripe.prices.retrieve(priceId);
+    if (!price.active || price.type !== "recurring") return fail("invalid_price", 400);
+
+    // A prior Stripe subscription means this user has already consumed the one-time trial.
+    const trialEligible = !existing?.stripe_subscription_id;
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
-      line_items: [{ price: stripePriceId, quantity: 1 }],
-      customer_email: user.email ?? undefined,
+      line_items: [{ price: priceId, quantity: 1 }],
+      ...(existing?.stripe_customer_id
+        ? { customer: existing.stripe_customer_id }
+        : { customer_email: user.email ?? undefined }),
       client_reference_id: user.id,
-      metadata: {
-        user_id: user.id,
-        plan: "pro",
-      },
+      metadata: { user_id: user.id, plan: "pro" },
       subscription_data: {
-        metadata: {
-          user_id: user.id,
-          plan: "pro",
-        },
+        metadata: { user_id: user.id, plan: "pro" },
+        ...(trialEligible ? { trial_period_days: 7 } : {}),
       },
-      success_url: `${appUrl}/premium?checkout=success`,
-      cancel_url: `${appUrl}/premium?checkout=cancelled`,
+      success_url: new URL("/premium?checkout=success", appUrl).toString(),
+      cancel_url: new URL("/premium?checkout=cancelled", appUrl).toString(),
       allow_promotion_codes: true,
     });
-
-    if (!session.url) {
-      return Response.json(
-        { error: "Stripe checkout session was created without a redirect URL" },
-        { status: 502, headers: CORS_HEADERS },
-      );
-    }
-
-    return Response.json({ url: session.url }, { headers: CORS_HEADERS });
+    if (!session.url) return fail("checkout_error", 502);
+    return json({ url: session.url });
   } catch (error) {
-    const err = error as { message?: string; type?: string; code?: string; statusCode?: number };
-    console.error("[create-checkout-session] Stripe error", {
-      type: err?.type,
-      code: err?.code,
-      message: err?.message,
-    });
-    return Response.json(
-      {
-        error: err?.message ?? "Stripe checkout session creation failed",
-        stripe: { type: err?.type ?? null, code: err?.code ?? null },
-      },
-      { status: err?.statusCode && err.statusCode < 500 ? 400 : 502, headers: CORS_HEADERS },
-    );
+    const stripeError = error as { statusCode?: number; type?: string };
+    console.error("[checkout] Stripe request failed", { type: stripeError.type });
+    if (stripeError.statusCode === 429) return fail("stripe_rate_limited", 429);
+    if (stripeError.statusCode === 404) return fail("invalid_price", 400);
+    return fail("stripe_error", 502);
   }
 });
