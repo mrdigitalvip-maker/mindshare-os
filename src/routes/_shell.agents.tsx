@@ -1,10 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
 import { Bot, Plus, Crown } from "lucide-react";
 import { toast } from "sonner";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PageShell, PageHeader } from "@/components/page-shell";
 import { Button } from "@/components/ui/button";
-import { AgentService, type Agent } from "@/services";
+import { AgentService, workspaceQueryKeys } from "@/services";
 
 export const Route = createFileRoute("/_shell/agents")({
   head: () => ({ meta: [{ title: "Agents — NEXORA" }] }),
@@ -12,24 +12,22 @@ export const Route = createFileRoute("/_shell/agents")({
 });
 
 function Agents() {
-  const [agents, setAgents] = useState<Agent[]>([]);
-
-  useEffect(() => {
-    void AgentService.list()
-      .then(setAgents)
-      .catch((error: unknown) => {
-        toast.error(error instanceof Error ? error.message : "Unable to load data");
-      });
-  }, []);
-
-  async function addAgent() {
-    try {
-      const created = await AgentService.createDraft();
-      setAgents((current) => [created, ...current]);
+  const queryClient = useQueryClient();
+  const { data: agents = [] } = useQuery({
+    queryKey: workspaceQueryKeys.agents,
+    queryFn: () => AgentService.list(),
+  });
+  const createMutation = useMutation({
+    mutationFn: () => AgentService.createDraft(),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: workspaceQueryKeys.agents });
       toast.success("Agent draft created");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Unable to create agent");
-    }
+    },
+    onError: (error: Error) => toast.error(error.message || "Unable to create agent"),
+  });
+
+  function addAgent() {
+    createMutation.mutate();
   }
 
   return (

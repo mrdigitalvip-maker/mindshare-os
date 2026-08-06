@@ -1,10 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
 import { FileText, Upload } from "lucide-react";
 import { toast } from "sonner";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PageShell, PageHeader } from "@/components/page-shell";
 import { Button } from "@/components/ui/button";
-import { DocumentService, type Document } from "@/services";
+import { DocumentService, workspaceQueryKeys } from "@/services";
 
 export const Route = createFileRoute("/_shell/documents")({
   head: () => ({ meta: [{ title: "Documents — NEXORA" }] }),
@@ -12,24 +12,22 @@ export const Route = createFileRoute("/_shell/documents")({
 });
 
 function Documents() {
-  const [documents, setDocuments] = useState<Document[]>([]);
-
-  useEffect(() => {
-    void DocumentService.list()
-      .then(setDocuments)
-      .catch((error: unknown) => {
-        toast.error(error instanceof Error ? error.message : "Unable to load data");
-      });
-  }, []);
-
-  async function addDoc() {
-    try {
-      const created = await DocumentService.createUploadRecord();
-      setDocuments((current) => [created, ...current]);
+  const queryClient = useQueryClient();
+  const { data: documents = [] } = useQuery({
+    queryKey: workspaceQueryKeys.documents,
+    queryFn: () => DocumentService.list(),
+  });
+  const createMutation = useMutation({
+    mutationFn: () => DocumentService.createUploadRecord(),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: workspaceQueryKeys.documents });
       toast.success("Document added");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Unable to add document");
-    }
+    },
+    onError: (error: Error) => toast.error(error.message || "Unable to add document"),
+  });
+
+  function addDoc() {
+    createMutation.mutate();
   }
 
   return (

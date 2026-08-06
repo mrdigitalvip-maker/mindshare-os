@@ -1,10 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
 import { PenLine, Wand2, FileText, Plus } from "lucide-react";
 import { toast } from "sonner";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PageShell, PageHeader } from "@/components/page-shell";
 import { Button } from "@/components/ui/button";
-import { ContentService, type ContentDraft } from "@/services";
+import { ContentService, workspaceQueryKeys } from "@/services";
 
 export const Route = createFileRoute("/_shell/content")({
   head: () => ({ meta: [{ title: "Content — NEXORA" }] }),
@@ -12,24 +12,22 @@ export const Route = createFileRoute("/_shell/content")({
 });
 
 function Content() {
-  const [drafts, setDrafts] = useState<ContentDraft[]>([]);
-
-  useEffect(() => {
-    void ContentService.listDrafts()
-      .then(setDrafts)
-      .catch((error: unknown) => {
-        toast.error(error instanceof Error ? error.message : "Unable to load data");
-      });
-  }, []);
-
-  async function addDraft() {
-    try {
-      const created = await ContentService.createDraft();
-      setDrafts((current) => [created, ...current]);
+  const queryClient = useQueryClient();
+  const { data: drafts = [] } = useQuery({
+    queryKey: workspaceQueryKeys.content,
+    queryFn: () => ContentService.listDrafts(),
+  });
+  const createMutation = useMutation({
+    mutationFn: () => ContentService.createDraft(),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: workspaceQueryKeys.content });
       toast.success("Draft created");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Unable to create draft");
-    }
+    },
+    onError: (error: Error) => toast.error(error.message || "Unable to create draft"),
+  });
+
+  function addDraft() {
+    createMutation.mutate();
   }
 
   return (
