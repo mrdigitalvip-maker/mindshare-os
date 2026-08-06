@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Sparkles, Send, Mic, Plus, Loader2 } from "lucide-react";
@@ -7,6 +7,7 @@ import { PageShell } from "@/components/page-shell";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useChat, type ChatMessage } from "@/hooks/use-chat";
+import { AIServiceError } from "@/services/ai-service";
 
 export const Route = createFileRoute("/_shell/assistant")({
   head: () => ({ meta: [{ title: "Assistant — NEXORA" }] }),
@@ -21,6 +22,7 @@ const SUGGESTIONS = [
 ];
 
 function Assistant() {
+  const navigate = useNavigate();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
@@ -60,14 +62,13 @@ function Assistant() {
       role: "user",
       content: text,
     };
-    const historyBeforeSend = messages;
     setMessages((m) => [...m, optimisticUser]);
     setInput("");
 
     try {
       const { userMessage, assistantMessage } = await sendMessage({
         content: text,
-        history: historyBeforeSend,
+        requestId: optimisticUser.id,
       });
       // Replace the optimistic user message with the persisted one (real
       // id from the database) and append the assistant's reply.
@@ -77,16 +78,23 @@ function Assistant() {
         assistantMessage,
       ]);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Something went wrong";
-      toast.error(message);
-      setMessages((m) => [
-        ...m,
-        {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content: "I couldn't reach the AI service. Please try again in a moment.",
-        },
-      ]);
+      const message =
+        err instanceof AIServiceError
+          ? err.message
+          : "I couldn't reach the AI service. Please try again in a moment.";
+      toast.error(
+        message,
+        err instanceof AIServiceError && err.code === "free_limit_reached"
+          ? {
+              action: {
+                label: "View Premium",
+                onClick: () => navigate({ to: "/premium" }),
+              },
+            }
+          : undefined,
+      );
+      setMessages((m) => m.filter((msg) => msg.id !== optimisticUser.id));
+      setInput(text);
     }
   }
 
