@@ -13,6 +13,7 @@ import {
   Info,
   Shield,
   Camera,
+  Database,
 } from "lucide-react";
 
 import { useAuth } from "@/lib/auth-context";
@@ -23,6 +24,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { useSubscription } from "@/hooks/use-subscription";
+import { AIService } from "@/services";
 
 export const Route = createFileRoute("/_shell/settings")({
   head: () => ({ meta: [{ title: "Settings — NEXORA" }] }),
@@ -39,6 +42,7 @@ function Settings() {
   const { data: profile } = useProfile();
   const updateProfile = useUpdateProfile();
   const navigate = useNavigate();
+  const subscription = useSubscription();
 
   const [name, setName] = useState("");
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -101,6 +105,7 @@ function Settings() {
               { icon: Globe, label: "Language" },
               { icon: Bell, label: "Notifications" },
               { icon: Shield, label: "Privacy" },
+              { icon: Database, label: "Data & History" },
               { icon: Lock, label: "Security" },
               { icon: Crown, label: "Plan" },
               { icon: HelpCircle, label: "Help" },
@@ -177,8 +182,14 @@ function Settings() {
           <Section title="Plan" description="Manage your NEXORA subscription.">
             <div className="flex items-center justify-between rounded-xl border border-border bg-surface p-4">
               <div>
-                <p className="font-medium">Free plan</p>
-                <p className="text-xs text-muted-foreground">Upgrade to unlock everything.</p>
+                <p className="font-medium">
+                  {subscription.data?.isPremium ? "Premium plan" : "Free plan"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {subscription.data?.isPremium
+                    ? "Your subscription is active."
+                    : "Upgrade to unlock everything."}
+                </p>
               </div>
               <Link to="/premium">
                 <Button size="sm" className="rounded-full">
@@ -186,6 +197,49 @@ function Settings() {
                 </Button>
               </Link>
             </div>
+          </Section>
+
+          <Section title="Data & History" description="Control your Assistant conversation data.">
+            <div className="rounded-xl border border-border bg-surface p-4">
+              <p className="text-sm font-medium">Assistant retention</p>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                {subscription.data?.isPremium
+                  ? "Your chat history is retained without a time limit while Premium is active."
+                  : "Chat history is retained for 30 days."}
+              </p>
+              {(subscription.data?.cancelAtPeriodEnd ||
+                (!subscription.data?.isPremium && subscription.data?.status)) && (
+                <p className="mt-3 rounded-lg border border-warning/30 bg-warning/5 p-3 text-sm">
+                  When Premium ends, conversations older than 30 days become eligible for permanent
+                  deletion. Deleted history cannot be recovered.
+                </p>
+              )}
+            </div>
+            <Button
+              variant="destructive"
+              onClick={async () => {
+                if (
+                  !window.confirm(
+                    "Permanently delete all Assistant conversations? This cannot be undone.",
+                  )
+                )
+                  return;
+                try {
+                  await AIService.clearHistory();
+                  toast.success("Assistant history deleted");
+                } catch (error) {
+                  toast.error(
+                    error instanceof Error ? error.message : "Couldn't delete Assistant history",
+                  );
+                }
+              }}
+            >
+              <TrashHistoryIcon /> Clear Assistant history
+            </Button>
+            <p className="text-xs leading-5 text-muted-foreground">
+              This action only removes Assistant conversations and messages. Projects, tasks,
+              documents, studies, finances, agents, files, and settings are not affected.
+            </p>
           </Section>
 
           <Section title="Sign out" description="End this session on this device.">
@@ -204,6 +258,10 @@ function Settings() {
       </div>
     </PageShell>
   );
+}
+
+function TrashHistoryIcon() {
+  return <Database className="mr-1 h-4 w-4" aria-hidden="true" />;
 }
 
 function Section({

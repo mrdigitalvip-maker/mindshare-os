@@ -206,6 +206,12 @@ export const AIService = {
     if (error) throw error;
   },
 
+  async clearHistory(): Promise<void> {
+    const userId = await getRequiredUserId();
+    const { error } = await supabase.from("ai_conversations").delete().eq("user_id", userId);
+    if (error) throw error;
+  },
+
   async sendChat(input: {
     message: string;
     conversationId: string | null;
