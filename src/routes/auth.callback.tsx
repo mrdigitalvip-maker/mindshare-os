@@ -5,6 +5,24 @@ import { supabase } from "@/lib/supabase";
 
 type CallbackState = { status: "loading" } | { status: "error"; message: string };
 
+let pendingCode: string | null = null;
+let pendingExchange: ReturnType<typeof supabase.auth.exchangeCodeForSession> | null = null;
+
+function exchangeCodeOnce(code: string) {
+  if (pendingCode !== code || !pendingExchange) {
+    pendingCode = code;
+    pendingExchange = supabase.auth.exchangeCodeForSession(code);
+  }
+  return pendingExchange;
+}
+
+function clearOAuthParams(url: URL) {
+  for (const param of ["code", "error", "error_code", "error_description"]) {
+    url.searchParams.delete(param);
+  }
+  window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+}
+
 export const Route = createFileRoute("/auth/callback")({
   head: () => ({
     meta: [{ title: "Completing sign in — NEXORA" }, { name: "robots", content: "noindex" }],
@@ -25,6 +43,7 @@ function AuthCallbackPage() {
       const errorDescription = url.searchParams.get("error_description");
 
       if (oauthError) {
+        clearOAuthParams(url);
         const cancelled = oauthError === "access_denied";
         if (active) {
           setState({
@@ -38,21 +57,33 @@ function AuthCallbackPage() {
       }
 
       try {
-        const sessionResult = await supabase.auth.getSession();
-        if (sessionResult.error) throw sessionResult.error;
-        let data = sessionResult.data;
-
-        // detectSessionInUrl normally exchanges the PKCE code during client
-        // initialization. Keep an explicit fallback for browsers where that
-        // initialization did not consume the callback URL.
         const code = url.searchParams.get("code");
-        if (!data.session && code) {
-          const exchange = await supabase.auth.exchangeCodeForSession(code);
-          if (exchange.error) throw exchange.error;
-          data = exchange.data;
+        let session = null;
+
+        if (code) {
+          const exchange = await exchangeCodeOnce(code);
+          session = exchange.data.session;
+
+          // detectSessionInUrl may have completed the same exchange while the
+          // client initialized. In that case the persisted session is the
+          // authoritative result, rather than a second-use code error.
+          if (exchange.error || !session) {
+            const current = await supabase.auth.getSession();
+            if (current.error) throw current.error;
+            session = current.data.session;
+            if (!session) throw exchange.error;
+          }
+        } else {
+          // A remount or history restore can revisit a callback whose code was
+          // already consumed. Continue only when that exchange produced a session.
+          const current = await supabase.auth.getSession();
+          if (current.error) throw current.error;
+          session = current.data.session;
         }
 
-        if (!data.session) throw new Error("No active session was returned. Please sign in again.");
+        if (!session?.user)
+          throw new Error("No active session was returned. Please sign in again.");
+        clearOAuthParams(url);
         if (active) await navigate({ to: "/dashboard", replace: true });
       } catch (error) {
         if (active) {

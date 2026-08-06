@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -28,13 +28,26 @@ export const Route = createFileRoute("/auth")({
 function AuthPage() {
   const { mode = "signin" } = Route.useSearch();
   const navigate = useNavigate();
-  const { signIn, signUp, signInWithGoogle, resetPassword } = useAuth();
+  const {
+    signIn,
+    signUp,
+    signInWithGoogle,
+    resetPassword,
+    loading: authLoading,
+    isAuthenticated,
+  } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [sent, setSent] = useState<"signup" | "forgot" | null>(null);
+
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      void navigate({ to: "/dashboard", replace: true });
+    }
+  }, [authLoading, isAuthenticated, navigate]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
