@@ -84,20 +84,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     // Register listener first to avoid missing events during initial hydration.
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    let active = true;
+    const { data: sub } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      if (!active) return;
       setSession(nextSession);
       setUser(mapUser(nextSession?.user ?? null));
+      if (event === "INITIAL_SESSION" || event === "SIGNED_IN") setLoading(false);
     });
 
-    supabase.auth
-      .getSession()
-      .then(({ data }) => {
+    async function resolveInitialSession() {
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (!active) return;
         setSession(data.session);
         setUser(mapUser(data.session?.user ?? null));
-      })
-      .finally(() => setLoading(false));
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+
+    void resolveInitialSession();
 
     return () => {
+      active = false;
       sub.subscription.unsubscribe();
     };
   }, []);
