@@ -4,10 +4,14 @@ import { supabase } from "@/lib/supabase";
 
 export type AiErrorCode =
   | "unauthorized"
+  | "premium_required"
   | "invalid_request"
   | "free_limit_reached"
   | "premium_limit_reached"
+  | "action_limit_reached"
   | "input_too_large"
+  | "resource_not_found"
+  | "duplicate_request"
   | "provider_unavailable"
   | "provider_rate_limited"
   | "provider_error"
@@ -24,6 +28,16 @@ export type AiCapability =
   | "documentAnalysis"
   | "studyAssistance"
   | "financialInsights";
+
+export type AiAction =
+  "translation" | "agent_run" | "content_generation" | "study_assistance" | "document_analysis";
+
+export interface AiActionResult {
+  content: string;
+  resourceId?: string;
+  runId?: string;
+  requestId: string;
+}
 
 export interface AiChatMessage {
   id: string;
@@ -141,5 +155,15 @@ export const AIService = {
       };
     }
     return invoke({ action: "send", ...input });
+  },
+
+  async execute(action: AiAction, input: Record<string, unknown>): Promise<AiActionResult> {
+    if (DEMO_MODE) {
+      throw new AIServiceError(
+        "configuration_error",
+        "Real AI actions are unavailable in demo mode.",
+      );
+    }
+    return invoke({ action, requestId: crypto.randomUUID(), ...input });
   },
 };

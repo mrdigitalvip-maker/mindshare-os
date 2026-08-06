@@ -12,6 +12,7 @@ import type {
   Task,
 } from "./mock-data";
 import type { Database } from "@/integrations/supabase/types";
+import { AIService } from "./ai-service";
 
 type StudySubjectRow = Database["public"]["Tables"]["study_subjects"]["Row"];
 type StudySubjectInsert = Database["public"]["Tables"]["study_subjects"]["Insert"];
@@ -338,9 +339,23 @@ export const DocumentService = {
     if (error) throw error;
     return data ?? [];
   },
+  async analyze(id: string, instruction = "Summarize this document") {
+    return AIService.execute("document_analysis", { documentId: id, instruction });
+  },
+  async analyzePhysicalFile(): Promise<never> {
+    throw new Error("Physical file analysis is unavailable until Storage is configured.");
+  },
 };
 
 export const ContentService = {
+  async generate(input: {
+    operation: "draft" | "rewrite" | "summarize" | "expand" | "tone" | "title";
+    text: string;
+    tone?: string;
+    title?: string;
+  }) {
+    return AIService.execute("content_generation", input);
+  },
   async listNotes(): Promise<NoteRow[]> {
     const userId = await getRequiredUserId();
     const { data, error } = await supabase
@@ -469,6 +484,12 @@ function mapStudyPlan(subject: StudySubjectRow, sessions: StudySessionRow[]): St
 }
 
 export const StudyService = {
+  async assist(input: {
+    operation: "explain" | "summarize" | "questions" | "flashcards" | "study_plan";
+    text: string;
+  }) {
+    return AIService.execute("study_assistance", input);
+  },
   async listSubjects(): Promise<StudySubjectRow[]> {
     const userId = await getRequiredUserId();
     const { data, error } = await supabase
@@ -791,9 +812,9 @@ export const AgentService = {
     if (error) throw error;
     return data ?? [];
   },
-  async run(): Promise<never> {
+  async run(agentId: string, input: string) {
     await getRequiredUserId();
-    throw new Error("Agent provider is not activated. No execution was created.");
+    return AIService.execute("agent_run", { agentId, input });
   },
 };
 
@@ -818,6 +839,15 @@ export const TranslationService = {
       .maybeSingle();
     if (error) throw error;
     return data;
+  },
+  async translate(text: string, sourceLanguage: string, targetLanguage: string): Promise<string> {
+    if (!text.trim()) return "";
+    const result = await AIService.execute("translation", {
+      text,
+      sourceLanguage,
+      targetLanguage,
+    });
+    return result.content;
   },
   async saveProviderResult(input: {
     originalText: string;
@@ -852,17 +882,6 @@ export const TranslationService = {
       .eq("id", id)
       .eq("user_id", userId);
     if (error) throw error;
-  },
-  async translate(text: string, source: string, target: string): Promise<string> {
-    if (DEMO_MODE) {
-      await delay();
-      if (!text.trim()) return "";
-      if (source === target) return text;
-      return `[${source.toUpperCase()} → ${target.toUpperCase()}] ${text.trim()}`;
-    }
-    await getRequiredUserId();
-    if (!text.trim()) return "";
-    throw new Error("Translation provider is not activated. No translation was saved.");
   },
 };
 
