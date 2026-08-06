@@ -1,16 +1,14 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import Stripe from "npm:stripe@^18.0.0";
-
-const cors = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-const json = (body: unknown, status = 200) => Response.json(body, { status, headers: cors });
-const fail = (code: string, status: number) => json({ error: { code } }, status);
+import { jsonResponse, preflightResponse, rejectDisallowedOrigin } from "../_shared/http.ts";
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+  const json = (body: unknown, status = 200) => jsonResponse(req, body, status);
+  const fail = (code: string, status: number) => json({ error: { code } }, status);
+  if (req.method === "OPTIONS") return preflightResponse(req);
+  const rejectedOrigin = rejectDisallowedOrigin(req);
+  if (rejectedOrigin) return rejectedOrigin;
   if (req.method !== "POST") return fail("checkout_error", 405);
 
   const authorization = req.headers.get("Authorization");

@@ -1,12 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
-
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
-const JSON_HEADERS = { ...CORS_HEADERS, "Content-Type": "application/json" };
+import { jsonResponse, preflightResponse, rejectDisallowedOrigin } from "../_shared/http.ts";
 
 type ErrorCode =
   | "unauthorized"
@@ -62,14 +56,6 @@ function policyFor(plan: Plan): PlanPolicy {
     contextChars: envInt("FREE_CONTEXT_CHARS", 8000),
     model: Deno.env.get("OPENAI_FREE_MODEL") || "gpt-4.1-mini",
   };
-}
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), { status, headers: JSON_HEADERS });
-}
-
-function failure(code: ErrorCode, message: string, status: number, requestId: string): Response {
-  return json({ ok: false, error: { code, message, requestId } }, status);
 }
 
 function log(event: string, data: Record<string, unknown> = {}) {
@@ -436,7 +422,12 @@ async function executeTypedAction(
 
 Deno.serve(async (req) => {
   const requestId = crypto.randomUUID();
-  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS_HEADERS });
+  const json = (body: unknown, status = 200) => jsonResponse(req, body, status);
+  const failure = (code: ErrorCode, message: string, status: number, id: string) =>
+    json({ ok: false, error: { code, message, requestId: id } }, status);
+  if (req.method === "OPTIONS") return preflightResponse(req);
+  const rejectedOrigin = rejectDisallowedOrigin(req);
+  if (rejectedOrigin) return rejectedOrigin;
   if (req.method !== "POST")
     return failure("invalid_request", "Method not allowed.", 405, requestId);
 
