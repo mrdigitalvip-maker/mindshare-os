@@ -897,4 +897,15 @@ export const SubscriptionService = {
     if (!data?.url) throw new Error("Checkout URL was not returned");
     return data.url;
   },
+  async createPortalUrl(): Promise<string | null> {
+    const { DEMO_MODE } = await import("@/lib/demo/config");
+    if (DEMO_MODE) return null;
+    const { supabase } = await import("@/lib/supabase");
+    const { data, error } = await supabase.functions.invoke<{ url: string }>(
+      "create-portal-session",
+    );
+    if (error) throw error;
+    if (!data?.url) throw new Error("Portal URL was not returned");
+    return data.url;
+  },
 };

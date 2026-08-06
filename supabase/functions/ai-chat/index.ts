@@ -79,13 +79,17 @@ function log(event: string, data: Record<string, unknown> = {}) {
 async function resolvePlan(supabase: DbClient, userId: string): Promise<Plan> {
   const { data, error } = await supabase
     .from("subscriptions")
-    .select("status")
+    .select("status, current_period_end")
     .eq("user_id", userId)
     .order("updated_at", { ascending: false })
     .limit(1)
     .maybeSingle();
   if (error) throw new Error("subscription_lookup_failed");
-  return data?.status === "active" || data?.status === "trialing" ? "premium" : "free";
+  const authorized = data?.status === "active" || data?.status === "trialing";
+  const expired = data?.current_period_end
+    ? new Date(data.current_period_end).getTime() <= Date.now()
+    : false;
+  return authorized && !expired ? "premium" : "free";
 }
 
 async function ownedConversation(supabase: DbClient, userId: string, conversationId: string) {

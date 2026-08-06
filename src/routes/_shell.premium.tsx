@@ -1,10 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Crown, Check, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { PageShell, PageHeader } from "@/components/page-shell";
 import { Button } from "@/components/ui/button";
-import { useSubscription } from "@/hooks/use-subscription";
+import { subscriptionQueryKey, useSubscription } from "@/hooks/use-subscription";
+import { useAuth } from "@/lib/auth-context";
 import { SubscriptionService } from "@/services";
 
 export const Route = createFileRoute("/_shell/premium")({
@@ -24,7 +26,20 @@ const PRO = [
 
 function Premium() {
   const [checkingOut, setCheckingOut] = useState(false);
-  const { data: subscription } = useSubscription();
+  const [openingPortal, setOpeningPortal] = useState(false);
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const { data: subscription, isLoading, isFetching, refetch } = useSubscription();
+  const checkoutResult =
+    typeof window === "undefined"
+      ? null
+      : new URLSearchParams(window.location.search).get("checkout");
+
+  useEffect(() => {
+    if (checkoutResult === "success") {
+      void queryClient.invalidateQueries({ queryKey: subscriptionQueryKey(user?.id) });
+    }
+  }, [checkoutResult, queryClient, user?.id]);
 
   async function startCheckout() {
     setCheckingOut(true);
@@ -43,6 +58,25 @@ function Premium() {
     }
   }
 
+  async function openPortal() {
+    setOpeningPortal(true);
+    try {
+      const portalUrl = await SubscriptionService.createPortalUrl();
+      if (!portalUrl) toast.info("The billing portal is unavailable in demo mode.");
+      else window.location.assign(portalUrl);
+    } catch {
+      toast.error("Unable to open billing management. Please try again.");
+    } finally {
+      setOpeningPortal(false);
+    }
+  }
+
+  const endDate = subscription?.currentPeriodEnd
+    ? new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(
+        new Date(subscription.currentPeriodEnd),
+      )
+    : null;
+
   return (
     <PageShell>
       <PageHeader
@@ -53,9 +87,55 @@ function Premium() {
       <div className="mt-4 text-sm text-muted-foreground">
         Current status:{" "}
         <span className="font-medium text-foreground">
-          {subscription?.isPremium ? "Premium" : "Free"}
+          {isLoading ? "Checking…" : subscription?.isPremium ? "Premium" : "Free"}
         </span>
       </div>
+      {checkoutResult === "success" && !subscription?.isPremium && (
+        <div className="mt-4 rounded-xl border border-gold/30 bg-gold/5 p-4 text-sm">
+          Payment received. Your subscription is still syncing; access is granted only after Stripe
+          confirms it.
+          <Button
+            className="ml-3"
+            size="sm"
+            variant="outline"
+            onClick={() => void refetch()}
+            disabled={isFetching}
+          >
+            {isFetching ? "Checking…" : "Check again"}
+          </Button>
+        </div>
+      )}
+      {checkoutResult === "cancelled" && (
+        <p className="mt-4 text-sm text-muted-foreground">
+          Checkout was cancelled. No plan change was made.
+        </p>
+      )}
+      {subscription?.status === "trialing" && (
+        <p className="mt-3 text-sm text-gold">
+          Your Stripe trial is active{endDate ? ` until ${endDate}` : ""}.
+        </p>
+      )}
+      {subscription?.cancelAtPeriodEnd && subscription.isPremium && (
+        <p className="mt-3 text-sm text-muted-foreground">
+          Cancellation is scheduled. Premium remains available
+          {endDate ? ` through ${endDate}` : " until the period ends"}.
+        </p>
+      )}
+      {["past_due", "unpaid"].includes(subscription?.status ?? "") && (
+        <p className="mt-3 text-sm text-destructive">
+          Payment failed. Update your payment method to restore Premium.
+        </p>
+      )}
+      {subscription?.isPremium && (
+        <Button
+          className="mt-4 rounded-full"
+          variant="outline"
+          onClick={openPortal}
+          disabled={openingPortal}
+        >
+          {openingPortal ? "Opening…" : "Manage billing, payment or cancellation"}
+        </Button>
+      )}
       <div className="mt-10 grid gap-6 md:grid-cols-2">
         <Card
           badge="Current"
@@ -80,7 +160,7 @@ function Premium() {
             <Button
               className="rounded-full"
               onClick={startCheckout}
-              disabled={checkingOut || subscription?.isPremium}
+              disabled={checkingOut || isLoading || subscription?.isPremium}
               title="Start a Stripe checkout session"
             >
               <Crown className="mr-1 h-4 w-4" />
