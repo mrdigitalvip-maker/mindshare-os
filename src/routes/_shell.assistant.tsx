@@ -49,6 +49,7 @@ function Assistant() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const shouldFollow = useRef(true);
+  const [showLatest, setShowLatest] = useState(false);
   const { sendMessage, isSending, loadConversationHistory, startConversation } = useChat();
   const conversationsKey = ["workspace", user?.id, "ai-conversations"] as const;
   const conversations = useQuery({
@@ -58,17 +59,6 @@ function Assistant() {
     staleTime: 30_000,
   });
 
-  useEffect(() => {
-    void loadConversationHistory()
-      .then((history) => {
-        setMessages(history);
-      })
-      .catch((error: unknown) =>
-        setLoadError(
-          error instanceof Error ? error.message : "Conversation history could not be loaded.",
-        ),
-      );
-  }, [loadConversationHistory]);
   useEffect(() => {
     if (shouldFollow.current) endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isSending]);
@@ -89,6 +79,8 @@ function Assistant() {
     try {
       setMessages(await loadConversationHistory(id));
       setActiveId(id);
+      shouldFollow.current = true;
+      setShowLatest(false);
       setHistoryOpen(false);
       window.setTimeout(() => inputRef.current?.focus(), 0);
     } catch (error) {
@@ -194,8 +186,9 @@ function Assistant() {
               const element = event.currentTarget;
               shouldFollow.current =
                 element.scrollHeight - element.scrollTop - element.clientHeight < 120;
+              setShowLatest(!shouldFollow.current);
             }}
-            className="min-h-0 flex-1 overscroll-contain overflow-y-auto px-3 py-5 sm:px-4 md:px-8 md:py-6"
+            className="relative min-h-0 flex-1 overscroll-contain overflow-y-auto px-3 py-5 sm:px-4 md:px-8 md:py-6"
             aria-live="polite"
             aria-busy={isSending}
           >
@@ -256,8 +249,22 @@ function Assistant() {
                 <div ref={endRef} />
               </div>
             )}
+            {showLatest && (
+              <Button
+                size="sm"
+                variant="secondary"
+                className="sticky bottom-2 left-1/2 z-10 -translate-x-1/2 rounded-full shadow-lg"
+                onClick={() => {
+                  shouldFollow.current = true;
+                  setShowLatest(false);
+                  endRef.current?.scrollIntoView({ behavior: "smooth" });
+                }}
+              >
+                Ir para a mensagem mais recente
+              </Button>
+            )}
           </div>
-          <div className="border-t border-border p-3 md:p-4">
+          <div className="border-t border-border p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:p-4">
             {loadError && (
               <div className="mx-auto mb-2 flex max-w-3xl items-center justify-between rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm">
                 <span>{loadError}</span>

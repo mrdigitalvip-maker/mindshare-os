@@ -49,7 +49,7 @@ export const ProjectService = {
     const [{ data, error }, { data: tasks, error: tasksError }] = await Promise.all([
       supabase
         .from("projects")
-        .select("id, title, status, updated_at")
+        .select("id, title, description, status, updated_at")
         .eq("user_id", userId)
         .order("updated_at", { ascending: false }),
       supabase.from("tasks").select("project_id, completed").eq("user_id", userId),
@@ -71,16 +71,23 @@ export const ProjectService = {
       })(),
       color: colors[index % colors.length],
       updatedAt: row.updated_at ?? new Date(0).toISOString(),
+      description: row.description ?? "",
+      status: row.status ?? "active",
     }));
   },
-  async create(title?: string): Promise<Project> {
+  async create(
+    input?: string | { title: string; description?: string; status?: string },
+  ): Promise<Project> {
     if (!DEMO_MODE) {
       const userId = await getRequiredUserId();
-      const cleanTitle = title?.trim() || "New project";
+      const cleanTitle =
+        (typeof input === "string" ? input : input?.title)?.trim() || "New project";
+      const description = typeof input === "object" ? input.description?.trim() || null : null;
+      const status = typeof input === "object" ? input.status || "active" : "active";
       const { data, error } = await supabase
         .from("projects")
-        .insert({ user_id: userId, title: cleanTitle, status: "active" })
-        .select("id, title, updated_at")
+        .insert({ user_id: userId, title: cleanTitle, description, status })
+        .select("id, title, description, status, updated_at")
         .single();
       if (error) throw error;
       return {
@@ -89,6 +96,8 @@ export const ProjectService = {
         progress: 0,
         color: colors[0],
         updatedAt: data.updated_at ?? new Date().toISOString(),
+        description: data.description ?? "",
+        status: data.status ?? "active",
       };
     }
     await delay();
@@ -96,7 +105,9 @@ export const ProjectService = {
     updateMockDatabase((db) => {
       created = {
         id: createId("project"),
-        title: title ?? `New project ${db.projects.length + 1}`,
+        title:
+          (typeof input === "string" ? input : input?.title) ??
+          `New project ${db.projects.length + 1}`,
         progress: 0,
         color: colors[db.projects.length % colors.length],
         updatedAt: new Date().toISOString(),
@@ -105,7 +116,10 @@ export const ProjectService = {
     });
     return created;
   },
-  async update(id: string, patch: { title?: string; progress?: number }): Promise<void> {
+  async update(
+    id: string,
+    patch: { title?: string; description?: string; status?: string; progress?: number },
+  ): Promise<void> {
     if (DEMO_MODE) {
       updateMockDatabase((db) => ({
         ...db,
@@ -118,6 +132,8 @@ export const ProjectService = {
     const userId = await getRequiredUserId();
     const update = {
       ...(patch.title !== undefined ? { title: patch.title } : {}),
+      ...(patch.description !== undefined ? { description: patch.description } : {}),
+      ...(patch.status !== undefined ? { status: patch.status } : {}),
       ...(patch.progress !== undefined
         ? { status: patch.progress >= 100 ? "completed" : "active" }
         : {}),
@@ -154,7 +170,7 @@ export const ProductivityService = {
     const userId = await getRequiredUserId();
     let query = supabase
       .from("tasks")
-      .select("id, title, completed, due_date")
+      .select("id, title, description, priority, project_id, completed, due_date")
       .eq("user_id", userId)
       .order("updated_at", { ascending: false });
     if (filters?.status) query = query.eq("completed", filters.status === "done");
@@ -166,16 +182,39 @@ export const ProductivityService = {
       status: row.completed ? "done" : "open",
       due: row.due_date ? new Date(row.due_date).toLocaleDateString() : "No due date",
       focusMinutes: 25,
+      description: row.description ?? "",
+      priority: row.priority ?? "medium",
+      dueDate: row.due_date,
+      projectId: row.project_id,
     }));
   },
-  async createTask(title?: string): Promise<Task> {
+  async createTask(
+    input?:
+      | string
+      | {
+          title: string;
+          description?: string;
+          priority?: string;
+          dueDate?: string | null;
+          projectId?: string | null;
+        },
+  ): Promise<Task> {
     if (!DEMO_MODE) {
       const userId = await getRequiredUserId();
-      const cleanTitle = title?.trim() || "New focus task";
+      const cleanTitle =
+        (typeof input === "string" ? input : input?.title)?.trim() || "New focus task";
       const { data, error } = await supabase
         .from("tasks")
-        .insert({ user_id: userId, title: cleanTitle, completed: false })
-        .select("id, title, completed, due_date")
+        .insert({
+          user_id: userId,
+          title: cleanTitle,
+          completed: false,
+          description: typeof input === "object" ? input.description : undefined,
+          priority: typeof input === "object" ? input.priority : undefined,
+          due_date: typeof input === "object" ? input.dueDate : undefined,
+          project_id: typeof input === "object" ? input.projectId : undefined,
+        })
+        .select("id, title, description, priority, project_id, completed, due_date")
         .single();
       if (error) throw error;
       return {
@@ -184,6 +223,10 @@ export const ProductivityService = {
         status: data.completed ? "done" : "open",
         due: data.due_date ? new Date(data.due_date).toLocaleDateString() : "No due date",
         focusMinutes: 25,
+        description: data.description ?? "",
+        priority: data.priority ?? "medium",
+        dueDate: data.due_date,
+        projectId: data.project_id,
       };
     }
     await delay();
@@ -228,7 +271,14 @@ export const ProductivityService = {
   },
   async updateTask(
     id: string,
-    patch: { title?: string; completed?: boolean; due_date?: string | null },
+    patch: {
+      title?: string;
+      description?: string;
+      priority?: string;
+      completed?: boolean;
+      due_date?: string | null;
+      project_id?: string | null;
+    },
   ): Promise<void> {
     if (DEMO_MODE) {
       updateMockDatabase((db) => ({
