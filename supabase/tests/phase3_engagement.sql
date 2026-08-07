@@ -1,0 +1,14 @@
+begin;
+select plan(10);
+select has_table('public','studio_progress','progress exists');
+select has_table('public','studio_daily_goals','daily goals exist');
+select has_table('public','studio_streaks','streak exists');
+select has_table('public','studio_achievements','achievements exist');
+select has_table('public','push_subscriptions','push exists');
+select has_table('public','notification_preferences','preferences exist');
+select has_table('public','ai_usage','usage exists');
+select has_index('public','studio_progress','studio_progress_owner_status_idx','progress owner/status indexed');
+select has_index('public','ai_usage','ai_usage_owner_date_action_idx','usage owner/date/action indexed');
+select function_privs_are('public','complete_studio_lesson',array['uuid','integer'], 'authenticated', array['EXECUTE'], 'authenticated can complete atomically');
+select * from finish();
+rollback;

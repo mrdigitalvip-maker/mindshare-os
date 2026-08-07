@@ -164,7 +164,11 @@ async function callOpenAI(apiKey: string, model: string, messages: unknown[], ma
     const payload = await response.json();
     const content = payload?.choices?.[0]?.message?.content;
     if (typeof content !== "string" || !content.trim()) throw new Error("provider_error");
-    return { content, tokens: Number(payload?.usage?.completion_tokens) || null };
+    return {
+      content,
+      tokens: Number(payload?.usage?.completion_tokens) || null,
+      inputTokens: Number(payload?.usage?.prompt_tokens) || null,
+    };
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
       throw new Error("timeout");
@@ -470,6 +474,13 @@ Deno.serve(async (req) => {
       ].includes(body.action)
     ) {
       const plan = await resolvePlan(supabase, user.id);
+      const usageRequestId = typeof body.requestId === "string" ? body.requestId : requestId;
+      const { error: usageError } = await supabase.from("ai_usage").insert({
+        user_id: user.id,
+        action: body.action,
+        request_id: usageRequestId,
+      });
+      if (usageError) return failure("duplicate_request", "This request was already submitted.", 409, requestId);
       const data = await executeTypedAction(
         body.action as TypedAction,
         body,
@@ -478,6 +489,7 @@ Deno.serve(async (req) => {
         plan,
         requestId,
       );
+      await supabase.from("ai_usage").update({ output_units: null }).eq("user_id", user.id).eq("request_id", usageRequestId);
       return json({ ok: true, data });
     }
     if (
@@ -566,6 +578,14 @@ Deno.serve(async (req) => {
       [{ role: "system", content: SYSTEM_PROMPT }, ...context],
       policy.maxOutputTokens,
     );
+    const { error: usageError } = await supabase.from("ai_usage").insert({
+      user_id: user.id,
+      action: "assistant",
+      request_id: body.requestId,
+      input_units: result.inputTokens,
+      output_units: result.tokens,
+    });
+    if (usageError) throw new Error("duplicate_request");
     const { data: assistantMessage, error: assistantError } = await supabase
       .from("ai_messages")
       .insert({

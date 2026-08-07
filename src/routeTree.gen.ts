@@ -27,6 +27,7 @@ import { Route as ShellProductivityRouteImport } from './routes/_shell.productiv
 import { Route as ShellProjectsRouteImport } from './routes/_shell.projects'
 import { Route as ShellSettingsRouteImport } from './routes/_shell.settings'
 import { Route as ShellStudiesRouteImport } from './routes/_shell.studies'
+import { Route as ShellStudioRouteImport } from './routes/_shell.studio'
 import { Route as ShellTranslateRouteImport } from './routes/_shell.translate'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as ShellAgentsAgentIdRouteImport } from './routes/_shell.agents.$agentId'
@@ -34,6 +35,9 @@ import { Route as ShellContentContentIdRouteImport } from './routes/_shell.conte
 import { Route as ShellDocumentsDocumentIdRouteImport } from './routes/_shell.documents.$documentId'
 import { Route as ShellProjectsProjectIdRouteImport } from './routes/_shell.projects.$projectId'
 import { Route as ShellStudiesSubjectIdRouteImport } from './routes/_shell.studies.$subjectId'
+import { Route as ShellStudioAiAcademyRouteImport } from './routes/_shell.studio.ai-academy'
+import { Route as ShellStudioCreatorGrowthRouteImport } from './routes/_shell.studio.creator-growth'
+import { Route as ShellStudioLanguagesRouteImport } from './routes/_shell.studio.languages'
 import { Route as ShellFinanceAccountsAccountIdRouteImport } from './routes/_shell.finance.accounts.$accountId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -125,6 +129,11 @@ const ShellStudiesRoute = ShellStudiesRouteImport.update({
   path: '/studies',
   getParentRoute: () => ShellRoute,
 } as any)
+const ShellStudioRoute = ShellStudioRouteImport.update({
+  id: '/studio',
+  path: '/studio',
+  getParentRoute: () => ShellRoute,
+} as any)
 const ShellTranslateRoute = ShellTranslateRouteImport.update({
   id: '/translate',
   path: '/translate',
@@ -161,6 +170,22 @@ const ShellStudiesSubjectIdRoute = ShellStudiesSubjectIdRouteImport.update({
   path: '/$subjectId',
   getParentRoute: () => ShellStudiesRoute,
 } as any)
+const ShellStudioAiAcademyRoute = ShellStudioAiAcademyRouteImport.update({
+  id: '/ai-academy',
+  path: '/ai-academy',
+  getParentRoute: () => ShellStudioRoute,
+} as any)
+const ShellStudioCreatorGrowthRoute =
+  ShellStudioCreatorGrowthRouteImport.update({
+    id: '/creator-growth',
+    path: '/creator-growth',
+    getParentRoute: () => ShellStudioRoute,
+  } as any)
+const ShellStudioLanguagesRoute = ShellStudioLanguagesRouteImport.update({
+  id: '/languages',
+  path: '/languages',
+  getParentRoute: () => ShellStudioRoute,
+} as any)
 const ShellFinanceAccountsAccountIdRoute =
   ShellFinanceAccountsAccountIdRouteImport.update({
     id: '/accounts/$accountId',
@@ -186,6 +211,7 @@ export interface FileRoutesByFullPath {
   '/projects': typeof ShellProjectsRouteWithChildren
   '/settings': typeof ShellSettingsRoute
   '/studies': typeof ShellStudiesRouteWithChildren
+  '/studio': typeof ShellStudioRouteWithChildren
   '/translate': typeof ShellTranslateRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/agents/$agentId': typeof ShellAgentsAgentIdRoute
@@ -193,6 +219,9 @@ export interface FileRoutesByFullPath {
   '/documents/$documentId': typeof ShellDocumentsDocumentIdRoute
   '/projects/$projectId': typeof ShellProjectsProjectIdRoute
   '/studies/$subjectId': typeof ShellStudiesSubjectIdRoute
+  '/studio/ai-academy': typeof ShellStudioAiAcademyRoute
+  '/studio/creator-growth': typeof ShellStudioCreatorGrowthRoute
+  '/studio/languages': typeof ShellStudioLanguagesRoute
   '/finance/accounts/$accountId': typeof ShellFinanceAccountsAccountIdRoute
 }
 export interface FileRoutesByTo {
@@ -213,6 +242,7 @@ export interface FileRoutesByTo {
   '/projects': typeof ShellProjectsRouteWithChildren
   '/settings': typeof ShellSettingsRoute
   '/studies': typeof ShellStudiesRouteWithChildren
+  '/studio': typeof ShellStudioRouteWithChildren
   '/translate': typeof ShellTranslateRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/agents/$agentId': typeof ShellAgentsAgentIdRoute
@@ -220,6 +250,9 @@ export interface FileRoutesByTo {
   '/documents/$documentId': typeof ShellDocumentsDocumentIdRoute
   '/projects/$projectId': typeof ShellProjectsProjectIdRoute
   '/studies/$subjectId': typeof ShellStudiesSubjectIdRoute
+  '/studio/ai-academy': typeof ShellStudioAiAcademyRoute
+  '/studio/creator-growth': typeof ShellStudioCreatorGrowthRoute
+  '/studio/languages': typeof ShellStudioLanguagesRoute
   '/finance/accounts/$accountId': typeof ShellFinanceAccountsAccountIdRoute
 }
 export interface FileRoutesById {
@@ -242,6 +275,7 @@ export interface FileRoutesById {
   '/_shell/projects': typeof ShellProjectsRouteWithChildren
   '/_shell/settings': typeof ShellSettingsRoute
   '/_shell/studies': typeof ShellStudiesRouteWithChildren
+  '/_shell/studio': typeof ShellStudioRouteWithChildren
   '/_shell/translate': typeof ShellTranslateRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/_shell/agents/$agentId': typeof ShellAgentsAgentIdRoute
@@ -249,6 +283,9 @@ export interface FileRoutesById {
   '/_shell/documents/$documentId': typeof ShellDocumentsDocumentIdRoute
   '/_shell/projects/$projectId': typeof ShellProjectsProjectIdRoute
   '/_shell/studies/$subjectId': typeof ShellStudiesSubjectIdRoute
+  '/_shell/studio/ai-academy': typeof ShellStudioAiAcademyRoute
+  '/_shell/studio/creator-growth': typeof ShellStudioCreatorGrowthRoute
+  '/_shell/studio/languages': typeof ShellStudioLanguagesRoute
   '/_shell/finance/accounts/$accountId': typeof ShellFinanceAccountsAccountIdRoute
 }
 export interface FileRouteTypes {
@@ -271,6 +308,7 @@ export interface FileRouteTypes {
     | '/projects'
     | '/settings'
     | '/studies'
+    | '/studio'
     | '/translate'
     | '/auth/callback'
     | '/agents/$agentId'
@@ -278,6 +316,9 @@ export interface FileRouteTypes {
     | '/documents/$documentId'
     | '/projects/$projectId'
     | '/studies/$subjectId'
+    | '/studio/ai-academy'
+    | '/studio/creator-growth'
+    | '/studio/languages'
     | '/finance/accounts/$accountId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -298,6 +339,7 @@ export interface FileRouteTypes {
     | '/projects'
     | '/settings'
     | '/studies'
+    | '/studio'
     | '/translate'
     | '/auth/callback'
     | '/agents/$agentId'
@@ -305,6 +347,9 @@ export interface FileRouteTypes {
     | '/documents/$documentId'
     | '/projects/$projectId'
     | '/studies/$subjectId'
+    | '/studio/ai-academy'
+    | '/studio/creator-growth'
+    | '/studio/languages'
     | '/finance/accounts/$accountId'
   id:
     | '__root__'
@@ -326,6 +371,7 @@ export interface FileRouteTypes {
     | '/_shell/projects'
     | '/_shell/settings'
     | '/_shell/studies'
+    | '/_shell/studio'
     | '/_shell/translate'
     | '/auth/callback'
     | '/_shell/agents/$agentId'
@@ -333,6 +379,9 @@ export interface FileRouteTypes {
     | '/_shell/documents/$documentId'
     | '/_shell/projects/$projectId'
     | '/_shell/studies/$subjectId'
+    | '/_shell/studio/ai-academy'
+    | '/_shell/studio/creator-growth'
+    | '/_shell/studio/languages'
     | '/_shell/finance/accounts/$accountId'
   fileRoutesById: FileRoutesById
 }
@@ -474,6 +523,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShellStudiesRouteImport
       parentRoute: typeof ShellRoute
     }
+    '/_shell/studio': {
+      id: '/_shell/studio'
+      path: '/studio'
+      fullPath: '/studio'
+      preLoaderRoute: typeof ShellStudioRouteImport
+      parentRoute: typeof ShellRoute
+    }
     '/_shell/translate': {
       id: '/_shell/translate'
       path: '/translate'
@@ -522,6 +578,27 @@ declare module '@tanstack/react-router' {
       fullPath: '/studies/$subjectId'
       preLoaderRoute: typeof ShellStudiesSubjectIdRouteImport
       parentRoute: typeof ShellStudiesRoute
+    }
+    '/_shell/studio/ai-academy': {
+      id: '/_shell/studio/ai-academy'
+      path: '/ai-academy'
+      fullPath: '/studio/ai-academy'
+      preLoaderRoute: typeof ShellStudioAiAcademyRouteImport
+      parentRoute: typeof ShellStudioRoute
+    }
+    '/_shell/studio/creator-growth': {
+      id: '/_shell/studio/creator-growth'
+      path: '/creator-growth'
+      fullPath: '/studio/creator-growth'
+      preLoaderRoute: typeof ShellStudioCreatorGrowthRouteImport
+      parentRoute: typeof ShellStudioRoute
+    }
+    '/_shell/studio/languages': {
+      id: '/_shell/studio/languages'
+      path: '/languages'
+      fullPath: '/studio/languages'
+      preLoaderRoute: typeof ShellStudioLanguagesRouteImport
+      parentRoute: typeof ShellStudioRoute
     }
     '/_shell/finance/accounts/$accountId': {
       id: '/_shell/finance/accounts/$accountId'
@@ -605,6 +682,22 @@ const ShellStudiesRouteWithChildren = ShellStudiesRoute._addFileChildren(
   ShellStudiesRouteChildren,
 )
 
+interface ShellStudioRouteChildren {
+  ShellStudioAiAcademyRoute: typeof ShellStudioAiAcademyRoute
+  ShellStudioCreatorGrowthRoute: typeof ShellStudioCreatorGrowthRoute
+  ShellStudioLanguagesRoute: typeof ShellStudioLanguagesRoute
+}
+
+const ShellStudioRouteChildren: ShellStudioRouteChildren = {
+  ShellStudioAiAcademyRoute: ShellStudioAiAcademyRoute,
+  ShellStudioCreatorGrowthRoute: ShellStudioCreatorGrowthRoute,
+  ShellStudioLanguagesRoute: ShellStudioLanguagesRoute,
+}
+
+const ShellStudioRouteWithChildren = ShellStudioRoute._addFileChildren(
+  ShellStudioRouteChildren,
+)
+
 interface ShellRouteChildren {
   ShellAgentsRoute: typeof ShellAgentsRouteWithChildren
   ShellAssistantRoute: typeof ShellAssistantRoute
@@ -617,6 +710,7 @@ interface ShellRouteChildren {
   ShellProjectsRoute: typeof ShellProjectsRouteWithChildren
   ShellSettingsRoute: typeof ShellSettingsRoute
   ShellStudiesRoute: typeof ShellStudiesRouteWithChildren
+  ShellStudioRoute: typeof ShellStudioRouteWithChildren
   ShellTranslateRoute: typeof ShellTranslateRoute
 }
 
@@ -632,6 +726,7 @@ const ShellRouteChildren: ShellRouteChildren = {
   ShellProjectsRoute: ShellProjectsRouteWithChildren,
   ShellSettingsRoute: ShellSettingsRoute,
   ShellStudiesRoute: ShellStudiesRouteWithChildren,
+  ShellStudioRoute: ShellStudioRouteWithChildren,
   ShellTranslateRoute: ShellTranslateRoute,
 }
 

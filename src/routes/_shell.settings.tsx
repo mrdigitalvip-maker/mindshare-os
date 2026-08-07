@@ -26,6 +26,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useSubscription } from "@/hooks/use-subscription";
 import { AIService } from "@/services";
+import { NotificationSettings, UsageSettings } from "@/components/settings-engagement";
 
 export const Route = createFileRoute("/_shell/settings")({
   head: () => ({ meta: [{ title: "Settings — NEXORA" }] }),
@@ -48,7 +49,6 @@ function Settings() {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [notifications, setNotifications] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -104,10 +104,11 @@ function Settings() {
               { icon: Palette, label: "Appearance" },
               { icon: Globe, label: "Language" },
               { icon: Bell, label: "Notifications" },
+              { icon: Database, label: "AI & Usage" },
               { icon: Shield, label: "Privacy" },
               { icon: Database, label: "Data & History" },
               { icon: Lock, label: "Security" },
-              { icon: Crown, label: "Plan" },
+              { icon: Crown, label: "Subscription" },
               { icon: HelpCircle, label: "Help" },
               { icon: Info, label: "About" },
             ].map((s) => (
@@ -170,13 +171,12 @@ function Settings() {
             </Button>
           </Section>
 
-          <Section title="Notifications" description="Choose how NEXORA reaches you.">
-            <Row label="Daily briefing" desc="Morning summary of your day.">
-              <Switch checked={notifications} onCheckedChange={setNotifications} />
-            </Row>
-            <Row label="Goal reminders" desc="Nudges when you're drifting off-track.">
-              <Switch defaultChecked />
-            </Row>
+          <Section title="Notifications" description="Choose useful, local-time reminders.">
+            <NotificationSettings />
+          </Section>
+
+          <Section title="AI & Usage" description="Real backend usage and daily entitlements.">
+            <UsageSettings />
           </Section>
 
           <Section title="Plan" description="Manage your NEXORA subscription.">

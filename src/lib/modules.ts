@@ -3,6 +3,7 @@ import {
   FolderKanban,
   ListChecks,
   GraduationCap,
+  LibraryBig,
   Wallet,
   PenLine,
   Languages,
@@ -71,6 +72,15 @@ export const MODULES: NexoraModule[] = [
     description: "Tasks, focus, calendar",
     group: "modules",
     category: "workspace",
+  },
+  {
+    id: "studio",
+    label: "Studio",
+    path: "/studio",
+    icon: LibraryBig,
+    description: "Daily learning and growth",
+    group: "modules",
+    category: "growth",
   },
   {
     id: "studies",
