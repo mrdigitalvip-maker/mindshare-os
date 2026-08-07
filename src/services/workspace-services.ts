@@ -664,9 +664,31 @@ export const StudyService = {
     return data ?? [];
   },
   async getSubject(id: string): Promise<StudySubjectRow | null> {
-    return (await this.listSubjects()).find((subject) => subject.id === id) ?? null;
+    if (!id.trim()) return null;
+    if (DEMO_MODE) {
+      const plan = readMockDatabase().studies.find((subject) => subject.id === id);
+      return plan
+        ? ({
+            id: plan.id,
+            name: plan.title,
+            color: colors[0],
+            created_at: null,
+            user_id: "demo-user",
+          } as StudySubjectRow)
+        : null;
+    }
+    const userId = await getRequiredUserId();
+    const { data, error } = await supabase
+      .from("study_subjects")
+      .select("id, color, created_at, name, user_id")
+      .eq("id", id)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error) throw error;
+    return data;
   },
   async listSubjectSessions(id: string): Promise<StudySessionRow[]> {
+    if (DEMO_MODE) return [];
     return (await this.listHistory()).filter((session) => session.subject_id === id);
   },
   async listPlans(): Promise<StudyPlan[]> {

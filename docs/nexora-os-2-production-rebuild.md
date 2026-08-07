@@ -170,3 +170,23 @@ This sequence keeps every connected-branch commit runnable and prevents decorati
 Phase 3 adds the persisted Studio catalog and owner-scoped learning state, timezone-aware atomic lesson completion, daily goals, streaks, XP and six bounded achievements. It adds Language Lab onboarding for four languages, AI Academy, Creator Growth and a direct Content Studio handoff. Dashboard navigation and global search include Studio.
 
 Web Push now has owner-scoped subscription/preferences/dedupe schema, explicit opt-in registration, same-origin click handling, VAPID delivery and a conservative server-side scheduled reminder coordinator. AI usage has an idempotent prompt-free ledger and real Settings meters, with subscription eligibility sourced only from active, unexpired `public.subscriptions` rows. See `nexora-studio.md`, `push-notifications.md`, and `ai-usage-and-entitlements.md` for deployment requirements and stated limitations.
+
+## FINAL STUDIES / STUDIO / TWA POLISH
+
+### Studies root cause and correction
+
+The failure was a data-source mismatch combined with unhandled query states. `listPlans()` returned local demo plans in demo mode, but opening one called `getSubject()` and `listSubjectSessions()` through authenticated Supabase reads. In deployed fallback/demo conditions that could reject while the route treated every missing `data` value as “not found”; session query failures were also allowed to flow into an incomplete workspace. Study query keys were global rather than user-scoped, allowing cached results to cross a session transition.
+
+Studies now uses the authenticated user in every React Query key and enables reads only after the auth session exists. Demo plan detail and session reads stay on the same demo source. Production subject detail uses an owner-scoped `maybeSingle()` query, so an absent/deleted subject is a controlled null rather than an exception. Loading, subject-not-found, subject-network-error, sessions-error and retry states are distinct. Cards, progress, empty/loading states, controls and mobile spacing were refined without importing the Studio visual language. No schema or migration changed.
+
+### Studio visual and data rules
+
+Studio 2.0 has a dedicated spectral design system and separate track palettes, while retaining every persistence and entitlement path. Home recommendations, rings, category percentages and weekly minutes are computed exclusively from returned tracks, lessons, enrollment, progress and daily-goal rows. Missing activity produces an honest empty state. CSS-only visuals, reduced-motion fallbacks and responsive single-column layouts avoid a new runtime dependency and large decorative assets.
+
+### TWA diagnosis and next Android release action
+
+The repository web half is internally consistent: `/dashboard` is inside root scope, `display` is `standalone`, browser-like display overrides are forbidden, and Digital Asset Links declares `app.vercel.nexora_os_eosin.twa`. There is no Android wrapper, keystore, AAB, Play certificate evidence or Bubblewrap configuration in this repository. Therefore browser chrome on a Play-installed build is not fixable with CSS or by changing this web manifest: it means the installed wrapper did not verify its exact launch origin against Digital Asset Links (most commonly an old/default wrapper origin or an upload-key fingerprint used instead of Play App Signing).
+
+Before producing the next AAB, inspect the existing wrapper without changing its package ID or key: set `defaultUrl`/launch URL to `https://nexora.app/dashboard`, set the verified host and `android:autoVerify` intent filter to exactly `nexora.app`, and remove any initial redirect through a Vercel, Lovable, or `www` origin. In Play Console → App integrity, copy the **App signing key certificate** SHA-256 (not the upload certificate), compare it byte-for-byte with `public/.well-known/assetlinks.json`, deploy if correction is necessary, and confirm both public endpoints return HTTP 200 directly with no redirect/challenge and JSON content type. Then validate the relationship with Google's Digital Asset Links API and `adb shell pm get-app-links app.vercel.nexora_os_eosin.twa`; clear/update the installed internal-test build only after verification succeeds. OAuth Site URL and callback allow-list must use the same canonical origin. No AAB, package ID, keystore or signing key was changed here.
+
+The current environment could validate repository files but its outbound proxy returned HTTP 403 before reaching `nexora.app`; deployed response headers, redirects, Play certificate ownership and a real-device TWA launch remain explicit external release checks.
