@@ -3,24 +3,16 @@
   "name": "NEXORA - Your Personal AI Operating System",
   "short_name": "NEXORA",
   "description": "A personal AI operating system that centralizes productivity, learning, content, translation and automations.",
-  "lang": "en",
+  "lang": "en-US",
   "dir": "ltr",
   "start_url": "/dashboard",
   "scope": "/",
   "display": "standalone",
-  "display_override": [
-    "window-controls-overlay",
-    "standalone",
-    "minimal-ui"
-  ],
+  "display_override": ["standalone", "fullscreen"],
   "orientation": "portrait",
   "background_color": "#0a0a0b",
   "theme_color": "#0a0a0b",
-  "categories": [
-    "productivity",
-    "utilities",
-    "education"
-  ],
+  "categories": ["productivity", "utilities", "education"],
   "icons": [
     {
       "src": "/icon-192.png",
@@ -80,10 +72,7 @@
     }
   ],
   "launch_handler": {
-    "client_mode": [
-      "navigate-existing",
-      "auto"
-    ]
+    "client_mode": ["navigate-existing", "auto"]
   },
   "handle_links": "preferred"
 }
