@@ -68,13 +68,13 @@ Web Push is **blocked by missing backend contracts**, not by UI. Production impl
 
 ## TWA and Digital Asset Links diagnosis
 
-The repository statement names package `app.vercel.nexora_os_eosin.twa` and records fingerprint `24:11:49:B1:2D:2C:07:5A:E9:00:D8:36:A9:BB:5F:7F:BA:9F:F9:43:71:28:21:70:13:B5:BA:01:96:CD:BF:CD`. Its syntax is valid, but the repository alone cannot prove that it is the Google Play App Signing certificate. Compare it with **Play Console → App integrity / Integridade do app → App signing key certificate → SHA-256** before release. The manifest uses `start_url: /dashboard`, scope `/` and standalone display. `minimal-ui` and `window-controls-overlay` were removed from display fallbacks because they can deliberately expose browser/window chrome; standalone is now the primary supported mode.
+The repository statement names the immutable package `app.vercel.nexora_os_eosin.twa`. Google Play Console confirms `C0:5B:11:7A:2A:93:B8:5C:EC:A9:61:3C:76:97:7E:D7:BB:FC:38:09:50:DF:16:65:04:5A:FD:A3:D6:92:AB:3F` as its Play App Signing certificate. The previous fingerprint `24:11:49:B1:2D:2C:07:5A:E9:00:D8:36:A9:BB:5F:7F:BA:9F:F9:43:71:28:21:70:13:B5:BA:01:96:CD:BF:CD` remains authorized temporarily for compatibility with existing builds signed by the earlier key. The operational TWA origin remains `https://nexora-os-eosin.vercel.app`; neither the package identity nor signing configuration should be regenerated. The manifest uses `start_url: /dashboard`, scope `/` and standalone display.
 
 Repository inspection alone cannot establish the deployed response. Release validation must run:
 
 ```bash
-curl -i https://nexora.app/.well-known/assetlinks.json
-curl -i https://nexora.app/manifest.webmanifest
+curl -i https://nexora-os-eosin.vercel.app/.well-known/assetlinks.json
+curl -i https://nexora-os-eosin.vercel.app/manifest.webmanifest
 ```
 
 The asset statement must return `200`, `Content-Type: application/json`, no redirect, and the exact package/fingerprint. The Android wrapper origin, manifest origin, OAuth production origin and Play listing must agree. Then verify with the Google Digital Asset Links API and Android `adb shell pm get-app-links <package>`.
