@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Copy, FileText, Pencil, Plus, Search, Trash2 } from "lucide-react";
@@ -17,6 +17,7 @@ export const Route = createFileRoute("/_shell/documents")({
 type Document = Awaited<ReturnType<typeof DocumentService.list>>[number];
 function Documents() {
   const client = useQueryClient();
+  const navigate = useNavigate();
   const [editing, setEditing] = useState<Document | null>();
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("updated");
@@ -99,7 +100,9 @@ function Documents() {
                   size="icon"
                   variant="ghost"
                   aria-label={`Open ${document.title}`}
-                  onClick={() => setEditing(document)}
+                  onClick={() =>
+                    navigate({ to: "/documents/$documentId", params: { documentId: document.id } })
+                  }
                 >
                   <Pencil />
                 </Button>
@@ -127,9 +130,10 @@ function Documents() {
       <DocumentDialog
         value={editing}
         close={() => setEditing(undefined)}
-        saved={async () => {
+        saved={async (id) => {
           await refresh();
           setEditing(undefined);
+          navigate({ to: "/documents/$documentId", params: { documentId: id } });
         }}
       />
     </PageShell>
@@ -142,22 +146,24 @@ function DocumentDialog({
 }: {
   value: Document | null | undefined;
   close: () => void;
-  saved: () => void;
+  saved: (id: string) => void;
 }) {
   const [title, setTitle] = useState(value?.title ?? "");
   const [type, setType] = useState(value?.type ?? "text");
+  const [content, setContent] = useState(value?.summary ?? "");
   const save = useMutation({
     mutationFn: async () => {
       if (!title.trim()) throw new Error("Title is required");
       if (value) {
-        await DocumentService.update(value.id, { title: title.trim(), file_type: type });
+        await DocumentService.update(value.id, { title: title.trim(), file_type: type, content });
+        return value;
       } else {
-        await DocumentService.createUploadRecord(title.trim(), type);
+        return DocumentService.createUploadRecord(title.trim(), type, content);
       }
     },
-    onSuccess: () => {
+    onSuccess: (document) => {
       toast.success(value ? "Document updated" : "Document created");
-      saved();
+      saved(document.id);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -175,6 +181,15 @@ function DocumentDialog({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               autoFocus
+            />
+          </div>
+          <div>
+            <Label htmlFor="document-content">Initial content (optional)</Label>
+            <textarea
+              id="document-content"
+              className="mt-1 min-h-32 w-full rounded-md border bg-background p-3"
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
             />
           </div>
           <div>

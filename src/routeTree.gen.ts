@@ -30,7 +30,11 @@ import { Route as ShellStudiesRouteImport } from './routes/_shell.studies'
 import { Route as ShellTranslateRouteImport } from './routes/_shell.translate'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as ShellAgentsAgentIdRouteImport } from './routes/_shell.agents.$agentId'
+import { Route as ShellContentContentIdRouteImport } from './routes/_shell.content.$contentId'
+import { Route as ShellDocumentsDocumentIdRouteImport } from './routes/_shell.documents.$documentId'
 import { Route as ShellProjectsProjectIdRouteImport } from './routes/_shell.projects.$projectId'
+import { Route as ShellStudiesSubjectIdRouteImport } from './routes/_shell.studies.$subjectId'
+import { Route as ShellFinanceAccountsAccountIdRouteImport } from './routes/_shell.finance.accounts.$accountId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -136,11 +140,33 @@ const ShellAgentsAgentIdRoute = ShellAgentsAgentIdRouteImport.update({
   path: '/$agentId',
   getParentRoute: () => ShellAgentsRoute,
 } as any)
+const ShellContentContentIdRoute = ShellContentContentIdRouteImport.update({
+  id: '/$contentId',
+  path: '/$contentId',
+  getParentRoute: () => ShellContentRoute,
+} as any)
+const ShellDocumentsDocumentIdRoute =
+  ShellDocumentsDocumentIdRouteImport.update({
+    id: '/$documentId',
+    path: '/$documentId',
+    getParentRoute: () => ShellDocumentsRoute,
+  } as any)
 const ShellProjectsProjectIdRoute = ShellProjectsProjectIdRouteImport.update({
   id: '/$projectId',
   path: '/$projectId',
   getParentRoute: () => ShellProjectsRoute,
 } as any)
+const ShellStudiesSubjectIdRoute = ShellStudiesSubjectIdRouteImport.update({
+  id: '/$subjectId',
+  path: '/$subjectId',
+  getParentRoute: () => ShellStudiesRoute,
+} as any)
+const ShellFinanceAccountsAccountIdRoute =
+  ShellFinanceAccountsAccountIdRouteImport.update({
+    id: '/accounts/$accountId',
+    path: '/accounts/$accountId',
+    getParentRoute: () => ShellFinanceRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -151,19 +177,23 @@ export interface FileRoutesByFullPath {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/agents': typeof ShellAgentsRouteWithChildren
   '/assistant': typeof ShellAssistantRoute
-  '/content': typeof ShellContentRoute
+  '/content': typeof ShellContentRouteWithChildren
   '/dashboard': typeof ShellDashboardRoute
-  '/documents': typeof ShellDocumentsRoute
-  '/finance': typeof ShellFinanceRoute
+  '/documents': typeof ShellDocumentsRouteWithChildren
+  '/finance': typeof ShellFinanceRouteWithChildren
   '/premium': typeof ShellPremiumRoute
   '/productivity': typeof ShellProductivityRoute
   '/projects': typeof ShellProjectsRouteWithChildren
   '/settings': typeof ShellSettingsRoute
-  '/studies': typeof ShellStudiesRoute
+  '/studies': typeof ShellStudiesRouteWithChildren
   '/translate': typeof ShellTranslateRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/agents/$agentId': typeof ShellAgentsAgentIdRoute
+  '/content/$contentId': typeof ShellContentContentIdRoute
+  '/documents/$documentId': typeof ShellDocumentsDocumentIdRoute
   '/projects/$projectId': typeof ShellProjectsProjectIdRoute
+  '/studies/$subjectId': typeof ShellStudiesSubjectIdRoute
+  '/finance/accounts/$accountId': typeof ShellFinanceAccountsAccountIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -174,19 +204,23 @@ export interface FileRoutesByTo {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/agents': typeof ShellAgentsRouteWithChildren
   '/assistant': typeof ShellAssistantRoute
-  '/content': typeof ShellContentRoute
+  '/content': typeof ShellContentRouteWithChildren
   '/dashboard': typeof ShellDashboardRoute
-  '/documents': typeof ShellDocumentsRoute
-  '/finance': typeof ShellFinanceRoute
+  '/documents': typeof ShellDocumentsRouteWithChildren
+  '/finance': typeof ShellFinanceRouteWithChildren
   '/premium': typeof ShellPremiumRoute
   '/productivity': typeof ShellProductivityRoute
   '/projects': typeof ShellProjectsRouteWithChildren
   '/settings': typeof ShellSettingsRoute
-  '/studies': typeof ShellStudiesRoute
+  '/studies': typeof ShellStudiesRouteWithChildren
   '/translate': typeof ShellTranslateRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/agents/$agentId': typeof ShellAgentsAgentIdRoute
+  '/content/$contentId': typeof ShellContentContentIdRoute
+  '/documents/$documentId': typeof ShellDocumentsDocumentIdRoute
   '/projects/$projectId': typeof ShellProjectsProjectIdRoute
+  '/studies/$subjectId': typeof ShellStudiesSubjectIdRoute
+  '/finance/accounts/$accountId': typeof ShellFinanceAccountsAccountIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -199,19 +233,23 @@ export interface FileRoutesById {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/_shell/agents': typeof ShellAgentsRouteWithChildren
   '/_shell/assistant': typeof ShellAssistantRoute
-  '/_shell/content': typeof ShellContentRoute
+  '/_shell/content': typeof ShellContentRouteWithChildren
   '/_shell/dashboard': typeof ShellDashboardRoute
-  '/_shell/documents': typeof ShellDocumentsRoute
-  '/_shell/finance': typeof ShellFinanceRoute
+  '/_shell/documents': typeof ShellDocumentsRouteWithChildren
+  '/_shell/finance': typeof ShellFinanceRouteWithChildren
   '/_shell/premium': typeof ShellPremiumRoute
   '/_shell/productivity': typeof ShellProductivityRoute
   '/_shell/projects': typeof ShellProjectsRouteWithChildren
   '/_shell/settings': typeof ShellSettingsRoute
-  '/_shell/studies': typeof ShellStudiesRoute
+  '/_shell/studies': typeof ShellStudiesRouteWithChildren
   '/_shell/translate': typeof ShellTranslateRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/_shell/agents/$agentId': typeof ShellAgentsAgentIdRoute
+  '/_shell/content/$contentId': typeof ShellContentContentIdRoute
+  '/_shell/documents/$documentId': typeof ShellDocumentsDocumentIdRoute
   '/_shell/projects/$projectId': typeof ShellProjectsProjectIdRoute
+  '/_shell/studies/$subjectId': typeof ShellStudiesSubjectIdRoute
+  '/_shell/finance/accounts/$accountId': typeof ShellFinanceAccountsAccountIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -236,7 +274,11 @@ export interface FileRouteTypes {
     | '/translate'
     | '/auth/callback'
     | '/agents/$agentId'
+    | '/content/$contentId'
+    | '/documents/$documentId'
     | '/projects/$projectId'
+    | '/studies/$subjectId'
+    | '/finance/accounts/$accountId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -259,7 +301,11 @@ export interface FileRouteTypes {
     | '/translate'
     | '/auth/callback'
     | '/agents/$agentId'
+    | '/content/$contentId'
+    | '/documents/$documentId'
     | '/projects/$projectId'
+    | '/studies/$subjectId'
+    | '/finance/accounts/$accountId'
   id:
     | '__root__'
     | '/'
@@ -283,7 +329,11 @@ export interface FileRouteTypes {
     | '/_shell/translate'
     | '/auth/callback'
     | '/_shell/agents/$agentId'
+    | '/_shell/content/$contentId'
+    | '/_shell/documents/$documentId'
     | '/_shell/projects/$projectId'
+    | '/_shell/studies/$subjectId'
+    | '/_shell/finance/accounts/$accountId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -445,12 +495,40 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShellAgentsAgentIdRouteImport
       parentRoute: typeof ShellAgentsRoute
     }
+    '/_shell/content/$contentId': {
+      id: '/_shell/content/$contentId'
+      path: '/$contentId'
+      fullPath: '/content/$contentId'
+      preLoaderRoute: typeof ShellContentContentIdRouteImport
+      parentRoute: typeof ShellContentRoute
+    }
+    '/_shell/documents/$documentId': {
+      id: '/_shell/documents/$documentId'
+      path: '/$documentId'
+      fullPath: '/documents/$documentId'
+      preLoaderRoute: typeof ShellDocumentsDocumentIdRouteImport
+      parentRoute: typeof ShellDocumentsRoute
+    }
     '/_shell/projects/$projectId': {
       id: '/_shell/projects/$projectId'
       path: '/$projectId'
       fullPath: '/projects/$projectId'
       preLoaderRoute: typeof ShellProjectsProjectIdRouteImport
       parentRoute: typeof ShellProjectsRoute
+    }
+    '/_shell/studies/$subjectId': {
+      id: '/_shell/studies/$subjectId'
+      path: '/$subjectId'
+      fullPath: '/studies/$subjectId'
+      preLoaderRoute: typeof ShellStudiesSubjectIdRouteImport
+      parentRoute: typeof ShellStudiesRoute
+    }
+    '/_shell/finance/accounts/$accountId': {
+      id: '/_shell/finance/accounts/$accountId'
+      path: '/accounts/$accountId'
+      fullPath: '/finance/accounts/$accountId'
+      preLoaderRoute: typeof ShellFinanceAccountsAccountIdRouteImport
+      parentRoute: typeof ShellFinanceRoute
     }
   }
 }
@@ -467,6 +545,42 @@ const ShellAgentsRouteWithChildren = ShellAgentsRoute._addFileChildren(
   ShellAgentsRouteChildren,
 )
 
+interface ShellContentRouteChildren {
+  ShellContentContentIdRoute: typeof ShellContentContentIdRoute
+}
+
+const ShellContentRouteChildren: ShellContentRouteChildren = {
+  ShellContentContentIdRoute: ShellContentContentIdRoute,
+}
+
+const ShellContentRouteWithChildren = ShellContentRoute._addFileChildren(
+  ShellContentRouteChildren,
+)
+
+interface ShellDocumentsRouteChildren {
+  ShellDocumentsDocumentIdRoute: typeof ShellDocumentsDocumentIdRoute
+}
+
+const ShellDocumentsRouteChildren: ShellDocumentsRouteChildren = {
+  ShellDocumentsDocumentIdRoute: ShellDocumentsDocumentIdRoute,
+}
+
+const ShellDocumentsRouteWithChildren = ShellDocumentsRoute._addFileChildren(
+  ShellDocumentsRouteChildren,
+)
+
+interface ShellFinanceRouteChildren {
+  ShellFinanceAccountsAccountIdRoute: typeof ShellFinanceAccountsAccountIdRoute
+}
+
+const ShellFinanceRouteChildren: ShellFinanceRouteChildren = {
+  ShellFinanceAccountsAccountIdRoute: ShellFinanceAccountsAccountIdRoute,
+}
+
+const ShellFinanceRouteWithChildren = ShellFinanceRoute._addFileChildren(
+  ShellFinanceRouteChildren,
+)
+
 interface ShellProjectsRouteChildren {
   ShellProjectsProjectIdRoute: typeof ShellProjectsProjectIdRoute
 }
@@ -479,33 +593,45 @@ const ShellProjectsRouteWithChildren = ShellProjectsRoute._addFileChildren(
   ShellProjectsRouteChildren,
 )
 
+interface ShellStudiesRouteChildren {
+  ShellStudiesSubjectIdRoute: typeof ShellStudiesSubjectIdRoute
+}
+
+const ShellStudiesRouteChildren: ShellStudiesRouteChildren = {
+  ShellStudiesSubjectIdRoute: ShellStudiesSubjectIdRoute,
+}
+
+const ShellStudiesRouteWithChildren = ShellStudiesRoute._addFileChildren(
+  ShellStudiesRouteChildren,
+)
+
 interface ShellRouteChildren {
   ShellAgentsRoute: typeof ShellAgentsRouteWithChildren
   ShellAssistantRoute: typeof ShellAssistantRoute
-  ShellContentRoute: typeof ShellContentRoute
+  ShellContentRoute: typeof ShellContentRouteWithChildren
   ShellDashboardRoute: typeof ShellDashboardRoute
-  ShellDocumentsRoute: typeof ShellDocumentsRoute
-  ShellFinanceRoute: typeof ShellFinanceRoute
+  ShellDocumentsRoute: typeof ShellDocumentsRouteWithChildren
+  ShellFinanceRoute: typeof ShellFinanceRouteWithChildren
   ShellPremiumRoute: typeof ShellPremiumRoute
   ShellProductivityRoute: typeof ShellProductivityRoute
   ShellProjectsRoute: typeof ShellProjectsRouteWithChildren
   ShellSettingsRoute: typeof ShellSettingsRoute
-  ShellStudiesRoute: typeof ShellStudiesRoute
+  ShellStudiesRoute: typeof ShellStudiesRouteWithChildren
   ShellTranslateRoute: typeof ShellTranslateRoute
 }
 
 const ShellRouteChildren: ShellRouteChildren = {
   ShellAgentsRoute: ShellAgentsRouteWithChildren,
   ShellAssistantRoute: ShellAssistantRoute,
-  ShellContentRoute: ShellContentRoute,
+  ShellContentRoute: ShellContentRouteWithChildren,
   ShellDashboardRoute: ShellDashboardRoute,
-  ShellDocumentsRoute: ShellDocumentsRoute,
-  ShellFinanceRoute: ShellFinanceRoute,
+  ShellDocumentsRoute: ShellDocumentsRouteWithChildren,
+  ShellFinanceRoute: ShellFinanceRouteWithChildren,
   ShellPremiumRoute: ShellPremiumRoute,
   ShellProductivityRoute: ShellProductivityRoute,
   ShellProjectsRoute: ShellProjectsRouteWithChildren,
   ShellSettingsRoute: ShellSettingsRoute,
-  ShellStudiesRoute: ShellStudiesRoute,
+  ShellStudiesRoute: ShellStudiesRouteWithChildren,
   ShellTranslateRoute: ShellTranslateRoute,
 }
 

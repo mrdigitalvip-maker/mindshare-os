@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Pencil, Plus, Search, Trash2, Wallet } from "lucide-react";
@@ -21,6 +21,7 @@ const money = new Intl.NumberFormat(undefined, { style: "currency", currency: "U
 
 function Finance() {
   const client = useQueryClient();
+  const navigate = useNavigate();
   const [editor, setEditor] = useState<Editor>();
   const [search, setSearch] = useState("");
   const [kind, setKind] = useState("all");
@@ -97,21 +98,28 @@ function Finance() {
         </div>
         <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {accounts.data?.map((account) => (
-            <article className="glass rounded-2xl p-5" key={account.id}>
+            <article
+              className="glass cursor-pointer rounded-2xl p-5"
+              key={account.id}
+              onClick={() =>
+                navigate({ to: "/finance/accounts/$accountId", params: { accountId: account.id } })
+              }
+            >
               <div className="flex items-start justify-between">
                 <div>
                   <Wallet className="h-5 w-5 text-gold" />
                   <h3 className="mt-3 text-lg font-medium">{account.name}</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {account.type} · {money.format(Number(account.balance ?? 0))}
-                  </p>
+                  <p className="text-sm text-muted-foreground">{account.type} · Open account</p>
                 </div>
                 <div>
                   <Button
                     size="icon"
                     variant="ghost"
                     aria-label={`Edit ${account.name}`}
-                    onClick={() => setEditor({ kind: "account", value: account })}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setEditor({ kind: "account", value: account });
+                    }}
                   >
                     <Pencil />
                   </Button>
@@ -119,9 +127,10 @@ function Finance() {
                     size="icon"
                     variant="ghost"
                     aria-label={`Delete ${account.name}`}
-                    onClick={() =>
-                      confirm(`Delete ${account.name}?`) && removeAccount.mutate(account.id)
-                    }
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      if (confirm(`Delete ${account.name}?`)) removeAccount.mutate(account.id);
+                    }}
                   >
                     <Trash2 />
                   </Button>

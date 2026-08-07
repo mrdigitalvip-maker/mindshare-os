@@ -141,3 +141,26 @@ This sequence keeps every connected-branch commit runnable and prevents decorati
 - Migration `202608070001_phase1_functional.sql` adds only required project planning fields, agent behavior fields, owner-scoped `agent_runs`, constraints, indexes, timestamps, and RLS.
 - Responsive layouts use bounded, scrollable dialogs/tabs and `min-width: 0`; the Assistant retains its `100dvh`, VisualViewport, safe-area, and Android keyboard handling.
 - Notes, Documents, and Activity project tabs are intentionally honest empty states until those existing resources receive a project relationship. Applying migrations and exercising authenticated Free/Premium OpenAI runs requires a configured Supabase project and server secrets.
+
+## PHASE 2 FUNCTIONAL DELIVERY
+
+### Targeted audit matrix
+
+| Module    | Current state                      | Missing flow found                               | Schema support                                   | Required migration        | Implementation                                                          |
+| --------- | ---------------------------------- | ------------------------------------------------ | ------------------------------------------------ | ------------------------- | ----------------------------------------------------------------------- |
+| Documents | Metadata dialog and list           | Open/editable content workspace                  | `documents.title/content/type/updated_at`        | None                      | Owner-scoped workspace, save, duplicate, delete, search and AI analysis |
+| Files     | Owner-scoped standalone rows       | No document/file relationship or verified bucket | No relationship                                  | None; unsafe to speculate | Attachments explicitly unavailable; no simulated upload                 |
+| Content   | Draft rows in `documents`          | Creation brief, editor and AI actions            | Draft title/content via documents                | None                      | Creation wizard, draft workspace and confirmed AI replacement           |
+| Studies   | Subject cards and sessions service | Subject workspace and manual session UI          | Name/color and duration/completed/date           | None                      | Overview, sessions, history and AI tools                                |
+| Finance   | Account and transaction CRUD       | Openable account context                         | Existing account/transaction fields and category | None                      | Persisted summaries, account workspace, filters and CRUD                |
+
+### Delivery notes
+
+- **Documents and Document AI:** document content remains owner-scoped through `DocumentService`; AI receives only the selected owner-scoped document id. Physical-file analysis is not presented as supported.
+- **Content:** content generation uses the deployed `content_generation` action. Generated text never replaces editor text without confirmation and only persists on Save.
+- **Studies:** progress is derived only from real recorded sessions. No timer, objective, topic, or notes fields were invented.
+- **Finance:** balance, income, and expenses are derived from persisted transactions. Finance insights remain disabled.
+- **Migrations and RLS:** no migration was necessary. Existing user filters and deployed RLS remain the ownership boundary; service methods also scope reads and writes by authenticated user.
+- **Mobile:** toolbars scroll horizontally, dialogs cap viewport height, editors use bounded reading widths, and responsive grids collapse to one column.
+- **Limitations:** attachments remain unavailable because `files` has neither a `document_id` relationship nor a verified Storage contract. Study session date is the persisted creation timestamp. AI responses are intentionally not persisted without an explicit contract.
+- **Validation:** lint, typecheck, production build, aggregate check, and whitespace validation are run as release checks.
