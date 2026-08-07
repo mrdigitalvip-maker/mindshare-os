@@ -9,6 +9,7 @@
     "build:dev": "vite build --mode development",
     "typecheck": "tsc --noEmit",
     "check": "npm run lint && npm run typecheck && npm run build",
+    "check:pwa": "node scripts/check-pwa.mjs",
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write ."
