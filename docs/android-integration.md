@@ -5,12 +5,12 @@ This guide records the web and external configuration required to distribute NEX
 ## Identifiers
 
 - **Android package ID:** `app.vercel.nexora_os_eosin.twa`
-- **Canonical production origin recorded by this repository:** `https://nexora.app`
+- **Operational TWA production origin:** `https://nexora-os-eosin.vercel.app`
 - **Web start URL:** `/dashboard`
 - **OAuth callback:** `/auth/callback`
 - **Digital Asset Links relation:** `delegate_permission/common.handle_all_urls`
 
-The production web origin must use HTTPS. `public/robots.txt`, the sitemap fallback, and the production environment example identify `https://nexora.app` as the canonical origin. Use that exact origin consistently below; `www`, Vercel, Lovable preview, and production origins are distinct origins and must not be interchanged by the wrapper or an initial redirect.
+The TWA production origin uses HTTPS and is currently proven at `https://nexora-os-eosin.vercel.app`. Preserve that exact origin consistently below; custom-domain, `www`, Lovable preview, and other Vercel deployment origins are distinct origins and must not be interchanged by the wrapper or an initial redirect.
 
 ## Google Cloud OAuth
 
@@ -33,7 +33,7 @@ The client enables `flowType: "pkce"`, `persistSession`, `autoRefreshToken`, and
 
 ## Digital Asset Links and App Links
 
-The repository serves `/.well-known/assetlinks.json` with the Android package and a recorded SHA-256 signing certificate fingerprint. The repository does not contain the certificate or Play Console evidence needed to prove that this value belongs to the Play **App signing key**. It must be publicly reachable over HTTPS with no redirect and a JSON content type. Do not place authentication or CDN challenges on this path.
+The repository serves `/.well-known/assetlinks.json` with the Android package and two SHA-256 signing certificate fingerprints. Google Play Console confirmed `C0:5B:11:7A:2A:93:B8:5C:EC:A9:61:3C:76:97:7E:D7:BB:FC:38:09:50:DF:16:65:04:5A:FD:A3:D6:92:AB:3F` as the Play **App signing key** certificate. The earlier `24:11:49:B1:2D:2C:07:5A:E9:00:D8:36:A9:BB:5F:7F:BA:9F:F9:43:71:28:21:70:13:B5:BA:01:96:CD:BF:CD` remains temporarily for compatibility with existing builds. The file must be publicly reachable from `https://nexora-os-eosin.vercel.app/.well-known/assetlinks.json` with no redirect and a JSON content type.
 
 In **Play Console → App integrity / Integridade do app → App signing key certificate**, copy the SHA-256 certificate fingerprint and compare it byte-for-byte with `sha256_cert_fingerprints` in `public/.well-known/assetlinks.json`. For Play installs this is the Play **App signing certificate**, not the upload-key certificate. Never replace it with a locally generated or upload-key fingerprint. Multiple fingerprints are appropriate only when the corresponding certificates really sign delivered installs, such as a documented signing-key rotation. After deployment, verify the relationship with Google's Digital Asset Links API and from an Android device (`adb shell pm get-app-links app.vercel.nexora_os_eosin.twa`).
 
@@ -75,8 +75,8 @@ The service worker validates notification navigation against the web app origin,
 
 ## Remaining external checklist
 
-- [ ] Confirm `https://nexora.app` is attached to the production deployment and does not redirect to `www`, Vercel, or a preview origin.
-- [ ] Compare the committed fingerprint with **Play Console → App integrity → App signing key certificate → SHA-256**.
+- [ ] Confirm `https://nexora-os-eosin.vercel.app` serves Digital Asset Links directly without redirecting to another origin.
+- [x] Record the Play-confirmed App Signing fingerprint in Digital Asset Links while retaining the previous fingerprint temporarily.
 - [ ] Configure and publish the Google OAuth consent screen.
 - [ ] Configure Google credentials in Supabase and allow the production callback.
 - [ ] Verify the Play App Signing fingerprint against deployed Digital Asset Links.

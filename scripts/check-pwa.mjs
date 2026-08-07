@@ -2,6 +2,10 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const EXPECTED_PACKAGE = "app.vercel.nexora_os_eosin.twa";
+const PLAY_APP_SIGNING_FINGERPRINT =
+  "C0:5B:11:7A:2A:93:B8:5C:EC:A9:61:3C:76:97:7E:D7:BB:FC:38:09:50:DF:16:65:04:5A:FD:A3:D6:92:AB:3F";
+const LEGACY_SIGNING_FINGERPRINT =
+  "24:11:49:B1:2D:2C:07:5A:E9:00:D8:36:A9:BB:5F:7F:BA:9F:F9:43:71:28:21:70:13:B5:BA:01:96:CD:BF:CD";
 const SHA256_FINGERPRINT = /^(?:[0-9A-F]{2}:){31}[0-9A-F]{2}$/;
 
 const readJson = async (path) => JSON.parse(await readFile(path, "utf8"));
@@ -56,8 +60,13 @@ assert.ok(
 for (const fingerprint of twaStatement.target.sha256_cert_fingerprints) {
   assert.match(fingerprint, SHA256_FINGERPRINT, "fingerprint must be an uppercase SHA-256 value");
 }
+assert.deepEqual(
+  twaStatement.target.sha256_cert_fingerprints,
+  [PLAY_APP_SIGNING_FINGERPRINT, LEGACY_SIGNING_FINGERPRINT],
+  "asset links must authorize the confirmed Play App Signing certificate and legacy certificate",
+);
 
 console.log(`PWA/TWA static configuration is consistent for ${EXPECTED_PACKAGE}.`);
 console.log(
-  "Fingerprint syntax is valid; ownership must still be verified against Play Console App signing key certificate.",
+  `Confirmed Play App Signing fingerprint is authorized: ${PLAY_APP_SIGNING_FINGERPRINT}`,
 );
