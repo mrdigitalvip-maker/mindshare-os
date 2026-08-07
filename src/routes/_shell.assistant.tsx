@@ -25,14 +25,14 @@ import { useAuth } from "@/lib/auth-context";
 import { AIService, AIServiceError, workspaceQueryKeys, type AiConversation } from "@/services";
 
 export const Route = createFileRoute("/_shell/assistant")({
-  head: () => ({ meta: [{ title: "Assistant — NEXORA" }] }),
+  head: () => ({ meta: [{ title: "Assistente — NEXORA" }] }),
   component: Assistant,
 });
 const SUGGESTIONS = [
-  "Plan my week around three focus goals",
-  "Help me organize my current projects",
-  "Create a study plan for this week",
-  "Draft a bilingual email to my client",
+  "Planeje minha semana com três objetivos",
+  "Ajude a organizar meus projetos atuais",
+  "Crie um plano de estudos para esta semana",
+  "Escreva um e-mail bilíngue para meu cliente",
 ];
 
 function Assistant() {
@@ -84,7 +84,9 @@ function Assistant() {
       setHistoryOpen(false);
       window.setTimeout(() => inputRef.current?.focus(), 0);
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : "Conversation could not be loaded.");
+      setLoadError(
+        error instanceof Error ? error.message : "Não foi possível carregar a conversa.",
+      );
     }
   }
   function createConversation() {
@@ -118,29 +120,29 @@ function Assistant() {
       const message =
         error instanceof AIServiceError
           ? error.message
-          : "The assistant could not respond. Your message was not kept.";
+          : "O assistente não respondeu. Sua mensagem não foi salva.";
       setMessages((current) => current.filter((item) => item.id !== optimistic.id));
       setInput(normalized);
       setLoadError(message);
       if (error instanceof AIServiceError && error.code === "free_limit_reached")
         toast.error(message, {
-          action: { label: "View Premium", onClick: () => navigate({ to: "/premium" }) },
+          action: { label: "Ver Premium", onClick: () => navigate({ to: "/premium" }) },
         });
     }
   }
   async function removeConversation(id: string) {
-    if (!window.confirm("Delete this conversation permanently?")) return;
+    if (!window.confirm("Excluir esta conversa permanentemente?")) return;
     await AIService.deleteConversation(id);
     if (activeId === id) createConversation();
     await queryClient.invalidateQueries({ queryKey: conversationsKey });
-    toast.success("Conversation deleted");
+    toast.success("Conversa excluída");
   }
   async function renameConversation(item: AiConversation) {
-    const title = window.prompt("Conversation name", item.title);
+    const title = window.prompt("Nome da conversa", item.title);
     if (!title || title.trim() === item.title) return;
     await AIService.renameConversation(item.id, title);
     await queryClient.invalidateQueries({ queryKey: conversationsKey });
-    toast.success("Conversation renamed");
+    toast.success("Conversa renomeada");
   }
 
   return (
@@ -171,12 +173,12 @@ function Assistant() {
                 variant="ghost"
                 size="icon"
                 onClick={() => setHistoryOpen(true)}
-                aria-label="Open conversation history"
+                aria-label="Abrir histórico de conversas"
               >
                 <Menu />
               </Button>
               <Button variant="outline" size="sm" onClick={createConversation}>
-                <Plus /> New
+                <Plus /> Novo
               </Button>
             </div>
           </header>
@@ -197,11 +199,9 @@ function Assistant() {
                 <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-surface-elevated">
                   <Sparkles className="h-7 w-7 text-gold" />
                 </div>
-                <h1 className="mt-6 font-display text-3xl md:text-4xl">
-                  How can I help you today?
-                </h1>
+                <h1 className="mt-6 font-display text-3xl md:text-4xl">Como posso ajudar hoje?</h1>
                 <p className="mt-3 max-w-md text-muted-foreground">
-                  Start a conversation. Messages are saved securely to your workspace.
+                  Inicie uma conversa. As mensagens serão salvas com segurança.
                 </p>
                 <div className="mt-8 grid w-full gap-2 sm:grid-cols-2">
                   {SUGGESTIONS.map((suggestion) => (
@@ -269,7 +269,7 @@ function Assistant() {
               <div className="mx-auto mb-2 flex max-w-3xl items-center justify-between rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm">
                 <span>{loadError}</span>
                 <Button size="sm" variant="ghost" onClick={() => send(input)}>
-                  Retry
+                  Tentar novamente
                 </Button>
               </div>
             )}
@@ -298,7 +298,7 @@ function Assistant() {
                 className="shrink-0 rounded-full"
                 onClick={() => send(input)}
                 disabled={!input.trim() || isSending}
-                aria-label="Send message"
+                aria-label="Enviar mensagem"
               >
                 {isSending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -362,7 +362,7 @@ function Message({ message, onRegenerate }: { message: ChatMessage; onRegenerate
             variant="ghost"
             className="h-7 w-7"
             onClick={copy}
-            aria-label="Copy message"
+            aria-label="Copiar mensagem"
           >
             {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
           </Button>
@@ -372,7 +372,7 @@ function Message({ message, onRegenerate }: { message: ChatMessage; onRegenerate
               variant="ghost"
               className="h-7 w-7"
               onClick={onRegenerate}
-              aria-label="Regenerate response"
+              aria-label="Gerar resposta novamente"
             >
               <RefreshCw className="h-3.5 w-3.5" />
             </Button>
@@ -407,7 +407,7 @@ function ConversationList({
   return (
     <>
       <Button onClick={createConversation} className="mt-2 w-full rounded-xl">
-        <Plus /> New conversation
+        <Plus /> Novo conversation
       </Button>
       <div className="relative mt-3">
         <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -610,7 +610,7 @@ function CodeBlock({ code, language }: { code: string; language: string }) {
           className="flex items-center gap-1 hover:text-foreground"
         >
           {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}{" "}
-          {copied ? "Copied" : "Copy code"}
+          {copied ? "Copiado" : "Copiar código"}
         </button>
       </div>
       <pre className="overflow-x-auto p-4 text-xs leading-5 text-foreground">
@@ -626,12 +626,12 @@ function groupConversations(items: AiConversation[]) {
     const time = Date.parse(item.updatedAt);
     const label =
       time >= start
-        ? "Today"
+        ? "Hoje"
         : time >= start - 86_400_000
-          ? "Yesterday"
+          ? "Ontem"
           : time >= start - 604_800_000
             ? "Previous 7 days"
-            : "Older";
+            : "Anteriores";
     (groups[label] ??= []).push(item);
     return groups;
   }, {});

@@ -49,7 +49,9 @@ export const ProjectService = {
     const [{ data, error }, { data: tasks, error: tasksError }] = await Promise.all([
       supabase
         .from("projects")
-        .select("id, title, description, status, updated_at")
+        .select(
+          "id, title, description, status, objective, priority, start_date, due_date, updated_at",
+        )
         .eq("user_id", userId)
         .order("updated_at", { ascending: false }),
       supabase.from("tasks").select("project_id, completed").eq("user_id", userId),
@@ -73,10 +75,27 @@ export const ProjectService = {
       updatedAt: row.updated_at ?? new Date(0).toISOString(),
       description: row.description ?? "",
       status: row.status ?? "active",
+      objective: row.objective ?? "",
+      priority: row.priority,
+      startDate: row.start_date,
+      dueDate: row.due_date,
+      totalTasks: (tasks ?? []).filter((task) => task.project_id === row.id).length,
+      completedTasks: (tasks ?? []).filter((task) => task.project_id === row.id && task.completed)
+        .length,
     }));
   },
   async create(
-    input?: string | { title: string; description?: string; status?: string },
+    input?:
+      | string
+      | {
+          title: string;
+          description?: string;
+          status?: string;
+          objective?: string;
+          priority?: string;
+          startDate?: string | null;
+          dueDate?: string | null;
+        },
   ): Promise<Project> {
     if (!DEMO_MODE) {
       const userId = await getRequiredUserId();
@@ -86,8 +105,19 @@ export const ProjectService = {
       const status = typeof input === "object" ? input.status || "active" : "active";
       const { data, error } = await supabase
         .from("projects")
-        .insert({ user_id: userId, title: cleanTitle, description, status })
-        .select("id, title, description, status, updated_at")
+        .insert({
+          user_id: userId,
+          title: cleanTitle,
+          description,
+          status,
+          objective: typeof input === "object" ? input.objective : undefined,
+          priority: typeof input === "object" ? input.priority : undefined,
+          start_date: typeof input === "object" ? input.startDate : undefined,
+          due_date: typeof input === "object" ? input.dueDate : undefined,
+        })
+        .select(
+          "id, title, description, status, objective, priority, start_date, due_date, updated_at",
+        )
         .single();
       if (error) throw error;
       return {
@@ -98,6 +128,12 @@ export const ProjectService = {
         updatedAt: data.updated_at ?? new Date().toISOString(),
         description: data.description ?? "",
         status: data.status ?? "active",
+        objective: data.objective ?? "",
+        priority: data.priority,
+        startDate: data.start_date,
+        dueDate: data.due_date,
+        totalTasks: 0,
+        completedTasks: 0,
       };
     }
     await delay();
@@ -118,7 +154,16 @@ export const ProjectService = {
   },
   async update(
     id: string,
-    patch: { title?: string; description?: string; status?: string; progress?: number },
+    patch: {
+      title?: string;
+      description?: string;
+      status?: string;
+      objective?: string;
+      priority?: string;
+      startDate?: string | null;
+      dueDate?: string | null;
+      progress?: number;
+    },
   ): Promise<void> {
     if (DEMO_MODE) {
       updateMockDatabase((db) => ({
@@ -134,6 +179,10 @@ export const ProjectService = {
       ...(patch.title !== undefined ? { title: patch.title } : {}),
       ...(patch.description !== undefined ? { description: patch.description } : {}),
       ...(patch.status !== undefined ? { status: patch.status } : {}),
+      ...(patch.objective !== undefined ? { objective: patch.objective } : {}),
+      ...(patch.priority !== undefined ? { priority: patch.priority } : {}),
+      ...(patch.startDate !== undefined ? { start_date: patch.startDate } : {}),
+      ...(patch.dueDate !== undefined ? { due_date: patch.dueDate } : {}),
       ...(patch.progress !== undefined
         ? { status: patch.progress >= 100 ? "completed" : "active" }
         : {}),
@@ -157,6 +206,9 @@ export const ProjectService = {
     const userId = await getRequiredUserId();
     const { error } = await supabase.from("projects").delete().eq("id", id).eq("user_id", userId);
     if (error) throw error;
+  },
+  async get(id: string): Promise<Project | null> {
+    return (await this.list()).find((project) => project.id === id) ?? null;
   },
 };
 
@@ -314,6 +366,9 @@ export const ProductivityService = {
     if (error) throw error;
   },
 };
+
+/** Shared task repository used by both Projects and Productivity. */
+export const TaskService = ProductivityService;
 
 function mapDocument(row: DocumentRow): Document {
   return {
@@ -884,7 +939,14 @@ export const AgentService = {
   },
   async run(agentId: string, input: string) {
     await getRequiredUserId();
-    return AIService.execute("agent_run", { agentId, input });
+    const { data, error } = await supabase.functions.invoke<{
+      ok: boolean;
+      data?: { runId: string; output: string };
+      error?: { code: string; message: string };
+    }>("agent-run", { body: { agentId, input } });
+    if (error) throw error;
+    if (!data?.ok || !data.data) throw new Error(data?.error?.message ?? "A execução falhou.");
+    return data.data;
   },
 };
 

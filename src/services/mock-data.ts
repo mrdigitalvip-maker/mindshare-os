@@ -6,6 +6,12 @@ export type Project = {
   updatedAt: string;
   description?: string;
   status?: string;
+  objective?: string;
+  priority?: string;
+  startDate?: string | null;
+  dueDate?: string | null;
+  totalTasks?: number;
+  completedTasks?: number;
 };
 export type Task = {
   id: string;
