@@ -1,7 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
+import { useAuth } from "@/lib/auth-context";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Brain, Trash2 } from "lucide-react";
+import { ArrowLeft, Brain, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { EmptyState, PageShell } from "@/components/page-shell";
 import { Button } from "@/components/ui/button";
@@ -15,13 +16,19 @@ function Workspace() {
   const { subjectId } = Route.useParams();
   const nav = useNavigate();
   const client = useQueryClient();
+  const { user, isAuthenticated } = useAuth();
+  const studiesKey = workspaceQueryKeys.studies(user?.id);
   const subject = useQuery({
-    queryKey: [...workspaceQueryKeys.studies, subjectId],
+    queryKey: [...studiesKey, subjectId],
     queryFn: () => StudyService.getSubject(subjectId),
+    enabled: isAuthenticated && !!user && !!subjectId.trim(),
+    retry: 2,
   });
   const sessions = useQuery({
-    queryKey: [...workspaceQueryKeys.studies, subjectId, "sessions"],
+    queryKey: [...studiesKey, subjectId, "sessions"],
     queryFn: () => StudyService.listSubjectSessions(subjectId),
+    enabled: isAuthenticated && !!user && !!subjectId.trim() && subject.data != null,
+    retry: 2,
   });
   const [minutes, setMinutes] = useState("30");
   const [completed, setCompleted] = useState(true);
@@ -29,10 +36,7 @@ function Workspace() {
   const [context, setContext] = useState("");
   const [result, setResult] = useState("");
   const refresh = () =>
-    Promise.all([
-      client.invalidateQueries({ queryKey: workspaceQueryKeys.studies }),
-      sessions.refetch(),
-    ]);
+    Promise.all([client.invalidateQueries({ queryKey: studiesKey }), sessions.refetch()]);
   const record = useMutation({
     mutationFn: () =>
       StudyService.recordSession({ subject_id: subjectId, duration: Number(minutes), completed }),
@@ -54,14 +58,59 @@ function Workspace() {
         <p>Loading subject…</p>
       </PageShell>
     );
+  if (subject.isError)
+    return (
+      <PageShell>
+        <div
+          className="mx-auto mt-12 max-w-xl rounded-2xl border border-destructive/30 bg-destructive/5 p-6"
+          role="alert"
+        >
+          <h1 className="text-xl font-semibold">We couldn't load this subject.</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Check your connection or return to Studies. Your saved sessions are unchanged.
+          </p>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <Button onClick={() => subject.refetch()}>
+              <RefreshCw />
+              Try again
+            </Button>
+            <Button variant="outline" onClick={() => nav({ to: "/studies" })}>
+              <ArrowLeft />
+              Back to Studies
+            </Button>
+          </div>
+        </div>
+      </PageShell>
+    );
   if (!subject.data)
     return (
       <PageShell>
         <EmptyState
           icon={Trash2}
           title="Subject not found"
-          description="It does not exist or does not belong to you."
+          description="It may have been deleted, or it does not belong to your account."
         />
+        <div className="mt-4 flex justify-center">
+          <Button variant="outline" onClick={() => nav({ to: "/studies" })}>
+            <ArrowLeft />
+            Back to Studies
+          </Button>
+        </div>
+      </PageShell>
+    );
+  if (sessions.isError)
+    return (
+      <PageShell>
+        <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-6" role="alert">
+          <h1 className="text-xl font-semibold">We couldn't load this subject's sessions.</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            The subject is available, but its session history could not be retrieved.
+          </p>
+          <Button className="mt-5" onClick={() => sessions.refetch()}>
+            <RefreshCw />
+            Try again
+          </Button>
+        </div>
       </PageShell>
     );
   const total = (sessions.data ?? []).reduce((n, s) => n + (s.duration ?? 0), 0),

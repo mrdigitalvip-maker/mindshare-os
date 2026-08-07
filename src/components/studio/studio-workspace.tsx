@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { PageHeader, PageShell } from "@/components/page-shell";
+import { PageShell } from "@/components/page-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,6 +30,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { StudioService, type StudioCategory, type StudioLesson } from "@/services/studio-service";
 import { useSubscription } from "@/hooks/use-subscription";
+import { useAuth } from "@/lib/auth-context";
 
 const COPY = {
   language: {
@@ -53,9 +54,12 @@ export function StudioWorkspace({ category }: { category: StudioCategory }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const subscription = useSubscription();
+  const { user, isAuthenticated } = useAuth();
   const { data, isLoading, error } = useQuery({
     queryKey: ["studio", "overview"],
     queryFn: () => StudioService.overview(),
+    enabled: isAuthenticated && !!user,
+    retry: 2,
   });
   const tracks = useMemo(
     () => data?.tracks.filter((track) => track.category === category) ?? [],
@@ -85,6 +89,7 @@ export function StudioWorkspace({ category }: { category: StudioCategory }) {
       await queryClient.invalidateQueries({ queryKey: ["studio"] });
       toast.success("Your learning plan is ready");
     },
+    onError: () => toast.error("Your path could not be saved. Try again."),
   });
   const complete = useMutation({
     mutationFn: (lessonId: string) => StudioService.completeLesson(lessonId),
@@ -94,22 +99,36 @@ export function StudioWorkspace({ category }: { category: StudioCategory }) {
       setAnswer("");
       await queryClient.invalidateQueries({ queryKey: ["studio"] });
     },
+    onError: () => toast.error("This lesson could not be completed. Your response is still here."),
   });
 
   if (isLoading)
     return (
       <PageShell>
         <p className="py-20 text-center text-muted-foreground" aria-live="polite">
-          Loading Studio…
+          Preparing your Studio…
         </p>
       </PageShell>
     );
   if (error)
     return (
       <PageShell>
-        <p className="py-20 text-center text-destructive">
-          Studio could not load. Apply the Phase 3 migration and try again.
-        </p>
+        <div
+          className="studio-shell mx-auto mt-10 max-w-xl rounded-3xl border border-white/10 p-7 text-center"
+          role="alert"
+        >
+          <h1 className="text-xl font-semibold">Studio could not load.</h1>
+          <p className="mt-2 text-sm text-white/55">
+            Your progress remains saved. Check your connection and try again.
+          </p>
+          <Button
+            className="mt-5"
+            variant="outline"
+            onClick={() => void queryClient.invalidateQueries({ queryKey: ["studio"] })}
+          >
+            Try again
+          </Button>
+        </div>
       </PageShell>
     );
   const completed = new Set(
@@ -128,224 +147,247 @@ export function StudioWorkspace({ category }: { category: StudioCategory }) {
 
   return (
     <PageShell>
-      <PageHeader
-        eyebrow={COPY[category].eyebrow}
-        title={COPY[category].title}
-        description={COPY[category].description}
-      />
-      {!enrollments.length ? (
-        <Card className="mt-8 max-w-3xl">
-          <CardHeader>
-            <CardTitle>Set your daily path</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-5 sm:grid-cols-2">
-            <Field
-              label={
-                category === "language" ? "What language do you want to learn?" : "Choose a track"
-              }
+      <div
+        className={`studio-shell studio-workspace studio-workspace-${category} mt-2 overflow-hidden rounded-[2rem] border border-white/10 p-4 pb-24 sm:p-8`}
+      >
+        <header className="studio-track-hero rounded-[1.6rem] border border-white/10 p-5 sm:p-8">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <p className="studio-kicker">{COPY[category].eyebrow}</p>
+              <h1 className="mt-2 text-3xl font-semibold tracking-[-.035em] sm:text-5xl">
+                {COPY[category].title}
+              </h1>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-white/55">
+                {COPY[category].description}
+              </p>
+            </div>
+            <Link
+              to="/studio"
+              className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 transition hover:bg-white/10"
             >
-              <Select value={trackId} onValueChange={setTrackId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose one" />
-                </SelectTrigger>
-                <SelectContent>
-                  {tracks.map((track) => (
-                    <SelectItem key={track.id} value={track.id}>
-                      {track.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field label="What is your current level?">
-              <Select value={level} onValueChange={setLevel}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {["beginner", "elementary", "intermediate", "advanced"].map((item) => (
-                    <SelectItem key={item} value={item} className="capitalize">
-                      {item}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field label="What is your goal?">
-              <Input
-                value={target}
-                onChange={(event) => setTarget(event.target.value)}
-                maxLength={160}
-              />
-            </Field>
-            <Field label="How many minutes per day?">
-              <Input
-                type="number"
-                min={5}
-                max={180}
-                value={minutes}
-                onChange={(event) => setMinutes(event.target.value)}
-              />
-            </Field>
-            <Button
-              className="sm:col-span-2 min-h-11"
-              disabled={!trackId || !target.trim() || enroll.isPending}
-              onClick={() => enroll.mutate()}
-            >
-              {enroll.isPending ? "Saving…" : "Start this track"}
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <>
-          <section
-            className="mt-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
-            aria-label="Learning progress"
-          >
-            <Metric
-              icon={Flame}
-              label="Current streak"
-              value={`${data?.streak?.current_streak ?? 0} days`}
-            />
-            <Metric
-              icon={Target}
-              label="Daily goal"
-              value={
-                today ? `${today.completed_minutes} / ${today.target_minutes} min` : "0 / 15 min"
-              }
-            />
-            <Metric icon={Award} label="Studio XP" value={String(data?.streak?.total_xp ?? 0)} />
-            <Metric icon={BookOpen} label="Track progress" value={`${percent}%`} />
-          </section>
-          <Card className="mt-6">
-            <CardContent className="pt-6">
-              <div className="mb-2 flex justify-between text-sm">
-                <span>Overall progress</span>
-                <span>{percent}%</span>
-              </div>
-              <Progress value={percent} aria-label={`${percent}% completed`} />
+              Studio overview
+            </Link>
+          </div>
+        </header>
+        {!enrollments.length ? (
+          <Card className="mt-8 max-w-3xl">
+            <CardHeader>
+              <CardTitle>Set your daily path</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-5 sm:grid-cols-2">
+              <Field
+                label={
+                  category === "language" ? "What language do you want to learn?" : "Choose a track"
+                }
+              >
+                <Select value={trackId} onValueChange={setTrackId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose one" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {tracks.map((track) => (
+                      <SelectItem key={track.id} value={track.id}>
+                        {track.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label="What is your current level?">
+                <Select value={level} onValueChange={setLevel}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {["beginner", "elementary", "intermediate", "advanced"].map((item) => (
+                      <SelectItem key={item} value={item} className="capitalize">
+                        {item}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label="What is your goal?">
+                <Input
+                  value={target}
+                  onChange={(event) => setTarget(event.target.value)}
+                  maxLength={160}
+                />
+              </Field>
+              <Field label="How many minutes per day?">
+                <Input
+                  type="number"
+                  min={5}
+                  max={180}
+                  value={minutes}
+                  onChange={(event) => setMinutes(event.target.value)}
+                />
+              </Field>
+              <Button
+                className="sm:col-span-2 min-h-11"
+                disabled={!trackId || !target.trim() || enroll.isPending}
+                onClick={() => enroll.mutate()}
+              >
+                {enroll.isPending ? "Saving…" : "Start this track"}
+              </Button>
             </CardContent>
           </Card>
-          <section className="mt-8">
-            <h2 className="font-display text-2xl">Next activities</h2>
-            <div className="mt-4 grid gap-4 lg:grid-cols-2">
-              {lessons.map((lesson) => {
-                const track = tracks.find((item) => item.id === lesson.track_id);
-                const locked = lesson.premium && !subscription.data?.isPremium;
-                return (
-                  <Card key={lesson.id} className="min-w-0">
-                    <CardContent className="flex h-full flex-col p-5">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <Badge variant="outline">{track?.title}</Badge>
-                          <h3 className="mt-3 text-lg font-semibold">{lesson.title}</h3>
-                          <p className="mt-1 text-sm text-muted-foreground">{lesson.description}</p>
+        ) : (
+          <>
+            <section
+              className="mt-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
+              aria-label="Learning progress"
+            >
+              <Metric
+                icon={Flame}
+                label="Current streak"
+                value={`${data?.streak?.current_streak ?? 0} days`}
+              />
+              <Metric
+                icon={Target}
+                label="Daily goal"
+                value={
+                  today ? `${today.completed_minutes} / ${today.target_minutes} min` : "0 / 15 min"
+                }
+              />
+              <Metric icon={Award} label="Studio XP" value={String(data?.streak?.total_xp ?? 0)} />
+              <Metric icon={BookOpen} label="Track progress" value={`${percent}%`} />
+            </section>
+            <Card className="mt-6">
+              <CardContent className="pt-6">
+                <div className="mb-2 flex justify-between text-sm">
+                  <span>Overall progress</span>
+                  <span>{percent}%</span>
+                </div>
+                <Progress value={percent} aria-label={`${percent}% completed`} />
+              </CardContent>
+            </Card>
+            <section className="mt-8">
+              <h2 className="font-display text-2xl">Next activities</h2>
+              <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                {lessons.map((lesson) => {
+                  const track = tracks.find((item) => item.id === lesson.track_id);
+                  const locked = lesson.premium && !subscription.data?.isPremium;
+                  return (
+                    <Card key={lesson.id} className="min-w-0">
+                      <CardContent className="flex h-full flex-col p-5">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <Badge variant="outline">{track?.title}</Badge>
+                            <h3 className="mt-3 text-lg font-semibold">{lesson.title}</h3>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                              {lesson.description}
+                            </p>
+                          </div>
+                          {completed.has(lesson.id) ? (
+                            <CheckCircle2
+                              className="shrink-0 text-success"
+                              aria-label="Completed"
+                            />
+                          ) : locked ? (
+                            <LockKeyhole
+                              className="shrink-0 text-muted-foreground"
+                              aria-label="Premium"
+                            />
+                          ) : (
+                            <Sparkles className="shrink-0 text-gold" />
+                          )}
                         </div>
-                        {completed.has(lesson.id) ? (
-                          <CheckCircle2 className="shrink-0 text-success" aria-label="Completed" />
-                        ) : locked ? (
-                          <LockKeyhole
-                            className="shrink-0 text-muted-foreground"
-                            aria-label="Premium"
-                          />
-                        ) : (
-                          <Sparkles className="shrink-0 text-gold" />
-                        )}
-                      </div>
-                      <div className="mt-4 flex flex-wrap gap-2 text-xs text-muted-foreground">
-                        <span>{lesson.lesson_type}</span>
-                        <span>·</span>
-                        <span>{lesson.estimated_minutes} min</span>
-                        <span>·</span>
-                        <span className="capitalize">{lesson.difficulty}</span>
-                      </div>
-                      <Button
-                        className="mt-5 min-h-11 w-full"
-                        variant={completed.has(lesson.id) ? "outline" : "default"}
-                        onClick={async () => {
-                          if (locked) {
-                            navigate({ to: "/premium" });
-                            return;
-                          }
-                          await StudioService.startLesson(lesson.id);
-                          setOpenLesson(lesson);
-                        }}
-                      >
-                        {locked
-                          ? "Unlock with NEXORA Premium"
-                          : completed.has(lesson.id)
-                            ? "Review lesson"
-                            : "Open lesson"}
-                      </Button>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          </section>
-        </>
-      )}
-      {openLesson && (
-        <div
-          className="fixed inset-0 z-50 overflow-y-auto bg-background/95 p-4 backdrop-blur"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="lesson-title"
-        >
-          <div className="mx-auto my-4 max-w-2xl rounded-2xl border bg-background p-5 shadow-xl sm:p-8">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <Badge>{openLesson.lesson_type}</Badge>
-                <h2 id="lesson-title" className="mt-3 font-display text-3xl">
-                  {openLesson.title}
-                </h2>
+                        <div className="mt-4 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                          <span>{lesson.lesson_type}</span>
+                          <span>·</span>
+                          <span>{lesson.estimated_minutes} min</span>
+                          <span>·</span>
+                          <span className="capitalize">{lesson.difficulty}</span>
+                        </div>
+                        <Button
+                          className="mt-5 min-h-11 w-full"
+                          variant={completed.has(lesson.id) ? "outline" : "default"}
+                          onClick={async () => {
+                            if (locked) {
+                              navigate({ to: "/premium" });
+                              return;
+                            }
+                            await StudioService.startLesson(lesson.id);
+                            setOpenLesson(lesson);
+                          }}
+                        >
+                          {locked
+                            ? "Unlock with NEXORA Premium"
+                            : completed.has(lesson.id)
+                              ? "Review lesson"
+                              : "Open lesson"}
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
-              <Button variant="ghost" onClick={() => setOpenLesson(null)}>
-                Close
-              </Button>
-            </div>
-            <LessonBlock title="Explanation" text={openLesson.content.explanation} />
-            <LessonBlock title="Example" text={openLesson.content.example} />
-            <LessonBlock title="Exercise" text={openLesson.content.exercise} />
-            <LessonBlock title="Practical task" text={openLesson.content.practicalTask} />
-            <Label htmlFor="lesson-answer" className="mt-6 block">
-              Your response
-            </Label>
-            <Textarea
-              id="lesson-answer"
-              value={answer}
-              onChange={(event) => setAnswer(event.target.value)}
-              className="mt-2 min-h-32"
-              placeholder="Write your answer here…"
-            />
-            <p className="mt-2 text-xs text-muted-foreground">
-              Your exercise text is not copied into activity logs.
-            </p>
-            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-              {category === "creator" && (
-                <Button
-                  variant="outline"
-                  onClick={() =>
-                    navigate({
-                      to: "/content",
-                      search: { prompt: openLesson.content.practicalTask ?? openLesson.title },
-                    })
-                  }
-                >
-                  <WandSparkles className="mr-2 h-4 w-4" />
-                  Send to Content Studio
+            </section>
+          </>
+        )}
+        {openLesson && (
+          <div
+            className="fixed inset-0 z-50 overflow-y-auto bg-background/95 p-4 backdrop-blur"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="lesson-title"
+          >
+            <div className="mx-auto my-4 max-w-2xl rounded-2xl border bg-background p-5 shadow-xl sm:p-8">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <Badge>{openLesson.lesson_type}</Badge>
+                  <h2 id="lesson-title" className="mt-3 font-display text-3xl">
+                    {openLesson.title}
+                  </h2>
+                </div>
+                <Button variant="ghost" onClick={() => setOpenLesson(null)}>
+                  Close
                 </Button>
-              )}
-              <Button
-                disabled={answer.trim().length < 3 || complete.isPending}
-                onClick={() => complete.mutate(openLesson.id)}
-              >
-                {complete.isPending ? "Saving…" : "Complete lesson"}
-              </Button>
+              </div>
+              <LessonBlock title="Explanation" text={openLesson.content.explanation} />
+              <LessonBlock title="Example" text={openLesson.content.example} />
+              <LessonBlock title="Exercise" text={openLesson.content.exercise} />
+              <LessonBlock title="Practical task" text={openLesson.content.practicalTask} />
+              <Label htmlFor="lesson-answer" className="mt-6 block">
+                Your response
+              </Label>
+              <Textarea
+                id="lesson-answer"
+                value={answer}
+                onChange={(event) => setAnswer(event.target.value)}
+                className="mt-2 min-h-32"
+                placeholder="Write your answer here…"
+              />
+              <p className="mt-2 text-xs text-muted-foreground">
+                Your exercise text is not copied into activity logs.
+              </p>
+              <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                {category === "creator" && (
+                  <Button
+                    variant="outline"
+                    onClick={() =>
+                      navigate({
+                        to: "/content",
+                        search: { prompt: openLesson.content.practicalTask ?? openLesson.title },
+                      })
+                    }
+                  >
+                    <WandSparkles className="mr-2 h-4 w-4" />
+                    Send to Content Studio
+                  </Button>
+                )}
+                <Button
+                  disabled={answer.trim().length < 3 || complete.isPending}
+                  onClick={() => complete.mutate(openLesson.id)}
+                >
+                  {complete.isPending ? "Saving…" : "Complete lesson"}
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </PageShell>
   );
 }

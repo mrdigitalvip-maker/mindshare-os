@@ -6,7 +6,7 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -35,16 +35,26 @@ function NotFoundComponent() {
 
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   const router = useRouter();
+  const [portuguese, setPortuguese] = useState(false);
+  useEffect(() => {
+    setPortuguese(navigator.language.toLowerCase().startsWith("pt"));
+  }, []);
   useEffect(() => {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
   }, [error]);
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-6">
       <div className="max-w-md text-center">
-        <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Something broke</p>
-        <h1 className="mt-4 font-display text-5xl">A small hiccup</h1>
+        <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+          {portuguese ? "Algo deu errado" : "Something broke"}
+        </p>
+        <h1 className="mt-4 font-display text-5xl">
+          {portuguese ? "Um pequeno imprevisto" : "A small hiccup"}
+        </h1>
         <p className="mt-3 text-sm text-muted-foreground">
-          NEXORA couldn't finish that. Try again or head home.
+          {portuguese
+            ? "A NEXORA não conseguiu concluir isso. Tente novamente ou volte ao início."
+            : "NEXORA couldn't finish that. Try again or head home."}
         </p>
         <div className="mt-8 flex justify-center gap-2">
           <button
@@ -54,13 +64,13 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
             }}
             className="rounded-full bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90"
           >
-            Try again
+            {portuguese ? "Tentar novamente" : "Try again"}
           </button>
           <a
             href="/"
             className="rounded-full border border-border px-5 py-2.5 text-sm font-medium hover:bg-accent"
           >
-            Go home
+            {portuguese ? "Ir para o início" : "Go home"}
           </a>
         </div>
       </div>
