@@ -29,6 +29,8 @@ import { Route as ShellSettingsRouteImport } from './routes/_shell.settings'
 import { Route as ShellStudiesRouteImport } from './routes/_shell.studies'
 import { Route as ShellTranslateRouteImport } from './routes/_shell.translate'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
+import { Route as ShellAgentsAgentIdRouteImport } from './routes/_shell.agents.$agentId'
+import { Route as ShellProjectsProjectIdRouteImport } from './routes/_shell.projects.$projectId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -129,6 +131,16 @@ const AuthCallbackRoute = AuthCallbackRouteImport.update({
   path: '/callback',
   getParentRoute: () => AuthRoute,
 } as any)
+const ShellAgentsAgentIdRoute = ShellAgentsAgentIdRouteImport.update({
+  id: '/$agentId',
+  path: '/$agentId',
+  getParentRoute: () => ShellAgentsRoute,
+} as any)
+const ShellProjectsProjectIdRoute = ShellProjectsProjectIdRouteImport.update({
+  id: '/$projectId',
+  path: '/$projectId',
+  getParentRoute: () => ShellProjectsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -137,7 +149,7 @@ export interface FileRoutesByFullPath {
   '/onboarding': typeof OnboardingRoute
   '/reset-password': typeof ResetPasswordRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/agents': typeof ShellAgentsRoute
+  '/agents': typeof ShellAgentsRouteWithChildren
   '/assistant': typeof ShellAssistantRoute
   '/content': typeof ShellContentRoute
   '/dashboard': typeof ShellDashboardRoute
@@ -145,11 +157,13 @@ export interface FileRoutesByFullPath {
   '/finance': typeof ShellFinanceRoute
   '/premium': typeof ShellPremiumRoute
   '/productivity': typeof ShellProductivityRoute
-  '/projects': typeof ShellProjectsRoute
+  '/projects': typeof ShellProjectsRouteWithChildren
   '/settings': typeof ShellSettingsRoute
   '/studies': typeof ShellStudiesRoute
   '/translate': typeof ShellTranslateRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/agents/$agentId': typeof ShellAgentsAgentIdRoute
+  '/projects/$projectId': typeof ShellProjectsProjectIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -158,7 +172,7 @@ export interface FileRoutesByTo {
   '/onboarding': typeof OnboardingRoute
   '/reset-password': typeof ResetPasswordRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/agents': typeof ShellAgentsRoute
+  '/agents': typeof ShellAgentsRouteWithChildren
   '/assistant': typeof ShellAssistantRoute
   '/content': typeof ShellContentRoute
   '/dashboard': typeof ShellDashboardRoute
@@ -166,11 +180,13 @@ export interface FileRoutesByTo {
   '/finance': typeof ShellFinanceRoute
   '/premium': typeof ShellPremiumRoute
   '/productivity': typeof ShellProductivityRoute
-  '/projects': typeof ShellProjectsRoute
+  '/projects': typeof ShellProjectsRouteWithChildren
   '/settings': typeof ShellSettingsRoute
   '/studies': typeof ShellStudiesRoute
   '/translate': typeof ShellTranslateRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/agents/$agentId': typeof ShellAgentsAgentIdRoute
+  '/projects/$projectId': typeof ShellProjectsProjectIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -181,7 +197,7 @@ export interface FileRoutesById {
   '/onboarding': typeof OnboardingRoute
   '/reset-password': typeof ResetPasswordRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/_shell/agents': typeof ShellAgentsRoute
+  '/_shell/agents': typeof ShellAgentsRouteWithChildren
   '/_shell/assistant': typeof ShellAssistantRoute
   '/_shell/content': typeof ShellContentRoute
   '/_shell/dashboard': typeof ShellDashboardRoute
@@ -189,11 +205,13 @@ export interface FileRoutesById {
   '/_shell/finance': typeof ShellFinanceRoute
   '/_shell/premium': typeof ShellPremiumRoute
   '/_shell/productivity': typeof ShellProductivityRoute
-  '/_shell/projects': typeof ShellProjectsRoute
+  '/_shell/projects': typeof ShellProjectsRouteWithChildren
   '/_shell/settings': typeof ShellSettingsRoute
   '/_shell/studies': typeof ShellStudiesRoute
   '/_shell/translate': typeof ShellTranslateRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/_shell/agents/$agentId': typeof ShellAgentsAgentIdRoute
+  '/_shell/projects/$projectId': typeof ShellProjectsProjectIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -217,6 +235,8 @@ export interface FileRouteTypes {
     | '/studies'
     | '/translate'
     | '/auth/callback'
+    | '/agents/$agentId'
+    | '/projects/$projectId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -238,6 +258,8 @@ export interface FileRouteTypes {
     | '/studies'
     | '/translate'
     | '/auth/callback'
+    | '/agents/$agentId'
+    | '/projects/$projectId'
   id:
     | '__root__'
     | '/'
@@ -260,6 +282,8 @@ export interface FileRouteTypes {
     | '/_shell/studies'
     | '/_shell/translate'
     | '/auth/callback'
+    | '/_shell/agents/$agentId'
+    | '/_shell/projects/$projectId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -414,11 +438,49 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthCallbackRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/_shell/agents/$agentId': {
+      id: '/_shell/agents/$agentId'
+      path: '/$agentId'
+      fullPath: '/agents/$agentId'
+      preLoaderRoute: typeof ShellAgentsAgentIdRouteImport
+      parentRoute: typeof ShellAgentsRoute
+    }
+    '/_shell/projects/$projectId': {
+      id: '/_shell/projects/$projectId'
+      path: '/$projectId'
+      fullPath: '/projects/$projectId'
+      preLoaderRoute: typeof ShellProjectsProjectIdRouteImport
+      parentRoute: typeof ShellProjectsRoute
+    }
   }
 }
 
+interface ShellAgentsRouteChildren {
+  ShellAgentsAgentIdRoute: typeof ShellAgentsAgentIdRoute
+}
+
+const ShellAgentsRouteChildren: ShellAgentsRouteChildren = {
+  ShellAgentsAgentIdRoute: ShellAgentsAgentIdRoute,
+}
+
+const ShellAgentsRouteWithChildren = ShellAgentsRoute._addFileChildren(
+  ShellAgentsRouteChildren,
+)
+
+interface ShellProjectsRouteChildren {
+  ShellProjectsProjectIdRoute: typeof ShellProjectsProjectIdRoute
+}
+
+const ShellProjectsRouteChildren: ShellProjectsRouteChildren = {
+  ShellProjectsProjectIdRoute: ShellProjectsProjectIdRoute,
+}
+
+const ShellProjectsRouteWithChildren = ShellProjectsRoute._addFileChildren(
+  ShellProjectsRouteChildren,
+)
+
 interface ShellRouteChildren {
-  ShellAgentsRoute: typeof ShellAgentsRoute
+  ShellAgentsRoute: typeof ShellAgentsRouteWithChildren
   ShellAssistantRoute: typeof ShellAssistantRoute
   ShellContentRoute: typeof ShellContentRoute
   ShellDashboardRoute: typeof ShellDashboardRoute
@@ -426,14 +488,14 @@ interface ShellRouteChildren {
   ShellFinanceRoute: typeof ShellFinanceRoute
   ShellPremiumRoute: typeof ShellPremiumRoute
   ShellProductivityRoute: typeof ShellProductivityRoute
-  ShellProjectsRoute: typeof ShellProjectsRoute
+  ShellProjectsRoute: typeof ShellProjectsRouteWithChildren
   ShellSettingsRoute: typeof ShellSettingsRoute
   ShellStudiesRoute: typeof ShellStudiesRoute
   ShellTranslateRoute: typeof ShellTranslateRoute
 }
 
 const ShellRouteChildren: ShellRouteChildren = {
-  ShellAgentsRoute: ShellAgentsRoute,
+  ShellAgentsRoute: ShellAgentsRouteWithChildren,
   ShellAssistantRoute: ShellAssistantRoute,
   ShellContentRoute: ShellContentRoute,
   ShellDashboardRoute: ShellDashboardRoute,
@@ -441,7 +503,7 @@ const ShellRouteChildren: ShellRouteChildren = {
   ShellFinanceRoute: ShellFinanceRoute,
   ShellPremiumRoute: ShellPremiumRoute,
   ShellProductivityRoute: ShellProductivityRoute,
-  ShellProjectsRoute: ShellProjectsRoute,
+  ShellProjectsRoute: ShellProjectsRouteWithChildren,
   ShellSettingsRoute: ShellSettingsRoute,
   ShellStudiesRoute: ShellStudiesRoute,
   ShellTranslateRoute: ShellTranslateRoute,

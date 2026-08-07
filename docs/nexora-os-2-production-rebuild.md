@@ -111,3 +111,33 @@ Known limitations at this audit checkpoint:
 8. Run the complete E2E matrix, deployed TWA verification and Play AAB validation.
 
 This sequence keeps every connected-branch commit runnable and prevents decorative modules or unenforced Premium claims from reaching production.
+
+## PHASE 1 FUNCTIONAL DELIVERY
+
+### Assistant
+
+- `/assistant` now starts with an unpersisted blank conversation. Existing conversations are only loaded after explicit history selection.
+- Desktop history and mobile drawer support search, date groups, rename, and delete. The composer supports auto-growth, keyboard shortcuts, safe-area spacing, retry/regenerate/copy, and proximity-aware scroll following.
+- The existing `AIService`/`ai-chat` backend remains responsible for OpenAI calls, quotas, persistence, timeouts, and safe errors; no simulated streaming was introduced.
+
+### Projects and tasks
+
+- Project creation is a four-stage wizard for identity, planning fields, initial tasks, and review. Creation navigates directly to `/projects/$projectId`.
+- The project workspace provides Overview, Tasks, Notes, Documents, and Activity tabs, plus editing, confirmed deletion, and task CRUD.
+- `TaskService` is the shared task repository. Project progress is always completed associated tasks divided by all associated tasks, with zero for an empty project.
+
+### Productivity
+
+- Productivity uses the same `TaskService` as Projects and provides Inbox, Today, Upcoming, Overdue, and Completed views, search, task detail editing, completion/reopening, and deletion.
+
+### Agents
+
+- The Premium-only four-step builder captures goal, behavior, expected output, and only the supported capabilities. Provider, model, API keys, and system instructions are not user-configurable.
+- `/agents/$agentId` provides Overview, Run, History, and Settings. Runs expose loading, result, safe failure, and retry behavior.
+- `agent-run` authenticates the request, verifies an unexpired `active` or `trialing` row in `public.subscriptions`, owner-scopes the agent, builds the system prompt server-side, calls OpenAI with a server secret, and persists completion or a safe error.
+
+### Database, mobile, and limitations
+
+- Migration `202608070001_phase1_functional.sql` adds only required project planning fields, agent behavior fields, owner-scoped `agent_runs`, constraints, indexes, timestamps, and RLS.
+- Responsive layouts use bounded, scrollable dialogs/tabs and `min-width: 0`; the Assistant retains its `100dvh`, VisualViewport, safe-area, and Android keyboard handling.
+- Notes, Documents, and Activity project tabs are intentionally honest empty states until those existing resources receive a project relationship. Applying migrations and exercising authenticated Free/Premium OpenAI runs requires a configured Supabase project and server secrets.

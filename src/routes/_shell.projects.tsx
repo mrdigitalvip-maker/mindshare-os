@@ -1,7 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FolderKanban, Pencil, Plus, Trash2 } from "lucide-react";
+import { FolderKanban, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { PageShell, PageHeader, EmptyState } from "@/components/page-shell";
 import { Button } from "@/components/ui/button";
@@ -9,81 +9,49 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ProjectService, type Project } from "@/services";
+import { ProjectService, TaskService } from "@/services";
 export const Route = createFileRoute("/_shell/projects")({
-  head: () => ({ meta: [{ title: "Projects — NEXORA" }] }),
+  head: () => ({ meta: [{ title: "Projetos — NEXORA" }] }),
   component: Projects,
 });
 const key = ["workspace", "projects"] as const;
 function Projects() {
-  const client = useQueryClient();
-  const [editing, setEditing] = useState<Project | null | undefined>();
+  const [wizard, setWizard] = useState(false);
   const query = useQuery({ queryKey: key, queryFn: () => ProjectService.list() });
-  const refresh = () => client.invalidateQueries({ queryKey: key });
-  const remove = useMutation({
-    mutationFn: (id: string) => ProjectService.remove(id),
-    onSuccess: refresh,
-    onError: (e: Error) => toast.error(e.message),
-  });
   return (
     <PageShell>
       <PageHeader
-        eyebrow="Modules"
-        title="Projects"
-        description="Plan work and track progress calculated from associated tasks."
+        eyebrow="Organização"
+        title="Projetos"
+        description="Planeje o trabalho e acompanhe o progresso real das tarefas."
         actions={
-          <Button onClick={() => setEditing(null)}>
-            <Plus /> New project
+          <Button onClick={() => setWizard(true)}>
+            <Plus /> Novo projeto
           </Button>
         }
       />
       {query.isLoading ? (
-        <p className="mt-10 text-center text-muted-foreground">Loading projects…</p>
-      ) : query.isError ? (
-        <EmptyState
-          icon={FolderKanban}
-          title="Projects unavailable"
-          description={(query.error as Error).message}
-        />
+        <p className="mt-10 text-center text-muted-foreground">Carregando projetos…</p>
       ) : !query.data?.length ? (
         <EmptyState
           icon={FolderKanban}
-          title="No projects yet"
-          description="Create a project, then associate tasks from Productivity."
-          action={<Button onClick={() => setEditing(null)}>Create project</Button>}
+          title="Nenhum projeto"
+          description="Crie um projeto e suas primeiras tarefas."
+          action={<Button onClick={() => setWizard(true)}>Criar projeto</Button>}
         />
       ) : (
         <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {query.data.map((project) => (
-            <article key={project.id} className="glass rounded-2xl p-5">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <span className="text-xs uppercase tracking-wider text-muted-foreground">
-                    {project.status}
-                  </span>
-                  <h2 className="mt-1 truncate font-display text-xl">{project.title}</h2>
-                </div>
-                <div className="flex">
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => setEditing(project)}
-                    aria-label={`Edit ${project.title}`}
-                  >
-                    <Pencil />
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => confirm(`Delete ${project.title}?`) && remove.mutate(project.id)}
-                    aria-label={`Delete ${project.title}`}
-                  >
-                    <Trash2 />
-                  </Button>
-                </div>
-              </div>
-              <p className="mt-3 min-h-10 text-sm text-muted-foreground">
-                {project.description || "No description"}
+            <Link
+              key={project.id}
+              to="/projects/$projectId"
+              params={{ projectId: project.id }}
+              className="glass min-w-0 rounded-2xl p-5 transition hover:border-gold/40"
+            >
+              <span className="text-xs uppercase text-muted-foreground">{project.status}</span>
+              <h2 className="mt-1 truncate font-display text-xl">{project.title}</h2>
+              <p className="mt-3 line-clamp-2 min-h-10 text-sm text-muted-foreground">
+                {project.description || "Sem descrição"}
               </p>
               <div className="mt-5 h-2 rounded-full bg-surface">
                 <div
@@ -92,96 +60,197 @@ function Projects() {
                 />
               </div>
               <p className="mt-2 text-xs text-muted-foreground">
-                {project.progress}% from completed tasks · Updated{" "}
-                {new Date(project.updatedAt).toLocaleDateString()}
+                {project.completedTasks}/{project.totalTasks} tarefas · {project.progress}%
               </p>
-            </article>
+            </Link>
           ))}
         </div>
       )}
-      <ProjectDialog
-        project={editing}
-        close={() => setEditing(undefined)}
-        saved={async () => {
-          await refresh();
-          setEditing(undefined);
-        }}
-      />
+      <ProjectWizard open={wizard} close={() => setWizard(false)} />
     </PageShell>
   );
 }
-function ProjectDialog({
-  project,
-  close,
-  saved,
-}: {
-  project: Project | null | undefined;
-  close: () => void;
-  saved: () => void;
-}) {
-  const [title, setTitle] = useState(project?.title ?? "");
-  const [description, setDescription] = useState(project?.description ?? "");
-  const [status, setStatus] = useState(project?.status ?? "active");
-  const save = useMutation({
+function ProjectWizard({ open, close }: { open: boolean; close: () => void }) {
+  const navigate = useNavigate();
+  const client = useQueryClient();
+  const [step, setStep] = useState(1);
+  const [form, setForm] = useState({
+    title: "",
+    description: "",
+    objective: "",
+    priority: "medium",
+    status: "active",
+    startDate: "",
+    dueDate: "",
+    tasks: [""],
+  });
+  const set = (name: string, value: string) =>
+    setForm((current) => ({ ...current, [name]: value }));
+  const create = useMutation({
     mutationFn: async () => {
-      if (!title.trim()) throw new Error("Name is required");
-      if (project)
-        await ProjectService.update(project.id, { title: title.trim(), description, status });
-      else await ProjectService.create({ title: title.trim(), description, status });
+      const project = await ProjectService.create({
+        ...form,
+        startDate: form.startDate || null,
+        dueDate: form.dueDate || null,
+      });
+      await Promise.all(
+        form.tasks
+          .filter(Boolean)
+          .map((title) => TaskService.createTask({ title, projectId: project.id })),
+      );
+      return project;
     },
-    onSuccess: () => {
-      toast.success(project ? "Project updated" : "Project created");
-      saved();
+    onSuccess: async (project) => {
+      await client.invalidateQueries({ queryKey: key });
+      toast.success("Projeto criado");
+      close();
+      navigate({ to: "/projects/$projectId", params: { projectId: project.id } });
     },
     onError: (e: Error) => toast.error(e.message),
   });
   return (
-    <Dialog open={project !== undefined} onOpenChange={(open) => !open && close()}>
-      <DialogContent>
+    <Dialog open={open} onOpenChange={(value) => !value && close()}>
+      <DialogContent className="max-h-[90dvh] max-w-xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{project ? "Edit project" : "New project"}</DialogTitle>
+          <DialogTitle>Novo projeto · etapa {step} de 4</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="project-name">Name</Label>
-            <Input
-              id="project-name"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              autoFocus
+        {step === 1 && (
+          <div className="space-y-4">
+            <Field label="Nome">
+              <Input value={form.title} onChange={(e) => set("title", e.target.value)} autoFocus />
+            </Field>
+            <Field label="Descrição">
+              <Textarea
+                value={form.description}
+                onChange={(e) => set("description", e.target.value)}
+              />
+            </Field>
+            <Field label="Objetivo">
+              <Textarea value={form.objective} onChange={(e) => set("objective", e.target.value)} />
+            </Field>
+          </div>
+        )}
+        {step === 2 && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Select
+              label="Prioridade"
+              value={form.priority}
+              onChange={(v) => set("priority", v)}
+              options={[
+                ["low", "Baixa"],
+                ["medium", "Média"],
+                ["high", "Alta"],
+              ]}
             />
-          </div>
-          <div>
-            <Label htmlFor="project-description">Description</Label>
-            <Textarea
-              id="project-description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
+            <Select
+              label="Status"
+              value={form.status}
+              onChange={(v) => set("status", v)}
+              options={[
+                ["active", "Ativo"],
+                ["paused", "Pausado"],
+              ]}
             />
+            <Field label="Data inicial">
+              <Input
+                type="date"
+                value={form.startDate}
+                onChange={(e) => set("startDate", e.target.value)}
+              />
+            </Field>
+            <Field label="Prazo">
+              <Input
+                type="date"
+                value={form.dueDate}
+                onChange={(e) => set("dueDate", e.target.value)}
+              />
+            </Field>
           </div>
-          <div>
-            <Label htmlFor="project-status">Status</Label>
-            <select
-              id="project-status"
-              className="h-11 w-full rounded-md border border-input bg-background px-3"
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-            >
-              <option value="active">Active</option>
-              <option value="paused">Paused</option>
-              <option value="completed">Completed</option>
-            </select>
+        )}
+        {step === 3 && (
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">Adicione até três tarefas iniciais.</p>
+            {form.tasks.map((task, i) => (
+              <Input
+                key={i}
+                value={task}
+                placeholder={`Tarefa ${i + 1}`}
+                onChange={(e) =>
+                  setForm((c) => ({
+                    ...c,
+                    tasks: c.tasks.map((v, n) => (n === i ? e.target.value : v)),
+                  }))
+                }
+              />
+            ))}
+            {form.tasks.length < 3 && (
+              <Button
+                variant="outline"
+                onClick={() => setForm((c) => ({ ...c, tasks: [...c.tasks, ""] }))}
+              >
+                Adicionar tarefa
+              </Button>
+            )}
           </div>
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={close}>
-              Cancel
-            </Button>
-            <Button disabled={!title.trim() || save.isPending} onClick={() => save.mutate()}>
-              {save.isPending ? "Saving…" : "Save"}
-            </Button>
+        )}
+        {step === 4 && (
+          <div className="rounded-xl border p-4">
+            <h3 className="font-display text-xl">{form.title}</h3>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {form.description || "Sem descrição"}
+            </p>
+            <p className="mt-4 text-sm">
+              Prioridade: {form.priority} · {form.tasks.filter(Boolean).length} tarefas
+            </p>
           </div>
+        )}
+        <div className="mt-5 flex justify-between">
+          <Button variant="outline" onClick={() => (step === 1 ? close() : setStep(step - 1))}>
+            {step === 1 ? "Cancelar" : "Voltar"}
+          </Button>
+          <Button
+            disabled={(step === 1 && !form.title.trim()) || create.isPending}
+            onClick={() => (step < 4 ? setStep(step + 1) : create.mutate())}
+          >
+            {step < 4 ? "Continuar" : create.isPending ? "Criando…" : "Criar projeto"}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <Label>{label}</Label>
+      {children}
+    </div>
+  );
+}
+function Select({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: string[][];
+}) {
+  return (
+    <Field label={label}>
+      <select
+        className="h-11 w-full rounded-md border border-input bg-background px-3"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      >
+        {options.map(([v, l]) => (
+          <option key={v} value={v}>
+            {l}
+          </option>
+        ))}
+      </select>
+    </Field>
   );
 }

@@ -12,15 +12,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { ProductivityService, type Task } from "@/services";
 
 export const Route = createFileRoute("/_shell/productivity")({
-  head: () => ({ meta: [{ title: "Productivity — NEXORA" }] }),
-  component: Productivity,
+  head: () => ({ meta: [{ title: "Produtividade — NEXORA" }] }),
+  component: Produtividade,
 });
 const key = ["workspace", "tasks"] as const;
-type View = "all" | "today" | "open" | "done";
+type View = "inbox" | "today" | "upcoming" | "overdue" | "done";
 
-function Productivity() {
+function Produtividade() {
   const client = useQueryClient();
-  const [view, setView] = useState<View>("all");
+  const [view, setView] = useState<View>("inbox");
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<Task | null | undefined>(undefined);
   const query = useQuery({ queryKey: key, queryFn: () => ProductivityService.listTasks() });
@@ -46,9 +46,16 @@ function Productivity() {
           : false;
         return (
           match &&
-          (view === "all" ||
+          (view === "inbox" ||
             (view === "today" && today) ||
-            (view === "open" && task.status === "open") ||
+            (view === "upcoming" &&
+              task.status === "open" &&
+              !!task.dueDate &&
+              new Date(task.dueDate) > new Date()) ||
+            (view === "overdue" &&
+              task.status === "open" &&
+              !!task.dueDate &&
+              new Date(task.dueDate) < new Date()) ||
             (view === "done" && task.status === "done"))
         );
       }),
@@ -57,12 +64,12 @@ function Productivity() {
   return (
     <PageShell>
       <PageHeader
-        eyebrow="Modules"
-        title="Productivity"
-        description="Capture, prioritize and complete real tasks."
+        eyebrow="Organização"
+        title="Produtividade"
+        description="Capture, priorize e conclua tarefas reais."
         actions={
           <Button onClick={() => setEditing(null)}>
-            <Plus /> New task
+            <Plus /> Nova tarefa
           </Button>
         }
       />
@@ -73,11 +80,11 @@ function Productivity() {
             className="pl-9"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search tasks"
+            placeholder="Buscar tarefas"
           />
         </div>
         <div className="flex gap-2 overflow-x-auto">
-          {(["all", "today", "open", "done"] as View[]).map((v) => (
+          {(["inbox", "today", "upcoming", "overdue", "done"] as View[]).map((v) => (
             <Button
               key={v}
               size="sm"
@@ -85,32 +92,40 @@ function Productivity() {
               onClick={() => setView(v)}
               className="capitalize"
             >
-              {v}
+              {
+                {
+                  inbox: "Caixa de entrada",
+                  today: "Hoje",
+                  upcoming: "Próximas",
+                  overdue: "Atrasadas",
+                  done: "Concluídas",
+                }[v]
+              }
             </Button>
           ))}
         </div>
       </div>
       {query.isLoading ? (
-        <p className="mt-10 text-center text-muted-foreground">Loading tasks…</p>
+        <p className="mt-10 text-center text-muted-foreground">Carregando tarefas…</p>
       ) : query.isError ? (
         <EmptyState
           icon={Search}
-          title="Tasks unavailable"
+          title="Tarefas indisponíveis"
           description={(query.error as Error).message}
         />
       ) : tasks.length === 0 ? (
         <EmptyState
           icon={Check}
-          title="No tasks here"
-          description="Create a task or adjust the filters."
-          action={<Button onClick={() => setEditing(null)}>Create task</Button>}
+          title="Nenhuma tarefa aqui"
+          description="Crie uma tarefa ou ajuste os filtros."
+          action={<Button onClick={() => setEditing(null)}>Criar tarefa</Button>}
         />
       ) : (
         <div className="mt-6 space-y-3">
           {tasks.map((task) => (
             <article key={task.id} className="glass flex min-w-0 items-start gap-3 rounded-2xl p-4">
               <button
-                aria-label={task.status === "done" ? "Reopen task" : "Complete task"}
+                aria-label={task.status === "done" ? "Reabrir tarefa" : "Concluir tarefa"}
                 onClick={() => toggle.mutate(task.id)}
                 className="mt-1 h-6 w-6 shrink-0 rounded-full border border-border"
               >
@@ -143,9 +158,9 @@ function Productivity() {
                 size="icon"
                 variant="ghost"
                 onClick={() => {
-                  if (confirm(`Delete ${task.title}?`)) remove.mutate(task.id);
+                  if (confirm(`Excluir ${task.title}?`)) remove.mutate(task.id);
                 }}
-                aria-label={`Delete ${task.title}`}
+                aria-label={`Excluir ${task.title}`}
               >
                 <Trash2 />
               </Button>
@@ -156,7 +171,7 @@ function Productivity() {
       <TaskDialog
         task={editing}
         onClose={() => setEditing(undefined)}
-        onSaved={async () => {
+        onSalvard={async () => {
           await invalidate();
           setEditing(undefined);
         }}
@@ -167,19 +182,19 @@ function Productivity() {
 function TaskDialog({
   task,
   onClose,
-  onSaved,
+  onSalvard,
 }: {
   task: Task | null | undefined;
   onClose: () => void;
-  onSaved: () => void;
+  onSalvard: () => void;
 }) {
-  const [title, setTitle] = useState(task?.title ?? "");
-  const [description, setDescription] = useState(task?.description ?? "");
-  const [priority, setPriority] = useState(task?.priority ?? "medium");
+  const [title, setTítulo] = useState(task?.title ?? "");
+  const [description, setDescrição] = useState(task?.description ?? "");
+  const [priority, setPrioridade] = useState(task?.priority ?? "medium");
   const [due, setDue] = useState(task?.dueDate?.slice(0, 10) ?? "");
   const save = useMutation({
     mutationFn: async () => {
-      if (!title.trim()) throw new Error("Title is required");
+      if (!title.trim()) throw new Error("O título é obrigatório");
       if (task)
         await ProductivityService.updateTask(task.id, {
           title: title.trim(),
@@ -196,8 +211,8 @@ function TaskDialog({
         });
     },
     onSuccess: () => {
-      toast.success(task ? "Task updated" : "Task created");
-      onSaved();
+      toast.success(task ? "Tarefa atualizada" : "Tarefa criada");
+      onSalvard();
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -205,34 +220,34 @@ function TaskDialog({
     <Dialog open={task !== undefined} onOpenChange={(open) => !open && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{task ? "Edit task" : "New task"}</DialogTitle>
+          <DialogTitle>{task ? "Editar tarefa" : "Nova tarefa"}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div>
-            <Label htmlFor="task-title">Title</Label>
+            <Label htmlFor="task-title">Título</Label>
             <Input
               id="task-title"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => setTítulo(e.target.value)}
               autoFocus
             />
           </div>
           <div>
-            <Label htmlFor="task-description">Description</Label>
+            <Label htmlFor="task-description">Descrição</Label>
             <Textarea
               id="task-description"
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e) => setDescrição(e.target.value)}
             />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <Label htmlFor="task-priority">Priority</Label>
+              <Label htmlFor="task-priority">Prioridade</Label>
               <select
                 id="task-priority"
                 className="h-11 w-full rounded-md border border-input bg-background px-3"
                 value={priority}
-                onChange={(e) => setPriority(e.target.value)}
+                onChange={(e) => setPrioridade(e.target.value)}
               >
                 <option>low</option>
                 <option>medium</option>
@@ -240,7 +255,7 @@ function TaskDialog({
               </select>
             </div>
             <div>
-              <Label htmlFor="task-due">Due date</Label>
+              <Label htmlFor="task-due">Prazo</Label>
               <Input
                 id="task-due"
                 type="date"
@@ -251,10 +266,10 @@ function TaskDialog({
           </div>
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={onClose}>
-              Cancel
+              Cancelar
             </Button>
             <Button disabled={!title.trim() || save.isPending} onClick={() => save.mutate()}>
-              {save.isPending ? "Saving…" : "Save"}
+              {save.isPending ? "Salvando…" : "Salvar"}
             </Button>
           </div>
         </div>
