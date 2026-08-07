@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- Phase 3 tables are typed after the deployment migration regenerates Database. */
 import { DEMO_MODE } from "@/lib/demo/config";
 import { supabase } from "@/lib/supabase";
 import { readMockDatabase } from "./local-store";
@@ -11,7 +12,8 @@ export type SearchCategory =
   | "Studies"
   | "Agents"
   | "Translations"
-  | "Conversations";
+  | "Conversations"
+  | "Studio";
 export type SearchResult = {
   id: string;
   title: string;
@@ -62,6 +64,7 @@ export const SearchService = {
     }
     const userId = await getRequiredUserId();
     const pattern = escapePattern(text);
+    const studioDb = supabase as unknown as { from: (table: string) => any };
     const queries = await Promise.all([
       supabase
         .from("projects")
@@ -111,11 +114,33 @@ export const SearchService = {
         .eq("user_id", userId)
         .ilike("title", pattern)
         .limit(6),
+      studioDb
+        .from("studio_tracks")
+        .select("id,slug,title,description,category,updated_at")
+        .eq("active", true)
+        .or(`title.ilike.${pattern},description.ilike.${pattern}`)
+        .limit(8),
+      studioDb
+        .from("studio_lessons")
+        .select("id,slug,title,description,track_id,updated_at")
+        .eq("active", true)
+        .or(`title.ilike.${pattern},description.ilike.${pattern}`)
+        .limit(8),
     ]);
     const failed = queries.find((result) => result.error);
     if (failed?.error) throw failed.error;
-    const [projects, tasks, documents, notes, studies, agents, translations, conversations] =
-      queries;
+    const [
+      projects,
+      tasks,
+      documents,
+      notes,
+      studies,
+      agents,
+      translations,
+      conversations,
+      studioTracks,
+      studioLessons,
+    ] = queries;
     return [
       ...(projects.data ?? []).map((item) => ({
         id: item.id,
@@ -181,6 +206,37 @@ export const SearchService = {
         category: "Conversations" as const,
         occurredAt: item.updated_at,
       })),
+      ...(studioTracks.data ?? []).map(
+        (item: {
+          id: string;
+          title: string;
+          description: string;
+          category: string;
+          updated_at: string;
+        }) => ({
+          id: item.id,
+          title: item.title,
+          description: item.description,
+          path:
+            item.category === "language"
+              ? "/studio/languages"
+              : item.category === "academy"
+                ? "/studio/ai-academy"
+                : "/studio/creator-growth",
+          category: "Studio" as const,
+          occurredAt: item.updated_at,
+        }),
+      ),
+      ...(studioLessons.data ?? []).map(
+        (item: { id: string; title: string; description: string; updated_at: string }) => ({
+          id: item.id,
+          title: item.title,
+          description: item.description,
+          path: "/studio",
+          category: "Studio" as const,
+          occurredAt: item.updated_at,
+        }),
+      ),
     ].sort((a, b) => Date.parse(b.occurredAt ?? "") - Date.parse(a.occurredAt ?? ""));
   },
 };

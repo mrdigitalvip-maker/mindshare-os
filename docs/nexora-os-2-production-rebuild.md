@@ -164,3 +164,9 @@ This sequence keeps every connected-branch commit runnable and prevents decorati
 - **Mobile:** toolbars scroll horizontally, dialogs cap viewport height, editors use bounded reading widths, and responsive grids collapse to one column.
 - **Limitations:** attachments remain unavailable because `files` has neither a `document_id` relationship nor a verified Storage contract. Study session date is the persisted creation timestamp. AI responses are intentionally not persisted without an explicit contract.
 - **Validation:** lint, typecheck, production build, aggregate check, and whitespace validation are run as release checks.
+
+## PHASE 3 ENGAGEMENT DELIVERY
+
+Phase 3 adds the persisted Studio catalog and owner-scoped learning state, timezone-aware atomic lesson completion, daily goals, streaks, XP and six bounded achievements. It adds Language Lab onboarding for four languages, AI Academy, Creator Growth and a direct Content Studio handoff. Dashboard navigation and global search include Studio.
+
+Web Push now has owner-scoped subscription/preferences/dedupe schema, explicit opt-in registration, same-origin click handling, VAPID delivery and a conservative server-side scheduled reminder coordinator. AI usage has an idempotent prompt-free ledger and real Settings meters, with subscription eligibility sourced only from active, unexpired `public.subscriptions` rows. See `nexora-studio.md`, `push-notifications.md`, and `ai-usage-and-entitlements.md` for deployment requirements and stated limitations.
