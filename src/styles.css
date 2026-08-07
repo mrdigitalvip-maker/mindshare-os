@@ -170,6 +170,13 @@
     line-height: 1.6;
   }
 
+  html,
+  body,
+  #root {
+    min-height: 100%;
+    min-height: 100dvh;
+  }
+
   body {
     background-image: var(--gradient-hero);
     background-attachment: fixed;

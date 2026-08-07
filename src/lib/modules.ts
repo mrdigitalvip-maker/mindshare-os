@@ -11,6 +11,7 @@ import {
   Settings,
   LayoutDashboard,
   Crown,
+  Search,
   type LucideIcon,
 } from "lucide-react";
 
@@ -21,7 +22,7 @@ export type NexoraModule = {
   icon: LucideIcon;
   description: string;
   group: "core" | "modules" | "system";
-  category: "principal" | "work" | "personal" | "account";
+  category: "main" | "workspace" | "growth" | "intelligence" | "money" | "account";
   premium?: boolean;
 };
 
@@ -33,7 +34,7 @@ export const MODULES: NexoraModule[] = [
     icon: LayoutDashboard,
     description: "Your daily overview",
     group: "core",
-    category: "principal",
+    category: "main",
   },
   {
     id: "assistant",
@@ -42,7 +43,16 @@ export const MODULES: NexoraModule[] = [
     icon: Sparkles,
     description: "Talk to your AI",
     group: "core",
-    category: "principal",
+    category: "main",
+  },
+  {
+    id: "search",
+    label: "Search",
+    path: "/search",
+    icon: Search,
+    description: "Search across your workspace",
+    group: "core",
+    category: "main",
   },
   {
     id: "projects",
@@ -51,7 +61,7 @@ export const MODULES: NexoraModule[] = [
     icon: FolderKanban,
     description: "Plan and ship your work",
     group: "modules",
-    category: "work",
+    category: "workspace",
   },
   {
     id: "productivity",
@@ -60,7 +70,7 @@ export const MODULES: NexoraModule[] = [
     icon: ListChecks,
     description: "Tasks, focus, calendar",
     group: "modules",
-    category: "work",
+    category: "workspace",
   },
   {
     id: "studies",
@@ -69,7 +79,7 @@ export const MODULES: NexoraModule[] = [
     icon: GraduationCap,
     description: "Learn faster with AI",
     group: "modules",
-    category: "personal",
+    category: "growth",
   },
   {
     id: "finance",
@@ -78,8 +88,7 @@ export const MODULES: NexoraModule[] = [
     icon: Wallet,
     description: "Track and plan money",
     group: "modules",
-    category: "personal",
-    premium: true,
+    category: "money",
   },
   {
     id: "content",
@@ -88,7 +97,7 @@ export const MODULES: NexoraModule[] = [
     icon: PenLine,
     description: "Write, edit, publish",
     group: "modules",
-    category: "work",
+    category: "workspace",
   },
   {
     id: "translate",
@@ -97,7 +106,7 @@ export const MODULES: NexoraModule[] = [
     icon: Languages,
     description: "Multilingual, instant",
     group: "modules",
-    category: "personal",
+    category: "growth",
   },
   {
     id: "documents",
@@ -106,7 +115,7 @@ export const MODULES: NexoraModule[] = [
     icon: FileText,
     description: "Read, summarize, ask",
     group: "modules",
-    category: "work",
+    category: "workspace",
   },
   {
     id: "agents",
@@ -115,7 +124,7 @@ export const MODULES: NexoraModule[] = [
     icon: Bot,
     description: "Custom AI agents",
     group: "modules",
-    category: "personal",
+    category: "intelligence",
     premium: true,
   },
   {
