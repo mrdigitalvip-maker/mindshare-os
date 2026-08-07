@@ -68,18 +68,18 @@ Web Push is **blocked by missing backend contracts**, not by UI. Production impl
 
 ## TWA and Digital Asset Links diagnosis
 
-The repository statement matches package `app.vercel.nexora_os_eosin.twa` and fingerprint `24:11:49:B1:2D:2C:07:5A:E9:00:D8:36:A9:BB:5F:7F:BA:9F:F9:43:71:28:21:70:13:B5:BA:01:96:CD:BF:CD`. The manifest uses `start_url: /dashboard`, scope `/` and standalone display. `minimal-ui` and `window-controls-overlay` were removed from display fallbacks because they can deliberately expose browser/window chrome; standalone is now the primary supported mode.
+The repository statement names package `app.vercel.nexora_os_eosin.twa` and records fingerprint `24:11:49:B1:2D:2C:07:5A:E9:00:D8:36:A9:BB:5F:7F:BA:9F:F9:43:71:28:21:70:13:B5:BA:01:96:CD:BF:CD`. Its syntax is valid, but the repository alone cannot prove that it is the Google Play App Signing certificate. Compare it with **Play Console → App integrity / Integridade do app → App signing key certificate → SHA-256** before release. The manifest uses `start_url: /dashboard`, scope `/` and standalone display. `minimal-ui` and `window-controls-overlay` were removed from display fallbacks because they can deliberately expose browser/window chrome; standalone is now the primary supported mode.
 
 Repository inspection alone cannot establish the deployed response. Release validation must run:
 
 ```bash
-curl -i https://<production-origin>/.well-known/assetlinks.json
-curl -i https://<production-origin>/manifest.webmanifest
+curl -i https://nexora.app/.well-known/assetlinks.json
+curl -i https://nexora.app/manifest.webmanifest
 ```
 
 The asset statement must return `200`, `Content-Type: application/json`, no redirect, and the exact package/fingerprint. The Android wrapper origin, manifest origin, OAuth production origin and Play listing must agree. Then verify with the Google Digital Asset Links API and Android `adb shell pm get-app-links <package>`.
 
-If deployed files verify but browser chrome persists, the published wrapper is likely stale or targets a different origin. Generate and upload a new signed AAB using the unchanged package ID and Play App Signing configuration; do not alter the fingerprint merely to silence verification.
+No Android/Gradle/Bubblewrap/PWABuilder project is present in this repository, so its installed `defaultUrl`, host, intent filter, fallback, and signing identity cannot be audited here. If deployed files verify but browser chrome persists, inspect the existing published wrapper for a stale/different origin and verify the delivered certificate. A future wrapper update must retain the unchanged package ID and Play App Signing configuration; do not alter the fingerprint merely to silence verification.
 
 ## Security and migration policy
 
