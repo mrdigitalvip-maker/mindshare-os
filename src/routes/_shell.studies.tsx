@@ -1,74 +1,80 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { GraduationCap, BookOpen, Brain, Plus } from "lucide-react";
-import { toast } from "sonner";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { PageShell, PageHeader } from "@/components/page-shell";
+import { BookOpen, Plus } from "lucide-react";
+import { toast } from "sonner";
+import { EmptyState, PageHeader, PageShell } from "@/components/page-shell";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { StudyService, workspaceQueryKeys } from "@/services";
-
-export const Route = createFileRoute("/_shell/studies")({
-  head: () => ({ meta: [{ title: "Studies — NEXORA" }] }),
-  component: Studies,
-});
-
+export const Route = createFileRoute("/_shell/studies")({ component: Studies });
 function Studies() {
-  const queryClient = useQueryClient();
-  const { data: plans = [] } = useQuery({
-    queryKey: workspaceQueryKeys.studies,
-    queryFn: () => StudyService.listPlans(),
-  });
-  const averageProgress = Math.round(
-    plans.reduce((total, plan) => total + plan.progress, 0) / Math.max(plans.length, 1),
-  );
-  const createMutation = useMutation({
-    mutationFn: () => StudyService.createPlan(),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: workspaceQueryKeys.studies });
-      toast.success("Study plan created");
+  const nav = useNavigate();
+  const client = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const plans = useQuery({ queryKey: workspaceQueryKeys.studies, queryFn: StudyService.listPlans });
+  const [name, setName] = useState("");
+  const [color, setColor] = useState("#8b5cf6");
+  const create = useMutation({
+    mutationFn: () => StudyService.createSubject({ name: name.trim(), color }),
+    onSuccess: async (s) => {
+      await client.invalidateQueries({ queryKey: workspaceQueryKeys.studies });
+      setOpen(false);
+      nav({ to: "/studies/$subjectId", params: { subjectId: s.id } });
     },
-    onError: (error: Error) => toast.error(error.message || "Unable to create study plan"),
+    onError: (e: Error) => toast.error(e.message),
   });
-
-  function addPlan() {
-    createMutation.mutate();
-  }
-
   return (
     <PageShell>
       <PageHeader
-        eyebrow="Modules"
+        eyebrow="Learning"
         title="Studies"
-        description="Learn faster with AI-guided study sessions."
+        description="Subjects, real study sessions and AI assistance."
         actions={
-          <Button className="rounded-full" onClick={addPlan}>
-            <Plus className="mr-1 h-4 w-4" /> New plan
+          <Button onClick={() => setOpen(true)}>
+            <Plus />
+            New subject
           </Button>
         }
       />
-      <div className="mt-8 grid gap-4 md:grid-cols-3">
-        {[
-          { icon: BookOpen, title: "Study plans", copy: `${plans.length} active` },
-          { icon: Brain, title: "Flashcards", copy: "Smart spaced repetition" },
-          { icon: GraduationCap, title: "Progress", copy: `${averageProgress}% average` },
-        ].map((card) => (
-          <div key={card.title} className="glass rounded-2xl p-6">
-            <card.icon className="h-5 w-5 text-gold" />
-            <h3 className="mt-3 font-display text-xl">{card.title}</h3>
-            <p className="mt-1 text-sm text-muted-foreground">{card.copy}</p>
-          </div>
-        ))}
-      </div>
-      <div className="mt-6 grid gap-4 md:grid-cols-2">
-        {plans.map((plan) => (
-          <article key={plan.id} className="glass rounded-2xl p-5">
-            <h3 className="font-display text-xl">{plan.title}</h3>
-            <p className="mt-1 text-sm text-muted-foreground">Next session: {plan.nextSession}</p>
-            <div className="mt-4 h-2 rounded-full bg-surface">
-              <div className="h-full rounded-full bg-gold" style={{ width: `${plan.progress}%` }} />
-            </div>
-          </article>
-        ))}
-      </div>
+      {!plans.isLoading && !plans.data?.length ? (
+        <EmptyState
+          icon={BookOpen}
+          title="No subjects yet"
+          description="Create a subject, then record sessions in its workspace."
+        />
+      ) : (
+        <div className="mt-7 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {plans.data?.map((p) => (
+            <button
+              key={p.id}
+              className="glass rounded-2xl p-5 text-left"
+              onClick={() => nav({ to: "/studies/$subjectId", params: { subjectId: p.id } })}
+            >
+              <h2 className="text-xl font-semibold">{p.title}</h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {p.progress}% of recorded sessions completed
+              </p>
+            </button>
+          ))}
+        </div>
+      )}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>New subject</DialogTitle>
+          </DialogHeader>
+          <Label>Name</Label>
+          <Input value={name} onChange={(e) => setName(e.target.value)} />
+          <Label>Color</Label>
+          <Input type="color" value={color} onChange={(e) => setColor(e.target.value)} />
+          <Button disabled={!name.trim() || create.isPending} onClick={() => create.mutate()}>
+            Create and open
+          </Button>
+        </DialogContent>
+      </Dialog>
     </PageShell>
   );
 }

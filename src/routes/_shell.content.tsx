@@ -1,71 +1,173 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { PenLine, Wand2, FileText, Plus } from "lucide-react";
-import { toast } from "sonner";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { PageShell, PageHeader } from "@/components/page-shell";
+import { FileText, Plus, Search } from "lucide-react";
+import { toast } from "sonner";
+import { EmptyState, PageHeader, PageShell } from "@/components/page-shell";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { ContentService, workspaceQueryKeys } from "@/services";
-
-export const Route = createFileRoute("/_shell/content")({
-  head: () => ({ meta: [{ title: "Content — NEXORA" }] }),
-  component: Content,
-});
-
+export const Route = createFileRoute("/_shell/content")({ component: Content });
+const formats = ["Social Post", "Email", "Article", "Script", "Ad Copy", "Description"];
 function Content() {
-  const queryClient = useQueryClient();
-  const { data: drafts = [] } = useQuery({
+  const navigate = useNavigate();
+  const client = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const drafts = useQuery({
     queryKey: workspaceQueryKeys.content,
-    queryFn: () => ContentService.listDrafts(),
+    queryFn: ContentService.listDrafts,
   });
-  const createMutation = useMutation({
-    mutationFn: () => ContentService.createDraft(),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: workspaceQueryKeys.content });
-      toast.success("Draft created");
-    },
-    onError: (error: Error) => toast.error(error.message || "Unable to create draft"),
-  });
-
-  function addDraft() {
-    createMutation.mutate();
-  }
-
+  const visible = useMemo(
+    () =>
+      (drafts.data ?? []).filter((d) =>
+        `${d.title} ${d.body}`.toLowerCase().includes(search.toLowerCase()),
+      ),
+    [drafts.data, search],
+  );
   return (
     <PageShell>
       <PageHeader
-        eyebrow="Modules"
-        title="Content"
-        description="Draft, edit and publish across formats and channels."
+        eyebrow="Editorial workspace"
+        title="Content Studio"
+        description="Create, generate and refine drafts without losing your original."
         actions={
-          <Button className="rounded-full" onClick={addDraft}>
-            <Plus className="mr-1 h-4 w-4" /> New draft
+          <Button onClick={() => setOpen(true)}>
+            <Plus />
+            Create content
           </Button>
         }
       />
-      <div className="mt-8 grid gap-4 md:grid-cols-3">
-        {[
-          { icon: PenLine, title: "Drafts", copy: `${drafts.length} saved` },
-          { icon: Wand2, title: "Rewrite", copy: "Refine your voice" },
-          { icon: FileText, title: "Templates", copy: "Post, email, script" },
-        ].map((card) => (
-          <div key={card.title} className="glass rounded-2xl p-6">
-            <card.icon className="h-5 w-5 text-gold" />
-            <h3 className="mt-3 font-display text-xl">{card.title}</h3>
-            <p className="mt-1 text-sm text-muted-foreground">{card.copy}</p>
-          </div>
-        ))}
+      <div className="relative mt-6">
+        <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+        <Input
+          className="pl-9"
+          placeholder="Search drafts"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
       </div>
-      <div className="mt-6 grid gap-4 md:grid-cols-2">
-        {drafts.map((draft) => (
-          <article key={draft.id} className="glass rounded-2xl p-5">
-            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-              {draft.format}
-            </p>
-            <h3 className="mt-2 font-display text-xl">{draft.title}</h3>
-            <p className="mt-3 text-sm text-muted-foreground">{draft.body}</p>
-          </article>
-        ))}
-      </div>
+      {!drafts.isLoading && !visible.length ? (
+        <EmptyState
+          icon={FileText}
+          title="No drafts found"
+          description="Create a structured draft to open the editorial workspace."
+          action={<Button onClick={() => setOpen(true)}>Create content</Button>}
+        />
+      ) : (
+        <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {visible.map((d) => (
+            <button
+              key={d.id}
+              onClick={() => navigate({ to: "/content/$contentId", params: { contentId: d.id } })}
+              className="glass min-w-0 rounded-2xl p-5 text-left"
+            >
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">Draft</p>
+              <h2 className="mt-2 truncate text-lg font-semibold">{d.title}</h2>
+              <p className="mt-3 line-clamp-3 text-sm text-muted-foreground">
+                {d.body || "Empty draft"}
+              </p>
+            </button>
+          ))}
+        </div>
+      )}
+      <CreateDialog
+        open={open}
+        close={() => setOpen(false)}
+        created={async (id) => {
+          await client.invalidateQueries({ queryKey: workspaceQueryKeys.content });
+          setOpen(false);
+          navigate({ to: "/content/$contentId", params: { contentId: id } });
+        }}
+      />
     </PageShell>
+  );
+}
+function CreateDialog({
+  open,
+  close,
+  created,
+}: {
+  open: boolean;
+  close: () => void;
+  created: (id: string) => void;
+}) {
+  const [format, setFormat] = useState(formats[0]);
+  const [topic, setTopic] = useState("");
+  const [objective, setObjective] = useState("");
+  const [audience, setAudience] = useState("");
+  const [tone, setTone] = useState("");
+  const [context, setContext] = useState("");
+  const create = useMutation({
+    mutationFn: () =>
+      ContentService.createDraft({
+        title: topic.trim(),
+        body: [
+          `Format: ${format}`,
+          objective && `Objective: ${objective}`,
+          audience && `Audience: ${audience}`,
+          tone && `Tone: ${tone}`,
+          context && `Context: ${context}`,
+        ]
+          .filter(Boolean)
+          .join("\n"),
+      }),
+    onSuccess: (d) => created(d.id),
+    onError: (e: Error) => toast.error(e.message),
+  });
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && close()}>
+      <DialogContent className="max-h-[90dvh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Create content</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <Field label="Content type">
+            <select
+              className="h-11 w-full rounded-md border bg-background px-3"
+              value={format}
+              onChange={(e) => setFormat(e.target.value)}
+            >
+              {formats.map((f) => (
+                <option key={f}>{f}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Topic">
+            <Input value={topic} onChange={(e) => setTopic(e.target.value)} />
+          </Field>
+          <Field label="Objective">
+            <Input value={objective} onChange={(e) => setObjective(e.target.value)} />
+          </Field>
+          <Field label="Audience">
+            <Input value={audience} onChange={(e) => setAudience(e.target.value)} />
+          </Field>
+          <Field label="Tone">
+            <Input value={tone} onChange={(e) => setTone(e.target.value)} />
+          </Field>
+          <Field label="Additional context">
+            <Textarea value={context} onChange={(e) => setContext(e.target.value)} />
+          </Field>
+          <Button
+            className="w-full"
+            disabled={!topic.trim() || create.isPending}
+            onClick={() => create.mutate()}
+          >
+            {create.isPending ? "Creating…" : "Create draft"}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <Label className="mb-1">{label}</Label>
+      {children}
+    </div>
   );
 }

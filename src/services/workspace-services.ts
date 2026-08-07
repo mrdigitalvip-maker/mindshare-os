@@ -381,6 +381,18 @@ function mapDocument(row: DocumentRow): Document {
 }
 
 export const DocumentService = {
+  async get(id: string): Promise<Document | null> {
+    if (DEMO_MODE) return readMockDatabase().documents.find((item) => item.id === id) ?? null;
+    const userId = await getRequiredUserId();
+    const { data, error } = await supabase
+      .from("documents")
+      .select("id, title, content, type, created_at, updated_at, user_id")
+      .eq("id", id)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error) throw error;
+    return data ? mapDocument(data) : null;
+  },
   async list(): Promise<Document[]> {
     if (DEMO_MODE) {
       await delay();
@@ -395,7 +407,7 @@ export const DocumentService = {
     if (error) throw error;
     return (data ?? []).map(mapDocument);
   },
-  async createUploadRecord(title?: string, fileType?: string): Promise<Document> {
+  async createUploadRecord(title?: string, fileType?: string, content = ""): Promise<Document> {
     if (DEMO_MODE) {
       await delay();
       let created!: Document;
@@ -415,19 +427,28 @@ export const DocumentService = {
     const cleanTitle = title?.trim() || "Uploaded note";
     const { data, error } = await supabase
       .from("documents")
-      .insert({ user_id: userId, title: cleanTitle, type: fileType ?? "Note" })
+      .insert({ user_id: userId, title: cleanTitle, type: fileType ?? "Note", content })
       .select("id, title, content, type, created_at, updated_at, user_id")
       .single();
     if (error) throw error;
     return mapDocument(data);
   },
-  async update(id: string, patch: { title?: string; file_type?: string }): Promise<void> {
+  async update(
+    id: string,
+    patch: { title?: string; file_type?: string; content?: string },
+  ): Promise<void> {
     if (DEMO_MODE) {
       updateMockDatabase((db) => ({
         ...db,
         documents: db.documents.map((item) =>
           item.id === id
-            ? { ...item, title: patch.title ?? item.title, type: patch.file_type ?? item.type }
+            ? {
+                ...item,
+                title: patch.title ?? item.title,
+                type: patch.file_type ?? item.type,
+                summary: patch.content ?? item.summary,
+                updatedAt: new Date().toISOString(),
+              }
             : item,
         ),
       }));
@@ -436,7 +457,12 @@ export const DocumentService = {
     const userId = await getRequiredUserId();
     const { error } = await supabase
       .from("documents")
-      .update({ title: patch.title, type: patch.file_type, updated_at: new Date().toISOString() })
+      .update({
+        title: patch.title,
+        type: patch.file_type,
+        content: patch.content,
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", id)
       .eq("user_id", userId);
     if (error) throw error;
@@ -535,7 +561,14 @@ export const ContentService = {
       body: row.content ?? "",
     }));
   },
-  async createDraft(): Promise<ContentDraft> {
+  async getDraft(id: string): Promise<ContentDraft | null> {
+    return (await this.listDrafts()).find((draft) => draft.id === id) ?? null;
+  },
+  async createDraft(input?: {
+    title?: string;
+    body?: string;
+    format?: string;
+  }): Promise<ContentDraft> {
     if (DEMO_MODE) {
       await delay();
       let created!: ContentDraft;
@@ -553,7 +586,12 @@ export const ContentService = {
     const userId = await getRequiredUserId();
     const { data, error } = await supabase
       .from("documents")
-      .insert({ user_id: userId, title: "New draft", type: "draft", content: "" })
+      .insert({
+        user_id: userId,
+        title: input?.title?.trim() || "New draft",
+        type: "draft",
+        content: input?.body ?? "",
+      })
       .select("id, title, content, type")
       .single();
     if (error) throw error;
@@ -624,6 +662,12 @@ export const StudyService = {
       .order("created_at", { ascending: false });
     if (error) throw error;
     return data ?? [];
+  },
+  async getSubject(id: string): Promise<StudySubjectRow | null> {
+    return (await this.listSubjects()).find((subject) => subject.id === id) ?? null;
+  },
+  async listSubjectSessions(id: string): Promise<StudySessionRow[]> {
+    return (await this.listHistory()).filter((session) => session.subject_id === id);
   },
   async listPlans(): Promise<StudyPlan[]> {
     if (DEMO_MODE) {
@@ -733,6 +777,12 @@ export const FinanceService = {
     if (error) throw error;
     return data ?? [];
   },
+  async getAccount(id: string): Promise<FinanceAccountRow | null> {
+    return (await this.listAccounts()).find((account) => account.id === id) ?? null;
+  },
+  async listAccountTransactions(id: string): Promise<FinanceTransactionRow[]> {
+    return (await this.listTransactions()).filter((transaction) => transaction.account_id === id);
+  },
   async listGoals(): Promise<FinanceGoal[]> {
     if (DEMO_MODE) {
       await delay();
@@ -835,18 +885,17 @@ export const FinanceService = {
     if (error) throw error;
   },
   async getSummary(): Promise<{ balance: number; income: number; expenses: number }> {
-    const [accounts, transactions] = await Promise.all([
-      this.listAccounts(),
-      this.listTransactions(),
-    ]);
+    const transactions = await this.listTransactions();
+    const income = transactions
+      .filter((item) => item.type === "income")
+      .reduce((total, item) => total + (item.amount ?? 0), 0);
+    const expenses = transactions
+      .filter((item) => item.type === "expense")
+      .reduce((total, item) => total + (item.amount ?? 0), 0);
     return {
-      balance: accounts.reduce((total, account) => total + (account.balance ?? 0), 0),
-      income: transactions
-        .filter((item) => item.type === "income")
-        .reduce((total, item) => total + (item.amount ?? 0), 0),
-      expenses: transactions
-        .filter((item) => item.type === "expense")
-        .reduce((total, item) => total + (item.amount ?? 0), 0),
+      balance: income - expenses,
+      income,
+      expenses,
     };
   },
 };
