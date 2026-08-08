@@ -239,6 +239,322 @@
   color: transparent;
 }
 
+/* LookSpace game surface */
+.game-void,
+.lookspace-game {
+  position: fixed;
+  inset: 0;
+  background: #02040a;
+  color: #eaf6ff;
+  overflow: hidden;
+  touch-action: none;
+  font-family: Inter, system-ui, sans-serif;
+}
+.space-canvas {
+  position: absolute;
+  inset: 0;
+}
+.game-entry {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 50% 48%, transparent, rgba(0, 0, 0, 0.58));
+  letter-spacing: 0.28em;
+  transition: opacity 0.7s;
+}
+.orbit-logo {
+  position: relative;
+  width: min(78vw, 580px);
+  height: 120px;
+  display: grid;
+  place-items: center;
+}
+.orbit-logo i {
+  position: absolute;
+  width: 90px;
+  height: 90px;
+  border: 1px solid rgba(109, 210, 255, 0.55);
+  border-radius: 50%;
+  box-shadow: 0 0 40px rgba(67, 167, 255, 0.23);
+  animation: orbit 7s linear infinite;
+}
+.orbit-logo i:after {
+  content: "";
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  background: #bcecff;
+  border-radius: 50%;
+  top: 8px;
+  left: 10px;
+  box-shadow: 0 0 12px #8de4ff;
+}
+.orbit-logo b {
+  font-size: clamp(2rem, 7vw, 5.4rem);
+  font-weight: 300;
+  letter-spacing: 0.12em;
+  text-shadow: 0 0 36px rgba(150, 220, 255, 0.28);
+  animation: reveal 1.8s ease both;
+}
+.orbit-logo b span {
+  color: #7edfff;
+  font-weight: 600;
+}
+.game-entry > p {
+  font-size: 0.65rem;
+  color: #7d9aac;
+  margin-top: 24px;
+}
+.telemetry {
+  width: min(76vw, 410px);
+  margin-top: 40px;
+  color: #7890a0;
+  font-size: 0.55rem;
+}
+.telemetry > div {
+  height: 1px;
+  background: #263742;
+  margin: 11px 0;
+}
+.telemetry i {
+  height: 1px;
+  display: block;
+  background: #8ce7ff;
+  box-shadow: 0 0 9px #50caff;
+  transition: width 0.2s;
+}
+.telemetry small {
+  display: flex;
+  justify-content: flex-end;
+}
+.game-entry button,
+.pause-menu button {
+  border: 1px solid rgba(139, 226, 255, 0.55);
+  background: rgba(4, 15, 25, 0.72);
+  color: #dff9ff;
+  padding: 14px 24px;
+  margin-top: 35px;
+  letter-spacing: 0.22em;
+  font-size: 0.68rem;
+  cursor: pointer;
+  box-shadow: 0 0 25px rgba(58, 188, 255, 0.1);
+}
+.game-hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+}
+.hud-panel {
+  position: absolute;
+  padding: 14px 16px;
+  border-left: 1px solid rgba(111, 219, 255, 0.45);
+  background: linear-gradient(90deg, rgba(4, 12, 21, 0.68), transparent);
+  text-shadow: 0 1px 4px #000;
+}
+.hud-panel small {
+  color: #7697a8;
+  font-size: 0.56rem;
+}
+.hud-panel strong {
+  display: block;
+  font-size: 0.78rem;
+  margin: 4px 0;
+}
+.hud-profile {
+  top: max(22px, env(safe-area-inset-top));
+  left: max(20px, env(safe-area-inset-left));
+  width: 190px;
+}
+.xp {
+  height: 2px;
+  background: #263641;
+  margin: 8px 0;
+}
+.xp i {
+  display: block;
+  height: 100%;
+  background: #74dcff;
+  box-shadow: 0 0 7px #74dcff;
+}
+.hud-location {
+  bottom: max(42px, env(safe-area-inset-bottom));
+  left: max(20px, env(safe-area-inset-left));
+  width: 260px;
+}
+.hud-location span {
+  display: block;
+  color: #7c9aac;
+  margin-top: 5px;
+  font-size: 0.6rem;
+}
+.hud-status {
+  right: max(20px, env(safe-area-inset-right));
+  top: max(22px, env(safe-area-inset-top));
+  text-align: right;
+  border-left: 0;
+  border-right: 1px solid rgba(111, 219, 255, 0.45);
+  background: linear-gradient(270deg, rgba(4, 12, 21, 0.68), transparent);
+}
+.online {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #5affb2;
+  box-shadow: 0 0 8px #5affb2;
+}
+.crosshair {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  font-size: 28px;
+  color: #9ee7ff;
+}
+.controls-hint {
+  position: absolute;
+  bottom: 14px;
+  width: 100%;
+  text-align: center;
+  color: #5e7787;
+  font-size: 0.52rem;
+}
+.camera-switch {
+  pointer-events: auto;
+  position: absolute;
+  right: 20px;
+  bottom: 35px;
+  color: #7096a9;
+  background: none;
+  border: 0;
+  font-size: 0.55rem;
+  letter-spacing: 0.12em;
+}
+.interaction-prompt {
+  position: absolute;
+  left: 50%;
+  bottom: 28%;
+  transform: translateX(-50%);
+  border: 1px solid rgba(126, 223, 255, 0.35);
+  background: rgba(1, 8, 15, 0.8);
+  padding: 9px 16px;
+  color: #9eeaff;
+}
+.mobile-controls {
+  display: none;
+}
+.pause-menu {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 4, 9, 0.82);
+  backdrop-filter: blur(7px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: 0.25em;
+}
+.pause-menu h2 {
+  font-size: 3rem;
+  font-weight: 300;
+  margin: 10px;
+}
+.pause-menu p {
+  font-size: 0.55rem;
+  color: #708895;
+  margin-top: 20px;
+}
+@keyframes orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes reveal {
+  from {
+    opacity: 0;
+    filter: blur(12px);
+    letter-spacing: 0.3em;
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+@media (pointer: coarse), (max-width: 700px) {
+  .controls-hint,
+  .camera-switch {
+    display: none;
+  }
+  .hud-profile {
+    width: 150px;
+  }
+  .hud-location {
+    bottom: 125px;
+    width: 210px;
+  }
+  .mobile-controls {
+    display: block;
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+  .joystick {
+    pointer-events: auto;
+    position: absolute;
+    left: max(22px, env(safe-area-inset-left));
+    bottom: max(28px, env(safe-area-inset-bottom));
+    width: 82px;
+    height: 82px;
+    border: 1px solid rgba(123, 213, 255, 0.28);
+    border-radius: 50%;
+    background: rgba(9, 25, 38, 0.28);
+  }
+  .joystick i {
+    position: absolute;
+    width: 34px;
+    height: 34px;
+    border: 1px solid rgba(132, 222, 255, 0.45);
+    border-radius: 50%;
+    left: 23px;
+    top: 23px;
+  }
+  .mobile-controls button {
+    pointer-events: auto;
+    position: absolute;
+    right: max(26px, env(safe-area-inset-right));
+    bottom: max(32px, env(safe-area-inset-bottom));
+    width: 55px;
+    height: 55px;
+    border: 1px solid rgba(124, 220, 255, 0.36);
+    border-radius: 50%;
+    color: #bdefff;
+    background: rgba(5, 19, 30, 0.45);
+  }
+  .mobile-controls button:last-child {
+    top: max(82px, env(safe-area-inset-top));
+    bottom: auto;
+    width: 39px;
+    height: 39px;
+  }
+  .touch-look {
+    position: absolute;
+    right: 22%;
+    bottom: 55px;
+    color: #547181;
+    font-size: 0.45rem;
+    letter-spacing: 0.15em;
+  }
+  .hud-status {
+    font-size: 0.55rem;
+  }
+  .interaction-prompt {
+    bottom: 35%;
+  }
+}
+
 @utility scrollbar-hidden {
   scrollbar-width: none;
   &::-webkit-scrollbar {
