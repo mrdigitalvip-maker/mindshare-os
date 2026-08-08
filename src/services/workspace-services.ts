@@ -209,12 +209,15 @@ export const ProjectService = {
         : {}),
       updated_at: new Date().toISOString(),
     };
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("projects")
       .update(update)
       .eq("id", id)
-      .eq("user_id", userId);
+      .eq("user_id", userId)
+      .select("id")
+      .maybeSingle();
     if (error) throw error;
+    if (!data) throw new Error("Projeto não encontrado ou sem permissão para editar.");
   },
   async remove(id: string): Promise<void> {
     if (DEMO_MODE) {
@@ -225,8 +228,15 @@ export const ProjectService = {
       return;
     }
     const userId = await getRequiredUserId();
-    const { error } = await supabase.from("projects").delete().eq("id", id).eq("user_id", userId);
+    const { data, error } = await supabase
+      .from("projects")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", userId)
+      .select("id")
+      .maybeSingle();
     if (error) throw error;
+    if (!data) throw new Error("Projeto não encontrado ou sem permissão para excluir.");
   },
   async get(id: string): Promise<Project | null> {
     return (await this.list()).find((project) => project.id === id) ?? null;
@@ -335,12 +345,15 @@ export const ProductivityService = {
         .eq("user_id", userId)
         .single();
       if (readError) throw readError;
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("tasks")
         .update({ completed: !current.completed, updated_at: new Date().toISOString() })
         .eq("id", id)
-        .eq("user_id", userId);
+        .eq("user_id", userId)
+        .select("id")
+        .maybeSingle();
       if (error) throw error;
+      if (!data) throw new Error("Tarefa não encontrada ou sem permissão para atualizar.");
       return this.listTasks();
     }
     await delay();
@@ -389,12 +402,15 @@ export const ProductivityService = {
       return;
     }
     const userId = await getRequiredUserId();
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("tasks")
       .update({ ...patch, updated_at: new Date().toISOString() })
       .eq("id", id)
-      .eq("user_id", userId);
+      .eq("user_id", userId)
+      .select("id")
+      .maybeSingle();
     if (error) throw error;
+    if (!data) throw new Error("Tarefa não encontrada ou sem permissão para editar.");
   },
   async removeTask(id: string): Promise<void> {
     if (DEMO_MODE) {
@@ -402,8 +418,15 @@ export const ProductivityService = {
       return;
     }
     const userId = await getRequiredUserId();
-    const { error } = await supabase.from("tasks").delete().eq("id", id).eq("user_id", userId);
+    const { data, error } = await supabase
+      .from("tasks")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", userId)
+      .select("id")
+      .maybeSingle();
     if (error) throw error;
+    if (!data) throw new Error("Tarefa não encontrada ou sem permissão para excluir.");
   },
 };
 

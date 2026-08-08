@@ -121,7 +121,7 @@ function ProjectWorkspace() {
   const nextDue = open
     .filter((item) => item.dueDate)
     .sort((a, b) => a.dueDate!.localeCompare(b.dueDate!))[0];
-  if (project.isLoading)
+  if (project.isLoading || tasks.isLoading)
     return (
       <PageShell>
         <div className="space-y-4" aria-label="Carregando projeto">
@@ -775,9 +775,9 @@ function TaskForm({
           projectId,
         });
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success(task ? "Tarefa atualizada" : "Tarefa criada");
-      saved();
+      await saved();
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -1004,8 +1004,13 @@ function PlanDialog({
       setSuggestions([]);
       close();
     },
-    onError: (e: Error) =>
-      toast.error(`${e.message}. Verifique as tarefas visíveis antes de tentar novamente.`),
+    onError: async (e: Error) => {
+      // A provider-independent insert can fail after an earlier selected item
+      // was persisted. Always reconcile the shared task repository so the
+      // workspace never hides a partial, real result behind stale cache data.
+      await refresh();
+      toast.error(`${e.message}. Confira as tarefas visíveis antes de tentar novamente.`);
+    },
   });
   return (
     <Dialog
