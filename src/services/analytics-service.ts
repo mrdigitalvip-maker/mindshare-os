@@ -17,6 +17,22 @@ export type DashboardProject = {
   updatedAt: string;
 };
 
+export type DashboardTask = {
+  id: string;
+  title: string;
+  dueAt: string;
+  projectId: string | null;
+  overdue: boolean;
+};
+
+export type DashboardContinuation = {
+  id: string;
+  title: string;
+  detail: string;
+  path: string;
+  occurredAt: string;
+};
+
 export type DashboardSnapshot = {
   projects: { total: number; active: number; completed: number };
   tasks: { pending: number; completed: number };
@@ -30,6 +46,8 @@ export type DashboardSnapshot = {
   notifications: { unread: number };
   recentProjects: DashboardProject[];
   recentActivity: DashboardActivity[];
+  todayTasks: DashboardTask[];
+  continuations: DashboardContinuation[];
 };
 
 const emptySnapshot = (): DashboardSnapshot => ({
@@ -45,6 +63,8 @@ const emptySnapshot = (): DashboardSnapshot => ({
   notifications: { unread: 0 },
   recentProjects: [],
   recentActivity: [],
+  todayTasks: [],
+  continuations: [],
 });
 
 function demoSnapshot(): DashboardSnapshot {
@@ -78,7 +98,7 @@ export const AnalyticsService = {
         .eq("user_id", userId),
       supabase
         .from("tasks")
-        .select("id, title, completed, created_at, updated_at")
+        .select("id, title, project_id, due_date, completed, created_at, updated_at")
         .eq("user_id", userId),
       supabase
         .from("documents")
@@ -221,6 +241,53 @@ export const AnalyticsService = {
           updatedAt: item.updated_at ?? item.created_at ?? "",
         })),
       recentActivity: activities,
+      todayTasks: tasks
+        .filter((item) => !item.completed && item.due_date)
+        .filter((item) => new Date(item.due_date as string).getTime() < endOfToday())
+        .sort((a, b) => Date.parse(a.due_date as string) - Date.parse(b.due_date as string))
+        .slice(0, 6)
+        .map((item) => ({
+          id: item.id,
+          title: item.title,
+          dueAt: item.due_date as string,
+          projectId: item.project_id,
+          overdue: Date.parse(item.due_date as string) < startOfToday(),
+        })),
+      continuations: [
+        ...projects.map((item) => ({
+          id: `project-${item.id}`,
+          title: item.title,
+          detail: "Project",
+          path: `/projects/${item.id}`,
+          occurredAt: item.updated_at ?? item.created_at ?? "",
+        })),
+        ...(documentsResult.data ?? []).map((item) => ({
+          id: `document-${item.id}`,
+          title: item.title ?? "Untitled document",
+          detail: item.type === "draft" ? "Content draft" : "Document",
+          path: item.type === "draft" ? `/content/${item.id}` : `/documents/${item.id}`,
+          occurredAt: item.updated_at ?? item.created_at ?? "",
+        })),
+        ...(conversationsResult.data ?? []).map((item) => ({
+          id: `conversation-${item.id}`,
+          title: item.title ?? "Untitled conversation",
+          detail: "Assistant conversation",
+          path: `/assistant?conversation=${item.id}`,
+          occurredAt: item.updated_at ?? item.created_at ?? "",
+        })),
+      ]
+        .filter((item) => item.occurredAt)
+        .sort((a, b) => Date.parse(b.occurredAt) - Date.parse(a.occurredAt))
+        .slice(0, 5),
     };
   },
 };
+
+function startOfToday() {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+}
+
+function endOfToday() {
+  return startOfToday() + 86_400_000;
+}

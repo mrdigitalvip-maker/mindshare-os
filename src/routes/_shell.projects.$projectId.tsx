@@ -103,9 +103,6 @@ function ProjectWorkspace() {
         <TabsList className="max-w-full justify-start overflow-x-auto">
           <TabsTrigger value="overview">Visão geral</TabsTrigger>
           <TabsTrigger value="tasks">Tarefas</TabsTrigger>
-          <TabsTrigger value="notes">Notas</TabsTrigger>
-          <TabsTrigger value="documents">Documentos</TabsTrigger>
-          <TabsTrigger value="activity">Atividade</TabsTrigger>
         </TabsList>
         <TabsContent value="overview">
           <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -129,6 +126,38 @@ function ProjectWorkspace() {
             <p className="mt-4 text-sm">
               Status: {p.status} · Prioridade: {p.priority}
             </p>
+            <div className="mt-5" aria-label={`Progresso do projeto: ${p.progress}%`}>
+              <div className="mb-2 flex justify-between text-xs text-muted-foreground">
+                <span>Progresso pelas tarefas</span>
+                <span>{p.progress}%</span>
+              </div>
+              <div
+                className="h-2 overflow-hidden rounded-full bg-surface-elevated"
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={p.progress}
+              >
+                <div
+                  className="h-full rounded-full bg-gold transition-[width]"
+                  style={{ width: `${p.progress}%` }}
+                />
+              </div>
+            </div>
+            <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-5">
+              <div>
+                <h3 className="text-sm font-medium">Próxima ação</h3>
+                <p className="text-sm text-muted-foreground">
+                  {(p.totalTasks ?? 0) > 0
+                    ? "Conclua ou ajuste a próxima tarefa aberta."
+                    : "Defina a primeira ação executável deste projeto."}
+                </p>
+              </div>
+              <Button onClick={() => setTask(null)}>
+                <Plus />
+                Adicionar tarefa
+              </Button>
+            </div>
           </div>
         </TabsContent>
         <TabsContent value="tasks">
@@ -166,15 +195,6 @@ function ProjectWorkspace() {
             ))}
           </div>
         </TabsContent>
-        {[
-          ["notes", "Notas", "As notas vinculadas ao projeto aparecerão aqui."],
-          ["documents", "Documentos", "Os documentos do projeto aparecerão aqui."],
-          ["activity", "Atividade", "Criações e alterações recentes aparecerão aqui."],
-        ].map(([v, t, d]) => (
-          <TabsContent value={v} key={v}>
-            <EmptyState icon={Pencil} title={t} description={d} />
-          </TabsContent>
-        ))}
       </Tabs>
       <TaskForm
         task={task}
