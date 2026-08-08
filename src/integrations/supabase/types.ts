@@ -621,7 +621,7 @@ export type Database = {
         Row: {
           id: string;
           user_id: string;
-          subject_id: string | null;
+          subject_id: string;
           title: string;
           target_value: number;
           current_value: number;
@@ -633,7 +633,7 @@ export type Database = {
         Insert: {
           id?: string;
           user_id: string;
-          subject_id?: string | null;
+          subject_id: string;
           title: string;
           target_value?: number;
           current_value?: number;
@@ -645,7 +645,7 @@ export type Database = {
         Update: {
           id?: string;
           user_id?: string;
-          subject_id?: string | null;
+          subject_id?: string;
           title?: string;
           target_value?: number;
           current_value?: number;
@@ -743,7 +743,7 @@ export type Database = {
           name: string | null;
           status: string;
           updated_at: string;
-          user_id: string | null;
+          user_id: string;
         };
         Insert: {
           color?: string | null;
@@ -753,7 +753,7 @@ export type Database = {
           name?: string | null;
           status?: string;
           updated_at?: string;
-          user_id?: string | null;
+          user_id: string;
         };
         Update: {
           color?: string | null;
@@ -763,7 +763,7 @@ export type Database = {
           name?: string | null;
           status?: string;
           updated_at?: string;
-          user_id?: string | null;
+          user_id?: string;
         };
         Relationships: [
           {

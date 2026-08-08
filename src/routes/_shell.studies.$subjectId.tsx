@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -59,6 +59,39 @@ function Workspace() {
     enabled: !!subject.data,
     retry: 1,
   });
+  const studySessions = Array.isArray(sessions.data) ? sessions.data : [];
+  const studyGoals = Array.isArray(goals.data) ? goals.data : [];
+  const studyNotes = Array.isArray(notes.data) ? notes.data : [];
+  const hasInvalidSecondaryData =
+    (sessions.data !== undefined && !Array.isArray(sessions.data)) ||
+    (goals.data !== undefined && !Array.isArray(goals.data)) ||
+    (notes.data !== undefined && !Array.isArray(notes.data));
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    if (subject.isError) console.error("[Studies] Subject query failed", subject.error);
+    if (sessions.isError) console.error("[Studies] Subject sessions query failed", sessions.error);
+    if (goals.isError) console.error("[Studies] Subject goals query failed", goals.error);
+    if (notes.isError) console.error("[Studies] Subject notes query failed", notes.error);
+    if (hasInvalidSecondaryData)
+      console.error("[Studies] A subject query returned a non-array", {
+        sessions: sessions.data,
+        goals: goals.data,
+        notes: notes.data,
+      });
+  }, [
+    goals.data,
+    goals.error,
+    goals.isError,
+    hasInvalidSecondaryData,
+    notes.error,
+    notes.data,
+    notes.isError,
+    sessions.data,
+    sessions.error,
+    sessions.isError,
+    subject.error,
+    subject.isError,
+  ]);
   const [minutes, setMinutes] = useState("30"),
     [activity, setActivity] = useState(""),
     [topic, setTopic] = useState(""),
@@ -153,7 +186,7 @@ function Workspace() {
       </PageShell>
     );
   const currentSubject = subject.data;
-  const all = sessions.data ?? [],
+  const all = studySessions,
     total = all.reduce((n, s) => n + (s.duration ?? 0), 0),
     done = all.filter((s) => s.completed).length,
     progress = all.length ? Math.round((done / all.length) * 100) : 0;
@@ -218,7 +251,7 @@ function Workspace() {
           </div>
         </div>
       </section>
-      {(sessions.isError || goals.isError || notes.isError) && (
+      {(sessions.isError || goals.isError || notes.isError || hasInvalidSecondaryData) && (
         <div className="mt-4">
           <LocalError title="Parte do workspace não pôde ser carregada" retry={() => refresh()} />
         </div>
@@ -248,13 +281,13 @@ function Workspace() {
               </Button>
             </Panel>
             <Panel title="Metas ativas" icon={<Target />}>
-              {(goals.data ?? [])
+              {studyGoals
                 .filter((g) => !g.completed)
                 .slice(0, 3)
                 .map((g) => (
                   <Goal key={g.id} goal={g} refresh={refresh} />
                 ))}
-              {!goals.data?.some((g) => !g.completed) && (
+              {!studyGoals.some((g) => !g.completed) && (
                 <p className="text-sm text-muted-foreground">Nenhuma meta ativa.</p>
               )}
             </Panel>
@@ -322,10 +355,10 @@ function Workspace() {
               </Button>
             </div>
             <div className="mt-5 space-y-2">
-              {goals.data?.map((g) => (
+              {studyGoals.map((g) => (
                 <Goal key={g.id} goal={g} refresh={refresh} />
               ))}
-              {!goals.data?.length && (
+              {!studyGoals.length && (
                 <p className="text-sm text-muted-foreground">
                   Defina a primeira meta para orientar sua continuidade.
                 </p>
@@ -354,7 +387,7 @@ function Workspace() {
               </Button>
             </div>
             <div className="mt-5 space-y-3">
-              {notes.data?.map((n) => (
+              {studyNotes.map((n) => (
                 <article key={n.id} className="rounded-xl border p-4">
                   <div className="flex justify-between gap-3">
                     <h3 className="font-medium">{n.title}</h3>
@@ -470,6 +503,7 @@ function Panel({
   );
 }
 function LocalError({ title, retry }: { title: string; retry: () => unknown }) {
+  const nav = useNavigate();
   return (
     <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-5" role="alert">
       <h2 className="font-semibold">{title}</h2>
@@ -477,10 +511,16 @@ function LocalError({ title, retry }: { title: string; retry: () => unknown }) {
         Verifique sua conexão e as migrations do Supabase. Seus dados existentes não foram
         alterados.
       </p>
-      <Button className="mt-4" variant="outline" onClick={retry}>
-        <RefreshCw />
-        Tentar novamente
-      </Button>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Button variant="outline" onClick={retry}>
+          <RefreshCw />
+          Tentar novamente
+        </Button>
+        <Button variant="ghost" onClick={() => nav({ to: "/studies" })}>
+          <ArrowLeft />
+          Voltar para Estudos
+        </Button>
+      </div>
     </div>
   );
 }
