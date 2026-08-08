@@ -26,6 +26,9 @@ import { AIService, AIServiceError, workspaceQueryKeys, type AiConversation } fr
 
 export const Route = createFileRoute("/_shell/assistant")({
   head: () => ({ meta: [{ title: "Assistente — NEXORA" }] }),
+  validateSearch: (search: Record<string, unknown>) => ({
+    conversation: typeof search.conversation === "string" ? search.conversation : undefined,
+  }),
   component: Assistant,
 });
 const SUGGESTIONS = [
@@ -36,6 +39,7 @@ const SUGGESTIONS = [
 ];
 
 function Assistant() {
+  const { conversation } = Route.useSearch();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -49,6 +53,7 @@ function Assistant() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const shouldFollow = useRef(true);
+  const openedFromSearch = useRef<string | null>(null);
   const [showLatest, setShowLatest] = useState(false);
   const { sendMessage, isSending, loadConversationHistory, startConversation } = useChat();
   const conversationsKey = ["workspace", user?.id, "ai-conversations"] as const;
@@ -63,6 +68,13 @@ function Assistant() {
     if (shouldFollow.current) endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isSending]);
   useEffect(() => inputRef.current?.focus(), []);
+  useEffect(() => {
+    if (!conversation || openedFromSearch.current === conversation) return;
+    openedFromSearch.current = conversation;
+    void openConversation(conversation);
+    // The URL is the one-shot trigger; openConversation is intentionally not reactive.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversation]);
 
   const visibleConversations = useMemo(
     () =>

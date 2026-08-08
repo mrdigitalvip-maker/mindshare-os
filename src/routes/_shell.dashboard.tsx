@@ -19,9 +19,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { PageShell, EmptyState } from "@/components/page-shell";
-import { DashboardGrid } from "@/components/dashboard/dashboard-grid";
 import { DashboardSection } from "@/components/dashboard/dashboard-section";
-import { DashboardStatCard } from "@/components/dashboard/dashboard-stat-card";
 import { DashboardQuickActions } from "@/components/dashboard/dashboard-quick-actions";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -48,74 +46,6 @@ function Dashboard() {
   const { data, isLoading, isError, refetch } = useDashboardStats();
   const displayName = profile?.full_name ?? user?.name ?? "Friend";
 
-  const stats = data
-    ? [
-        {
-          id: "projects",
-          label: "Active projects",
-          value: String(data.projects.active),
-          hint: `${data.projects.completed} completed`,
-          icon: FolderKanban,
-        },
-        {
-          id: "tasks",
-          label: "Pending tasks",
-          value: String(data.tasks.pending),
-          hint: `${data.tasks.completed} completed`,
-          icon: ListTodo,
-        },
-        {
-          id: "documents",
-          label: "Documents",
-          value: String(data.documents),
-          hint: `${data.notes} notes`,
-          icon: FileText,
-        },
-        {
-          id: "study",
-          label: "Study minutes",
-          value: String(data.studies.minutes),
-          hint: `${data.studies.completedSessions} completed sessions`,
-          icon: Clock3,
-        },
-        {
-          id: "finance",
-          label: "Balance",
-          value: formatMoney(data.finance.balance),
-          hint: `${data.finance.accounts} accounts`,
-          icon: Wallet,
-        },
-        {
-          id: "agents",
-          label: "Active agents",
-          value: String(data.agents.active),
-          hint: `${data.agents.total} configured`,
-          icon: Bot,
-        },
-        {
-          id: "translations",
-          label: "Translations",
-          value: String(data.translations),
-          hint: "Saved translations",
-          icon: Languages,
-        },
-        {
-          id: "assistant",
-          label: "AI conversations",
-          value: String(data.ai.conversations),
-          hint: `${data.ai.messages} messages`,
-          icon: MessageSquare,
-        },
-        {
-          id: "notifications",
-          label: "Unread notifications",
-          value: String(data.notifications.unread),
-          hint: "Needs your attention",
-          icon: Bell,
-        },
-      ]
-    : [];
-
   return (
     <PageShell>
       <motion.section
@@ -141,7 +71,7 @@ function Dashboard() {
               and assistant activity.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <Link to="/assistant">
+              <Link to="/assistant" search={{ conversation: undefined }}>
                 <Button className="rounded-full">
                   Open Assistant <Sparkles className="ml-2 h-4 w-4" />
                 </Button>
@@ -198,20 +128,82 @@ function Dashboard() {
           </Button>
         </div>
       ) : null}
-      <div className="mt-10" aria-busy={isLoading} aria-live="polite">
-        <DashboardSection title="Workspace overview" subtitle="Real-time totals from your account.">
+      <div
+        className="mt-10 grid gap-8 xl:grid-cols-[1.2fr_0.8fr]"
+        aria-busy={isLoading}
+        aria-live="polite"
+      >
+        <DashboardSection title="Today" subtitle="Due and overdue work from your real task list.">
           {isLoading ? (
-            <DashboardGrid>
-              {Array.from({ length: 8 }).map((_, index) => (
-                <Skeleton key={index} className="h-32 rounded-2xl" />
+            <DashboardListSkeleton />
+          ) : data?.todayTasks.length ? (
+            <div className="space-y-3">
+              {data.todayTasks.map((task) => (
+                <Link
+                  key={task.id}
+                  to="/productivity"
+                  className="glass flex min-h-14 items-center gap-3 rounded-2xl p-4 transition hover:border-gold/30"
+                >
+                  <span
+                    className={`h-2.5 w-2.5 shrink-0 rounded-full ${task.overdue ? "bg-destructive" : "bg-gold"}`}
+                    aria-hidden="true"
+                  />
+                  <span className="min-w-0 flex-1 truncate font-medium">{task.title}</span>
+                  <span
+                    className={
+                      task.overdue ? "text-xs text-destructive" : "text-xs text-muted-foreground"
+                    }
+                  >
+                    {task.overdue ? "Overdue" : "Today"}
+                  </span>
+                </Link>
               ))}
-            </DashboardGrid>
+            </div>
           ) : (
-            <DashboardGrid>
-              {stats.map((item, index) => (
-                <DashboardStatCard key={item.id} {...item} delay={index * 0.03} />
+            <EmptyState
+              icon={CheckCircle2}
+              title="Today is clear"
+              description="Capture the next concrete action when you are ready. It will stay in your task system."
+              action={
+                <Link to="/productivity">
+                  <Button>Add a task</Button>
+                </Link>
+              }
+            />
+          )}
+        </DashboardSection>
+        <DashboardSection title="Continue" subtitle="Return directly to your latest work.">
+          {isLoading ? (
+            <DashboardListSkeleton />
+          ) : data?.continuations.length ? (
+            <div className="space-y-3">
+              {data.continuations.map((item) => (
+                <a
+                  key={item.id}
+                  href={item.path}
+                  className="glass flex min-h-14 items-center justify-between rounded-2xl p-4 transition hover:border-gold/30"
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate font-medium">{item.title}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {item.detail} · {formatDate(item.occurredAt)}
+                    </span>
+                  </span>
+                  <ArrowRight className="h-4 w-4 shrink-0 text-gold" />
+                </a>
               ))}
-            </DashboardGrid>
+            </div>
+          ) : (
+            <EmptyState
+              icon={Sparkles}
+              title="Start something worth continuing"
+              description="A project, document or conversation will appear here after you work on it."
+              action={
+                <Link to="/assistant" search={{ conversation: undefined }}>
+                  <Button>Start with NEXORA AI</Button>
+                </Link>
+              }
+            />
           )}
         </DashboardSection>
       </div>
@@ -225,7 +217,8 @@ function Dashboard() {
               {data.recentProjects.map((project) => (
                 <Link
                   key={project.id}
-                  to="/projects"
+                  to="/projects/$projectId"
+                  params={{ projectId: project.id }}
                   className="glass flex items-center justify-between rounded-2xl p-5 transition hover:border-gold/30"
                 >
                   <div className="min-w-0">
@@ -242,8 +235,8 @@ function Dashboard() {
             !isLoading && (
               <EmptyState
                 icon={FolderKanban}
-                title="No projects yet"
-                description="Create your first project to see it here."
+                title="Turn an objective into an executable plan"
+                description="Create tasks, track real progress and keep the next action visible."
                 action={
                   <Link to="/projects">
                     <Button>Create project</Button>
