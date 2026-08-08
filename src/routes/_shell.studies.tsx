@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/lib/auth-context";
 import { StudyService, workspaceQueryKeys } from "@/services";
 
@@ -50,16 +51,49 @@ function Studies() {
     enabled: isAuthenticated && !!user,
   });
   const [name, setName] = useState("");
+  const [goal, setGoal] = useState("");
+  const [rhythm, setRhythm] = useState("");
   const [color, setColor] = useState("#8b5cf6");
   const create = useMutation({
-    mutationFn: () => StudyService.createSubject({ name: name.trim(), color }),
-    onSuccess: async (subject) => {
+    mutationFn: async () => {
+      const description = rhythm.trim()
+        ? `Objetivo: ${goal.trim() || "a definir"}\nRitmo: ${rhythm.trim()}`
+        : goal.trim();
+      const subject = await StudyService.createSubject({
+        name: name.trim(),
+        color,
+        description,
+      });
+      if (goal.trim()) {
+        try {
+          await StudyService.createGoal({
+            subject_id: subject.id,
+            title: goal.trim(),
+            target_value: 1,
+          });
+        } catch (error) {
+          return { subject, goalError: (error as Error).message };
+        }
+      }
+      return { subject };
+    },
+    onSuccess: async ({ subject, goalError }) => {
       await client.invalidateQueries({ queryKey: key });
       setOpen(false);
       setName("");
+      setGoal("");
+      setRhythm("");
+      if (goalError) {
+        toast.warning("Matéria criada, mas a meta inicial não foi salva", {
+          description: `${goalError} Você pode tentar novamente no workspace.`,
+        });
+      } else {
+        toast.success("Matéria criada e salva");
+      }
       nav({ to: "/studies/$subjectId", params: { subjectId: subject.id } });
     },
-    onError: () => toast.error("We couldn't create this subject. Please try again."),
+    onError: (error: Error) =>
+      toast.error("Não foi possível criar a matéria", { description: error.message }),
   });
 
   return (
@@ -299,23 +333,60 @@ function Studies() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>New subject</DialogTitle>
+            <DialogTitle>Crie seu espaço de aprendizagem</DialogTitle>
           </DialogHeader>
-          <Label htmlFor="subject-name">Name</Label>
-          <Input
-            id="subject-name"
-            autoFocus
-            maxLength={100}
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-          <Label htmlFor="subject-color">Color</Label>
-          <Input
-            id="subject-color"
-            type="color"
-            value={color}
-            onChange={(e) => setColor(e.target.value)}
-          />
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-[.18em] text-violet-300">
+              1 · Matéria
+            </p>
+            <Label htmlFor="subject-name">O que você quer aprender?</Label>
+            <Input
+              id="subject-name"
+              autoFocus
+              maxLength={100}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Ex.: Estatística aplicada"
+            />
+          </div>
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-[.18em] text-violet-300">
+              2 · Objetivo
+            </p>
+            <Label htmlFor="subject-goal">O que você quer alcançar?</Label>
+            <Textarea
+              id="subject-goal"
+              maxLength={160}
+              value={goal}
+              onChange={(e) => setGoal(e.target.value)}
+              placeholder="Ex.: Resolver exercícios de regressão sem consultar anotações"
+            />
+          </div>
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-[.18em] text-violet-300">
+              3 · Ritmo
+            </p>
+            <Label htmlFor="subject-rhythm">Com que frequência você quer estudar?</Label>
+            <Input
+              id="subject-rhythm"
+              maxLength={100}
+              value={rhythm}
+              onChange={(e) => setRhythm(e.target.value)}
+              placeholder="Ex.: 30 minutos, três vezes por semana"
+            />
+            <div className="flex items-center gap-3 pt-1">
+              <Label htmlFor="subject-color" className="text-xs text-muted-foreground">
+                Cor da matéria
+              </Label>
+              <Input
+                className="h-11 w-16 p-1"
+                id="subject-color"
+                type="color"
+                value={color}
+                onChange={(e) => setColor(e.target.value)}
+              />
+            </div>
+          </div>
           <Button
             className="min-h-11"
             disabled={!name.trim() || create.isPending}
