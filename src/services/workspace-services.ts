@@ -44,7 +44,19 @@ export const ProjectService = {
   async list(): Promise<Project[]> {
     if (DEMO_MODE) {
       await delay();
-      return readMockDatabase().projects;
+      const database = readMockDatabase();
+      return database.projects.map((project) => {
+        const projectTasks = database.tasks.filter((task) => task.projectId === project.id);
+        const completedTasks = projectTasks.filter((task) => task.status === "done").length;
+        return {
+          ...project,
+          totalTasks: projectTasks.length,
+          completedTasks,
+          progress: projectTasks.length
+            ? Math.round((completedTasks / projectTasks.length) * 100)
+            : 0,
+        };
+      });
     }
     const userId = await getRequiredUserId();
     const [{ data, error }, { data: tasks, error: tasksError }] = await Promise.all([
@@ -143,11 +155,19 @@ export const ProjectService = {
       created = {
         id: createId("project"),
         title:
-          (typeof input === "string" ? input : input?.title) ??
+          (typeof input === "string" ? input : input?.title)?.trim() ||
           `New project ${db.projects.length + 1}`,
         progress: 0,
         color: colors[db.projects.length % colors.length],
         updatedAt: new Date().toISOString(),
+        description: typeof input === "object" ? input.description?.trim() : undefined,
+        objective: typeof input === "object" ? input.objective?.trim() : undefined,
+        priority: typeof input === "object" ? input.priority : "medium",
+        status: typeof input === "object" ? input.status : "active",
+        startDate: typeof input === "object" ? input.startDate : null,
+        dueDate: typeof input === "object" ? input.dueDate : null,
+        totalTasks: 0,
+        completedTasks: 0,
       };
       return { ...db, projects: [created, ...db.projects] };
     });
@@ -287,10 +307,19 @@ export const ProductivityService = {
     updateMockDatabase((db) => {
       created = {
         id: createId("task"),
-        title: `New focus task ${db.tasks.length + 1}`,
+        title:
+          (typeof input === "string" ? input : input?.title)?.trim() ||
+          `New focus task ${db.tasks.length + 1}`,
         status: "open",
-        due: "Today",
+        due:
+          typeof input === "object" && input.dueDate
+            ? new Date(input.dueDate).toLocaleDateString()
+            : "No due date",
         focusMinutes: 25,
+        description: typeof input === "object" ? input.description : undefined,
+        priority: typeof input === "object" ? input.priority : "medium",
+        dueDate: typeof input === "object" ? input.dueDate : null,
+        projectId: typeof input === "object" ? input.projectId : null,
       };
       return { ...db, tasks: [created, ...db.tasks] };
     });
@@ -341,6 +370,16 @@ export const ProductivityService = {
             ? {
                 ...item,
                 title: patch.title ?? item.title,
+                description: patch.description ?? item.description,
+                priority: patch.priority ?? item.priority,
+                dueDate: patch.due_date === undefined ? item.dueDate : patch.due_date,
+                due:
+                  patch.due_date === undefined
+                    ? item.due
+                    : patch.due_date
+                      ? new Date(patch.due_date).toLocaleDateString()
+                      : "No due date",
+                projectId: patch.project_id === undefined ? item.projectId : patch.project_id,
                 status:
                   patch.completed === undefined ? item.status : patch.completed ? "done" : "open",
               }

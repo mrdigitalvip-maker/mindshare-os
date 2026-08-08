@@ -1,277 +1,360 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FolderKanban, Plus } from "lucide-react";
+import { ArrowRight, FolderKanban, Loader2, Plus, Search, Sparkles } from "lucide-react";
 import { toast } from "sonner";
-import { PageShell, PageHeader, EmptyState } from "@/components/page-shell";
+import { PageShell } from "@/components/page-shell";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { ProjectService, TaskService, workspaceQueryKeys } from "@/services";
 import { useAuth } from "@/lib/auth-context";
+
 export const Route = createFileRoute("/_shell/projects")({
   head: () => ({ meta: [{ title: "Projetos — NEXORA" }] }),
   component: Projects,
 });
+
 function Projects() {
-  const [wizard, setWizard] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [search, setSearch] = useState("");
   const { user, isAuthenticated } = useAuth();
-  const key = workspaceQueryKeys.projects(user?.id);
-  const query = useQuery({
-    queryKey: key,
-    queryFn: () => ProjectService.list(),
+  const projectKey = workspaceQueryKeys.projects(user?.id);
+  const taskKey = workspaceQueryKeys.tasks(user?.id);
+  const projects = useQuery({
+    queryKey: projectKey,
+    queryFn: ProjectService.list,
     enabled: isAuthenticated && !!user,
   });
+  const tasks = useQuery({
+    queryKey: taskKey,
+    queryFn: () => TaskService.listTasks(),
+    enabled: isAuthenticated && !!user,
+  });
+  const filtered = useMemo(
+    () =>
+      (projects.data ?? []).filter((p) =>
+        `${p.title} ${p.objective ?? ""} ${p.description ?? ""}`
+          .toLowerCase()
+          .includes(search.trim().toLowerCase()),
+      ),
+    [projects.data, search],
+  );
+  const active = filtered.filter((p) => p.status !== "completed");
+  const completed = filtered.filter((p) => p.status === "completed");
+
   return (
     <PageShell>
-      <PageHeader
-        eyebrow="Organização"
-        title="Projetos"
-        description="Planeje o trabalho e acompanhe o progresso real das tarefas."
-        actions={
-          <Button onClick={() => setWizard(true)}>
-            <Plus /> Novo projeto
-          </Button>
-        }
-      />
-      {query.isLoading ? (
-        <p className="mt-10 text-center text-muted-foreground">Carregando projetos…</p>
-      ) : query.isError ? (
-        <div
-          className="mt-8 rounded-2xl border border-destructive/30 bg-destructive/5 p-6"
-          role="alert"
-        >
-          <h2 className="font-semibold">Não foi possível carregar os projetos.</h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Verifique sua conexão e tente novamente.
+      <header className="flex items-end justify-between gap-4 border-b border-border pb-5">
+        <div className="min-w-0">
+          <h1 className="font-display text-3xl md:text-4xl">Projetos</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Retome o resultado que precisa da sua atenção.
           </p>
-          <Button className="mt-4" variant="outline" onClick={() => query.refetch()}>
-            Tentar novamente
-          </Button>
         </div>
-      ) : !query.data?.length ? (
-        <EmptyState
-          icon={FolderKanban}
-          title="Nenhum projeto"
-          description="Crie um projeto e suas primeiras tarefas."
-          action={<Button onClick={() => setWizard(true)}>Criar projeto</Button>}
+        <Button className="shrink-0" onClick={() => setCreating(true)}>
+          <Plus /> <span className="hidden min-[360px]:inline">Novo projeto</span>
+          <span className="min-[360px]:hidden">Novo</span>
+        </Button>
+      </header>
+      {projects.isLoading || tasks.isLoading ? (
+        <Loading />
+      ) : projects.isError || tasks.isError ? (
+        <ErrorState
+          retry={() => {
+            projects.refetch();
+            tasks.refetch();
+          }}
         />
+      ) : !projects.data?.length ? (
+        <section className="mx-auto flex min-h-[58dvh] max-w-lg flex-col justify-center py-12 text-center">
+          <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl border border-gold/20 bg-gold/10">
+            <FolderKanban className="h-8 w-8 text-gold" />
+          </div>
+          <h2 className="mt-6 font-display text-2xl">Transforme um objetivo em próximas ações</h2>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            Crie um espaço para planejar, executar e continuar de onde parou.
+          </p>
+          <Button className="mx-auto mt-7" onClick={() => setCreating(true)}>
+            Criar primeiro projeto <ArrowRight />
+          </Button>
+        </section>
       ) : (
-        <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {query.data.map((project) => (
-            <Link
-              key={project.id}
-              to="/projects/$projectId"
-              params={{ projectId: project.id }}
-              className="glass min-w-0 rounded-2xl p-5 transition hover:border-gold/40"
-            >
-              <span className="text-xs uppercase text-muted-foreground">{project.status}</span>
-              <h2 className="mt-1 truncate font-display text-xl">{project.title}</h2>
-              <p className="mt-3 line-clamp-2 min-h-10 text-sm text-muted-foreground">
-                {project.description || "Sem descrição"}
+        <div className="mt-7 space-y-9">
+          <section>
+            <div className="mb-4">
+              <p className="text-xs font-medium text-gold">CONTINUAR</p>
+              <h2 className="mt-1 font-display text-2xl">Trabalho ativo</h2>
+            </div>
+            {active.length ? (
+              <div className="grid gap-3 lg:grid-cols-2">
+                {active.slice(0, 4).map((project) => (
+                  <ProjectRow
+                    key={project.id}
+                    project={project}
+                    tasks={(tasks.data ?? []).filter((t) => t.projectId === project.id)}
+                    featured
+                  />
+                ))}
+              </div>
+            ) : (
+              <p className="rounded-2xl border border-border p-5 text-sm text-muted-foreground">
+                Nenhum projeto ativo. Seus projetos concluídos continuam disponíveis abaixo.
               </p>
-              <div className="mt-5 h-2 rounded-full bg-surface">
-                <div
-                  className="h-full rounded-full bg-gold"
-                  style={{ width: `${project.progress}%` }}
+            )}
+          </section>
+          <section>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <h2 className="font-display text-xl">Todos os projetos</h2>
+              <div className="relative sm:w-72">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  className="pl-9"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Buscar projetos"
+                  aria-label="Buscar projetos"
                 />
               </div>
-              <p className="mt-2 text-xs text-muted-foreground">
-                {project.completedTasks}/{project.totalTasks} tarefas · {project.progress}%
-              </p>
-            </Link>
-          ))}
+            </div>
+            <div className="mt-4 divide-y divide-border rounded-2xl border border-border bg-surface/30">
+              {[...active, ...completed].map((project) => (
+                <ProjectRow
+                  key={project.id}
+                  project={project}
+                  tasks={(tasks.data ?? []).filter((t) => t.projectId === project.id)}
+                />
+              ))}
+              {!filtered.length && (
+                <p className="p-6 text-center text-sm text-muted-foreground">
+                  Nenhum projeto corresponde à busca.
+                </p>
+              )}
+            </div>
+          </section>
         </div>
       )}
-      <ProjectWizard open={wizard} close={() => setWizard(false)} />
+      <CreateProject open={creating} onOpenChange={setCreating} />
     </PageShell>
   );
 }
-function ProjectWizard({ open, close }: { open: boolean; close: () => void }) {
-  const navigate = useNavigate();
-  const { user } = useAuth();
-  const key = workspaceQueryKeys.projects(user?.id);
-  const client = useQueryClient();
-  const [step, setStep] = useState(1);
-  const [form, setForm] = useState({
-    title: "",
-    description: "",
-    objective: "",
-    priority: "medium",
-    status: "active",
-    startDate: "",
-    dueDate: "",
-    tasks: [""],
-  });
-  const set = (name: string, value: string) =>
-    setForm((current) => ({ ...current, [name]: value }));
-  const create = useMutation({
-    mutationFn: async () => {
-      const project = await ProjectService.create({
-        ...form,
-        startDate: form.startDate || null,
-        dueDate: form.dueDate || null,
-      });
-      await Promise.all(
-        form.tasks
-          .filter(Boolean)
-          .map((title) => TaskService.createTask({ title, projectId: project.id })),
-      );
-      return project;
-    },
-    onSuccess: async (project) => {
-      await client.invalidateQueries({ queryKey: key });
-      toast.success("Projeto criado");
-      close();
-      navigate({ to: "/projects/$projectId", params: { projectId: project.id } });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
+
+function ProjectRow({
+  project,
+  tasks,
+  featured = false,
+}: {
+  project: Awaited<ReturnType<typeof ProjectService.list>>[number];
+  tasks: Awaited<ReturnType<typeof TaskService.listTasks>>;
+  featured?: boolean;
+}) {
+  const open = tasks.filter((t) => t.status === "open");
+  const next = chooseNext(open);
+  const overdue = open.filter(
+    (t) => t.dueDate && new Date(`${t.dueDate.slice(0, 10)}T23:59:59`) < new Date(),
+  ).length;
   return (
-    <Dialog open={open} onOpenChange={(value) => !value && close()}>
-      <DialogContent className="max-h-[90dvh] max-w-xl overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Novo projeto · etapa {step} de 4</DialogTitle>
-        </DialogHeader>
-        {step === 1 && (
-          <div className="space-y-4">
-            <Field label="Nome">
-              <Input value={form.title} onChange={(e) => set("title", e.target.value)} autoFocus />
-            </Field>
-            <Field label="Descrição">
-              <Textarea
-                value={form.description}
-                onChange={(e) => set("description", e.target.value)}
-              />
-            </Field>
-            <Field label="Objetivo">
-              <Textarea value={form.objective} onChange={(e) => set("objective", e.target.value)} />
-            </Field>
-          </div>
-        )}
-        {step === 2 && (
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Select
-              label="Prioridade"
-              value={form.priority}
-              onChange={(v) => set("priority", v)}
-              options={[
-                ["low", "Baixa"],
-                ["medium", "Média"],
-                ["high", "Alta"],
-              ]}
-            />
-            <Select
-              label="Status"
-              value={form.status}
-              onChange={(v) => set("status", v)}
-              options={[
-                ["active", "Ativo"],
-                ["paused", "Pausado"],
-              ]}
-            />
-            <Field label="Data inicial">
-              <Input
-                type="date"
-                value={form.startDate}
-                onChange={(e) => set("startDate", e.target.value)}
-              />
-            </Field>
-            <Field label="Prazo">
-              <Input
-                type="date"
-                value={form.dueDate}
-                onChange={(e) => set("dueDate", e.target.value)}
-              />
-            </Field>
-          </div>
-        )}
-        {step === 3 && (
-          <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">Adicione até três tarefas iniciais.</p>
-            {form.tasks.map((task, i) => (
-              <Input
-                key={i}
-                value={task}
-                placeholder={`Tarefa ${i + 1}`}
-                onChange={(e) =>
-                  setForm((c) => ({
-                    ...c,
-                    tasks: c.tasks.map((v, n) => (n === i ? e.target.value : v)),
-                  }))
-                }
-              />
-            ))}
-            {form.tasks.length < 3 && (
-              <Button
-                variant="outline"
-                onClick={() => setForm((c) => ({ ...c, tasks: [...c.tasks, ""] }))}
-              >
-                Adicionar tarefa
-              </Button>
-            )}
-          </div>
-        )}
-        {step === 4 && (
-          <div className="rounded-xl border p-4">
-            <h3 className="font-display text-xl">{form.title}</h3>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {form.description || "Sem descrição"}
-            </p>
-            <p className="mt-4 text-sm">
-              Prioridade: {form.priority} · {form.tasks.filter(Boolean).length} tarefas
-            </p>
-          </div>
-        )}
-        <div className="mt-5 flex justify-between">
-          <Button variant="outline" onClick={() => (step === 1 ? close() : setStep(step - 1))}>
-            {step === 1 ? "Cancelar" : "Voltar"}
-          </Button>
-          <Button
-            disabled={(step === 1 && !form.title.trim()) || create.isPending}
-            onClick={() => (step < 4 ? setStep(step + 1) : create.mutate())}
-          >
-            {step < 4 ? "Continuar" : create.isPending ? "Criando…" : "Criar projeto"}
-          </Button>
+    <Link
+      to="/projects/$projectId"
+      params={{ projectId: project.id }}
+      className={`${featured ? "rounded-2xl border border-border bg-gradient-to-br from-surface-elevated to-surface p-5" : "flex p-4"} group min-w-0 items-center gap-4 transition hover:border-gold/40`}
+    >
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <h3 className={`${featured ? "font-display text-xl" : "font-medium"} truncate`}>
+            {project.title}
+          </h3>
+          {project.status === "completed" && (
+            <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] text-emerald-400">
+              Concluído
+            </span>
+          )}
         </div>
-      </DialogContent>
-    </Dialog>
+        {featured && (
+          <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
+            {project.objective || project.description || "Defina o resultado deste projeto."}
+          </p>
+        )}
+        <div
+          className={`${featured ? "mt-5" : "mt-2"} flex items-center gap-3 text-xs text-muted-foreground`}
+        >
+          <span>
+            {tasks.length
+              ? `${project.completedTasks ?? 0} de ${project.totalTasks ?? 0} tarefas`
+              : "Ainda não planejado"}
+          </span>
+          {overdue > 0 && <span className="text-destructive">{overdue} em atraso</span>}
+        </div>
+        {featured && (
+          <>
+            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-background">
+              <div
+                className="h-full rounded-full bg-gold"
+                style={{ width: `${project.progress}%` }}
+              />
+            </div>
+            <p className="mt-3 truncate text-sm">
+              <span className="text-muted-foreground">Próxima: </span>
+              {next?.title ?? "Planejar a primeira ação"}
+            </p>
+          </>
+        )}
+      </div>
+      <ArrowRight className="h-5 w-5 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-gold" />
+    </Link>
   );
 }
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+
+function chooseNext<T extends { priority?: string; dueDate?: string | null }>(
+  items: T[],
+): T | undefined {
+  return [...items].sort((a, b) => {
+    const overdue = (x: T) =>
+      x.dueDate && new Date(`${x.dueDate.slice(0, 10)}T23:59:59`) < new Date() ? 0 : 1;
+    return (
+      overdue(a) - overdue(b) ||
+      (a.priority === "high" ? 0 : 1) - (b.priority === "high" ? 0 : 1) ||
+      (a.dueDate ?? "9999").localeCompare(b.dueDate ?? "9999")
+    );
+  })[0];
+}
+function Loading() {
   return (
-    <div>
-      <Label>{label}</Label>
-      {children}
+    <div className="mt-8 space-y-3" aria-label="Carregando projetos">
+      <div className="h-32 animate-pulse rounded-2xl bg-surface" />
+      <div className="h-20 animate-pulse rounded-2xl bg-surface" />
     </div>
   );
 }
-function Select({
-  label,
-  value,
-  onChange,
-  options,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  options: string[][];
-}) {
+function ErrorState({ retry }: { retry: () => void }) {
   return (
-    <Field label={label}>
-      <select
-        className="h-11 w-full rounded-md border border-input bg-background px-3"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
+    <section role="alert" className="mt-8 rounded-2xl border border-destructive/30 p-6">
+      <h2 className="font-semibold">Não foi possível carregar seus projetos</h2>
+      <p className="mt-2 text-sm text-muted-foreground">
+        Verifique sua conexão. Seu trabalho salvo não foi alterado.
+      </p>
+      <Button variant="outline" className="mt-4" onClick={retry}>
+        Tentar novamente
+      </Button>
+    </section>
+  );
+}
+
+function CreateProject({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
+  const navigate = useNavigate();
+  const client = useQueryClient();
+  const { user } = useAuth();
+  const [title, setTitle] = useState("");
+  const [objective, setObjective] = useState("");
+  const [description, setDescription] = useState("");
+  const create = useMutation({
+    mutationFn: () =>
+      ProjectService.create({
+        title,
+        objective,
+        description,
+        status: "active",
+        priority: "medium",
+      }),
+    onSuccess: async (p) => {
+      await client.invalidateQueries({ queryKey: workspaceQueryKeys.projects(user?.id) });
+      toast.success("Projeto criado");
+      onOpenChange(false);
+      setTitle("");
+      setObjective("");
+      setDescription("");
+      navigate({ to: "/projects/$projectId", params: { projectId: p.id } });
+    },
+    onError: (e: Error) => toast.error(e.message || "Não foi possível criar o projeto"),
+  });
+  return (
+    <Sheet open={open} onOpenChange={(v) => !create.isPending && onOpenChange(v)}>
+      <SheetContent
+        side="right"
+        className="flex h-dvh w-full max-w-xl flex-col overflow-hidden p-0 sm:w-[min(100%,36rem)]"
       >
-        {options.map(([v, l]) => (
-          <option key={v} value={v}>
-            {l}
-          </option>
-        ))}
-      </select>
-    </Field>
+        <SheetHeader className="border-b px-5 pb-5 pt-[calc(1.25rem+env(safe-area-inset-top))] text-left">
+          <div className="flex items-center gap-2 text-sm text-gold">
+            <Sparkles className="h-4 w-4" /> Defina o resultado
+          </div>
+          <SheetTitle className="font-display text-2xl">Novo projeto</SheetTitle>
+          <p className="text-sm text-muted-foreground">
+            Comece pelo que você quer tornar realidade.
+          </p>
+        </SheetHeader>
+        <form
+          className="flex min-h-0 flex-1 flex-col"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (title.trim()) create.mutate();
+          }}
+        >
+          <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-5 py-6">
+            <div className="space-y-2">
+              <Label htmlFor="project-title">No que você está trabalhando?</Label>
+              <Input
+                id="project-title"
+                autoFocus
+                maxLength={120}
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Ex.: Lançar meu novo portfólio"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="project-goal">Como é o resultado concluído?</Label>
+              <Textarea
+                id="project-goal"
+                maxLength={500}
+                value={objective}
+                onChange={(e) => setObjective(e.target.value)}
+                placeholder="Descreva um resultado claro e observável"
+                className="min-h-28"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="project-context">
+                Contexto <span className="font-normal text-muted-foreground">(opcional)</span>
+              </Label>
+              <Textarea
+                id="project-context"
+                maxLength={1000}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Detalhes que ajudarão você a executar"
+              />
+            </div>
+            {create.isError && (
+              <p role="alert" className="text-sm text-destructive">
+                Nada foi criado. Revise sua conexão e tente novamente.
+              </p>
+            )}
+          </div>
+          <div className="flex gap-3 border-t bg-background px-5 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1"
+              onClick={() => onOpenChange(false)}
+              disabled={create.isPending}
+            >
+              Cancelar
+            </Button>
+            <Button type="submit" className="flex-1" disabled={!title.trim() || create.isPending}>
+              {create.isPending && <Loader2 className="animate-spin" />}
+              {create.isPending ? "Criando…" : "Criar e planejar"}
+            </Button>
+          </div>
+        </form>
+      </SheetContent>
+    </Sheet>
   );
 }
