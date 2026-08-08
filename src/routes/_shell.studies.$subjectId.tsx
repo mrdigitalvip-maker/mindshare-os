@@ -59,6 +59,9 @@ function Workspace() {
     enabled: !!subject.data,
     retry: 1,
   });
+  const studySessions = Array.isArray(sessions.data) ? sessions.data : [];
+  const studyGoals = Array.isArray(goals.data) ? goals.data : [];
+  const studyNotes = Array.isArray(notes.data) ? notes.data : [];
   useEffect(() => {
     const errors = [
       ["subject", subject.error],
@@ -175,10 +178,11 @@ function Workspace() {
       </PageShell>
     );
   const currentSubject = subject.data;
-  const all = sessions.data ?? [],
-    total = all.reduce((n, s) => n + (s.duration ?? 0), 0),
-    done = all.filter((s) => s.completed).length,
-    progress = all.length ? Math.round((done / all.length) * 100) : 0;
+  const total = studySessions.reduce((n, session) => n + (session.duration ?? 0), 0);
+  const completedSessions = studySessions.filter((session) => session.completed).length;
+  const progress = studySessions.length
+    ? Math.round((completedSessions / studySessions.length) * 100)
+    : 0;
   return (
     <PageShell>
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -234,7 +238,7 @@ function Workspace() {
             </p>
           </div>
           <div className="grid grid-cols-3 gap-2 text-center">
-            <Metric value={all.length} label="sessões" />
+            <Metric value={studySessions.length} label="sessões" />
             <Metric value={`${total}m`} label="estudados" />
             <Metric value={`${progress}%`} label="conclusão" />
           </div>
@@ -275,13 +279,13 @@ function Workspace() {
               </Button>
             </Panel>
             <Panel title="Metas ativas" icon={<Target />}>
-              {(goals.data ?? [])
+              {studyGoals
                 .filter((g) => !g.completed)
                 .slice(0, 3)
                 .map((g) => (
                   <Goal key={g.id} goal={g} refresh={refresh} />
                 ))}
-              {!goals.data?.some((g) => !g.completed) && (
+              {!studyGoals.some((g) => !g.completed) && (
                 <p className="text-sm text-muted-foreground">Nenhuma meta ativa.</p>
               )}
             </Panel>
@@ -349,10 +353,10 @@ function Workspace() {
               </Button>
             </div>
             <div className="mt-5 space-y-2">
-              {goals.data?.map((g) => (
+              {studyGoals.map((g) => (
                 <Goal key={g.id} goal={g} refresh={refresh} />
               ))}
-              {!goals.data?.length && (
+              {studyGoals.length === 0 && (
                 <p className="text-sm text-muted-foreground">
                   Defina a primeira meta para orientar sua continuidade.
                 </p>
@@ -381,7 +385,7 @@ function Workspace() {
               </Button>
             </div>
             <div className="mt-5 space-y-3">
-              {notes.data?.map((n) => (
+              {studyNotes.map((n) => (
                 <article key={n.id} className="rounded-xl border p-4">
                   <div className="flex justify-between gap-3">
                     <h3 className="font-medium">{n.title}</h3>
@@ -443,7 +447,7 @@ function Workspace() {
         </TabsContent>
         <TabsContent value="history">
           <div className="mt-4 space-y-2">
-            {all.map((s) => (
+            {studySessions.map((s) => (
               <div className="flex items-center gap-3 rounded-xl border bg-card p-4" key={s.id}>
                 <CheckCircle2
                   className={s.completed ? "text-emerald-400" : "text-muted-foreground"}
@@ -456,7 +460,7 @@ function Workspace() {
                 </div>
               </div>
             ))}
-            {!all.length && (
+            {studySessions.length === 0 && (
               <EmptyState
                 icon={Clock3}
                 title="Sem sessões"
