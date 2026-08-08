@@ -689,30 +689,33 @@ export type Database = {
       study_sessions: {
         Row: {
           activity: string;
-          completed: boolean | null;
-          created_at: string | null;
-          duration: number | null;
+          completed: boolean;
+          created_at: string;
+          duration: number;
           id: string;
-          subject_id: string | null;
-          user_id: string | null;
+          subject_id: string;
+          updated_at: string;
+          user_id: string;
         };
         Insert: {
           activity?: string;
-          completed?: boolean | null;
-          created_at?: string | null;
-          duration?: number | null;
+          completed?: boolean;
+          created_at?: string;
+          duration: number;
           id?: string;
-          subject_id?: string | null;
-          user_id?: string | null;
+          subject_id: string;
+          updated_at?: string;
+          user_id: string;
         };
         Update: {
           activity?: string;
-          completed?: boolean | null;
-          created_at?: string | null;
-          duration?: number | null;
+          completed?: boolean;
+          created_at?: string;
+          duration?: number;
           id?: string;
-          subject_id?: string | null;
-          user_id?: string | null;
+          subject_id?: string;
+          updated_at?: string;
+          user_id?: string;
         };
         Relationships: [
           {
