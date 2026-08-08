@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -59,6 +59,23 @@ function Workspace() {
     enabled: !!subject.data,
     retry: 1,
   });
+  useEffect(() => {
+    const errors = [
+      ["subject", subject.error],
+      ["sessions", sessions.error],
+      ["goals", goals.error],
+      ["notes", notes.error],
+    ] as const;
+    for (const [query, error] of errors) {
+      if (error) console.error("[Studies workspace] Query failed", { query, subjectId, error });
+    }
+  }, [subjectId, subject.error, sessions.error, goals.error, notes.error]);
+  const queryErrors = [
+    ["subject", subject.error] as const,
+    ["sessions", sessions.error] as const,
+    ["goals", goals.error] as const,
+    ["notes", notes.error] as const,
+  ].filter(([, error]) => error != null);
   const [minutes, setMinutes] = useState("30"),
     [activity, setActivity] = useState(""),
     [topic, setTopic] = useState(""),
@@ -133,7 +150,12 @@ function Workspace() {
   if (subject.isError)
     return (
       <PageShell>
-        <LocalError title="Não foi possível abrir esta matéria" retry={() => subject.refetch()} />
+        <LocalError
+          title="Não foi possível abrir esta matéria"
+          detail="A consulta da matéria falhou. Seus dados não foram alterados."
+          retry={() => subject.refetch()}
+          navigateBack={() => nav({ to: "/studies" })}
+        />
       </PageShell>
     );
   if (!subject.data)
@@ -220,7 +242,12 @@ function Workspace() {
       </section>
       {(sessions.isError || goals.isError || notes.isError) && (
         <div className="mt-4">
-          <LocalError title="Parte do workspace não pôde ser carregada" retry={() => refresh()} />
+          <LocalError
+            title="Parte do workspace não pôde ser carregada"
+            detail={`A consulta de ${queryErrors.map(([name]) => name).join(", ")} falhou.`}
+            retry={() => refresh()}
+            navigateBack={() => nav({ to: "/studies" })}
+          />
         </div>
       )}
       <Tabs defaultValue="overview" className="mt-6 min-w-0">
@@ -469,18 +496,31 @@ function Panel({
     </section>
   );
 }
-function LocalError({ title, retry }: { title: string; retry: () => unknown }) {
+function LocalError({
+  title,
+  detail,
+  retry,
+  navigateBack,
+}: {
+  title: string;
+  detail: string;
+  retry: () => unknown;
+  navigateBack: () => unknown;
+}) {
   return (
     <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-5" role="alert">
       <h2 className="font-semibold">{title}</h2>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Verifique sua conexão e as migrations do Supabase. Seus dados existentes não foram
-        alterados.
-      </p>
-      <Button className="mt-4" variant="outline" onClick={retry}>
-        <RefreshCw />
-        Tentar novamente
-      </Button>
+      <p className="mt-1 text-sm text-muted-foreground">{detail}</p>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Button variant="outline" onClick={retry}>
+          <RefreshCw />
+          Tentar novamente
+        </Button>
+        <Button variant="ghost" onClick={navigateBack}>
+          <ArrowLeft />
+          Voltar para Estudos
+        </Button>
+      </div>
     </div>
   );
 }
@@ -491,7 +531,9 @@ function Goal({
   goal: Awaited<ReturnType<typeof StudyService.listGoals>>[number];
   refresh: () => Promise<unknown>;
 }) {
-  const pct = Math.min(100, Math.round((goal.current_value / goal.target_value) * 100));
+  const currentValue = Number.isFinite(goal.current_value) ? Math.max(0, goal.current_value) : 0;
+  const targetValue = Number.isFinite(goal.target_value) ? Math.max(1, goal.target_value) : 1;
+  const pct = Math.min(100, Math.round((currentValue / targetValue) * 100));
   return (
     <div className="rounded-xl border p-3">
       <div className="flex items-center justify-between gap-3">

@@ -621,7 +621,7 @@ export type Database = {
         Row: {
           id: string;
           user_id: string;
-          subject_id: string | null;
+          subject_id: string;
           title: string;
           target_value: number;
           current_value: number;
@@ -633,7 +633,7 @@ export type Database = {
         Insert: {
           id?: string;
           user_id: string;
-          subject_id?: string | null;
+          subject_id: string;
           title: string;
           target_value?: number;
           current_value?: number;
@@ -645,7 +645,7 @@ export type Database = {
         Update: {
           id?: string;
           user_id?: string;
-          subject_id?: string | null;
+          subject_id?: string;
           title?: string;
           target_value?: number;
           current_value?: number;

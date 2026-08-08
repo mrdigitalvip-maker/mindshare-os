@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   BookOpen,
@@ -31,7 +31,8 @@ function Studies() {
   const [open, setOpen] = useState(false);
   const plans = useQuery({
     queryKey: key,
-    queryFn: StudyService.listPlans,
+    // listPlans composes other StudyService methods through `this`, so do not pass it unbound.
+    queryFn: () => StudyService.listPlans(),
     enabled: isAuthenticated && !!user,
     retry: 2,
   });
@@ -96,6 +97,29 @@ function Studies() {
       toast.error("Não foi possível criar a matéria", { description: error.message }),
   });
 
+  useEffect(() => {
+    const errors = [
+      ["subjects and sessions", plans.error],
+      ["subjects", subjects.error],
+      ["sessions", sessions.error],
+      ["goals", goals.error],
+    ] as const;
+    for (const [query, error] of errors) {
+      if (error) console.error("[Studies] Query failed", { query, error });
+    }
+  }, [plans.error, subjects.error, sessions.error, goals.error]);
+
+  const failedQueries = [
+    ["subjects and sessions", plans] as const,
+    ["subjects", subjects] as const,
+    ["sessions", sessions] as const,
+    ["goals", goals] as const,
+  ].filter(([, query]) => query.isError);
+
+  const retryFailedQueries = async () => {
+    await Promise.all(failedQueries.map(([, query]) => query.refetch()));
+  };
+
   return (
     <PageShell>
       <PageHeader
@@ -109,7 +133,7 @@ function Studies() {
           </Button>
         }
       />
-      {!plans.isPending && !plans.isError && plans.data!.length > 0 && (
+      {!plans.isPending && !plans.isError && (plans.data?.length ?? 0) > 0 && (
         <section
           className="relative mt-8 overflow-hidden rounded-3xl border bg-card p-6 shadow-sm sm:p-8"
           aria-labelledby="learning-overview-title"
@@ -156,7 +180,7 @@ function Studies() {
           </div>
         </section>
       )}
-      {!plans.isPending && plans.data!.length > 0 && (
+      {!plans.isPending && !plans.isError && (plans.data?.length ?? 0) > 0 && (
         <div className="mt-8 grid gap-6 xl:grid-cols-[1.35fr_.65fr]">
           <section className="rounded-2xl border bg-card p-5" aria-labelledby="study-today">
             <div className="flex items-center justify-between gap-3">
@@ -172,7 +196,7 @@ function Studies() {
                 onClick={() =>
                   nav({
                     to: "/studies/$subjectId",
-                    params: { subjectId: subjects.data?.[0]?.id ?? plans.data![0].id },
+                    params: { subjectId: subjects.data?.[0]?.id ?? plans.data?.[0]?.id ?? "" },
                   })
                 }
               >
@@ -243,7 +267,32 @@ function Studies() {
           </section>
         </div>
       )}
-      {plans.isPending ? (
+      {failedQueries.length > 0 ? (
+        <div
+          className="mt-8 rounded-2xl border border-destructive/30 bg-destructive/5 p-6"
+          role="alert"
+        >
+          <h2 className="text-lg font-semibold">Studies could not load completely.</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            The {failedQueries.map(([name]) => name).join(", ")} query failed. Your saved work is
+            unchanged.
+          </p>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <Button
+              className="min-h-11"
+              variant="outline"
+              onClick={retryFailedQueries}
+              disabled={failedQueries.some(([, query]) => query.isFetching)}
+            >
+              <RefreshCw />
+              Try again
+            </Button>
+            <Button className="min-h-11" variant="ghost" onClick={() => nav({ to: "/" })}>
+              Go to dashboard
+            </Button>
+          </div>
+        </div>
+      ) : plans.isPending ? (
         <div
           className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3"
           aria-label="Loading subjects"
@@ -256,26 +305,7 @@ function Studies() {
             />
           ))}
         </div>
-      ) : plans.isError ? (
-        <div
-          className="mt-8 rounded-2xl border border-destructive/30 bg-destructive/5 p-6"
-          role="alert"
-        >
-          <h2 className="text-lg font-semibold">We couldn't load your subjects.</h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Check your connection and try again. Your saved work is unchanged.
-          </p>
-          <Button
-            className="mt-5 min-h-11"
-            variant="outline"
-            onClick={() => plans.refetch()}
-            disabled={plans.isFetching}
-          >
-            <RefreshCw />
-            Try again
-          </Button>
-        </div>
-      ) : !plans.data.length ? (
+      ) : !(plans.data?.length ?? 0) ? (
         <EmptyState
           icon={BookOpen}
           title="No subjects yet"
@@ -292,10 +322,10 @@ function Studies() {
                 Active subjects
               </h2>
             </div>
-            <span className="text-sm text-muted-foreground">{plans.data.length} total</span>
+            <span className="text-sm text-muted-foreground">{plans.data?.length ?? 0} total</span>
           </div>
           <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {plans.data.map((plan) => (
+            {(plans.data ?? []).map((plan) => (
               <button
                 key={plan.id}
                 className="group min-h-40 rounded-2xl border bg-card p-5 text-left transition hover:-translate-y-0.5 hover:border-foreground/20 hover:shadow-lg motion-reduce:transform-none"
