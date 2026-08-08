@@ -10,16 +10,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ContentService, workspaceQueryKeys } from "@/services";
+import { useAuth } from "@/lib/auth-context";
 export const Route = createFileRoute("/_shell/content")({ component: Content });
 const formats = ["Social Post", "Email", "Article", "Script", "Ad Copy", "Description"];
 function Content() {
   const navigate = useNavigate();
   const client = useQueryClient();
+  const { user, isAuthenticated } = useAuth();
+  const contentKey = workspaceQueryKeys.content(user?.id);
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const drafts = useQuery({
-    queryKey: workspaceQueryKeys.content,
+    queryKey: contentKey,
     queryFn: ContentService.listDrafts,
+    enabled: isAuthenticated && !!user,
   });
   const visible = useMemo(
     () =>
@@ -50,7 +54,29 @@ function Content() {
           onChange={(e) => setSearch(e.target.value)}
         />
       </div>
-      {!drafts.isLoading && !visible.length ? (
+      {drafts.isLoading ? (
+        <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3" aria-label="Loading drafts">
+          {[0, 1, 2].map((item) => (
+            <div
+              key={item}
+              className="h-40 animate-pulse rounded-2xl border bg-muted/30 motion-reduce:animate-none"
+            />
+          ))}
+        </div>
+      ) : drafts.isError ? (
+        <div
+          className="mt-6 rounded-2xl border border-destructive/30 bg-destructive/5 p-6"
+          role="alert"
+        >
+          <h2 className="text-lg font-semibold">We couldn't load your content.</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Your saved drafts are unchanged. Check your connection and try again.
+          </p>
+          <Button className="mt-4" variant="outline" onClick={() => drafts.refetch()}>
+            Try again
+          </Button>
+        </div>
+      ) : !visible.length ? (
         <EmptyState
           icon={FileText}
           title="No drafts found"
@@ -78,7 +104,7 @@ function Content() {
         open={open}
         close={() => setOpen(false)}
         created={async (id) => {
-          await client.invalidateQueries({ queryKey: workspaceQueryKeys.content });
+          await client.invalidateQueries({ queryKey: contentKey });
           setOpen(false);
           navigate({ to: "/content/$contentId", params: { contentId: id } });
         }}

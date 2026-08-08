@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BookOpen, Clock3, Plus, RefreshCw, TrendingUp } from "lucide-react";
+import { BookOpen, Clock3, Plus, RefreshCw, Sparkles, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 import { EmptyState, PageHeader, PageShell } from "@/components/page-shell";
 import { Button } from "@/components/ui/button";
@@ -51,6 +51,53 @@ function Studies() {
           </Button>
         }
       />
+      {!plans.isPending && !plans.isError && plans.data.length > 0 && (
+        <section
+          className="relative mt-8 overflow-hidden rounded-3xl border bg-card p-6 shadow-sm sm:p-8"
+          aria-labelledby="learning-overview-title"
+        >
+          <div
+            className="absolute inset-y-0 right-0 hidden w-1/3 bg-gradient-to-l from-violet-500/10 to-transparent sm:block"
+            aria-hidden="true"
+          />
+          <div className="relative grid gap-6 lg:grid-cols-[1fr_auto] lg:items-end">
+            <div>
+              <div className="mb-4 grid h-12 w-12 place-items-center rounded-2xl bg-violet-500/12 text-violet-300">
+                <Sparkles className="h-5 w-5" />
+              </div>
+              <p className="text-xs font-semibold uppercase tracking-[.22em] text-violet-300">
+                Learning pulse
+              </p>
+              <h2
+                id="learning-overview-title"
+                className="mt-2 max-w-xl text-2xl font-semibold tracking-tight sm:text-3xl"
+              >
+                Continue building durable knowledge.
+              </h2>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
+                Every metric below is calculated from your persisted subjects and completed
+                sessions.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="min-w-32 rounded-2xl border bg-background/70 p-4">
+                <p className="text-2xl font-semibold tabular-nums">{plans.data.length}</p>
+                <p className="mt-1 text-xs text-muted-foreground">Active subjects</p>
+              </div>
+              <div className="min-w-32 rounded-2xl border bg-background/70 p-4">
+                <p className="text-2xl font-semibold tabular-nums">
+                  {Math.round(
+                    plans.data.reduce((total, plan) => total + plan.progress, 0) /
+                      plans.data.length,
+                  )}
+                  %
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">Avg. completion</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
       {plans.isPending ? (
         <div
           className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3"

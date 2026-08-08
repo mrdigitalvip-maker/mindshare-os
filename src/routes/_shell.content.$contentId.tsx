@@ -8,15 +8,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ContentService, workspaceQueryKeys } from "@/services";
+import { useAuth } from "@/lib/auth-context";
 export const Route = createFileRoute("/_shell/content/$contentId")({ component: Workspace });
 const operations = ["rewrite", "summarize", "expand", "tone", "title"] as const;
 function Workspace() {
   const { contentId } = Route.useParams();
   const nav = useNavigate();
   const client = useQueryClient();
+  const { user, isAuthenticated } = useAuth();
+  const contentKey = workspaceQueryKeys.content(user?.id);
   const q = useQuery({
-    queryKey: [...workspaceQueryKeys.content, contentId],
+    queryKey: [...contentKey, contentId],
     queryFn: () => ContentService.getDraft(contentId),
+    enabled: isAuthenticated && !!user,
   });
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -28,7 +32,7 @@ function Workspace() {
       hydrated.current = true;
     }
   }, [q.data]);
-  const refresh = () => client.invalidateQueries({ queryKey: workspaceQueryKeys.content });
+  const refresh = () => client.invalidateQueries({ queryKey: contentKey });
   const save = useMutation({
     mutationFn: () => ContentService.updateDraft(contentId, { title: title.trim(), body }),
     onSuccess: async () => {
@@ -54,6 +58,23 @@ function Workspace() {
     return (
       <PageShell>
         <p>Loading draft…</p>
+      </PageShell>
+    );
+  if (q.isError)
+    return (
+      <PageShell>
+        <div
+          className="mx-auto mt-12 max-w-xl rounded-2xl border border-destructive/30 bg-destructive/5 p-6"
+          role="alert"
+        >
+          <h1 className="text-xl font-semibold">We couldn't open this draft.</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Your content remains saved. Check your connection and try again.
+          </p>
+          <Button className="mt-4" onClick={() => q.refetch()}>
+            Try again
+          </Button>
+        </div>
       </PageShell>
     );
   if (!q.data)
