@@ -14,7 +14,13 @@ import {
 import { toast } from "sonner";
 import { EmptyState, PageHeader, PageShell } from "@/components/page-shell";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -51,6 +57,10 @@ function Studies() {
     queryFn: () => StudyService.listGoals(),
     enabled: isAuthenticated && !!user,
   });
+  const studyPlans = Array.isArray(plans.data) ? plans.data : [];
+  const studySubjects = Array.isArray(subjects.data) ? subjects.data : [];
+  const studySessions = Array.isArray(sessions.data) ? sessions.data : [];
+  const studyGoals = Array.isArray(goals.data) ? goals.data : [];
   const [name, setName] = useState("");
   const [goal, setGoal] = useState("");
   const [rhythm, setRhythm] = useState("");
@@ -133,7 +143,7 @@ function Studies() {
           </Button>
         }
       />
-      {!plans.isPending && !plans.isError && (plans.data?.length ?? 0) > 0 && (
+      {!plans.isPending && !plans.isError && studyPlans.length > 0 && (
         <section
           className="relative mt-8 overflow-hidden rounded-3xl border bg-card p-6 shadow-sm sm:p-8"
           aria-labelledby="learning-overview-title"
@@ -163,14 +173,14 @@ function Studies() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="min-w-32 rounded-2xl border bg-background/70 p-4">
-                <p className="text-2xl font-semibold tabular-nums">{plans.data.length}</p>
+                <p className="text-2xl font-semibold tabular-nums">{studyPlans.length}</p>
                 <p className="mt-1 text-xs text-muted-foreground">Active subjects</p>
               </div>
               <div className="min-w-32 rounded-2xl border bg-background/70 p-4">
                 <p className="text-2xl font-semibold tabular-nums">
                   {Math.round(
-                    plans.data.reduce((total, plan) => total + plan.progress, 0) /
-                      plans.data.length,
+                    studyPlans.reduce((total, plan) => total + plan.progress, 0) /
+                      studyPlans.length,
                   )}
                   %
                 </p>
@@ -180,7 +190,7 @@ function Studies() {
           </div>
         </section>
       )}
-      {!plans.isPending && !plans.isError && (plans.data?.length ?? 0) > 0 && (
+      {!plans.isPending && !plans.isError && studyPlans.length > 0 && (
         <div className="mt-8 grid gap-6 xl:grid-cols-[1.35fr_.65fr]">
           <section className="rounded-2xl border bg-card p-5" aria-labelledby="study-today">
             <div className="flex items-center justify-between gap-3">
@@ -196,7 +206,7 @@ function Studies() {
                 onClick={() =>
                   nav({
                     to: "/studies/$subjectId",
-                    params: { subjectId: subjects.data?.[0]?.id ?? plans.data?.[0]?.id ?? "" },
+                    params: { subjectId: studySubjects[0]?.id ?? studyPlans[0]?.id ?? "" },
                   })
                 }
               >
@@ -204,7 +214,7 @@ function Studies() {
               </Button>
             </div>
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              {(goals.data ?? [])
+              {studyGoals
                 .filter((goal) => !goal.completed)
                 .slice(0, 3)
                 .map((goal) => (
@@ -222,7 +232,7 @@ function Studies() {
                     <strong className="mt-2 block truncate text-sm">{goal.title}</strong>
                   </button>
                 ))}
-              {!(goals.data ?? []).some((goal) => !goal.completed) && (
+              {!studyGoals.some((goal) => !goal.completed) && (
                 <p className="text-sm text-muted-foreground">
                   No open goals. Continue your most recent subject or create a goal in its
                   workspace.
@@ -240,27 +250,23 @@ function Studies() {
             <dl className="mt-5 grid grid-cols-2 gap-4">
               <div>
                 <dt className="text-xs text-muted-foreground">Sessions</dt>
-                <dd className="mt-1 text-2xl font-semibold tabular-nums">
-                  {sessions.data?.length ?? 0}
-                </dd>
+                <dd className="mt-1 text-2xl font-semibold tabular-nums">{studySessions.length}</dd>
               </div>
               <div>
                 <dt className="text-xs text-muted-foreground">Minutes</dt>
                 <dd className="mt-1 text-2xl font-semibold tabular-nums">
-                  {(sessions.data ?? []).reduce((sum, item) => sum + (item.duration ?? 0), 0)}
+                  {studySessions.reduce((sum, item) => sum + (item.duration ?? 0), 0)}
                 </dd>
               </div>
               <div>
                 <dt className="text-xs text-muted-foreground">Goals</dt>
-                <dd className="mt-1 text-2xl font-semibold tabular-nums">
-                  {goals.data?.length ?? 0}
-                </dd>
+                <dd className="mt-1 text-2xl font-semibold tabular-nums">{studyGoals.length}</dd>
               </div>
               <div>
                 <dt className="text-xs text-muted-foreground">Completed</dt>
                 <dd className="mt-1 flex items-center gap-1 text-2xl font-semibold tabular-nums">
                   <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                  {(goals.data ?? []).filter((item) => item.completed).length}
+                  {studyGoals.filter((item) => item.completed).length}
                 </dd>
               </div>
             </dl>
@@ -305,7 +311,7 @@ function Studies() {
             />
           ))}
         </div>
-      ) : !(plans.data?.length ?? 0) ? (
+      ) : studyPlans.length === 0 ? (
         <EmptyState
           icon={BookOpen}
           title="No subjects yet"
@@ -322,10 +328,10 @@ function Studies() {
                 Active subjects
               </h2>
             </div>
-            <span className="text-sm text-muted-foreground">{plans.data?.length ?? 0} total</span>
+            <span className="text-sm text-muted-foreground">{studyPlans.length} total</span>
           </div>
           <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {(plans.data ?? []).map((plan) => (
+            {studyPlans.map((plan) => (
               <button
                 key={plan.id}
                 className="group min-h-40 rounded-2xl border bg-card p-5 text-left transition hover:-translate-y-0.5 hover:border-foreground/20 hover:shadow-lg motion-reduce:transform-none"
@@ -364,6 +370,9 @@ function Studies() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Crie seu espaço de aprendizagem</DialogTitle>
+            <DialogDescription>
+              Defina a matéria, o objetivo inicial e um ritmo para começar seu plano de estudos.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
             <p className="text-xs font-semibold uppercase tracking-[.18em] text-violet-300">
