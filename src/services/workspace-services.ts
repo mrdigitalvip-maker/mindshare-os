@@ -863,7 +863,7 @@ export const StudyService = {
     return data ?? [];
   },
   async createGoal(input: {
-    subject_id?: string;
+    subject_id: string;
     title: string;
     target_value: number;
     due_at?: string;
