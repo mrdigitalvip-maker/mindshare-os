@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { subscriptionQueryKey, useSubscription } from "@/hooks/use-subscription";
 import { useAuth } from "@/lib/auth-context";
 import { SubscriptionService } from "@/services";
+import { LEGAL_URLS } from "@/lib/legal";
 
 export const Route = createFileRoute("/_shell/premium")({
   head: () => ({ meta: [{ title: "Premium — NEXORA" }] }),
@@ -180,6 +181,25 @@ function Premium() {
       <p className="mt-6 text-center text-xs text-muted-foreground">
         Stripe checkout is wired through the public edge function and will redirect back to the
         Premium route.
+      </p>
+      <p className="mt-2 flex flex-wrap items-center justify-center gap-x-4 text-center text-xs text-muted-foreground">
+        <span>By upgrading, you agree to NEXORA's policies:</span>
+        <a
+          href={LEGAL_URLS.termsOfService}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex min-h-11 items-center underline underline-offset-4 hover:text-foreground focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          Terms of Service
+        </a>
+        <a
+          href={LEGAL_URLS.privacyPolicy}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex min-h-11 items-center underline underline-offset-4 hover:text-foreground focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          Privacy Policy
+        </a>
       </p>
     </PageShell>
   );
