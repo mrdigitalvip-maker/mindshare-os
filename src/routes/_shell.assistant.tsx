@@ -12,6 +12,7 @@ import {
   Search,
   Send,
   Sparkles,
+  ListTodo,
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -20,9 +21,23 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useChat, type ChatMessage } from "@/hooks/use-chat";
 import { useAuth } from "@/lib/auth-context";
-import { AIService, AIServiceError, workspaceQueryKeys, type AiConversation } from "@/services";
+import {
+  AIService,
+  AIServiceError,
+  ProductivityService,
+  workspaceQueryKeys,
+  type AiConversation,
+} from "@/services";
 
 export const Route = createFileRoute("/_shell/assistant")({
   head: () => ({ meta: [{ title: "Assistente — NEXORA" }] }),
@@ -55,6 +70,7 @@ function Assistant() {
   const shouldFollow = useRef(true);
   const openedFromSearch = useRef<string | null>(null);
   const [showLatest, setShowLatest] = useState(false);
+  const [taskPreview, setTaskPreview] = useState<string | null>(null);
   const { sendMessage, isSending, loadConversationHistory, startConversation } = useChat();
   const conversationsKey = ["workspace", user?.id, "ai-conversations"] as const;
   const conversations = useQuery({
@@ -233,6 +249,11 @@ function Assistant() {
                   <Message
                     key={message.id}
                     message={message}
+                    onSaveTask={
+                      message.role === "assistant"
+                        ? () => setTaskPreview(message.content)
+                        : undefined
+                    }
                     onRegenerate={
                       message.role === "assistant"
                         ? () => {
@@ -345,11 +366,69 @@ function Assistant() {
           />
         </SheetContent>
       </Sheet>
+      <Dialog open={taskPreview !== null} onOpenChange={(open) => !open && setTaskPreview(null)}>
+        <DialogContent className="max-h-[min(90dvh,38rem)] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Save response as task?</DialogTitle>
+            <DialogDescription>
+              Review the preview. Nothing is saved until you confirm.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-xl border bg-muted/30 p-4">
+            <p className="font-medium">
+              {taskPreview
+                ?.split("\n")
+                .find(Boolean)
+                ?.replace(/^#+\s*/, "")
+                .slice(0, 100) || "Assistant follow-up"}
+            </p>
+            <p className="mt-2 line-clamp-6 whitespace-pre-wrap text-sm text-muted-foreground">
+              {taskPreview}
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTaskPreview(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!taskPreview) return;
+                const title =
+                  taskPreview
+                    .split("\n")
+                    .find(Boolean)
+                    ?.replace(/^#+\s*/, "")
+                    .slice(0, 100) || "Assistant follow-up";
+                try {
+                  await ProductivityService.createTask({ title, description: taskPreview });
+                  await queryClient.invalidateQueries({
+                    queryKey: workspaceQueryKeys.tasks(user?.id),
+                  });
+                  setTaskPreview(null);
+                  toast.success("Task saved to Today");
+                } catch (error) {
+                  toast.error(error instanceof Error ? error.message : "Task could not be saved");
+                }
+              }}
+            >
+              <ListTodo /> Confirm and save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </PageShell>
   );
 }
 
-function Message({ message, onRegenerate }: { message: ChatMessage; onRegenerate?: () => void }) {
+function Message({
+  message,
+  onRegenerate,
+  onSaveTask,
+}: {
+  message: ChatMessage;
+  onRegenerate?: () => void;
+  onSaveTask?: () => void;
+}) {
   const [copied, setCopied] = useState(false);
   async function copy() {
     await navigator.clipboard.writeText(message.content);
@@ -387,6 +466,11 @@ function Message({ message, onRegenerate }: { message: ChatMessage; onRegenerate
               aria-label="Gerar resposta novamente"
             >
               <RefreshCw className="h-3.5 w-3.5" />
+            </Button>
+          )}
+          {onSaveTask && (
+            <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={onSaveTask}>
+              <ListTodo className="h-3.5 w-3.5" /> Save as task
             </Button>
           )}
         </div>

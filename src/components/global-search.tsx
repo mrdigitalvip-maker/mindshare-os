@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { Loader2 } from "lucide-react";
+import { Clock3, Loader2, Search } from "lucide-react";
 import {
   CommandDialog,
   CommandEmpty,
@@ -25,6 +25,13 @@ export function GlobalSearch({
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const normalized = query.trim();
+  const [recent, setRecent] = useState<string[]>(() => {
+    try {
+      return JSON.parse(sessionStorage.getItem("nexora-search-recent") ?? "[]") as string[];
+    } catch {
+      return [];
+    }
+  });
   const {
     data: results = [],
     isFetching,
@@ -60,6 +67,12 @@ export function GlobalSearch({
 
   return (
     <CommandDialog open={open} onOpenChange={onOpenChange}>
+      <div className="flex items-center justify-between border-b px-4 py-2 text-xs text-muted-foreground">
+        <span className="flex items-center gap-2">
+          <Search className="h-3.5 w-3.5" /> Command center
+        </span>
+        <kbd className="rounded border px-1.5 py-0.5">⌘ K</kbd>
+      </div>
       <CommandInput placeholder="Search your workspace…" value={query} onValueChange={setQuery} />
       <CommandList>
         {isFetching && (
@@ -72,11 +85,22 @@ export function GlobalSearch({
             Search could not be completed. Please try again.
           </div>
         )}
-        {!isFetching && normalized.length < 2 && (
-          <div className="p-6 text-center text-sm text-muted-foreground">
-            Type at least two characters to search.
-          </div>
-        )}
+        {!isFetching &&
+          normalized.length < 2 &&
+          (recent.length ? (
+            <CommandGroup heading="Recent searches">
+              {recent.map((item) => (
+                <CommandItem key={item} onSelect={() => setQuery(item)}>
+                  <Clock3 className="mr-2 h-4 w-4" />
+                  {item}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          ) : (
+            <div className="p-6 text-center text-sm text-muted-foreground">
+              Search projects, studies, finance, conversations and more.
+            </div>
+          ))}
         {!isFetching && normalized.length >= 2 && (
           <CommandEmpty>No results found in your workspace.</CommandEmpty>
         )}
@@ -90,6 +114,12 @@ export function GlobalSearch({
                   key={`${result.category}-${result.id}`}
                   value={`${result.title} ${result.description}`}
                   onSelect={() => {
+                    const next = [
+                      normalized,
+                      ...recent.filter((item) => item !== normalized),
+                    ].slice(0, 5);
+                    setRecent(next);
+                    sessionStorage.setItem("nexora-search-recent", JSON.stringify(next));
                     onOpenChange(false);
                     navigate({ to: result.path });
                   }}

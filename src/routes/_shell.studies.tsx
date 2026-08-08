@@ -1,7 +1,16 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BookOpen, Clock3, Plus, RefreshCw, Sparkles, TrendingUp } from "lucide-react";
+import {
+  BookOpen,
+  CheckCircle2,
+  Clock3,
+  Plus,
+  RefreshCw,
+  Sparkles,
+  Target,
+  TrendingUp,
+} from "lucide-react";
 import { toast } from "sonner";
 import { EmptyState, PageHeader, PageShell } from "@/components/page-shell";
 import { Button } from "@/components/ui/button";
@@ -24,6 +33,21 @@ function Studies() {
     queryFn: StudyService.listPlans,
     enabled: isAuthenticated && !!user,
     retry: 2,
+  });
+  const subjects = useQuery({
+    queryKey: [...key, "subjects"],
+    queryFn: StudyService.listSubjects,
+    enabled: isAuthenticated && !!user,
+  });
+  const sessions = useQuery({
+    queryKey: [...key, "sessions"],
+    queryFn: StudyService.listHistory,
+    enabled: isAuthenticated && !!user,
+  });
+  const goals = useQuery({
+    queryKey: [...key, "goals"],
+    queryFn: () => StudyService.listGoals(),
+    enabled: isAuthenticated && !!user,
   });
   const [name, setName] = useState("");
   const [color, setColor] = useState("#8b5cf6");
@@ -51,7 +75,7 @@ function Studies() {
           </Button>
         }
       />
-      {!plans.isPending && !plans.isError && plans.data.length > 0 && (
+      {!plans.isPending && !plans.isError && plans.data!.length > 0 && (
         <section
           className="relative mt-8 overflow-hidden rounded-3xl border bg-card p-6 shadow-sm sm:p-8"
           aria-labelledby="learning-overview-title"
@@ -97,6 +121,93 @@ function Studies() {
             </div>
           </div>
         </section>
+      )}
+      {!plans.isPending && plans.data!.length > 0 && (
+        <div className="mt-8 grid gap-6 xl:grid-cols-[1.35fr_.65fr]">
+          <section className="rounded-2xl border bg-card p-5" aria-labelledby="study-today">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[.2em] text-violet-300">
+                  Today
+                </p>
+                <h2 id="study-today" className="mt-1 text-xl font-semibold">
+                  Your next learning move
+                </h2>
+              </div>
+              <Button
+                onClick={() =>
+                  nav({
+                    to: "/studies/$subjectId",
+                    params: { subjectId: subjects.data?.[0]?.id ?? plans.data![0].id },
+                  })
+                }
+              >
+                Start studying
+              </Button>
+            </div>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              {(goals.data ?? [])
+                .filter((goal) => !goal.completed)
+                .slice(0, 3)
+                .map((goal) => (
+                  <button
+                    key={goal.id}
+                    className="min-h-20 rounded-xl border p-4 text-left hover:border-violet-400/50"
+                    onClick={() =>
+                      goal.subject_id &&
+                      nav({ to: "/studies/$subjectId", params: { subjectId: goal.subject_id } })
+                    }
+                  >
+                    <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Target className="h-3.5 w-3.5" /> Open goal
+                    </span>
+                    <strong className="mt-2 block truncate text-sm">{goal.title}</strong>
+                  </button>
+                ))}
+              {!(goals.data ?? []).some((goal) => !goal.completed) && (
+                <p className="text-sm text-muted-foreground">
+                  No open goals. Continue your most recent subject or create a goal in its
+                  workspace.
+                </p>
+              )}
+            </div>
+          </section>
+          <section className="rounded-2xl border bg-card p-5" aria-labelledby="study-progress">
+            <p className="text-xs font-semibold uppercase tracking-[.2em] text-muted-foreground">
+              Progress
+            </p>
+            <h2 id="study-progress" className="mt-1 text-xl font-semibold">
+              Real activity
+            </h2>
+            <dl className="mt-5 grid grid-cols-2 gap-4">
+              <div>
+                <dt className="text-xs text-muted-foreground">Sessions</dt>
+                <dd className="mt-1 text-2xl font-semibold tabular-nums">
+                  {sessions.data?.length ?? 0}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-muted-foreground">Minutes</dt>
+                <dd className="mt-1 text-2xl font-semibold tabular-nums">
+                  {(sessions.data ?? []).reduce((sum, item) => sum + (item.duration ?? 0), 0)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-muted-foreground">Goals</dt>
+                <dd className="mt-1 text-2xl font-semibold tabular-nums">
+                  {goals.data?.length ?? 0}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-muted-foreground">Completed</dt>
+                <dd className="mt-1 flex items-center gap-1 text-2xl font-semibold tabular-nums">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                  {(goals.data ?? []).filter((item) => item.completed).length}
+                </dd>
+              </div>
+            </dl>
+          </section>
+        </div>
       )}
       {plans.isPending ? (
         <div

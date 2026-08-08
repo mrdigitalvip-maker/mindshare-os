@@ -1011,7 +1011,10 @@ export const FinanceService = {
     if (error) throw error;
   },
   async getSummary(): Promise<{ balance: number; income: number; expenses: number }> {
-    const transactions = await this.listTransactions();
+    const [transactions, accounts] = await Promise.all([
+      this.listTransactions(),
+      this.listAccounts(),
+    ]);
     const income = transactions
       .filter((item) => item.type === "income")
       .reduce((total, item) => total + (item.amount ?? 0), 0);
@@ -1019,7 +1022,7 @@ export const FinanceService = {
       .filter((item) => item.type === "expense")
       .reduce((total, item) => total + (item.amount ?? 0), 0);
     return {
-      balance: income - expenses,
+      balance: accounts.reduce((total, account) => total + (account.balance ?? 0), 0),
       income,
       expenses,
     };

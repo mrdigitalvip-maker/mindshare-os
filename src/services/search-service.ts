@@ -13,6 +13,7 @@ export type SearchCategory =
   | "Agents"
   | "Translations"
   | "Conversations"
+  | "Finance"
   | "Studio";
 export type SearchResult = {
   id: string;
@@ -114,6 +115,18 @@ export const SearchService = {
         .eq("user_id", userId)
         .ilike("title", pattern)
         .limit(6),
+      supabase
+        .from("finance_accounts")
+        .select("id, name, type, currency, created_at")
+        .eq("user_id", userId)
+        .or(`name.ilike.${pattern},type.ilike.${pattern}`)
+        .limit(6),
+      supabase
+        .from("finance_transactions")
+        .select("id, account_id, title, category, transaction_date")
+        .eq("user_id", userId)
+        .or(`title.ilike.${pattern},category.ilike.${pattern}`)
+        .limit(6),
       studioDb
         .from("studio_tracks")
         .select("id,slug,title,description,category,updated_at")
@@ -138,6 +151,8 @@ export const SearchService = {
       agents,
       translations,
       conversations,
+      financeAccounts,
+      financeTransactions,
       studioTracks,
       studioLessons,
     ] = queries;
@@ -202,9 +217,25 @@ export const SearchService = {
         id: item.id,
         title: item.title ?? "Untitled conversation",
         description: "AI conversation",
-        path: "/assistant",
+        path: `/assistant?conversation=${encodeURIComponent(item.id)}`,
         category: "Conversations" as const,
         occurredAt: item.updated_at,
+      })),
+      ...(financeAccounts.data ?? []).map((item) => ({
+        id: item.id,
+        title: item.name ?? "Untitled account",
+        description: `${item.type ?? "Account"} · ${item.currency ?? "USD"}`,
+        path: `/finance/accounts/${item.id}`,
+        category: "Finance" as const,
+        occurredAt: item.created_at,
+      })),
+      ...(financeTransactions.data ?? []).map((item) => ({
+        id: item.id,
+        title: item.title ?? item.category ?? "Transaction",
+        description: item.category ?? "Finance transaction",
+        path: item.account_id ? `/finance/accounts/${item.account_id}` : "/finance",
+        category: "Finance" as const,
+        occurredAt: item.transaction_date,
       })),
       ...(studioTracks.data ?? []).map(
         (item: {

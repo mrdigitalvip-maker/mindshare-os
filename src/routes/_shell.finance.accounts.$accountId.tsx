@@ -53,7 +53,7 @@ function AccountWorkspace() {
       </p>
       <div className="mt-6 grid gap-4 sm:grid-cols-3">
         {[
-          ["Balance", income - expenses],
+          ["Balance", account.data.balance ?? 0],
           ["Income", income],
           ["Expenses", expenses],
         ].map(([l, v]) => (
