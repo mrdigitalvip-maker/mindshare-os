@@ -9,15 +9,21 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ProjectService, TaskService } from "@/services";
+import { ProjectService, TaskService, workspaceQueryKeys } from "@/services";
+import { useAuth } from "@/lib/auth-context";
 export const Route = createFileRoute("/_shell/projects")({
   head: () => ({ meta: [{ title: "Projetos — NEXORA" }] }),
   component: Projects,
 });
-const key = ["workspace", "projects"] as const;
 function Projects() {
   const [wizard, setWizard] = useState(false);
-  const query = useQuery({ queryKey: key, queryFn: () => ProjectService.list() });
+  const { user, isAuthenticated } = useAuth();
+  const key = workspaceQueryKeys.projects(user?.id);
+  const query = useQuery({
+    queryKey: key,
+    queryFn: () => ProjectService.list(),
+    enabled: isAuthenticated && !!user,
+  });
   return (
     <PageShell>
       <PageHeader
@@ -32,6 +38,19 @@ function Projects() {
       />
       {query.isLoading ? (
         <p className="mt-10 text-center text-muted-foreground">Carregando projetos…</p>
+      ) : query.isError ? (
+        <div
+          className="mt-8 rounded-2xl border border-destructive/30 bg-destructive/5 p-6"
+          role="alert"
+        >
+          <h2 className="font-semibold">Não foi possível carregar os projetos.</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Verifique sua conexão e tente novamente.
+          </p>
+          <Button className="mt-4" variant="outline" onClick={() => query.refetch()}>
+            Tentar novamente
+          </Button>
+        </div>
       ) : !query.data?.length ? (
         <EmptyState
           icon={FolderKanban}
@@ -72,6 +91,8 @@ function Projects() {
 }
 function ProjectWizard({ open, close }: { open: boolean; close: () => void }) {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const key = workspaceQueryKeys.projects(user?.id);
   const client = useQueryClient();
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({

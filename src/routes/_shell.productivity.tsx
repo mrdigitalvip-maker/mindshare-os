@@ -9,21 +9,27 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ProductivityService, type Task } from "@/services";
+import { ProductivityService, workspaceQueryKeys, type Task } from "@/services";
+import { useAuth } from "@/lib/auth-context";
 
 export const Route = createFileRoute("/_shell/productivity")({
   head: () => ({ meta: [{ title: "Produtividade — NEXORA" }] }),
   component: Produtividade,
 });
-const key = ["workspace", "tasks"] as const;
 type View = "inbox" | "today" | "upcoming" | "overdue" | "done";
 
 function Produtividade() {
   const client = useQueryClient();
+  const { user, isAuthenticated } = useAuth();
+  const key = workspaceQueryKeys.tasks(user?.id);
   const [view, setView] = useState<View>("inbox");
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<Task | null | undefined>(undefined);
-  const query = useQuery({ queryKey: key, queryFn: () => ProductivityService.listTasks() });
+  const query = useQuery({
+    queryKey: key,
+    queryFn: () => ProductivityService.listTasks(),
+    enabled: isAuthenticated && !!user,
+  });
   const invalidate = () => client.invalidateQueries({ queryKey: key });
   const toggle = useMutation({
     mutationFn: (id: string) => ProductivityService.toggleTask(id),

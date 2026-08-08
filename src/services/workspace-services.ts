@@ -657,7 +657,7 @@ export const StudyService = {
     const userId = await getRequiredUserId();
     const { data, error } = await supabase
       .from("study_subjects")
-      .select("id, color, created_at, name, user_id")
+      .select("id, color, created_at, description, name, status, updated_at, user_id")
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
     if (error) throw error;
@@ -673,6 +673,9 @@ export const StudyService = {
             name: plan.title,
             color: colors[0],
             created_at: null,
+            description: "",
+            status: "active",
+            updated_at: new Date().toISOString(),
             user_id: "demo-user",
           } as StudySubjectRow)
         : null;
@@ -680,7 +683,7 @@ export const StudyService = {
     const userId = await getRequiredUserId();
     const { data, error } = await supabase
       .from("study_subjects")
-      .select("id, color, created_at, name, user_id")
+      .select("id, color, created_at, description, name, status, updated_at, user_id")
       .eq("id", id)
       .eq("user_id", userId)
       .maybeSingle();
@@ -704,7 +707,7 @@ export const StudyService = {
     const { data, error } = await supabase
       .from("study_subjects")
       .insert({ ...input, user_id: userId })
-      .select("id, color, created_at, name, user_id")
+      .select("id, color, created_at, description, name, status, updated_at, user_id")
       .single();
     if (error) throw error;
     return data;
@@ -750,7 +753,7 @@ export const StudyService = {
     const { data, error } = await supabase
       .from("study_sessions")
       .insert({ ...input, user_id: userId })
-      .select("id, completed, created_at, duration, subject_id, user_id")
+      .select("id, activity, completed, created_at, duration, subject_id, user_id")
       .single();
     if (error) throw error;
     return data;
@@ -768,11 +771,97 @@ export const StudyService = {
     const userId = await getRequiredUserId();
     const { data, error } = await supabase
       .from("study_sessions")
-      .select("id, completed, created_at, duration, subject_id, user_id")
+      .select("id, activity, completed, created_at, duration, subject_id, user_id")
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
     if (error) throw error;
     return data ?? [];
+  },
+  async listGoals(subjectId?: string) {
+    const userId = await getRequiredUserId();
+    let query = supabase.from("study_goals").select("*").eq("user_id", userId).order("due_at");
+    if (subjectId) query = query.eq("subject_id", subjectId);
+    const { data, error } = await query;
+    if (error) throw error;
+    return data ?? [];
+  },
+  async createGoal(input: {
+    subject_id?: string;
+    title: string;
+    target_value: number;
+    due_at?: string;
+  }) {
+    const userId = await getRequiredUserId();
+    const { data, error } = await supabase
+      .from("study_goals")
+      .insert({ ...input, user_id: userId })
+      .select("*")
+      .single();
+    if (error) throw error;
+    return data;
+  },
+  async updateGoal(id: string, patch: Database["public"]["Tables"]["study_goals"]["Update"]) {
+    const userId = await getRequiredUserId();
+    const { error } = await supabase
+      .from("study_goals")
+      .update(patch)
+      .eq("id", id)
+      .eq("user_id", userId);
+    if (error) throw error;
+  },
+  async removeGoal(id: string) {
+    const userId = await getRequiredUserId();
+    const { error } = await supabase
+      .from("study_goals")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", userId);
+    if (error) throw error;
+  },
+  async listNotes(subjectId: string) {
+    const userId = await getRequiredUserId();
+    const { data, error } = await supabase
+      .from("study_notes")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("subject_id", subjectId)
+      .order("updated_at", { ascending: false });
+    if (error) throw error;
+    return data ?? [];
+  },
+  async saveNote(input: { id?: string; subject_id: string; title: string; content: string }) {
+    const userId = await getRequiredUserId();
+    if (input.id) {
+      const { data, error } = await supabase
+        .from("study_notes")
+        .update({
+          title: input.title,
+          content: input.content,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", input.id)
+        .eq("user_id", userId)
+        .select("*")
+        .single();
+      if (error) throw error;
+      return data;
+    }
+    const { data, error } = await supabase
+      .from("study_notes")
+      .insert({ ...input, user_id: userId })
+      .select("*")
+      .single();
+    if (error) throw error;
+    return data;
+  },
+  async removeNote(id: string) {
+    const userId = await getRequiredUserId();
+    const { error } = await supabase
+      .from("study_notes")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", userId);
+    if (error) throw error;
   },
   async getSummary(): Promise<{ totalMinutes: number; completedSessions: number }> {
     const sessions = await this.listHistory();
