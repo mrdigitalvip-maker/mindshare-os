@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bot, Play, Trash2 } from "lucide-react";
+import { Bot, Copy, Play, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { PageShell, EmptyState } from "@/components/page-shell";
 import { Button } from "@/components/ui/button";
@@ -27,9 +27,14 @@ function AgentWorkspace() {
     queryFn: () => AgentService.listRuns(agentId),
   });
   const [input, setInput] = useState("");
+  const [context, setContext] = useState("");
   const [output, setOutput] = useState("");
   const run = useMutation({
-    mutationFn: () => AgentService.run(agentId, input),
+    mutationFn: () =>
+      AgentService.run(
+        agentId,
+        context.trim() ? `Context:\n${context}\n\nRequest:\n${input}` : input,
+      ),
     onSuccess: async (r) => {
       setOutput(r.output);
       await client.invalidateQueries({ queryKey: ["workspace", "agent-runs", agentId] });
@@ -73,6 +78,16 @@ function AgentWorkspace() {
               {a.instructions || "Não informado"}
             </p>
             <p className="mt-4 text-sm">Capacidades: {a.capabilities.join(", ") || "nenhuma"}</p>
+            <div className="mt-6 grid grid-cols-2 gap-3 text-sm">
+              <div className="rounded-xl border p-3">
+                <span className="text-muted-foreground">Status</span>
+                <p className="mt-1 font-medium">{a.active ? "Active" : "Inactive"}</p>
+              </div>
+              <div className="rounded-xl border p-3">
+                <span className="text-muted-foreground">Recent usage</span>
+                <p className="mt-1 font-medium">{runs.data?.length ?? 0} runs</p>
+              </div>
+            </div>
           </div>
         </TabsContent>
         <TabsContent value="run">
@@ -84,6 +99,13 @@ function AgentWorkspace() {
               onChange={(e) => setInput(e.target.value)}
               placeholder="Descreva o trabalho para o agente…"
             />
+            <Label>Context (optional)</Label>
+            <Textarea
+              className="min-h-20"
+              value={context}
+              onChange={(e) => setContext(e.target.value)}
+              placeholder="Constraints, audience, source material…"
+            />
             <Button
               disabled={!input.trim() || run.isPending || !sub.data?.isPremium}
               onClick={() => run.mutate()}
@@ -94,17 +116,43 @@ function AgentWorkspace() {
             {!sub.data?.isPremium && (
               <p className="text-sm text-destructive">Uma assinatura Premium ativa é necessária.</p>
             )}
-            {output && <div className="glass whitespace-pre-wrap rounded-xl p-4">{output}</div>}
+            {run.isError && (
+              <p role="alert" className="text-sm text-destructive">
+                The run failed. Your input is still here so you can retry.
+              </p>
+            )}
+            {output && (
+              <div className="glass rounded-xl p-4">
+                <div className="mb-3 flex justify-end gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => navigator.clipboard.writeText(output)}
+                  >
+                    <Copy />
+                    Copy
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => run.mutate()}>
+                    <RefreshCw />
+                    Run again
+                  </Button>
+                </div>
+                <div className="whitespace-pre-wrap">{output}</div>
+              </div>
+            )}
           </div>
         </TabsContent>
         <TabsContent value="history">
           <div className="mt-4 space-y-3">
             {runs.data?.map((r) => (
               <details key={r.id} className="glass rounded-xl p-4">
-                <summary className="cursor-pointer">
+                <summary className="min-h-11 cursor-pointer py-2">
                   <span className="font-medium">{r.status}</span> ·{" "}
                   {new Date(r.created_at || r.started_at || "").toLocaleString("pt-BR")}
                 </summary>
+                <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                  {typeof r.input === "string" ? r.input : "Saved input"}
+                </p>
                 <p className="mt-3 whitespace-pre-wrap text-sm">
                   {typeof r.output === "string"
                     ? r.output

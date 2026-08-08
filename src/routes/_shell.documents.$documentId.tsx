@@ -24,11 +24,13 @@ function DocumentWorkspace() {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [analysis, setAnalysis] = useState("");
+  const [dirty, setDirty] = useState(false);
   const hydrated = useRef(false);
   useEffect(() => {
     if (query.data && !hydrated.current) {
       setTitle(query.data.title);
       setContent(query.data.summary);
+      setDirty(false);
       hydrated.current = true;
     }
   }, [query.data]);
@@ -41,6 +43,7 @@ function DocumentWorkspace() {
     mutationFn: () => DocumentService.update(documentId, { title: title.trim(), content }),
     onSuccess: async () => {
       await refresh();
+      setDirty(false);
       toast.success("Document saved");
     },
     onError: (e: Error) => toast.error(e.message),
@@ -113,17 +116,25 @@ function DocumentWorkspace() {
           className="mt-6 h-auto border-0 px-0 text-3xl font-semibold shadow-none focus-visible:ring-0"
           aria-label="Document title"
           value={title}
-          onChange={(e) => setTitle(e.target.value)}
+          onChange={(e) => {
+            setTitle(e.target.value);
+            setDirty(true);
+          }}
         />
         <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-          <span>{save.isPending ? "Saving changes…" : "Changes are saved manually"}</span>
+          <span aria-live="polite">
+            {save.isPending ? "Saving changes…" : dirty ? "Unsaved changes" : "Saved"}
+          </span>
           <span>Updated {new Date(document.updatedAt).toLocaleString()}</span>
         </div>
         <Textarea
           className="mt-6 min-h-[55vh] resize-y text-base leading-7"
           aria-label="Document content"
           value={content}
-          onChange={(e) => setContent(e.target.value)}
+          onChange={(e) => {
+            setContent(e.target.value);
+            setDirty(true);
+          }}
           placeholder="Start writing…"
         />
         <section className="glass mt-6 rounded-2xl p-4">
@@ -146,7 +157,7 @@ function DocumentWorkspace() {
                   key={label}
                   size="sm"
                   variant="outline"
-                  disabled={analyze.isPending}
+                  disabled={analyze.isPending || !content.trim()}
                   onClick={() => analyze.mutate(instruction)}
                 >
                   <Sparkles />

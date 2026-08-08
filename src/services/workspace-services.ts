@@ -550,7 +550,7 @@ export const ContentService = {
     const userId = await getRequiredUserId();
     const { data, error } = await supabase
       .from("documents")
-      .select("id, title, content, type")
+      .select("id, title, content, type, updated_at")
       .eq("user_id", userId)
       .eq("type", "draft")
       .order("updated_at", { ascending: false });
@@ -560,6 +560,7 @@ export const ContentService = {
       title: row.title ?? "Untitled draft",
       format: row.type ?? "draft",
       body: row.content ?? "",
+      updatedAt: row.updated_at ?? undefined,
     }));
   },
   async getDraft(id: string): Promise<ContentDraft | null> {
@@ -593,7 +594,7 @@ export const ContentService = {
         type: "draft",
         content: input?.body ?? "",
       })
-      .select("id, title, content, type")
+      .select("id, title, content, type, updated_at")
       .single();
     if (error) throw error;
     return {
@@ -601,6 +602,7 @@ export const ContentService = {
       title: data.title ?? "New draft",
       format: data.type ?? "draft",
       body: data.content ?? "",
+      updatedAt: data.updated_at ?? undefined,
     };
   },
   async updateDraft(id: string, patch: { title?: string; body?: string }): Promise<void> {

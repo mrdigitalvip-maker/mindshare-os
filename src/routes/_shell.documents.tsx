@@ -30,7 +30,7 @@ function Documents() {
   });
   const duplicate = useMutation({
     mutationFn: (document: Document) =>
-      DocumentService.createUploadRecord(`${document.title} copy`, document.type),
+      DocumentService.createUploadRecord(`${document.title} copy`, document.type, document.summary),
     onSuccess: refresh,
     onError: (e: Error) => toast.error(e.message),
   });
@@ -76,6 +76,14 @@ function Documents() {
       </div>
       {query.isLoading ? (
         <p className="mt-10 text-center text-muted-foreground">Loading documents…</p>
+      ) : query.isError ? (
+        <div role="alert" className="mt-6 rounded-2xl border border-destructive/30 p-6">
+          <h2 className="font-semibold">We couldn't load your documents.</h2>
+          <p className="mt-2 text-sm text-muted-foreground">Your saved work is unchanged.</p>
+          <Button className="mt-4" variant="outline" onClick={() => query.refetch()}>
+            Try again
+          </Button>
+        </div>
       ) : !visible.length ? (
         <EmptyState
           icon={FileText}
@@ -84,48 +92,62 @@ function Documents() {
           action={<Button onClick={() => setEditing(null)}>Create document</Button>}
         />
       ) : (
-        <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {visible.map((document) => (
-            <article key={document.id} className="glass rounded-2xl p-5">
-              <FileText className="h-5 w-5 text-gold" />
-              <h2 className="mt-3 truncate text-lg font-medium">{document.title}</h2>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {document.type} · Updated {new Date(document.updatedAt).toLocaleDateString()}
-              </p>
-              <p className="mt-3 line-clamp-3 min-h-12 text-sm text-muted-foreground">
-                {document.summary || "No summary yet."}
-              </p>
-              <div className="mt-4 flex justify-end">
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  aria-label={`Open ${document.title}`}
-                  onClick={() =>
-                    navigate({ to: "/documents/$documentId", params: { documentId: document.id } })
-                  }
-                >
-                  <Pencil />
-                </Button>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  aria-label={`Duplicate ${document.title}`}
-                  onClick={() => duplicate.mutate(document)}
-                >
-                  <Copy />
-                </Button>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  aria-label={`Delete ${document.title}`}
-                  onClick={() => confirm(`Delete ${document.title}?`) && remove.mutate(document.id)}
-                >
-                  <Trash2 />
-                </Button>
-              </div>
-            </article>
-          ))}
-        </div>
+        <section className="mt-6">
+          <div className="mb-3 flex items-end justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">Recent</p>
+              <h2 className="text-xl font-semibold">All documents</h2>
+            </div>
+            <span className="text-sm text-muted-foreground">{visible.length} documents</span>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {visible.map((document) => (
+              <article key={document.id} className="glass rounded-2xl p-5">
+                <FileText className="h-5 w-5 text-gold" />
+                <h2 className="mt-3 truncate text-lg font-medium">{document.title}</h2>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {document.type} · Updated {new Date(document.updatedAt).toLocaleDateString()}
+                </p>
+                <p className="mt-3 line-clamp-3 min-h-12 text-sm text-muted-foreground">
+                  {document.summary || "No summary yet."}
+                </p>
+                <div className="mt-4 flex justify-end">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    aria-label={`Open ${document.title}`}
+                    onClick={() =>
+                      navigate({
+                        to: "/documents/$documentId",
+                        params: { documentId: document.id },
+                      })
+                    }
+                  >
+                    <Pencil />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    aria-label={`Duplicate ${document.title}`}
+                    onClick={() => duplicate.mutate(document)}
+                  >
+                    <Copy />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    aria-label={`Delete ${document.title}`}
+                    onClick={() =>
+                      confirm(`Delete ${document.title}?`) && remove.mutate(document.id)
+                    }
+                  >
+                    <Trash2 />
+                  </Button>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
       )}
       <DocumentDialog
         value={editing}
@@ -197,8 +219,8 @@ function DocumentDialog({
             <Input id="document-type" value={type} onChange={(e) => setType(e.target.value)} />
           </div>
           <p className="text-sm text-muted-foreground">
-            File content stays in Supabase Storage. This editor only changes persisted document
-            metadata.
+            This creates an editable database document. File attachments are not available because
+            the existing files table has no document relationship.
           </p>
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={close}>

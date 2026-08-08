@@ -24,11 +24,13 @@ function Workspace() {
   });
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
+  const [dirty, setDirty] = useState(false);
   const hydrated = useRef(false);
   useEffect(() => {
     if (q.data && !hydrated.current) {
       setTitle(q.data.title);
       setBody(q.data.body);
+      setDirty(false);
       hydrated.current = true;
     }
   }, [q.data]);
@@ -37,6 +39,7 @@ function Workspace() {
     mutationFn: () => ContentService.updateDraft(contentId, { title: title.trim(), body }),
     onSuccess: async () => {
       await refresh();
+      setDirty(false);
       toast.success("Draft saved");
     },
     onError: (e: Error) => toast.error(e.message),
@@ -49,8 +52,10 @@ function Workspace() {
         confirm(
           "Replace the editor with the AI result? Your current draft remains unchanged until you save.",
         )
-      )
+      ) {
         setBody(r.content);
+        setDirty(true);
+      }
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -89,7 +94,7 @@ function Workspace() {
     );
   return (
     <PageShell>
-      <div className="mx-auto max-w-5xl min-w-0">
+      <div className="mx-auto max-w-5xl min-w-0 pb-[env(safe-area-inset-bottom)]">
         <div className="flex flex-wrap justify-between gap-2">
           <Button variant="ghost" onClick={() => nav({ to: "/content" })}>
             <ArrowLeft />
@@ -126,8 +131,29 @@ function Workspace() {
         <Input
           className="mt-6 h-auto border-0 px-0 text-3xl font-semibold shadow-none"
           value={title}
-          onChange={(e) => setTitle(e.target.value)}
+          onChange={(e) => {
+            setTitle(e.target.value);
+            setDirty(true);
+          }}
         />
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+          <div className="flex gap-2">
+            <strong className="text-foreground">IDEA</strong>
+            <span>→</span>
+            <strong className="text-foreground">DRAFT</strong>
+            <span>→</span>
+            <strong className="text-foreground">IMPROVE</strong>
+            <span>→</span>
+            <strong className="text-foreground">FINAL</strong>
+          </div>
+          <span aria-live="polite">
+            {save.isPending
+              ? "Saving…"
+              : dirty
+                ? "Unsaved changes"
+                : `Saved${q.data.updatedAt ? ` · ${new Date(q.data.updatedAt).toLocaleString()}` : ""}`}
+          </span>
+        </div>
         <div className="mt-4 flex max-w-full gap-2 overflow-x-auto pb-2">
           {operations.map((op) => (
             <Button
@@ -145,7 +171,10 @@ function Workspace() {
         <Textarea
           className="min-h-[60vh] text-base leading-7"
           value={body}
-          onChange={(e) => setBody(e.target.value)}
+          onChange={(e) => {
+            setBody(e.target.value);
+            setDirty(true);
+          }}
           placeholder="Write or generate content…"
         />
         <p className="mt-2 text-xs text-muted-foreground">
