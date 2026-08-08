@@ -92,9 +92,11 @@ function Finance() {
           </div>
         ))}
       </section>
-      <section className="mt-10">
+      <section className="mt-10" aria-labelledby="finance-accounts">
         <div className="flex items-center justify-between">
-          <h2 className="font-display text-2xl">Accounts</h2>
+          <h2 id="finance-accounts" className="font-display text-2xl">
+            Accounts
+          </h2>
         </div>
         <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {accounts.data?.map((account) => (
@@ -139,6 +141,19 @@ function Finance() {
             </article>
           ))}
         </div>
+        {!accounts.isLoading && !accounts.data?.length && (
+          <div className="mt-4 rounded-2xl border border-dashed p-8 text-center">
+            <Wallet className="mx-auto h-8 w-8 text-muted-foreground" />
+            <h3 className="mt-4 text-lg font-semibold">Build your money command center</h3>
+            <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+              Create your first account. Balances and every metric shown here come only from your
+              saved finance data.
+            </p>
+            <Button className="mt-5" onClick={() => setEditor({ kind: "account" })}>
+              <Plus /> Create first account
+            </Button>
+          </div>
+        )}
       </section>
       <section className="mt-10">
         <h2 className="font-display text-2xl">Transaction history</h2>
