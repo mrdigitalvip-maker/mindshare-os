@@ -14,6 +14,8 @@ import {
   RefreshCw,
   Sparkles,
   Trash2,
+  Target,
+  TrendingUp,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageShell } from "@/components/page-shell";
@@ -29,7 +31,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { AIService, ProjectService, TaskService, workspaceQueryKeys, type Task } from "@/services";
+import {
+  AIService,
+  AIServiceError,
+  ProjectService,
+  TaskService,
+  workspaceQueryKeys,
+  type Task,
+} from "@/services";
 import { useAuth } from "@/lib/auth-context";
 
 export const Route = createFileRoute("/_shell/projects/$projectId")({
@@ -48,6 +57,7 @@ function ProjectWorkspace() {
   const [editing, setEditing] = useState(false);
   const [planning, setPlanning] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [completion, setCompletion] = useState(false);
   const project = useQuery({
     queryKey: [...projectKey, projectId],
     queryFn: () => ProjectService.get(projectId),
@@ -92,12 +102,25 @@ function ProjectWorkspace() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+  const completeProject = useMutation({
+    mutationFn: () => ProjectService.update(projectId, { status: "completed" }),
+    onSuccess: async () => {
+      await refresh();
+      setCompletion(false);
+      toast.success("Projeto concluído");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
   const open = useMemo(
     () => sortOpen((tasks.data ?? []).filter((t) => t.status === "open")),
     [tasks.data],
   );
   const done = (tasks.data ?? []).filter((t) => t.status === "done");
   const next = open[0];
+  const overdue = open.filter(isOverdue);
+  const nextDue = open
+    .filter((item) => item.dueDate)
+    .sort((a, b) => a.dueDate!.localeCompare(b.dueDate!))[0];
   if (project.isLoading)
     return (
       <PageShell>
@@ -199,6 +222,15 @@ function ProjectWorkspace() {
           </div>
         </div>
       </header>
+      {p.status === "completed" && (
+        <section className="mt-6 rounded-2xl border border-gold/30 bg-gold/10 p-5" role="status">
+          <p className="text-sm font-medium text-gold">Projeto concluído</p>
+          <h2 className="mt-1 break-words font-display text-2xl">{p.title}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {done.length} de {count} tarefas concluídas
+          </p>
+        </section>
+      )}
       {tasks.isError ? (
         <LocalError retry={() => tasks.refetch()} />
       ) : (
@@ -292,6 +324,62 @@ function ProjectWorkspace() {
             </section>
           </main>
           <aside className="min-w-0 space-y-5 lg:sticky lg:top-24 lg:self-start">
+            <Copilot
+              project={p}
+              tasks={tasks.data ?? []}
+              next={next}
+              openTask={setTask}
+              plan={() => setPlanning(true)}
+            />
+            <section className="rounded-2xl border border-border p-5">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-gold" />
+                <h2 className="font-display text-lg">Pulso do projeto</h2>
+              </div>
+              <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                <div>
+                  <dt className="text-muted-foreground">Concluídas</dt>
+                  <dd className="mt-0.5 font-medium">
+                    {done.length} / {count}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Em aberto</dt>
+                  <dd className="mt-0.5 font-medium">{open.length}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Atrasadas</dt>
+                  <dd
+                    className={
+                      overdue.length ? "mt-0.5 font-medium text-destructive" : "mt-0.5 font-medium"
+                    }
+                  >
+                    {overdue.length}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Próximo prazo</dt>
+                  <dd className="mt-0.5 font-medium">
+                    {nextDue?.dueDate ? formatDate(nextDue.dueDate) : "Não definido"}
+                  </dd>
+                </div>
+              </dl>
+            </section>
+            {count > 0 && done.length === count && p.status !== "completed" && (
+              <section className="rounded-2xl border border-gold/30 p-5">
+                <Target className="h-5 w-5 text-gold" />
+                <h2 className="mt-3 font-display text-lg">Todas as ações foram concluídas</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Revise o resultado e encerre o projeto quando estiver pronto.
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Button onClick={() => setCompletion(true)}>Concluir projeto</Button>
+                  <Button variant="outline" onClick={() => setTask(null)}>
+                    Adicionar ação
+                  </Button>
+                </div>
+              </section>
+            )}
             <section className="rounded-2xl border border-border p-5">
               <h2 className="font-display text-lg">Resultado</h2>
               <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
@@ -315,6 +403,7 @@ function ProjectWorkspace() {
         </div>
       )}
       <TaskForm
+        key={task === undefined ? "closed" : (task?.id ?? "new")}
         task={task}
         projectId={projectId}
         close={() => setTask(undefined)}
@@ -354,13 +443,40 @@ function ProjectWorkspace() {
           </div>
         </DialogContent>
       </Dialog>
+      <Dialog open={completion} onOpenChange={setCompletion}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Concluir “{p.title}”?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            O status será salvo como concluído. Suas tarefas continuarão disponíveis.
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setCompletion(false)}>
+              Cancelar
+            </Button>
+            <Button disabled={completeProject.isPending} onClick={() => completeProject.mutate()}>
+              {completeProject.isPending && <Loader2 className="animate-spin" />}Confirmar conclusão
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </PageShell>
   );
 }
 
 function sortOpen(items: Task[]) {
   return [...items].sort((a, b) => {
-    const rank = (t: Task) => (isOverdue(t) ? 0 : t.priority === "high" ? 1 : t.dueDate ? 2 : 3);
+    const rank = (t: Task) =>
+      isOverdue(t)
+        ? 0
+        : t.priority === "high" && t.dueDate
+          ? 1
+          : t.dueDate
+            ? 2
+            : t.priority === "high"
+              ? 3
+              : 4;
     return rank(a) - rank(b) || (a.dueDate ?? "9999").localeCompare(b.dueDate ?? "9999");
   });
 }
@@ -471,6 +587,159 @@ function LocalError({ retry }: { retry: () => void }) {
       </Button>
     </section>
   );
+}
+
+type CopilotAction = "next" | "review" | "risks";
+function Copilot({
+  project,
+  tasks,
+  next,
+  openTask,
+  plan,
+}: {
+  project: NonNullable<Awaited<ReturnType<typeof ProjectService.get>>>;
+  tasks: Task[];
+  next?: Task;
+  openTask: (task: Task) => void;
+  plan: () => void;
+}) {
+  const [answer, setAnswer] = useState("");
+  const [lastAction, setLastAction] = useState<CopilotAction>();
+  const [limited, setLimited] = useState(false);
+  const ask = useMutation({
+    mutationFn: async (action: CopilotAction) => {
+      setLastAction(action);
+      setLimited(false);
+      const open = tasks.filter((task) => task.status === "open");
+      const done = tasks.filter((task) => task.status === "done");
+      const prompt = [
+        "Responda em português, de forma curta, concreta e sem markdown excessivo.",
+        "Analise somente este projeto e não presuma dados ausentes.",
+        `Ação: ${action === "next" ? "recomendar o que fazer agora" : action === "review" ? "revisar o plano separando O que funciona, Atenção e Próximos passos" : "identificar até 3 riscos e mitigação"}.`,
+        `Projeto: ${project.title}`,
+        `Objetivo: ${project.objective || "Não informado"}`,
+        `Contexto: ${project.description || "Não informado"}`,
+        `Progresso real: ${tasks.length ? `${done.length}/${tasks.length}` : "ainda não planejado"}`,
+        `Tarefas abertas: ${open.map(projectTaskContext).join("; ") || "nenhuma"}`,
+        `Tarefas concluídas: ${done.map(projectTaskContext).join("; ") || "nenhuma"}`,
+      ].join("\n");
+      return (
+        await AIService.execute("content_generation", {
+          operation: "draft",
+          title: `Copilot: ${project.title}`,
+          text: prompt,
+        })
+      ).content;
+    },
+    onSuccess: setAnswer,
+    onError: (error: Error) => {
+      if (
+        error instanceof AIServiceError &&
+        [
+          "premium_required",
+          "free_limit_reached",
+          "premium_limit_reached",
+          "action_limit_reached",
+        ].includes(error.code)
+      )
+        setLimited(true);
+      setAnswer("");
+    },
+  });
+  const deterministic = !tasks.length
+    ? "Seu projeto ainda não tem ações definidas."
+    : tasks.every((task) => task.status === "done")
+      ? "Todas as tarefas estão concluídas. Revise o resultado antes de encerrar."
+      : tasks.filter((task) => task.status === "open" && isOverdue(task)).length
+        ? `${tasks.filter((task) => task.status === "open" && isOverdue(task)).length} tarefa(s) estão atrasadas.`
+        : tasks.filter((task) => task.status === "open").every((task) => !task.dueDate)
+          ? "Suas tarefas abertas ainda não possuem prazos."
+          : `Seu próximo passo atual é ${next?.title ?? "revisar o plano"}.`;
+  return (
+    <section className="rounded-2xl border border-gold/25 p-5" aria-busy={ask.isPending}>
+      <div className="flex items-center gap-2">
+        <Sparkles className="h-4 w-4 text-gold" />
+        <h2 className="font-display text-lg">NEXORA Copilot</h2>
+      </div>
+      <p className="mt-2 text-sm leading-6 text-muted-foreground">{deterministic}</p>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={ask.isPending}
+          onClick={() => ask.mutate("next")}
+        >
+          O que fazer agora?
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={ask.isPending}
+          onClick={() => ask.mutate("review")}
+        >
+          Revisar plano
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={ask.isPending}
+          onClick={() => ask.mutate("risks")}
+        >
+          Identificar riscos
+        </Button>
+      </div>
+      {ask.isPending && (
+        <p className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Analisando seu projeto…
+        </p>
+      )}
+      {ask.isError && !limited && (
+        <div role="alert" className="mt-4 text-sm">
+          <p>Não foi possível gerar uma sugestão agora.</p>
+          <Button
+            className="mt-2"
+            size="sm"
+            variant="outline"
+            onClick={() => lastAction && ask.mutate(lastAction)}
+          >
+            Tentar novamente
+          </Button>
+        </div>
+      )}
+      {limited && (
+        <div role="alert" className="mt-4 rounded-xl bg-surface p-3 text-sm">
+          <p className="font-medium">Limite de IA alcançado</p>
+          <p className="mt-1 text-muted-foreground">
+            Continue usando execução e tarefas gratuitamente ou conheça os planos com maior
+            capacidade.
+          </p>
+          <Button asChild className="mt-3" size="sm">
+            <Link to="/premium">Ver planos</Link>
+          </Button>
+        </div>
+      )}
+      {answer && (
+        <div className="mt-4 border-t border-border pt-4">
+          <p className="whitespace-pre-wrap break-words text-sm leading-6">{answer}</p>
+          {lastAction === "next" && next && (
+            <Button className="mt-3" size="sm" onClick={() => openTask(next)}>
+              Abrir tarefa
+            </Button>
+          )}
+        </div>
+      )}
+      {!tasks.length && (
+        <Button className="mt-4" size="sm" onClick={plan}>
+          <Sparkles />
+          Planejar com NEXORA
+        </Button>
+      )}
+    </section>
+  );
+}
+function projectTaskContext(task: Task) {
+  return `${task.title} [prioridade ${task.priority ?? "média"}; prazo ${task.dueDate ?? "não definido"}]`;
 }
 function TaskForm({
   task,
@@ -749,7 +1018,7 @@ function PlanDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="text-gold" />
-            Planejar com IA
+            Planejar com NEXORA
           </DialogTitle>
         </DialogHeader>
         <div className="rounded-xl border border-border bg-surface/50 p-4">
