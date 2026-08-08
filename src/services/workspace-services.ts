@@ -19,6 +19,7 @@ type StudySubjectInsert = Database["public"]["Tables"]["study_subjects"]["Insert
 type StudySubjectUpdate = Database["public"]["Tables"]["study_subjects"]["Update"];
 type StudySessionRow = Database["public"]["Tables"]["study_sessions"]["Row"];
 type StudySessionInsert = Database["public"]["Tables"]["study_sessions"]["Insert"];
+type StudySessionUpdate = Database["public"]["Tables"]["study_sessions"]["Update"];
 type FinanceAccountRow = Database["public"]["Tables"]["finance_accounts"]["Row"];
 type FinanceAccountInsert = Database["public"]["Tables"]["finance_accounts"]["Insert"];
 type FinanceAccountUpdate = Database["public"]["Tables"]["finance_accounts"]["Update"];
@@ -753,16 +754,28 @@ export const StudyService = {
     const { data, error } = await supabase
       .from("study_sessions")
       .insert({ ...input, user_id: userId })
-      .select("id, activity, completed, created_at, duration, subject_id, user_id")
+      .select("id, activity, completed, created_at, duration, subject_id, updated_at, user_id")
       .single();
     if (error) throw error;
     return data;
   },
-  async finishSession(id: string, duration: number): Promise<void> {
+  async updateSession(id: string, patch: StudySessionUpdate): Promise<void> {
     const userId = await getRequiredUserId();
     const { error } = await supabase
       .from("study_sessions")
-      .update({ completed: true, duration })
+      .update({ ...patch, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .eq("user_id", userId);
+    if (error) throw error;
+  },
+  async finishSession(id: string, duration: number): Promise<void> {
+    return this.updateSession(id, { completed: true, duration });
+  },
+  async removeSession(id: string): Promise<void> {
+    const userId = await getRequiredUserId();
+    const { error } = await supabase
+      .from("study_sessions")
+      .delete()
       .eq("id", id)
       .eq("user_id", userId);
     if (error) throw error;
@@ -771,7 +784,7 @@ export const StudyService = {
     const userId = await getRequiredUserId();
     const { data, error } = await supabase
       .from("study_sessions")
-      .select("id, activity, completed, created_at, duration, subject_id, user_id")
+      .select("id, activity, completed, created_at, duration, subject_id, updated_at, user_id")
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
     if (error) throw error;

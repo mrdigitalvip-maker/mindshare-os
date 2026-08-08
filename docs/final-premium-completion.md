@@ -4,6 +4,8 @@
 
 Studies now has a reproducible, idempotent schema for subjects and sessions plus persistent goals and notes. The subject workspace provides real session-derived metrics, session activity, goals, notes, history, localized AI actions, scoped query caches, and local recovery for data/AI failures. Child-row triggers validate that the referenced subject belongs to `auth.uid()`; all four tables have owner-only RLS and owner-leading indexes.
 
+`StudyService` is the only Studies data-access layer. It owner-scopes subject, session, goal, and note reads and writes, including session completion/update and deletion, goal completion/reopening, and note editing/removal. Routes never call the Supabase client directly. Predictable authentication, not-found, per-resource query, network, RLS, and AI failures remain local to the workspace; a goals or notes failure does not discard successfully loaded subject/session data.
+
 Projects and Productivity query caches are now scoped by authenticated user. Their reads wait for authentication, and the Projects list distinguishes infrastructure failure from an empty workspace. Existing Content, Assistant, Translate, and Studio flows were preserved; Studio visuals were not changed.
 
 ## Database deployment
@@ -15,7 +17,11 @@ supabase db push
 supabase test db
 ```
 
-The migration intentionally uses `create table if not exists` and `add column if not exists` because generated types prove the two legacy tables exist remotely while prior creation migrations are absent from this checkout. Before production deployment, review `supabase db diff --linked` and take a database backup. No Edge Function was added or changed.
+The migration intentionally uses `create table if not exists` and incremental `add column if not exists` statements, so it supports both a fresh project and a remote project with partially provisioned Studies tables without dropping tables, rows, or IDs. Existing foreign keys are retained; missing owner/subject keys are added as `NOT VALID`, which protects new writes without forcing unrelated legacy cleanup during deployment. If legacy rows have a null `user_id`, deployment stops with an explicit repair message rather than guessing ownership. Before production deployment, review `supabase db diff --linked` and take a database backup. No Edge Function was added or changed.
+
+All private tables enable RLS and expose only an authenticated `auth.uid() = user_id` policy. In addition, the fixed-search-path trigger overwrites child `user_id` with the authenticated identity and rejects any session, goal, or note whose `subject_id` belongs to another account. The SQL pgTAP suite verifies tables, required ownership, owner-leading indexes, RLS, policies, foreign keys, and child ownership triggers. Cross-user runtime behavior must still be exercised in authenticated staging because this checkout has no test identities.
+
+Static application validation uses `npm run lint`, `npm run typecheck`, `npm run build`, `npm run check`, `npm run check:pwa`, and `git diff --check`. Running `supabase db push` and `supabase test db` requires the Supabase CLI, Docker, and a linked/test database; do not treat static SQL review as a deployed migration.
 
 ## Bundle record
 
