@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { LEGAL_URLS } from "@/lib/legal";
 
 const searchSchema = z.object({
   mode: z.enum(["signin", "signup", "forgot"]).optional(),
@@ -265,6 +266,30 @@ function AuthPage() {
                   </>
                 )}
               </p>
+
+              {mode !== "forgot" && (
+                <p className="mt-5 text-center text-xs leading-5 text-muted-foreground">
+                  Ao continuar, você concorda com os{" "}
+                  <a
+                    href={LEGAL_URLS.termsOfService}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex min-h-8 items-center text-foreground underline underline-offset-4 hover:text-gold focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    Termos de Serviço
+                  </a>{" "}
+                  e reconhece a{" "}
+                  <a
+                    href={LEGAL_URLS.privacyPolicy}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex min-h-8 items-center text-foreground underline underline-offset-4 hover:text-gold focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    Política de Privacidade
+                  </a>
+                  .
+                </p>
+              )}
             </>
           )}
         </motion.div>

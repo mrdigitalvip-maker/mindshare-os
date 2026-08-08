@@ -14,6 +14,7 @@ import {
   Shield,
   Camera,
   Database,
+  ExternalLink,
 } from "lucide-react";
 
 import { useAuth } from "@/lib/auth-context";
@@ -27,6 +28,7 @@ import { Switch } from "@/components/ui/switch";
 import { useSubscription } from "@/hooks/use-subscription";
 import { AIService } from "@/services";
 import { NotificationSettings, UsageSettings } from "@/components/settings-engagement";
+import { LEGAL_URLS } from "@/lib/legal";
 
 export const Route = createFileRoute("/_shell/settings")({
   head: () => ({ meta: [{ title: "Settings — NEXORA" }] }),
@@ -242,6 +244,13 @@ function Settings() {
             </p>
           </Section>
 
+          <Section title="Privacy & Legal" description="Review NEXORA's public legal policies.">
+            <div className="divide-y divide-border rounded-xl border border-border bg-surface">
+              <LegalLink label="Privacy Policy" href={LEGAL_URLS.privacyPolicy} />
+              <LegalLink label="Terms of Service" href={LEGAL_URLS.termsOfService} />
+            </div>
+          </Section>
+
           <Section title="Sign out" description="End this session on this device.">
             <Button
               variant="outline"
@@ -257,6 +266,20 @@ function Settings() {
         </div>
       </div>
     </PageShell>
+  );
+}
+
+function LegalLink({ label, href }: { label: string; href: string }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex min-h-12 items-center justify-between gap-4 px-4 py-3 text-sm font-medium transition-colors hover:bg-surface-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+    >
+      {label}
+      <ExternalLink className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+    </a>
   );
 }
 
