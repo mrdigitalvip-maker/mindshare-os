@@ -14,14 +14,18 @@ export const Route = createFileRoute("/_shell/premium")({
   component: Premium,
 });
 
-const FREE = ["Assistant (basic)", "3 modules", "Local memory", "Community support"];
+const FREE = [
+  "Core Assistant access",
+  "Projects, tasks and personal workspaces",
+  "Standard learning content",
+  "Backend-metered AI requests",
+];
 const PRO = [
-  "Unlimited AI usage",
-  "All 10 modules unlocked",
-  "Custom Agents",
-  "Priority support",
-  "Sync across devices",
-  "Advanced automations",
+  "Higher backend-enforced AI usage",
+  "Reusable AI Agents",
+  "Advanced AI workflows",
+  "Premium Studio lessons",
+  "Deeper content, study and document capabilities",
 ];
 
 function Premium() {
@@ -82,7 +86,7 @@ function Premium() {
       <PageHeader
         eyebrow="Plans"
         title="Choose your NEXORA"
-        description="Free forever. Upgrade to Pro when you're ready to go deeper."
+        description="Use the connected workspace for free. Upgrade when higher AI usage and advanced workflows improve your routine."
       />
       <div className="mt-4 text-sm text-muted-foreground">
         Current status:{" "}
@@ -138,21 +142,21 @@ function Premium() {
       )}
       <div className="mt-10 grid gap-6 md:grid-cols-2">
         <Card
-          badge="Current"
+          badge={!subscription?.isPremium ? "Current" : undefined}
           name="Free"
           price="$0"
           period="forever"
           features={FREE}
           cta={
             <Button variant="outline" className="rounded-full" disabled>
-              Current plan
+              {subscription?.isPremium ? "Included foundation" : "Current plan"}
             </Button>
           }
         />
         <Card
           highlight
           badge="Most popular"
-          name="Pro"
+          name="Premium"
           price="$12"
           period="per month"
           features={PRO}
@@ -168,7 +172,7 @@ function Premium() {
                 ? "Starting checkout..."
                 : subscription?.isPremium
                   ? "Premium active"
-                  : "Upgrade to Pro"}
+                  : "Upgrade to Premium"}
             </Button>
           }
         />
