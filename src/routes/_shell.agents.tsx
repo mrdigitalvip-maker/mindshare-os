@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Bot, Crown, Plus } from "lucide-react";
-import { useState } from "react";
+import { Bot, Crown, Play, Plus, Search } from "lucide-react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { PageShell, PageHeader, EmptyState } from "@/components/page-shell";
@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AgentService, workspaceQueryKeys } from "@/services";
 import { useSubscription } from "@/hooks/use-subscription";
+import { MetricCard, PremiumGate, WorkspaceShell } from "@/components/workspace-ui";
 export const Route = createFileRoute("/_shell/agents")({
   head: () => ({ meta: [{ title: "Agentes — NEXORA" }] }),
   component: Agents,
@@ -25,69 +26,150 @@ const capabilities = [
 ];
 function Agents() {
   const [builder, setBuilder] = useState(false);
+  const [search, setSearch] = useState("");
   const subscription = useSubscription();
   const query = useQuery({
     queryKey: workspaceQueryKeys.agents,
     queryFn: () => AgentService.listRows(),
   });
+  const runs = useQuery({
+    queryKey: ["workspace", "agent-runs"],
+    queryFn: () => AgentService.listRuns(),
+  });
+  const visible = useMemo(
+    () =>
+      (query.data ?? []).filter((agent) =>
+        `${agent.name} ${agent.goal} ${agent.description}`
+          .toLowerCase()
+          .includes(search.toLowerCase()),
+      ),
+    [query.data, search],
+  );
+  const lastRun = (agentId: string) => runs.data?.find((run) => run.agent_id === agentId);
   return (
     <PageShell>
-      <PageHeader
-        eyebrow="Recurso Premium"
-        title="Agentes"
-        description="Crie assistentes especializados e execute trabalhos sob demanda."
-        actions={
-          <Button
-            onClick={() =>
-              subscription.data?.isPremium
-                ? setBuilder(true)
-                : toast.error("Faça upgrade para criar e executar agentes.")
-            }
-          >
-            <Plus />
-            Novo agente
-          </Button>
-        }
-      />
-      {!subscription.data?.isPremium && (
-        <div className="mt-6 flex items-center justify-between gap-3 rounded-2xl border border-gold/30 bg-gold/5 p-4">
-          <p className="text-sm">
-            <Crown className="mr-2 inline h-4 w-4 text-gold" />
-            Agentes são exclusivos do Premium.
-          </p>
-          <Link to="/premium">
-            <Button size="sm">Ver Premium</Button>
-          </Link>
-        </div>
-      )}
-      {!query.data?.length ? (
-        <EmptyState
-          icon={Bot}
-          title="Nenhum agente"
-          description="Use o construtor para definir objetivo, comportamento e capacidades."
-        />
-      ) : (
-        <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {query.data.map((a) => (
-            <Link
-              to="/agents/$agentId"
-              params={{ agentId: a.id }}
-              key={a.id}
-              className="glass rounded-2xl p-6 transition hover:border-gold/40"
+      <WorkspaceShell>
+        <PageHeader
+          eyebrow="Recurso Premium"
+          title="Agentes"
+          description="Crie assistentes especializados e execute trabalhos sob demanda."
+          actions={
+            <Button
+              onClick={() =>
+                subscription.data?.isPremium
+                  ? setBuilder(true)
+                  : toast.error("Faça upgrade para criar e executar agentes.")
+              }
             >
-              <Bot className="text-gold" />
-              <h2 className="mt-3 font-display text-xl">{a.name}</h2>
-              <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
-                {a.goal || a.description}
+              <Plus />
+              Novo agente
+            </Button>
+          }
+        />
+        {!subscription.data?.isPremium && (
+          <PremiumGate>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm">
+                <Crown className="mr-2 inline h-4 w-4 text-gold" />
+                Agentes são exclusivos do Premium.
               </p>
-              <span className="mt-4 inline-flex rounded-full border px-2 py-1 text-xs">
-                {a.active ? "Ativo" : "Inativo"}
-              </span>
-            </Link>
-          ))}
+              <Link to="/premium">
+                <Button size="sm">Ver Premium</Button>
+              </Link>
+            </div>
+          </PremiumGate>
+        )}
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+          <MetricCard
+            label="Active agents"
+            value={(query.data ?? []).filter((a) => a.active).length}
+          />
+          <MetricCard label="Recent runs" value={(runs.data ?? []).length} hint="Persisted runs" />
+          <MetricCard
+            label="Last execution"
+            value={
+              runs.data?.[0]
+                ? new Date(runs.data[0].started_at || runs.data[0].created_at).toLocaleDateString()
+                : "—"
+            }
+          />
         </div>
-      )}
-      <Builder open={builder} close={() => setBuilder(false)} />
+        <div className="relative">
+          <Search className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            className="pl-9"
+            aria-label="Search agents"
+            placeholder="Search by name or purpose"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        {!visible.length ? (
+          <EmptyState
+            icon={Bot}
+            title={search ? "No agents match your search" : "Build a reusable AI worker"}
+            description={
+              search
+                ? "Try a different name or purpose."
+                : "Define a purpose, instructions and supported capabilities once, then run it whenever the work returns."
+            }
+            action={
+              !search && (
+                <Button
+                  onClick={() =>
+                    subscription.data?.isPremium
+                      ? setBuilder(true)
+                      : toast.error("Premium is required.")
+                  }
+                >
+                  <Plus />
+                  Create your first agent
+                </Button>
+              )
+            }
+          />
+        ) : (
+          <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {visible.map((a) => {
+              const recent = lastRun(a.id);
+              return (
+                <article key={a.id} className="glass min-w-0 rounded-2xl p-6">
+                  <Bot className="text-gold" />
+                  <h2 className="mt-3 font-display text-xl">{a.name}</h2>
+                  <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
+                    {a.goal || a.description}
+                  </p>
+                  <span className="mt-4 inline-flex rounded-full border px-2 py-1 text-xs">
+                    {a.active ? "Ativo" : "Inativo"}
+                  </span>
+                  <p className="mt-3 text-xs text-muted-foreground">
+                    Last run:{" "}
+                    {recent
+                      ? new Date(recent.started_at || recent.created_at).toLocaleString()
+                      : "Never"}
+                  </p>
+                  <div className="mt-4 flex gap-2">
+                    <Link to="/agents/$agentId" params={{ agentId: a.id }}>
+                      <Button variant="outline">Open</Button>
+                    </Link>
+                    <Link
+                      to="/agents/$agentId"
+                      params={{ agentId: a.id }}
+                      search={{ tab: "run" } as never}
+                    >
+                      <Button disabled={!a.active}>
+                        <Play />
+                        Run
+                      </Button>
+                    </Link>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
+        <Builder open={builder} close={() => setBuilder(false)} />
+      </WorkspaceShell>
     </PageShell>
   );
 }
@@ -117,7 +199,7 @@ function Builder({ open, close }: { open: boolean; close: () => void }) {
     <Dialog open={open} onOpenChange={(o) => !o && close()}>
       <DialogContent className="max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Novo agente · etapa {step} de 4</DialogTitle>
+          <DialogTitle>Novo agente · etapa {step} de 5</DialogTitle>
         </DialogHeader>
         {step === 1 && (
           <div className="space-y-3">
@@ -128,11 +210,20 @@ function Builder({ open, close }: { open: boolean; close: () => void }) {
               value={form.description}
               onChange={(e) => field("description", e.target.value)}
             />
-            <Label>Objetivo</Label>
-            <Textarea value={form.goal} onChange={(e) => field("goal", e.target.value)} />
           </div>
         )}
         {step === 2 && (
+          <div className="space-y-3">
+            <Label>What should this agent do?</Label>
+            <Textarea value={form.goal} onChange={(e) => field("goal", e.target.value)} />
+            <Label>What result should it produce?</Label>
+            <Textarea
+              value={form.expected_output}
+              onChange={(e) => field("expected_output", e.target.value)}
+            />
+          </div>
+        )}
+        {step === 3 && (
           <div className="space-y-3">
             <Label>Instruções</Label>
             <Textarea
@@ -141,14 +232,9 @@ function Builder({ open, close }: { open: boolean; close: () => void }) {
             />
             <Label>Tom</Label>
             <Input value={form.tone} onChange={(e) => field("tone", e.target.value)} />
-            <Label>Formato esperado</Label>
-            <Textarea
-              value={form.expected_output}
-              onChange={(e) => field("expected_output", e.target.value)}
-            />
           </div>
         )}
-        {step === 3 && (
+        {step === 4 && (
           <div className="space-y-3">
             {capabilities.map(([value, label]) => (
               <label className="flex items-center gap-3 rounded-xl border p-3" key={value}>
@@ -168,7 +254,7 @@ function Builder({ open, close }: { open: boolean; close: () => void }) {
             ))}
           </div>
         )}
-        {step === 4 && (
+        {step === 5 && (
           <div className="rounded-xl border p-4">
             <h3 className="font-display text-xl">{form.name}</h3>
             <p className="mt-2 text-sm">{form.goal}</p>
@@ -183,9 +269,9 @@ function Builder({ open, close }: { open: boolean; close: () => void }) {
           </Button>
           <Button
             disabled={(step === 1 && !form.name.trim()) || create.isPending}
-            onClick={() => (step < 4 ? setStep(step + 1) : create.mutate())}
+            onClick={() => (step < 5 ? setStep(step + 1) : create.mutate())}
           >
-            {step < 4 ? "Continuar" : "Criar agente"}
+            {step < 5 ? "Continuar" : "Criar agente"}
           </Button>
         </div>
       </DialogContent>

@@ -32,7 +32,13 @@ export type Document = {
   updatedAt: string;
 };
 export type Agent = { id: string; title: string; cadence: string; status: "draft" | "ready" };
-export type ContentDraft = { id: string; title: string; format: string; body: string };
+export type ContentDraft = {
+  id: string;
+  title: string;
+  format: string;
+  body: string;
+  updatedAt?: string;
+};
 export type StudyPlan = { id: string; title: string; progress: number; nextSession: string };
 export type FinanceGoal = { id: string; title: string; saved: number; target: number };
 export type Notification = { id: string; title: string; body: string; read: boolean };
