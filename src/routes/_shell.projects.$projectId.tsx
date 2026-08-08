@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Pencil, Plus, Trash2 } from "lucide-react";
+import { Check, Loader2, Pencil, Plus, Sparkles, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { PageShell, EmptyState } from "@/components/page-shell";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ProjectService, TaskService, workspaceQueryKeys, type Task } from "@/services";
+import { AIService, ProjectService, TaskService, workspaceQueryKeys, type Task } from "@/services";
 import { useAuth } from "@/lib/auth-context";
 export const Route = createFileRoute("/_shell/projects/$projectId")({
   component: ProjectWorkspace,
@@ -23,6 +23,11 @@ function ProjectWorkspace() {
   const projectsKey = workspaceQueryKeys.projects(user?.id);
   const tasksKey = workspaceQueryKeys.tasks(user?.id);
   const [task, setTask] = useState<Task | null | undefined>();
+  const [planOpen, setPlanOpen] = useState(false);
+  const [planInstruction, setPlanInstruction] = useState(
+    "Create an execution plan for this project.",
+  );
+  const [suggestions, setSuggestions] = useState<Array<{ title: string; selected: boolean }>>([]);
   const project = useQuery({
     queryKey: [...projectsKey, projectId],
     queryFn: () => ProjectService.get(projectId),
@@ -48,6 +53,40 @@ function ProjectWorkspace() {
   const remove = useMutation({
     mutationFn: (id: string) => TaskService.removeTask(id),
     onSuccess: refresh,
+  });
+  const generatePlan = useMutation({
+    mutationFn: async () => {
+      const result = await AIService.execute("content_generation", {
+        operation: "draft",
+        title: `Execution plan for ${project.data?.title ?? "project"}`,
+        text: [
+          "Return ONLY a JSON array of 3 to 8 concise task titles. No markdown or commentary.",
+          `Project: ${project.data?.title ?? ""}`,
+          `Objective: ${project.data?.objective || project.data?.description || "Not provided"}`,
+          `Existing tasks: ${(tasks.data ?? []).map((item) => item.title).join("; ") || "None"}`,
+          `Instruction: ${planInstruction.trim()}`,
+        ].join("\n"),
+      });
+      return parseSuggestedTasks(result.content);
+    },
+    onSuccess: (items) => setSuggestions(items.map((title) => ({ title, selected: true }))),
+    onError: (error: Error) => toast.error(error.message || "Could not generate a plan"),
+  });
+  const confirmPlan = useMutation({
+    mutationFn: async () => {
+      const selected = suggestions.filter((item) => item.selected && item.title.trim());
+      for (const item of selected) {
+        await TaskService.createTask({ title: item.title.trim(), projectId });
+      }
+      return selected.length;
+    },
+    onSuccess: async (count) => {
+      await refresh();
+      setPlanOpen(false);
+      setSuggestions([]);
+      toast.success(`${count} project ${count === 1 ? "task" : "tasks"} created`);
+    },
+    onError: (error: Error) => toast.error(error.message || "The plan could not be saved"),
   });
   if (project.isLoading)
     return (
@@ -75,6 +114,9 @@ function ProjectWorkspace() {
           <p className="mt-2 text-muted-foreground">{p.description}</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setPlanOpen(true)}>
+            <Sparkles /> Plan with AI
+          </Button>
           <Button
             variant="outline"
             onClick={() => {
@@ -205,8 +247,127 @@ function ProjectWorkspace() {
           await refresh();
         }}
       />
+      <Dialog open={planOpen} onOpenChange={setPlanOpen}>
+        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Plan with AI</DialogTitle>
+          </DialogHeader>
+          <div className="rounded-xl border bg-muted/30 p-4 text-sm">
+            <p className="font-medium">{p.title}</p>
+            <p className="mt-1 text-muted-foreground">
+              {p.objective || p.description || "No objective provided."}
+            </p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              {tasks.data?.length ?? 0} existing tasks are included as context.
+            </p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="plan-instruction">Optional instruction</Label>
+            <Textarea
+              id="plan-instruction"
+              value={planInstruction}
+              onChange={(event) => setPlanInstruction(event.target.value)}
+            />
+          </div>
+          <Button
+            onClick={() => generatePlan.mutate()}
+            disabled={generatePlan.isPending || !planInstruction.trim()}
+          >
+            {generatePlan.isPending ? <Loader2 className="animate-spin" /> : <Sparkles />}
+            {suggestions.length ? "Generate again" : "Generate plan preview"}
+          </Button>
+          {suggestions.length > 0 && (
+            <div className="space-y-3" aria-label="Suggested tasks">
+              <div>
+                <h3 className="font-semibold">Plan preview</h3>
+                <p className="text-sm text-muted-foreground">
+                  Select, edit or remove tasks. Nothing is saved yet.
+                </p>
+              </div>
+              {suggestions.map((item, index) => (
+                <div key={index} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={item.selected}
+                    aria-label={`Select task ${index + 1}`}
+                    onChange={(event) =>
+                      setSuggestions((current) =>
+                        current.map((value, i) =>
+                          i === index ? { ...value, selected: event.target.checked } : value,
+                        ),
+                      )
+                    }
+                  />
+                  <Input
+                    value={item.title}
+                    aria-label={`Task ${index + 1} title`}
+                    onChange={(event) =>
+                      setSuggestions((current) =>
+                        current.map((value, i) =>
+                          i === index
+                            ? { ...value, title: event.target.value.slice(0, 160) }
+                            : value,
+                        ),
+                      )
+                    }
+                  />
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    aria-label={`Remove task ${index + 1}`}
+                    onClick={() =>
+                      setSuggestions((current) => current.filter((_, i) => i !== index))
+                    }
+                  >
+                    <Trash2 />
+                  </Button>
+                </div>
+              ))}
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={() => setPlanOpen(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  disabled={
+                    confirmPlan.isPending ||
+                    !suggestions.some((item) => item.selected && item.title.trim())
+                  }
+                  onClick={() => confirmPlan.mutate()}
+                >
+                  {confirmPlan.isPending && <Loader2 className="animate-spin" />} Confirm plan
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </PageShell>
   );
+}
+
+function parseSuggestedTasks(raw: string): string[] {
+  const candidate = raw.match(/\[[\s\S]*\]/)?.[0];
+  if (!candidate)
+    throw new Error("AI returned no valid task list. Try a more specific instruction.");
+  let value: unknown;
+  try {
+    value = JSON.parse(candidate);
+  } catch {
+    throw new Error("AI returned an invalid plan. No tasks were created.");
+  }
+  if (!Array.isArray(value)) throw new Error("AI returned an invalid plan. No tasks were created.");
+  const tasks = value
+    .filter((item): item is string => typeof item === "string")
+    .map((item) =>
+      item
+        .trim()
+        .replace(/^[-*]\s*/, "")
+        .slice(0, 160),
+    )
+    .filter(Boolean)
+    .slice(0, 8);
+  if (!tasks.length) throw new Error("AI returned no valid tasks. No tasks were created.");
+  return [...new Set(tasks)];
 }
 function TaskForm({
   task,

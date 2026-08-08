@@ -4,11 +4,9 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { PushService, type NotificationPreferences } from "@/services/push-service";
 import { UsageService } from "@/services/studio-service";
-import { useSubscription } from "@/hooks/use-subscription";
 export function NotificationSettings() {
   const client = useQueryClient();
   const preferences = useQuery({
@@ -103,49 +101,49 @@ export function NotificationSettings() {
     </div>
   );
 }
-const limits = {
-  free: {
-    assistant: 10,
-    translation: 5,
-    content_generation: 2,
-    study_assistance: 5,
-    studio_coach: 3,
-  },
-  premium: {
-    assistant: 100,
-    translation: 100,
-    content_generation: 50,
-    study_assistance: 50,
-    studio_coach: 30,
-  },
-};
 export function UsageSettings() {
   const usage = useQuery({ queryKey: ["ai-usage", "today"], queryFn: UsageService.today });
-  const subscription = useSubscription();
-  const policy = limits[subscription.data?.isPremium ? "premium" : "free"];
+  const entries = Object.entries((usage.data ?? {}) as Record<string, number>).filter(
+    ([, count]) => count > 0,
+  );
   return (
     <div className="space-y-5">
       <p className="flex items-center gap-2 text-sm text-muted-foreground">
         <BrainCircuit className="h-4 w-4" />
         Measured backend requests for today. Prompts and responses are never stored in this ledger.
       </p>
-      {Object.entries(policy).map(([action, limit]) => {
-        const used = usage.data?.[action] ?? 0;
-        return (
-          <div key={action}>
-            <div className="mb-2 flex justify-between text-sm">
-              <span className="capitalize">{action.replaceAll("_", " ")}</span>
-              <span>
-                {used} / {limit} today
-              </span>
+      {usage.isLoading ? (
+        <p className="text-sm text-muted-foreground" role="status">
+          Loading today's usage…
+        </p>
+      ) : usage.isError ? (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-destructive/30 p-4 text-sm">
+          <span>Usage could not be loaded from the backend.</span>
+          <Button size="sm" variant="outline" onClick={() => void usage.refetch()}>
+            Retry
+          </Button>
+        </div>
+      ) : entries.length === 0 ? (
+        <p className="rounded-xl border p-4 text-sm text-muted-foreground">
+          No metered AI requests recorded today.
+        </p>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {entries.map(([action, used]) => (
+            <div key={action} className="rounded-xl border p-4">
+              <p className="text-sm capitalize text-muted-foreground">
+                {action.replaceAll("_", " ")}
+              </p>
+              <p className="mt-1 text-2xl font-semibold">{used}</p>
+              <p className="text-xs text-muted-foreground">requests today</p>
             </div>
-            <Progress
-              value={Math.min(100, (used / limit) * 100)}
-              aria-label={`${action}: ${used} of ${limit} requests used`}
-            />
-          </div>
-        );
-      })}
+          ))}
+        </div>
+      )}
+      <p className="text-xs leading-5 text-muted-foreground">
+        Limits and access are enforced by the AI backend. A quota denominator is shown only when the
+        backend exposes its active policy.
+      </p>
     </div>
   );
 }

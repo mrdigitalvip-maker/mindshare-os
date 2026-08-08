@@ -13,6 +13,7 @@ import {
   Send,
   Sparkles,
   ListTodo,
+  FileText,
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -34,6 +35,7 @@ import { useAuth } from "@/lib/auth-context";
 import {
   AIService,
   AIServiceError,
+  ContentService,
   ProductivityService,
   workspaceQueryKeys,
   type AiConversation,
@@ -71,6 +73,9 @@ function Assistant() {
   const openedFromSearch = useRef<string | null>(null);
   const [showLatest, setShowLatest] = useState(false);
   const [taskPreview, setTaskPreview] = useState<string | null>(null);
+  const [contentPreview, setContentPreview] = useState<{ title: string; body: string } | null>(
+    null,
+  );
   const { sendMessage, isSending, loadConversationHistory, startConversation } = useChat();
   const conversationsKey = ["workspace", user?.id, "ai-conversations"] as const;
   const conversations = useQuery({
@@ -254,6 +259,20 @@ function Assistant() {
                         ? () => setTaskPreview(message.content)
                         : undefined
                     }
+                    onSaveContent={
+                      message.role === "assistant"
+                        ? () =>
+                            setContentPreview({
+                              title:
+                                message.content
+                                  .split("\n")
+                                  .find(Boolean)
+                                  ?.replace(/^#+\s*/, "")
+                                  .slice(0, 100) || "Assistant draft",
+                              body: message.content,
+                            })
+                        : undefined
+                    }
                     onRegenerate={
                       message.role === "assistant"
                         ? () => {
@@ -416,6 +435,75 @@ function Assistant() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <Dialog
+        open={contentPreview !== null}
+        onOpenChange={(open) => !open && setContentPreview(null)}
+      >
+        <DialogContent className="max-h-[min(90dvh,42rem)] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Save response as content?</DialogTitle>
+            <DialogDescription>
+              Review and edit the draft. Nothing is saved until you confirm.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <label className="space-y-1 text-sm font-medium">
+              <span>Title</span>
+              <Input
+                value={contentPreview?.title ?? ""}
+                onChange={(event) =>
+                  setContentPreview((current) =>
+                    current ? { ...current, title: event.target.value } : current,
+                  )
+                }
+              />
+            </label>
+            <label className="space-y-1 text-sm font-medium">
+              <span>Content</span>
+              <Textarea
+                className="min-h-52"
+                value={contentPreview?.body ?? ""}
+                onChange={(event) =>
+                  setContentPreview((current) =>
+                    current ? { ...current, body: event.target.value } : current,
+                  )
+                }
+              />
+            </label>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setContentPreview(null)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={!contentPreview?.title.trim() || !contentPreview?.body.trim()}
+              onClick={async () => {
+                if (!contentPreview) return;
+                try {
+                  const draft = await ContentService.createDraft(contentPreview);
+                  await queryClient.invalidateQueries({
+                    queryKey: workspaceQueryKeys.content(user?.id),
+                  });
+                  setContentPreview(null);
+                  toast.success("Content draft saved", {
+                    action: {
+                      label: "Open content",
+                      onClick: () =>
+                        navigate({ to: "/content/$contentId", params: { contentId: draft.id } }),
+                    },
+                  });
+                } catch (error) {
+                  toast.error(
+                    error instanceof Error ? error.message : "Content could not be saved",
+                  );
+                }
+              }}
+            >
+              <FileText /> Confirm and save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </PageShell>
   );
 }
@@ -424,10 +512,12 @@ function Message({
   message,
   onRegenerate,
   onSaveTask,
+  onSaveContent,
 }: {
   message: ChatMessage;
   onRegenerate?: () => void;
   onSaveTask?: () => void;
+  onSaveContent?: () => void;
 }) {
   const [copied, setCopied] = useState(false);
   async function copy() {
@@ -471,6 +561,11 @@ function Message({
           {onSaveTask && (
             <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={onSaveTask}>
               <ListTodo className="h-3.5 w-3.5" /> Save as task
+            </Button>
+          )}
+          {onSaveContent && (
+            <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={onSaveContent}>
+              <FileText className="h-3.5 w-3.5" /> Save as content
             </Button>
           )}
         </div>
