@@ -1,0 +1,16 @@
+begin;
+select plan(12);
+select has_table('public','study_subjects','subjects are reproducible');
+select has_table('public','study_sessions','sessions are reproducible');
+select has_table('public','study_goals','goals exist');
+select has_table('public','study_notes','notes exist');
+select col_is_not_null('public','study_subjects','user_id','subject ownership is required');
+select col_is_not_null('public','study_sessions','user_id','session ownership is required');
+select col_is_not_null('public','study_goals','user_id','goal ownership is required');
+select col_is_not_null('public','study_notes','user_id','note ownership is required');
+select has_index('public','study_subjects','study_subjects_owner_idx','subjects are owner indexed');
+select has_index('public','study_sessions','study_sessions_owner_subject_idx','sessions are owner/subject indexed');
+select policies_are('public','study_goals',array['study_goals_owner_all'],'goals expose only the owner policy');
+select policies_are('public','study_notes',array['study_notes_owner_all'],'notes expose only the owner policy');
+select * from finish();
+rollback;

@@ -617,8 +617,78 @@ export type Database = {
           },
         ];
       };
+      study_goals: {
+        Row: {
+          id: string;
+          user_id: string;
+          subject_id: string | null;
+          title: string;
+          target_value: number;
+          current_value: number;
+          due_at: string | null;
+          completed: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          subject_id?: string | null;
+          title: string;
+          target_value?: number;
+          current_value?: number;
+          due_at?: string | null;
+          completed?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          subject_id?: string | null;
+          title?: string;
+          target_value?: number;
+          current_value?: number;
+          due_at?: string | null;
+          completed?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      study_notes: {
+        Row: {
+          id: string;
+          user_id: string;
+          subject_id: string;
+          title: string;
+          content: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          subject_id: string;
+          title?: string;
+          content?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          subject_id?: string;
+          title?: string;
+          content?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       study_sessions: {
         Row: {
+          activity: string;
           completed: boolean | null;
           created_at: string | null;
           duration: number | null;
@@ -627,6 +697,7 @@ export type Database = {
           user_id: string | null;
         };
         Insert: {
+          activity?: string;
           completed?: boolean | null;
           created_at?: string | null;
           duration?: number | null;
@@ -635,6 +706,7 @@ export type Database = {
           user_id?: string | null;
         };
         Update: {
+          activity?: string;
           completed?: boolean | null;
           created_at?: string | null;
           duration?: number | null;
@@ -663,22 +735,31 @@ export type Database = {
         Row: {
           color: string | null;
           created_at: string | null;
+          description: string;
           id: string;
           name: string | null;
+          status: string;
+          updated_at: string;
           user_id: string | null;
         };
         Insert: {
           color?: string | null;
           created_at?: string | null;
+          description?: string;
           id?: string;
           name?: string | null;
+          status?: string;
+          updated_at?: string;
           user_id?: string | null;
         };
         Update: {
           color?: string | null;
           created_at?: string | null;
+          description?: string;
           id?: string;
           name?: string | null;
+          status?: string;
+          updated_at?: string;
           user_id?: string | null;
         };
         Relationships: [

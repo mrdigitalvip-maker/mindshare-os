@@ -10,7 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ProjectService, TaskService, type Task } from "@/services";
+import { ProjectService, TaskService, workspaceQueryKeys, type Task } from "@/services";
+import { useAuth } from "@/lib/auth-context";
 export const Route = createFileRoute("/_shell/projects/$projectId")({
   component: ProjectWorkspace,
 });
@@ -18,20 +19,25 @@ function ProjectWorkspace() {
   const { projectId } = Route.useParams();
   const navigate = useNavigate();
   const client = useQueryClient();
+  const { user, isAuthenticated } = useAuth();
+  const projectsKey = workspaceQueryKeys.projects(user?.id);
+  const tasksKey = workspaceQueryKeys.tasks(user?.id);
   const [task, setTask] = useState<Task | null | undefined>();
   const project = useQuery({
-    queryKey: ["workspace", "projects", projectId],
+    queryKey: [...projectsKey, projectId],
     queryFn: () => ProjectService.get(projectId),
+    enabled: isAuthenticated && !!user,
   });
   const tasks = useQuery({
-    queryKey: ["workspace", "tasks", projectId],
+    queryKey: [...tasksKey, projectId],
     queryFn: async () => (await TaskService.listTasks()).filter((t) => t.projectId === projectId),
+    enabled: isAuthenticated && !!user,
   });
   const refresh = async () => {
     await Promise.all([
-      client.invalidateQueries({ queryKey: ["workspace", "projects"] }),
-      client.invalidateQueries({ queryKey: ["workspace", "projects", projectId] }),
-      client.invalidateQueries({ queryKey: ["workspace", "tasks"] }),
+      client.invalidateQueries({ queryKey: projectsKey }),
+      client.invalidateQueries({ queryKey: [...projectsKey, projectId] }),
+      client.invalidateQueries({ queryKey: tasksKey }),
     ]);
     await tasks.refetch();
   };
