@@ -1,7 +1,7 @@
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-export type NexoraPersona = "nova" | "atlas" | "lyra" | "orion";
+export type NexoraPersona = "nexora" | "atlas" | "lyra" | "orion";
 export type NexoraAvatarState =
   "idle" | "listening" | "thinking" | "speaking" | "attention" | "success" | "quiet";
 
@@ -28,12 +28,12 @@ type PersonaDefinition = {
   position: string;
 };
 
-export const NOVA_ASSET_MISSING = "NOVA_ASSET_MISSING" as const;
+export const PERSONA_ASSET_MISSING = "PERSONA_ASSET_MISSING" as const;
 
 export const NEXORA_PERSONAS: Record<NexoraPersona, PersonaDefinition> = {
-  nova: {
-    name: "NOVA",
-    descriptor: "Elegante · calorosa · confiante",
+  nexora: {
+    name: "NEXORA",
+    descriptor: "Calorosa · inteligente · proativa",
     premium: false,
     position: "50% 18%",
   },
@@ -68,17 +68,12 @@ function StaticPersonaRenderer({
   return (
     <picture className="nexora-avatar__media">
       <source
-        type="image/avif"
-        srcSet={`${root}/${persona}-640.avif 640w, ${root}/${persona}-960.avif 960w`}
-        sizes={compact ? "160px" : "(max-width: 767px) 72vw, 420px"}
-      />
-      <source
         type="image/webp"
-        srcSet={`${root}/${persona}-640.webp 640w, ${root}/${persona}-960.webp 960w`}
+        srcSet={`${root}/presence-640.webp 640w, ${root}/presence-960.webp 960w`}
         sizes={compact ? "160px" : "(max-width: 767px) 72vw, 420px"}
       />
       <img
-        src={`${root}/${persona}.png`}
+        src={`${root}/presence-640.webp`}
         width="640"
         height="800"
         alt=""
@@ -93,7 +88,7 @@ function StaticPersonaRenderer({
 }
 
 export function NexoraAvatar({
-  persona = "nova",
+  persona = "nexora",
   state = "idle",
   compact = false,
   amplitude = 0,
@@ -167,10 +162,7 @@ export function NexoraAvatar({
       {assetStatus !== "missing" &&
         (renderer ? renderer(rendererProps) : <StaticPersonaRenderer {...rendererProps} />)}
       {assetStatus === "missing" && (
-        <div
-          className="nexora-avatar__fallback"
-          data-error={persona === "nova" ? NOVA_ASSET_MISSING : "PERSONA_ASSET_MISSING"}
-        >
+        <div className="nexora-avatar__fallback" data-error={PERSONA_ASSET_MISSING}>
           <span className="nexora-avatar__monogram">{definition.name.slice(0, 1)}</span>
           <span className="nexora-avatar__fallback-name">{definition.name}</span>
         </div>

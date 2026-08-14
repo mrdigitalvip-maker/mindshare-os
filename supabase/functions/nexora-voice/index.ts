@@ -7,11 +7,11 @@ import {
   rejectDisallowedOrigin,
 } from "../_shared/http.ts";
 
-const PERSONAS = ["nova", "atlas", "lyra", "orion"] as const;
+const PERSONAS = ["nexora", "atlas", "lyra", "orion"] as const;
 const PREMIUM = new Set(["lyra", "orion"]);
 const MAX_TEXT_LENGTH = 2500;
 const VOICE_KEYS: Record<string, string> = {
-  nova: "ELEVENLABS_VOICE_ID_NOVA",
+  nexora: "ELEVENLABS_VOICE_ID_NEXORA",
   atlas: "ELEVENLABS_VOICE_ID_ATLAS",
   lyra: "ELEVENLABS_VOICE_ID_LYRA",
   orion: "ELEVENLABS_VOICE_ID_ORION",

@@ -150,7 +150,7 @@ function NexoraIntro() {
           ...(profile?.preferences ?? {}),
           ...next,
           proactive_reminders: next.proactive_reminders.startsWith("Sim"),
-          nexora_persona: "nova",
+          nexora_persona: "nexora",
           nexora_onboarding_completed: true,
         },
       });
@@ -169,7 +169,7 @@ function NexoraIntro() {
   if (done)
     return (
       <div className="nexora-intro">
-        <NexoraAvatar persona="nova" state="success" priority />
+        <NexoraAvatar persona="nexora" state="success" priority />
         <div className="text-center">
           <p className="text-xs uppercase tracking-[.35em] text-gold">Contexto salvo</p>
           <h1 className="mt-3 font-display text-3xl">
@@ -181,7 +181,7 @@ function NexoraIntro() {
   return (
     <div className="nexora-intro">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,rgba(194,139,78,.13),transparent_43%)]" />
-      <NexoraAvatar persona="nova" state={state} priority />
+      <NexoraAvatar persona="nexora" state={state} priority />
       <section className="relative w-full max-w-xl text-center" aria-live="polite">
         <p className="text-xs uppercase tracking-[.32em] text-gold">NEXORA · primeiro contato</p>
         <h1 className="mt-4 font-display text-2xl leading-snug sm:text-4xl">{question.text}</h1>
@@ -266,9 +266,11 @@ function CommandCenter({ preferredName }: { preferredName: string }) {
   const { sendMessage, isSending, loadConversationHistory, startConversation } = useChat();
   const savedPersona = (profile?.preferences as Record<string, unknown>)?.nexora_persona;
   const persona: NexoraPersona =
-    typeof savedPersona === "string" && savedPersona in NEXORA_PERSONAS
-      ? (savedPersona as NexoraPersona)
-      : "nova";
+    savedPersona === "nova"
+      ? "nexora"
+      : typeof savedPersona === "string" && savedPersona in NEXORA_PERSONAS
+        ? (savedPersona as NexoraPersona)
+        : "nexora";
   const voiceOutputEnabled =
     (profile?.preferences as Record<string, unknown>)?.voice_output_enabled === true;
   const conversationsKey = ["workspace", user?.id, "ai-conversations"] as const;
@@ -670,7 +672,9 @@ function CommandCenter({ preferredName }: { preferredName: string }) {
         setOpen={setPersonaOpen}
         premium={!!subscription.data?.isPremium}
         selected={String(
-          (profile?.preferences as Record<string, unknown>)?.nexora_persona ?? "nova",
+          (profile?.preferences as Record<string, unknown>)?.nexora_persona === "nova"
+            ? "nexora"
+            : ((profile?.preferences as Record<string, unknown>)?.nexora_persona ?? "nexora"),
         )}
         choose={choosePersona}
       />
