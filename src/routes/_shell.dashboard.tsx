@@ -38,6 +38,7 @@ import { useProfile, useUpdateProfile } from "@/hooks/use-profile";
 import { useSubscription } from "@/hooks/use-subscription";
 import { useAuth } from "@/lib/auth-context";
 import { MODULES } from "@/lib/modules";
+import { resolveNexoraAction } from "@/lib/nexora-actions";
 import { createSpeechRecognition } from "@/services/voice-provider";
 import { AIService, AIServiceError, type AiConversation } from "@/services/ai-service";
 
@@ -69,9 +70,17 @@ const PERSONAS = [
 
 function Dashboard() {
   const { user } = useAuth();
-  const { data: profile } = useProfile();
-  const updateProfile = useUpdateProfile();
-  const preferences = (profile?.preferences ?? {}) as Record<string, unknown>;
+  const { data: profile, isLoading, isError } = useProfile();
+  if (isLoading) return <div className="nexora-intro" aria-label="Carregando Command Center" />;
+  if (isError || !profile)
+    return (
+      <div className="nexora-intro">
+        <p>Não foi possível carregar seu perfil. Atualize a página para tentar novamente.</p>
+      </div>
+    );
+  const preferences = (
+    profile.preferences && typeof profile.preferences === "object" ? profile.preferences : {}
+  ) as Record<string, unknown>;
   const introDone = profile?.onboarded && preferences.nexora_onboarding_completed === true;
   if (!introDone) return <NexoraIntro />;
   return (
@@ -111,7 +120,7 @@ function NexoraIntro() {
     recognition.start();
   }
   async function submit(value = answer) {
-    if (!value.trim()) return;
+    if (!value.trim() || updateProfile.isPending) return;
     const next = { ...answers, [question.key]: value.trim() };
     setAnswers(next);
     setAnswer("");
@@ -241,6 +250,8 @@ function CommandCenter({ preferredName }: { preferredName: string }) {
   const [listening, setListening] = useState(false);
   const [idlePrompt, setIdlePrompt] = useState("");
   const [online, setOnline] = useState(true);
+  const [actionSucceeded, setActionSucceeded] = useState(false);
+  const recognitionRef = useRef<ReturnType<typeof createSpeechRecognition>>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const { sendMessage, isSending, loadConversationHistory, startConversation } = useChat();
   const conversationsKey = ["workspace", user?.id, "ai-conversations"] as const;
@@ -254,12 +265,14 @@ function CommandCenter({ preferredName }: { preferredName: string }) {
     ? "listening"
     : isSending
       ? "thinking"
-      : idlePrompt
-        ? "attention"
-        : "idle";
+      : actionSucceeded
+        ? "success"
+        : idlePrompt
+          ? "attention"
+          : "idle";
   const filtered = useMemo(
     () =>
-      (conversations.data ?? []).filter((c) =>
+      (Array.isArray(conversations.data) ? conversations.data : []).filter((c) =>
         c.title.toLowerCase().includes(search.toLowerCase()),
       ),
     [conversations.data, search],
@@ -276,23 +289,31 @@ function CommandCenter({ preferredName }: { preferredName: string }) {
       removeEventListener("offline", off);
     };
   }, []);
+  useEffect(() => () => recognitionRef.current?.stop(), []);
+  useEffect(() => {
+    if (!actionSucceeded) return;
+    const timer = window.setTimeout(() => setActionSucceeded(false), 1200);
+    return () => clearTimeout(timer);
+  }, [actionSucceeded]);
   useEffect(() => {
     let timer: number;
     const reset = () => {
       setIdlePrompt("");
       clearTimeout(timer);
       if (document.visibilityState === "visible")
-        timer = window.setTimeout(
-          () => setIdlePrompt("Posso organizar seu próximo passo."),
-          60_000,
-        );
+        timer = window.setTimeout(() => {
+          if (document.visibilityState === "visible")
+            setIdlePrompt("Posso organizar seu próximo passo.");
+        }, 60_000);
     };
     const events = ["pointerdown", "keydown"] as const;
     events.forEach((e) => addEventListener(e, reset));
+    document.addEventListener("visibilitychange", reset);
     reset();
     return () => {
       clearTimeout(timer);
       events.forEach((e) => removeEventListener(e, reset));
+      document.removeEventListener("visibilitychange", reset);
     };
   }, []);
   function fresh() {
@@ -332,6 +353,21 @@ function CommandCenter({ preferredName }: { preferredName: string }) {
       ]);
       setActiveId(result.conversationId);
       await queryClient.invalidateQueries({ queryKey: conversationsKey });
+      if (result.action) {
+        const route =
+          result.action.type === "navigation" ? resolveNexoraAction(result.action.name) : null;
+        if (!route) {
+          console.warn("NEXORA ignored an invalid action", { type: result.action.type });
+        } else {
+          try {
+            setActionSucceeded(true);
+            await navigate({ to: route });
+          } catch {
+            setActionSucceeded(false);
+            toast.error("Não foi possível abrir essa área. A resposta foi mantida.");
+          }
+        }
+      }
     } catch (e) {
       setMessages((m) => m.filter((x) => x.id !== optimistic.id));
       setInput(text);
@@ -344,12 +380,17 @@ function CommandCenter({ preferredName }: { preferredName: string }) {
     }
   }
   function listen() {
+    if (listening) {
+      recognitionRef.current?.stop();
+      return;
+    }
     const recognition = createSpeechRecognition();
     if (!recognition)
       return toast.info(
         "Reconhecimento de voz indisponível neste navegador. Digite sua mensagem normalmente.",
       );
     setListening(true);
+    recognitionRef.current = recognition;
     recognition.lang = "pt-BR";
     recognition.interimResults = false;
     recognition.continuous = false;
@@ -357,15 +398,28 @@ function CommandCenter({ preferredName }: { preferredName: string }) {
       setInput((old) => [old, e.results[0]?.[0]?.transcript].filter(Boolean).join(" "));
     recognition.onerror = () =>
       toast.error("Não consegui transcrever. Sua mensagem digitada foi mantida.");
-    recognition.onend = () => setListening(false);
-    recognition.start();
+    recognition.onend = () => {
+      recognitionRef.current = null;
+      setListening(false);
+    };
+    try {
+      recognition.start();
+    } catch {
+      recognitionRef.current = null;
+      setListening(false);
+      toast.error("Não foi possível iniciar o microfone.");
+    }
   }
   async function choosePersona(id: string, premium: boolean) {
     if (premium && !subscription.data?.isPremium) return navigate({ to: "/premium" });
-    await updateProfile.mutateAsync({
-      preferences: { ...(profile?.preferences ?? {}), nexora_persona: id },
-    });
-    toast.success("Persona NEXORA atualizada");
+    try {
+      await updateProfile.mutateAsync({
+        preferences: { ...(profile?.preferences ?? {}), nexora_persona: id },
+      });
+      toast.success("Persona NEXORA atualizada");
+    } catch {
+      toast.error("Não foi possível salvar a persona. Tente novamente.");
+    }
   }
   return (
     <div className="command-center">
