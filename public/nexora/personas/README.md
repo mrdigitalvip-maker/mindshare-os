@@ -3,10 +3,15 @@
 The presence component resolves artwork from one directory per persona:
 
 ```
-nova/presence-640.avif   nova/presence-960.avif
-nova/presence-640.webp   nova/presence-960.webp
-atlas/...                lyra/...                orion/...
+nova/nova-640.avif   nova/nova-960.avif
+nova/nova-640.webp   nova/nova-960.webp
+nova/nova.png        (universal image fallback)
 ```
+
+**Current status: `NOVA_ASSET_MISSING` / HUMAN ARTWORK REQUIRED.** None of the five
+files above is committed. The browser therefore correctly reaches the technical
+fallback. Add approved artwork at these exact, case-sensitive paths; no UI rebuild is
+needed. Do not replace these files with generated or unapproved human likenesses.
 
 ## Art direction and export contract
 
@@ -23,6 +28,14 @@ NOVA should feel warm and confident; ATLAS calm and architectural; LYRA refined 
 expressive; ORION contemplative and executive. Until approved final renders are added,
 the UI intentionally shows its polished monogram presence rather than a fabricated human.
 
-The rendering boundary is `NexoraAvatar`. Static `<picture>` media can later be replaced
+Optional expression frames should use `nova-idle`, `nova-blink`, `nova-listening`, and
+`nova-speaking` names beside the base exports. They are deliberately not requested until
+provided: a full portrait is never squashed to fake a blink.
+
+The rendering boundary is `NexoraAvatar`. Its provider-neutral performance contract is
+`{ amplitude?: number; mouthOpen?: number; viseme?: string }`. Static `<picture>` media can later be replaced
 inside that component by animated WebP, video, Rive, Live2D, WebGL, or a facial-animation
 provider without changing the Command Center, onboarding, or persona selector.
+
+In development, append `?nexoraState=speaking&nexoraAmplitude=.7` (using any of the
+seven states) to inspect the state, asset status, and audio response overlay.
