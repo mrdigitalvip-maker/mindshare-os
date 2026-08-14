@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "check": "npm run lint && npm run typecheck && npm run build",
     "check:pwa": "node scripts/check-pwa.mjs",
+    "check:nexora-actions": "node scripts/check-nexora-actions.mjs",
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write ."

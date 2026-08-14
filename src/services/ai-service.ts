@@ -121,6 +121,7 @@ export interface AiSendResult {
   userMessage: AiChatMessage;
   assistantMessage: AiChatMessage;
   capabilities: Record<AiCapability, boolean>;
+  action?: { type: "navigation"; name: string };
 }
 
 export type AiConversation = { id: string; title: string; createdAt: string; updatedAt: string };

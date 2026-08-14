@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { jsonResponse, preflightResponse, rejectDisallowedOrigin } from "../_shared/http.ts";
+import { NEXORA_NAVIGATION_ACTIONS, parseNexoraModelResponse } from "../_shared/nexora-actions.js";
 
 type ErrorCode =
   | "unauthorized"
@@ -30,7 +31,7 @@ interface PlanPolicy {
   model: string;
 }
 
-const SYSTEM_PROMPT = `You are NEXORA, a helpful and safe workspace assistant. Reply in the user's language unless asked otherwise. Be honest about limitations: never claim an action was completed or that a tool or workspace record was accessed when it was not. Do not invent tool access. Give every user respectful, useful help. Keep answers concise when capacity is constrained and more complete when capacity permits.`;
+const SYSTEM_PROMPT = `You are NEXORA, a helpful and safe workspace assistant. Reply in the user's language unless asked otherwise. Be honest about limitations: never claim an action was completed or that a tool or workspace record was accessed when it was not. Do not invent tool access. Give every user respectful, useful help. Keep answers concise when capacity is constrained and more complete when capacity permits.\n\nReturn one JSON object matching the supplied schema. "message" is the natural-language answer. Set "action" to a navigation action ONLY when the user's latest message is an explicit request to open or go to that NEXORA area. Requests such as "Abra meus projetos", "Me leve para Estudos", and "Quero ir para configurações" are explicit. Discussion or advice such as "Como melhorar minha produtividade?" and "Quero trabalhar melhor nos meus projetos" is not an action request. Never emit an action for create, update, delete, save, send, or any other mutation; explain that such changes require review and confirmation instead. Do not emit URLs, code, SQL, IDs, or action names outside the schema.`;
 
 function envInt(name: string, fallback: number, minimum = 1): number {
   const parsed = Number.parseInt(Deno.env.get(name) ?? "", 10);
@@ -147,7 +148,13 @@ function trimContext(
   return selected.reverse();
 }
 
-async function callOpenAI(apiKey: string, model: string, messages: unknown[], maxTokens: number) {
+async function callOpenAI(
+  apiKey: string,
+  model: string,
+  messages: unknown[],
+  maxTokens: number,
+  responseFormat?: Record<string, unknown>,
+) {
   const controller = new AbortController();
   const timeoutMs = envInt("OPENAI_TIMEOUT_MS", 30000, 1000);
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -156,7 +163,12 @@ async function callOpenAI(apiKey: string, model: string, messages: unknown[], ma
       method: "POST",
       signal: controller.signal,
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model, messages, max_tokens: maxTokens }),
+      body: JSON.stringify({
+        model,
+        messages,
+        max_tokens: maxTokens,
+        ...(responseFormat ? { response_format: responseFormat } : {}),
+      }),
     });
     if (response.status === 429) throw new Error("provider_rate_limited");
     if (!response.ok)
@@ -480,7 +492,8 @@ Deno.serve(async (req) => {
         action: body.action,
         request_id: usageRequestId,
       });
-      if (usageError) return failure("duplicate_request", "This request was already submitted.", 409, requestId);
+      if (usageError)
+        return failure("duplicate_request", "This request was already submitted.", 409, requestId);
       const data = await executeTypedAction(
         body.action as TypedAction,
         body,
@@ -489,7 +502,11 @@ Deno.serve(async (req) => {
         plan,
         requestId,
       );
-      await supabase.from("ai_usage").update({ output_units: null }).eq("user_id", user.id).eq("request_id", usageRequestId);
+      await supabase
+        .from("ai_usage")
+        .update({ output_units: null })
+        .eq("user_id", user.id)
+        .eq("request_id", usageRequestId);
       return json({ ok: true, data });
     }
     if (
@@ -577,7 +594,43 @@ Deno.serve(async (req) => {
       policy.model,
       [{ role: "system", content: SYSTEM_PROMPT }, ...context],
       policy.maxOutputTokens,
+      {
+        type: "json_schema",
+        json_schema: {
+          name: "nexora_response",
+          strict: true,
+          schema: {
+            type: "object",
+            additionalProperties: false,
+            required: ["message", "action"],
+            properties: {
+              message: { type: "string", minLength: 1 },
+              action: {
+                anyOf: [
+                  { type: "null" },
+                  {
+                    type: "object",
+                    additionalProperties: false,
+                    required: ["type", "name"],
+                    properties: {
+                      type: { const: "navigation" },
+                      name: { type: "string", enum: NEXORA_NAVIGATION_ACTIONS },
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        },
+      },
     );
+    let parsedModelResponse: ReturnType<typeof parseNexoraModelResponse> = null;
+    try {
+      parsedModelResponse = parseNexoraModelResponse(JSON.parse(result.content));
+    } catch {
+      /* untrusted malformed output */
+    }
+    if (!parsedModelResponse) throw new Error("provider_error");
     const { error: usageError } = await supabase.from("ai_usage").insert({
       user_id: user.id,
       action: "assistant",
@@ -591,7 +644,7 @@ Deno.serve(async (req) => {
       .insert({
         conversation_id: conversationId,
         role: "assistant",
-        content: result.content,
+        content: parsedModelResponse.message,
         tokens: result.tokens,
       })
       .select("id, role, content, created_at")
@@ -610,6 +663,7 @@ Deno.serve(async (req) => {
         conversationId,
         userMessage: { id: body.requestId, role: "user", content: message },
         assistantMessage,
+        ...(parsedModelResponse.action ? { action: parsedModelResponse.action } : {}),
         capabilities: {
           basicChat: true,
           advancedChat: plan === "premium",
