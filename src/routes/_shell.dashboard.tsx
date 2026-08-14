@@ -15,7 +15,12 @@ import {
   WifiOff,
 } from "lucide-react";
 import { toast } from "sonner";
-import { NexoraAvatar, type NexoraAvatarState } from "@/components/nexora/nexora-avatar";
+import {
+  NEXORA_PERSONAS,
+  NexoraAvatar,
+  type NexoraAvatarState,
+  type NexoraPersona,
+} from "@/components/nexora/nexora-avatar";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -61,12 +66,9 @@ const QUESTIONS: ReadonlyArray<{ key: string; text: string; choices?: readonly s
     choices: ["Sim, por favor", "Agora não"],
   },
 ] as const;
-const PERSONAS = [
-  { id: "nova", name: "NOVA", detail: "Feminina A · serena", premium: false },
-  { id: "atlas", name: "ATLAS", detail: "Masculina A · objetiva", premium: false },
-  { id: "lyra", name: "LYRA", detail: "Feminina B · expressiva", premium: true },
-  { id: "orion", name: "ORION", detail: "Masculina B · contemplativa", premium: true },
-] as const;
+const PERSONAS = Object.entries(NEXORA_PERSONAS) as Array<
+  [NexoraPersona, (typeof NEXORA_PERSONAS)[NexoraPersona]]
+>;
 
 function Dashboard() {
   const { user } = useAuth();
@@ -161,7 +163,7 @@ function NexoraIntro() {
   if (done)
     return (
       <div className="nexora-intro">
-        <NexoraAvatar state="success" />
+        <NexoraAvatar persona="nova" state="success" priority />
         <div className="text-center">
           <p className="text-xs uppercase tracking-[.35em] text-gold">Contexto salvo</p>
           <h1 className="mt-3 font-display text-3xl">
@@ -173,7 +175,7 @@ function NexoraIntro() {
   return (
     <div className="nexora-intro">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,rgba(194,139,78,.13),transparent_43%)]" />
-      <NexoraAvatar state={state} />
+      <NexoraAvatar persona="nova" state={state} priority />
       <section className="relative w-full max-w-xl text-center" aria-live="polite">
         <p className="text-xs uppercase tracking-[.32em] text-gold">NEXORA · primeiro contato</p>
         <h1 className="mt-4 font-display text-2xl leading-snug sm:text-4xl">{question.text}</h1>
@@ -254,6 +256,11 @@ function CommandCenter({ preferredName }: { preferredName: string }) {
   const recognitionRef = useRef<ReturnType<typeof createSpeechRecognition>>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const { sendMessage, isSending, loadConversationHistory, startConversation } = useChat();
+  const savedPersona = (profile?.preferences as Record<string, unknown>)?.nexora_persona;
+  const persona: NexoraPersona =
+    typeof savedPersona === "string" && savedPersona in NEXORA_PERSONAS
+      ? (savedPersona as NexoraPersona)
+      : "nova";
   const conversationsKey = ["workspace", user?.id, "ai-conversations"] as const;
   const conversations = useQuery({
     queryKey: conversationsKey,
@@ -425,7 +432,7 @@ function CommandCenter({ preferredName }: { preferredName: string }) {
     <div className="command-center">
       <header className="command-center__presence">
         <div className="flex items-center gap-3">
-          <NexoraAvatar state={avatarState} compact />
+          <NexoraAvatar persona={persona} state={avatarState} compact priority />
           <div>
             <p className="text-[10px] uppercase tracking-[.28em] text-gold">NEXORA · online</p>
             <h1 className="font-display text-xl sm:text-2xl">
@@ -730,17 +737,23 @@ function PersonaDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="grid grid-cols-2 gap-3">
-          {PERSONAS.map((p) => (
+          {PERSONAS.map(([id, p]) => (
             <button
-              key={p.id}
-              onClick={() => void choose(p.id, p.premium)}
-              className={`relative rounded-2xl border p-4 text-left ${selected === p.id ? "border-gold bg-gold/5" : "border-border"}`}
+              key={id}
+              onClick={() => void choose(id, p.premium)}
+              className={`persona-card ${selected === id ? "is-selected" : ""}`}
+              aria-pressed={selected === id}
             >
-              <NexoraAvatar compact state="idle" className="mx-auto !w-20" />
-              <strong className="mt-2 block">{p.name}</strong>
-              <span className="text-xs text-muted-foreground">{p.detail}</span>
+              <NexoraAvatar persona={id} compact state="quiet" className="persona-card__visual" />
+              <span className="persona-card__copy">
+                <strong>{p.name}</strong>
+                <span>{p.descriptor}</span>
+                <small>{p.premium ? "Premium" : "Free"}</small>
+              </span>
               {p.premium && !premium && (
-                <Lock className="absolute right-3 top-3 h-4 w-4 text-gold" />
+                <span className="persona-card__lock" aria-label="Requer Premium">
+                  <Lock /> Premium
+                </span>
               )}
             </button>
           ))}

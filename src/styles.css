@@ -400,7 +400,7 @@
   }
 }
 
-/* NEXORA Command Center — transform-only avatar motion keeps the Android/TWA path light. */
+/* NEXORA presence — media is swappable; transform-only motion keeps Android/TWA light. */
 .nexora-intro {
   position: fixed;
   inset: 0;
@@ -417,52 +417,157 @@
 }
 .nexora-avatar {
   position: relative;
-  width: min(58vw, 260px);
+  width: min(72vw, 360px);
+  aspect-ratio: 4 / 5;
   flex: none;
-  filter: drop-shadow(0 25px 45px rgba(0, 0, 0, 0.5));
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1.75rem 1.75rem 0.9rem 0.9rem;
+  background: #0e1116;
+  box-shadow: 0 25px 55px rgba(0, 0, 0, 0.42);
 }
-.nexora-avatar svg {
-  position: relative;
-  width: 100%;
-  overflow: visible;
-}
-.nexora-avatar__halo {
+.nexora-avatar__environment {
   position: absolute;
-  inset: 18% 8%;
+  inset: 0;
+  background:
+    linear-gradient(115deg, transparent 52%, rgba(255, 255, 255, 0.035) 52.2%, transparent 53%),
+    radial-gradient(circle at 50% 24%, rgba(137, 164, 172, 0.16), transparent 37%),
+    linear-gradient(155deg, #171c23, #090b0f 72%);
+}
+.nexora-avatar__environment::after {
+  position: absolute;
+  inset: auto 10% 8%;
+  height: 1px;
+  content: "";
+  background: linear-gradient(90deg, transparent, rgba(207, 174, 125, 0.5), transparent);
+}
+.nexora-avatar__media,
+.nexora-avatar__media img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.nexora-avatar__media img {
+  object-fit: cover;
+  object-position: var(--nexora-position);
+  filter: saturate(0.88) contrast(1.02);
+  animation: nexora-breathe 6.5s ease-in-out infinite;
+}
+.nexora-avatar__aura {
+  position: absolute;
+  z-index: 2;
+  inset: 8% 10% 20%;
   border-radius: 50%;
-  background: rgba(95, 205, 235, 0.1);
-  filter: blur(32px);
-  animation: nexora-pulse 4s ease-in-out infinite;
+  border: 1px solid rgba(156, 190, 196, 0.08);
+  box-shadow: 0 0 calc(18px + 18px * var(--nexora-amplitude)) rgba(131, 190, 199, 0.1);
+  opacity: 0.65;
+  animation: nexora-pulse 5s ease-in-out infinite;
 }
-.nexora-avatar__body {
-  transform-origin: 50% 70%;
-  animation: nexora-breathe 5s ease-in-out infinite;
+.nexora-avatar__fallback {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 0.7rem;
+  background:
+    linear-gradient(130deg, transparent 40%, rgba(201, 169, 119, 0.06)),
+    radial-gradient(ellipse at 50% 70%, rgba(98, 122, 128, 0.15), transparent 48%);
 }
-.nexora-avatar__eyes {
-  transform-origin: center;
-  animation: nexora-blink 6s infinite;
+.nexora-avatar__monogram {
+  display: grid;
+  width: clamp(4rem, 30%, 7rem);
+  aspect-ratio: 1;
+  place-items: center;
+  border: 1px solid rgba(207, 174, 125, 0.38);
+  border-radius: 42% 58% 48% 52%;
+  color: rgba(232, 224, 210, 0.88);
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 12vw, 4rem);
+  font-weight: 300;
+  box-shadow: inset 0 0 30px rgba(207, 174, 125, 0.06);
 }
-.nexora-avatar__mouth {
-  transition:
-    height 0.1s,
-    y 0.1s;
+.nexora-avatar__fallback-name {
+  color: rgba(232, 224, 210, 0.58);
+  font-size: 0.65rem;
+  letter-spacing: 0.35em;
 }
-.nexora-avatar__core {
-  animation: nexora-core 2.5s ease-in-out infinite;
+.nexora-avatar__status {
+  position: absolute;
+  z-index: 4;
+  right: 1rem;
+  bottom: 1rem;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #94adb1;
+  box-shadow: 0 0 12px currentColor;
 }
-.nexora-avatar.is-thinking .nexora-avatar__halo,
-.nexora-avatar.is-listening .nexora-avatar__halo {
-  background: rgba(111, 213, 238, 0.22);
-  animation-duration: 1.2s;
+.nexora-avatar__voice {
+  position: absolute;
+  z-index: 4;
+  bottom: 0.9rem;
+  left: 1rem;
+  display: flex;
+  height: 14px;
+  align-items: end;
+  gap: 3px;
+  opacity: 0;
+  transition: opacity 180ms ease;
 }
-.nexora-avatar.is-success .nexora-avatar__halo {
-  background: rgba(194, 139, 78, 0.28);
+.nexora-avatar__voice i {
+  width: 2px;
+  height: calc(3px + (var(--nexora-amplitude) * 11px));
+  min-height: 3px;
+  border-radius: 2px;
+  background: #cbae7e;
+  transition: height 80ms linear;
+}
+.nexora-avatar__voice i:nth-child(2),
+.nexora-avatar__voice i:nth-child(4) {
+  transform: scaleY(0.62);
+}
+.nexora-avatar.is-speaking .nexora-avatar__voice,
+.nexora-avatar.is-listening .nexora-avatar__voice {
+  opacity: 1;
+}
+.nexora-avatar.is-thinking .nexora-avatar__aura,
+.nexora-avatar.is-listening .nexora-avatar__aura {
+  border-color: rgba(143, 199, 207, 0.28);
+  animation-duration: 1.8s;
+}
+.nexora-avatar.is-attention .nexora-avatar__status {
+  animation: nexora-pulse 1.2s ease-out 2;
+}
+.nexora-avatar.is-success .nexora-avatar__status {
+  background: #bba774;
+}
+.nexora-avatar.is-success .nexora-avatar__aura {
+  border-color: rgba(194, 163, 104, 0.38);
 }
 .nexora-avatar.is-quiet {
-  opacity: 0.72;
+  filter: saturate(0.72);
 }
 .nexora-avatar.is-compact {
-  width: 74px;
+  width: 86px;
+  border-radius: 1rem 1rem 0.65rem 0.65rem;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+}
+.nexora-avatar.is-compact .nexora-avatar__fallback-name,
+.nexora-avatar.is-compact .nexora-avatar__status,
+.nexora-avatar.is-compact .nexora-avatar__voice {
+  display: none;
+}
+.nexora-avatar.is-atlas .nexora-avatar__environment {
+  background: radial-gradient(circle at 50% 25%, #1b2529, transparent 45%), #090c0e;
+}
+.nexora-avatar.is-lyra .nexora-avatar__environment {
+  background: radial-gradient(circle at 48% 24%, #24212a, transparent 45%), #0b0a0d;
+}
+.nexora-avatar.is-orion .nexora-avatar__environment {
+  background: radial-gradient(circle at 50% 25%, #24231f, transparent 45%), #0c0b09;
 }
 .command-center {
   display: grid;
@@ -530,29 +635,12 @@
 }
 @keyframes nexora-breathe {
   50% {
-    transform: translateY(-3px) rotate(0.25deg);
-  }
-}
-@keyframes nexora-blink {
-  0%,
-  47%,
-  50%,
-  100% {
-    transform: scaleY(1);
-  }
-  48%,
-  49% {
-    transform: scaleY(0.08);
+    transform: scale(1.008) translateY(-2px);
   }
 }
 @keyframes nexora-pulse {
   50% {
     transform: scale(1.08);
-    opacity: 0.65;
-  }
-}
-@keyframes nexora-core {
-  50% {
     opacity: 0.65;
   }
 }
@@ -574,6 +662,89 @@
   }
   .command-center__composer {
     padding: 1rem 2rem;
+  }
+}
+.persona-card {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 4.25rem minmax(0, 1fr);
+  align-items: center;
+  gap: 0.75rem;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 1.25rem;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 0.65rem;
+  text-align: left;
+  transition:
+    border-color 180ms ease,
+    background 180ms ease;
+}
+.persona-card:hover,
+.persona-card:focus-visible,
+.persona-card.is-selected {
+  border-color: rgba(194, 139, 78, 0.55);
+  background: rgba(194, 139, 78, 0.05);
+}
+.persona-card__visual {
+  width: 4.25rem !important;
+}
+.persona-card__copy {
+  display: grid;
+  min-width: 0;
+  gap: 0.15rem;
+}
+.persona-card__copy span {
+  color: var(--muted-foreground);
+  font-size: 0.7rem;
+  line-height: 1.3;
+}
+.persona-card__copy small {
+  color: rgb(194 139 78);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+}
+.persona-card__lock {
+  position: absolute;
+  top: 0.45rem;
+  right: 0.45rem;
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  border-radius: 999px;
+  background: rgba(8, 9, 12, 0.82);
+  padding: 0.25rem 0.4rem;
+  color: rgb(210 177 121);
+  font-size: 0.58rem;
+  letter-spacing: 0.08em;
+}
+.persona-card__lock svg {
+  width: 0.65rem;
+  height: 0.65rem;
+}
+@media (max-width: 420px) {
+  .nexora-intro {
+    justify-content: flex-start;
+    padding-top: calc(1rem + env(safe-area-inset-top));
+  }
+  .nexora-intro > .nexora-avatar {
+    width: min(56vw, 210px);
+  }
+  .command-center__presence {
+    align-items: flex-start;
+  }
+  .command-center__presence .nexora-avatar {
+    width: 68px;
+  }
+  .persona-card {
+    grid-template-columns: 1fr;
+  }
+  .persona-card__visual {
+    width: 100% !important;
+    max-width: 7rem;
+    margin-inline: auto;
   }
 }
 @media (prefers-reduced-motion: reduce) {
