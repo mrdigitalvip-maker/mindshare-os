@@ -454,6 +454,10 @@
   object-position: var(--nexora-position);
   filter: saturate(0.88) contrast(1.02);
   animation: nexora-breathe 6.5s ease-in-out infinite;
+  transform-origin: 50% 70%;
+  transition:
+    filter 300ms ease,
+    transform 300ms ease;
 }
 .nexora-avatar__aura {
   position: absolute;
@@ -538,6 +542,27 @@
   border-color: rgba(143, 199, 207, 0.28);
   animation-duration: 1.8s;
 }
+.nexora-avatar.is-listening .nexora-avatar__media img {
+  filter: saturate(0.96) contrast(1.04) brightness(1.03);
+  transform: scale(1.008);
+}
+.nexora-avatar.is-thinking .nexora-avatar__media img {
+  filter: saturate(0.8) contrast(1.06) hue-rotate(3deg);
+}
+.nexora-avatar.is-speaking .nexora-avatar__aura {
+  opacity: calc(0.7 + var(--nexora-amplitude) * 0.3);
+  transform: scale(calc(1 + var(--nexora-amplitude) * 0.025));
+}
+.nexora-avatar.is-speaking .nexora-avatar__media img {
+  filter: saturate(calc(0.9 + var(--nexora-amplitude) * 0.12))
+    brightness(calc(1 + var(--nexora-amplitude) * 0.035));
+}
+.nexora-avatar.is-attention .nexora-avatar__media img {
+  transform: scale(1.006) translateX(-0.2%);
+}
+.nexora-avatar.is-success .nexora-avatar__media img {
+  filter: saturate(1.02) brightness(1.035);
+}
 .nexora-avatar.is-attention .nexora-avatar__status {
   animation: nexora-pulse 1.2s ease-out 2;
 }
@@ -549,6 +574,19 @@
 }
 .nexora-avatar.is-quiet {
   filter: saturate(0.72);
+}
+.nexora-avatar__debug {
+  position: absolute;
+  z-index: 10;
+  inset: auto 0.35rem 0.3rem;
+  padding: 0.2rem 0.3rem;
+  border-radius: 0.3rem;
+  background: rgba(0, 0, 0, 0.78);
+  color: #b7f5ff;
+  font:
+    9px/1.2 ui-monospace,
+    monospace;
+  overflow-wrap: anywhere;
 }
 .nexora-avatar.is-compact {
   width: 86px;
