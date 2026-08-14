@@ -1,17 +1,21 @@
+import { supabase } from "@/lib/supabase";
+
+export type VoiceProviderState = "idle" | "speaking" | "error";
+
 export interface VoiceProvider {
   readonly id: string;
-  isAvailable(): boolean;
-  speak(text: string): Promise<void>;
+  isAvailable(): Promise<boolean>;
+  speak(text: string, persona?: string): Promise<void>;
   stop(): void;
 }
 
 export class FallbackVoiceProvider implements VoiceProvider {
   readonly id = "browser";
-  isAvailable() {
+  async isAvailable() {
     return typeof window !== "undefined" && "speechSynthesis" in window;
   }
   async speak(text: string) {
-    if (!this.isAvailable()) return;
+    if (!(await this.isAvailable())) throw new Error("Voz do navegador indisponível.");
     this.stop();
     await new Promise<void>((resolve, reject) => {
       const utterance = new SpeechSynthesisUtterance(text);
@@ -25,31 +29,64 @@ export class FallbackVoiceProvider implements VoiceProvider {
   }
 }
 
-/** Backend-only adapter contract. It intentionally contains no API key. */
+/** Calls only the authenticated Edge Function; provider credentials never enter the bundle. */
 export class ElevenLabsVoiceProvider implements VoiceProvider {
   readonly id = "elevenlabs";
-  constructor(
-    private readonly endpoint?: string,
-    private readonly voiceId?: string,
-  ) {}
-  isAvailable() {
-    return Boolean(this.endpoint && this.voiceId);
+  private audio: HTMLAudioElement | null = null;
+  private objectUrl: string | null = null;
+
+  async isAvailable() {
+    const { data, error } = await supabase.functions.invoke<{ available: boolean }>(
+      "nexora-voice",
+      {
+        body: { action: "availability" },
+      },
+    );
+    return !error && data?.available === true;
   }
-  async speak(_text: string) {
-    throw new Error("ElevenLabs voice streaming is not configured.");
+  async speak(text: string, persona = "nova") {
+    this.stop();
+    const { data, error } = await supabase.functions.invoke<Blob>("nexora-voice", {
+      body: { action: "speak", text, persona },
+    });
+    if (error || !(data instanceof Blob)) throw new Error("Voz avançada indisponível.");
+    this.objectUrl = URL.createObjectURL(data);
+    this.audio = new Audio(this.objectUrl);
+    await new Promise<void>((resolve, reject) => {
+      if (!this.audio) return reject(new Error("Áudio indisponível."));
+      this.audio.onended = () => {
+        this.stop();
+        resolve();
+      };
+      this.audio.onerror = () => {
+        this.stop();
+        reject(new Error("Falha ao reproduzir voz."));
+      };
+      void this.audio.play().catch(reject);
+    });
   }
-  stop() {}
+  stop() {
+    if (this.audio) {
+      this.audio.pause();
+      this.audio.src = "";
+      this.audio = null;
+    }
+    if (this.objectUrl) {
+      URL.revokeObjectURL(this.objectUrl);
+      this.objectUrl = null;
+    }
+  }
 }
 
 type SpeechRecognitionResultEventLike = { results: ArrayLike<{ 0: { transcript: string } }> };
-type SpeechRecognitionLike = {
+export type SpeechRecognitionLike = {
   lang: string;
   interimResults: boolean;
   continuous: boolean;
   start(): void;
   stop(): void;
   onresult: ((event: SpeechRecognitionResultEventLike) => void) | null;
-  onerror: (() => void) | null;
+  onerror: ((event?: { error?: string }) => void) | null;
   onend: (() => void) | null;
 };
 type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;

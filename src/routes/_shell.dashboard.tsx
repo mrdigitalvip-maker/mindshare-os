@@ -12,6 +12,8 @@ import {
   Send,
   Sparkles,
   Square,
+  Volume2,
+  VolumeX,
   WifiOff,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -44,7 +46,11 @@ import { useSubscription } from "@/hooks/use-subscription";
 import { useAuth } from "@/lib/auth-context";
 import { MODULES } from "@/lib/modules";
 import { resolveNexoraAction } from "@/lib/nexora-actions";
-import { createSpeechRecognition } from "@/services/voice-provider";
+import {
+  createSpeechRecognition,
+  ElevenLabsVoiceProvider,
+  FallbackVoiceProvider,
+} from "@/services/voice-provider";
 import { AIService, AIServiceError, type AiConversation } from "@/services/ai-service";
 
 export const Route = createFileRoute("/_shell/dashboard")({
@@ -253,7 +259,9 @@ function CommandCenter({ preferredName }: { preferredName: string }) {
   const [idlePrompt, setIdlePrompt] = useState("");
   const [online, setOnline] = useState(true);
   const [actionSucceeded, setActionSucceeded] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
   const recognitionRef = useRef<ReturnType<typeof createSpeechRecognition>>(null);
+  const voiceRef = useRef(new ElevenLabsVoiceProvider());
   const endRef = useRef<HTMLDivElement>(null);
   const { sendMessage, isSending, loadConversationHistory, startConversation } = useChat();
   const savedPersona = (profile?.preferences as Record<string, unknown>)?.nexora_persona;
@@ -261,6 +269,8 @@ function CommandCenter({ preferredName }: { preferredName: string }) {
     typeof savedPersona === "string" && savedPersona in NEXORA_PERSONAS
       ? (savedPersona as NexoraPersona)
       : "nova";
+  const voiceOutputEnabled =
+    (profile?.preferences as Record<string, unknown>)?.voice_output_enabled === true;
   const conversationsKey = ["workspace", user?.id, "ai-conversations"] as const;
   const conversations = useQuery({
     queryKey: conversationsKey,
@@ -272,11 +282,13 @@ function CommandCenter({ preferredName }: { preferredName: string }) {
     ? "listening"
     : isSending
       ? "thinking"
-      : actionSucceeded
-        ? "success"
-        : idlePrompt
-          ? "attention"
-          : "idle";
+      : speaking
+        ? "speaking"
+        : actionSucceeded
+          ? "success"
+          : idlePrompt
+            ? "attention"
+            : "idle";
   const filtered = useMemo(
     () =>
       (Array.isArray(conversations.data) ? conversations.data : []).filter((c) =>
@@ -296,7 +308,13 @@ function CommandCenter({ preferredName }: { preferredName: string }) {
       removeEventListener("offline", off);
     };
   }, []);
-  useEffect(() => () => recognitionRef.current?.stop(), []);
+  useEffect(
+    () => () => {
+      recognitionRef.current?.stop();
+      voiceRef.current.stop();
+    },
+    [],
+  );
   useEffect(() => {
     if (!actionSucceeded) return;
     const timer = window.setTimeout(() => setActionSucceeded(false), 1200);
@@ -360,6 +378,18 @@ function CommandCenter({ preferredName }: { preferredName: string }) {
       ]);
       setActiveId(result.conversationId);
       await queryClient.invalidateQueries({ queryKey: conversationsKey });
+      if (voiceOutputEnabled) {
+        setSpeaking(true);
+        try {
+          const advanced = voiceRef.current;
+          const provider = (await advanced.isAvailable()) ? advanced : new FallbackVoiceProvider();
+          await provider.speak(result.assistantMessage.content, persona);
+        } catch {
+          toast.info("Voz indisponível agora. A conversa por texto continua funcionando.");
+        } finally {
+          setSpeaking(false);
+        }
+      }
       if (result.action) {
         const route =
           result.action.type === "navigation" ? resolveNexoraAction(result.action.name) : null;
@@ -428,6 +458,21 @@ function CommandCenter({ preferredName }: { preferredName: string }) {
       toast.error("Não foi possível salvar a persona. Tente novamente.");
     }
   }
+  async function toggleVoiceOutput() {
+    voiceRef.current.stop();
+    setSpeaking(false);
+    try {
+      await updateProfile.mutateAsync({
+        preferences: {
+          ...(profile?.preferences ?? {}),
+          voice_output_enabled: !voiceOutputEnabled,
+        },
+      });
+      toast.success(!voiceOutputEnabled ? "Voz de saída ativada" : "Voz de saída desativada");
+    } catch {
+      toast.error("Não foi possível salvar a preferência de voz.");
+    }
+  }
   return (
     <div className="command-center">
       <header className="command-center__presence">
@@ -444,6 +489,15 @@ function CommandCenter({ preferredName }: { preferredName: string }) {
           </div>
         </div>
         <div className="flex gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => void toggleVoiceOutput()}
+            aria-label={voiceOutputEnabled ? "Desativar voz de saída" : "Ativar voz de saída"}
+            aria-pressed={voiceOutputEnabled}
+          >
+            {voiceOutputEnabled ? <Volume2 /> : <VolumeX />}
+          </Button>
           <Button
             variant="ghost"
             size="icon"
@@ -647,6 +701,18 @@ function HistorySheet({
   openConversation(i: AiConversation): void;
   premium: boolean;
 }) {
+  const recentCutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const recent = items.filter((item) => new Date(item.updatedAt).getTime() >= recentCutoff);
+  const older = items.filter((item) => new Date(item.updatedAt).getTime() < recentCutoff);
+  const renderConversation = (item: AiConversation) => (
+    <button
+      key={item.id}
+      onClick={() => void openConversation(item)}
+      className="w-full truncate rounded-xl px-3 py-3 text-left text-sm hover:bg-accent"
+    >
+      {item.title}
+    </button>
+  );
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetContent side="left" className="w-[min(90vw,360px)]">
@@ -674,15 +740,31 @@ function HistorySheet({
         <div className="mt-4 space-y-1 overflow-y-auto">
           {loading && <p className="p-3 text-sm text-muted-foreground">Carregando…</p>}
           {error && <p className="p-3 text-sm text-destructive">Histórico indisponível agora.</p>}
-          {items.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => void openConversation(item)}
-              className="w-full truncate rounded-xl px-3 py-3 text-left text-sm hover:bg-accent"
-            >
-              {item.title}
-            </button>
-          ))}
+          {!loading && !error && items.length === 0 && (
+            <p className="p-3 text-sm text-muted-foreground">Nenhuma conversa encontrada.</p>
+          )}
+          {recent.length > 0 && (
+            <section aria-labelledby="recent-conversations">
+              <h3
+                id="recent-conversations"
+                className="px-3 py-2 text-xs font-medium uppercase tracking-wider text-muted-foreground"
+              >
+                Recentes
+              </h3>
+              {recent.map(renderConversation)}
+            </section>
+          )}
+          {older.length > 0 && (
+            <section aria-labelledby="older-conversations">
+              <h3
+                id="older-conversations"
+                className="px-3 py-2 text-xs font-medium uppercase tracking-wider text-muted-foreground"
+              >
+                Anteriores
+              </h3>
+              {older.map(renderConversation)}
+            </section>
+          )}
         </div>
       </SheetContent>
     </Sheet>

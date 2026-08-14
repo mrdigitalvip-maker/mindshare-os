@@ -5,6 +5,8 @@ const navigationCases = [
   ["Abra meus projetos.", "navigate_projects"],
   ["Me leve para Estudos.", "navigate_studies"],
   ["Abra configurações.", "navigate_settings"],
+  ["Quero ver minhas tarefas.", "navigate_productivity"],
+  ["Quero mudar de plano.", "navigate_premium"],
 ];
 
 for (const [request, name] of navigationCases) {
@@ -27,6 +29,15 @@ assert.equal(
   })?.action,
   undefined,
 );
+for (const name of ["navigate_secret_admin", "https://evil.example", "javascript:alert(1)"]) {
+  assert.equal(
+    parseNexoraModelResponse({
+      message: "A entrada não confiável foi ignorada.",
+      action: { type: "navigation", name },
+    })?.action,
+    undefined,
+  );
+}
 assert.equal(
   parseNexoraModelResponse({
     message: "A ação desconhecida foi ignorada.",
