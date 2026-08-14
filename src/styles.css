@@ -399,3 +399,187 @@
     padding: 1rem;
   }
 }
+
+/* NEXORA Command Center — transform-only avatar motion keeps the Android/TWA path light. */
+.nexora-intro {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  min-height: 100dvh;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  overflow: auto;
+  background: #090a0d;
+  padding: calc(1.5rem + env(safe-area-inset-top)) 1rem calc(1.5rem + env(safe-area-inset-bottom));
+}
+.nexora-avatar {
+  position: relative;
+  width: min(58vw, 260px);
+  flex: none;
+  filter: drop-shadow(0 25px 45px rgba(0, 0, 0, 0.5));
+}
+.nexora-avatar svg {
+  position: relative;
+  width: 100%;
+  overflow: visible;
+}
+.nexora-avatar__halo {
+  position: absolute;
+  inset: 18% 8%;
+  border-radius: 50%;
+  background: rgba(95, 205, 235, 0.1);
+  filter: blur(32px);
+  animation: nexora-pulse 4s ease-in-out infinite;
+}
+.nexora-avatar__body {
+  transform-origin: 50% 70%;
+  animation: nexora-breathe 5s ease-in-out infinite;
+}
+.nexora-avatar__eyes {
+  transform-origin: center;
+  animation: nexora-blink 6s infinite;
+}
+.nexora-avatar__mouth {
+  transition:
+    height 0.1s,
+    y 0.1s;
+}
+.nexora-avatar__core {
+  animation: nexora-core 2.5s ease-in-out infinite;
+}
+.nexora-avatar.is-thinking .nexora-avatar__halo,
+.nexora-avatar.is-listening .nexora-avatar__halo {
+  background: rgba(111, 213, 238, 0.22);
+  animation-duration: 1.2s;
+}
+.nexora-avatar.is-success .nexora-avatar__halo {
+  background: rgba(194, 139, 78, 0.28);
+}
+.nexora-avatar.is-quiet {
+  opacity: 0.72;
+}
+.nexora-avatar.is-compact {
+  width: 74px;
+}
+.command-center {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  height: calc(100dvh - 4rem - env(safe-area-inset-top));
+  overflow: hidden;
+  background: radial-gradient(circle at 85% 5%, rgba(194, 139, 78, 0.08), transparent 28%);
+}
+.command-center__presence {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  border-bottom: 1px solid var(--border);
+  padding: 0.55rem 1rem;
+}
+.command-center__messages {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 1rem;
+}
+.command-message {
+  max-width: min(85%, 44rem);
+  margin: 0.65rem auto;
+  border: 1px solid var(--border);
+  border-radius: 1.25rem;
+  background: color-mix(in srgb, var(--surface) 85%, transparent);
+  padding: 0.85rem 1rem;
+  line-height: 1.6;
+}
+.command-message.is-user {
+  margin-right: max(0px, calc((100% - 48rem) / 2));
+  border-color: rgba(194, 139, 78, 0.24);
+  background: rgba(194, 139, 78, 0.08);
+}
+.command-message.is-assistant {
+  margin-left: max(0px, calc((100% - 48rem) / 2));
+}
+.command-center__composer {
+  border-top: 1px solid var(--border);
+  background: color-mix(in srgb, var(--background) 90%, transparent);
+  padding: 0.6rem 0.75rem calc(0.6rem + env(safe-area-inset-bottom));
+  backdrop-filter: blur(16px);
+}
+.command-center__composer > div {
+  border: 1px solid var(--border);
+  border-radius: 1.25rem;
+  background: var(--surface);
+  padding: 0.25rem;
+}
+.thinking-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: nexora-dot 1s infinite alternate;
+}
+.thinking-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.thinking-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+@keyframes nexora-breathe {
+  50% {
+    transform: translateY(-3px) rotate(0.25deg);
+  }
+}
+@keyframes nexora-blink {
+  0%,
+  47%,
+  50%,
+  100% {
+    transform: scaleY(1);
+  }
+  48%,
+  49% {
+    transform: scaleY(0.08);
+  }
+}
+@keyframes nexora-pulse {
+  50% {
+    transform: scale(1.08);
+    opacity: 0.65;
+  }
+}
+@keyframes nexora-core {
+  50% {
+    opacity: 0.65;
+  }
+}
+@keyframes nexora-dot {
+  to {
+    transform: translateY(-4px);
+    opacity: 0.4;
+  }
+}
+@media (min-width: 768px) {
+  .command-center {
+    height: calc(100dvh - 4rem - env(safe-area-inset-top));
+  }
+  .command-center__presence {
+    padding: 0.7rem 2rem;
+  }
+  .command-center__messages {
+    padding: 1.5rem 2rem;
+  }
+  .command-center__composer {
+    padding: 1rem 2rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nexora-avatar *,
+  .thinking-dot {
+    animation: none !important;
+    transition: none !important;
+  }
+}

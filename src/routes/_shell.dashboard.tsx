@@ -1,372 +1,697 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { motion } from "framer-motion";
-import { formatDistanceToNow } from "date-fns";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  ArrowRight,
-  Bell,
-  BookOpen,
-  Bot,
-  CheckCircle2,
-  CircleDollarSign,
-  Clock3,
-  FileText,
-  FolderKanban,
-  Languages,
-  ListTodo,
-  MessageSquare,
-  NotebookPen,
+  Copy,
+  Grid2X2,
+  History,
+  Lock,
+  Mic,
+  Plus,
+  Search,
+  Send,
   Sparkles,
-  Wallet,
+  Square,
+  WifiOff,
 } from "lucide-react";
-import { PageShell, EmptyState } from "@/components/page-shell";
-import { DashboardSection } from "@/components/dashboard/dashboard-section";
-import { DashboardQuickActions } from "@/components/dashboard/dashboard-quick-actions";
+import { toast } from "sonner";
+import { NexoraAvatar, type NexoraAvatarState } from "@/components/nexora/nexora-avatar";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useDashboardStats } from "@/hooks/dashboard/use-dashboard-stats";
-import { useProfile } from "@/hooks/use-profile";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { Textarea } from "@/components/ui/textarea";
+import { useChat, type ChatMessage } from "@/hooks/use-chat";
+import { useProfile, useUpdateProfile } from "@/hooks/use-profile";
+import { useSubscription } from "@/hooks/use-subscription";
 import { useAuth } from "@/lib/auth-context";
+import { MODULES } from "@/lib/modules";
+import { createSpeechRecognition } from "@/services/voice-provider";
+import { AIService, AIServiceError, type AiConversation } from "@/services/ai-service";
 
 export const Route = createFileRoute("/_shell/dashboard")({
-  head: () => ({ meta: [{ title: "Dashboard — NEXORA" }] }),
+  head: () => ({ meta: [{ title: "Command Center — NEXORA" }] }),
   component: Dashboard,
 });
-
-function greeting() {
-  const hour = new Date().getHours();
-  if (hour < 5) return "Still up";
-  if (hour < 12) return "Good morning";
-  if (hour < 18) return "Good afternoon";
-  return "Good evening";
-}
+const QUESTIONS: ReadonlyArray<{ key: string; text: string; choices?: readonly string[] }> = [
+  { key: "preferred_name", text: "Antes de começarmos, como você prefere que eu te chame?" },
+  { key: "primary_goal", text: "O que você mais quer melhorar ou construir agora?" },
+  { key: "current_focus", text: "Qual é sua prioridade nas próximas semanas?" },
+  {
+    key: "assistant_style",
+    text: "Como você prefere que eu trabalhe com você?",
+    choices: ["Direta", "Estratégica", "Detalhada"],
+  },
+  {
+    key: "proactive_reminders",
+    text: "Quer que eu te lembre quando perceber algo importante ou algo ficando para trás?",
+    choices: ["Sim, por favor", "Agora não"],
+  },
+] as const;
+const PERSONAS = [
+  { id: "nova", name: "NOVA", detail: "Feminina A · serena", premium: false },
+  { id: "atlas", name: "ATLAS", detail: "Masculina A · objetiva", premium: false },
+  { id: "lyra", name: "LYRA", detail: "Feminina B · expressiva", premium: true },
+  { id: "orion", name: "ORION", detail: "Masculina B · contemplativa", premium: true },
+] as const;
 
 function Dashboard() {
   const { user } = useAuth();
   const { data: profile } = useProfile();
-  const { data, isLoading, isError, refetch } = useDashboardStats();
-  const displayName = profile?.full_name ?? user?.name ?? "Friend";
-
+  const updateProfile = useUpdateProfile();
+  const preferences = (profile?.preferences ?? {}) as Record<string, unknown>;
+  const introDone = profile?.onboarded && preferences.nexora_onboarding_completed === true;
+  if (!introDone) return <NexoraIntro />;
   return (
-    <PageShell>
-      <motion.section
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="relative overflow-hidden rounded-3xl border border-border bg-surface p-6 md:p-8"
-      >
-        <div className="absolute right-0 top-0 h-72 w-72 rounded-full bg-gold/10 blur-[120px]" />
-        <div className="relative flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">
-              {new Date().toLocaleDateString(undefined, {
-                weekday: "long",
-                month: "long",
-                day: "numeric",
-              })}
-            </p>
-            <h1 className="mt-4 font-display text-4xl md:text-5xl">
-              {greeting()}, <span className="text-gold">{displayName}</span>
-            </h1>
-            <p className="mt-5 max-w-2xl leading-7 text-muted-foreground">
-              Your live workspace overview, calculated from your projects, work, learning, finances
-              and assistant activity.
-            </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link to="/assistant" search={{ conversation: undefined }}>
-                <Button className="rounded-full">
-                  Open Assistant <Sparkles className="ml-2 h-4 w-4" />
-                </Button>
-              </Link>
-              <Link to="/projects">
-                <Button variant="outline" className="rounded-full">
-                  View Projects <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </Link>
-              <Link to="/studio">
-                <Button variant="outline" className="rounded-full">
-                  Continue Learning <BookOpen className="ml-2 h-4 w-4" />
-                </Button>
-              </Link>
-            </div>
+    <CommandCenter
+      preferredName={String(preferences.preferred_name || profile?.full_name || user?.name || "")}
+    />
+  );
+}
+
+function NexoraIntro() {
+  const { data: profile } = useProfile();
+  const updateProfile = useUpdateProfile();
+  const [step, setStep] = useState(0);
+  const [answer, setAnswer] = useState("");
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [state, setState] = useState<NexoraAvatarState>("attention");
+  const [listening, setListening] = useState(false);
+  const [done, setDone] = useState(false);
+  const question = QUESTIONS[step];
+  function listen() {
+    const recognition = createSpeechRecognition();
+    if (!recognition)
+      return toast.info(
+        "Seu navegador não oferece reconhecimento de voz. Você ainda pode digitar.",
+      );
+    setListening(true);
+    setState("listening");
+    recognition.lang = "pt-BR";
+    recognition.interimResults = false;
+    recognition.continuous = false;
+    recognition.onresult = (e) => setAnswer(e.results[0]?.[0]?.transcript ?? "");
+    recognition.onerror = () => toast.error("Não consegui ouvir. Tente novamente ou digite.");
+    recognition.onend = () => {
+      setListening(false);
+      setState("idle");
+    };
+    recognition.start();
+  }
+  async function submit(value = answer) {
+    if (!value.trim()) return;
+    const next = { ...answers, [question.key]: value.trim() };
+    setAnswers(next);
+    setAnswer("");
+    if (step < QUESTIONS.length - 1) {
+      setState("thinking");
+      window.setTimeout(() => {
+        setStep((s) => s + 1);
+        setState("attention");
+      }, 350);
+      return;
+    }
+    setState("thinking");
+    try {
+      await updateProfile.mutateAsync({
+        full_name: next.preferred_name,
+        primary_goal: next.primary_goal,
+        onboarded: true,
+        preferences: {
+          ...(profile?.preferences ?? {}),
+          ...next,
+          proactive_reminders: next.proactive_reminders.startsWith("Sim"),
+          nexora_persona: "nova",
+          nexora_onboarding_completed: true,
+        },
+      });
+      setDone(true);
+      setState("success");
+    } catch {
+      setState("attention");
+      toast.error("Não foi possível salvar seu contexto. Tente novamente.");
+    }
+  }
+  useEffect(() => {
+    if (!done) return;
+    const id = window.setTimeout(() => setDone(false), 1400);
+    return () => clearTimeout(id);
+  }, [done]);
+  if (done)
+    return (
+      <div className="nexora-intro">
+        <NexoraAvatar state="success" />
+        <div className="text-center">
+          <p className="text-xs uppercase tracking-[.35em] text-gold">Contexto salvo</p>
+          <h1 className="mt-3 font-display text-3xl">
+            Perfeito. Já tenho contexto suficiente para começar.
+          </h1>
+        </div>
+      </div>
+    );
+  return (
+    <div className="nexora-intro">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,rgba(194,139,78,.13),transparent_43%)]" />
+      <NexoraAvatar state={state} />
+      <section className="relative w-full max-w-xl text-center" aria-live="polite">
+        <p className="text-xs uppercase tracking-[.32em] text-gold">NEXORA · primeiro contato</p>
+        <h1 className="mt-4 font-display text-2xl leading-snug sm:text-4xl">{question.text}</h1>
+        <p className="mt-3 text-sm text-muted-foreground">
+          {step + 1} de {QUESTIONS.length} · responda do seu jeito
+        </p>
+        {question.choices ? (
+          <div className="mt-7 flex flex-wrap justify-center gap-2">
+            {question.choices.map((choice) => (
+              <Button
+                key={choice}
+                variant="outline"
+                className="rounded-full"
+                onClick={() => void submit(choice)}
+              >
+                {choice}
+              </Button>
+            ))}
           </div>
-          <div className="grid grid-cols-2 gap-3 lg:w-[360px]">
-            <Snapshot
-              label="Projects"
-              value={data?.projects.total}
-              icon={<FolderKanban />}
-              loading={isLoading}
+        ) : (
+          <div className="mx-auto mt-7 flex max-w-md items-end gap-2">
+            <Textarea
+              value={answer}
+              onChange={(e) => setAnswer(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  void submit();
+                }
+              }}
+              placeholder="Sua resposta…"
+              className="min-h-12 resize-none rounded-2xl"
+              aria-label="Sua resposta"
             />
-            <Snapshot
-              label="Tasks done"
-              value={data?.tasks.completed}
-              icon={<CheckCircle2 />}
-              loading={isLoading}
-            />
-            <Snapshot
-              label="Subjects"
-              value={data?.studies.subjects}
-              icon={<BookOpen />}
-              loading={isLoading}
-            />
-            <Snapshot
-              label="AI messages"
-              value={data?.ai.messages}
-              icon={<MessageSquare />}
-              loading={isLoading}
-            />
+            <Button
+              size="icon"
+              variant={listening ? "default" : "outline"}
+              onClick={listen}
+              aria-label="Responder por voz"
+            >
+              <Mic />
+            </Button>
+            <Button
+              size="icon"
+              onClick={() => void submit()}
+              disabled={!answer.trim() || updateProfile.isPending}
+              aria-label="Continuar"
+            >
+              <Send />
+            </Button>
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function CommandCenter({ preferredName }: { preferredName: string }) {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const { data: profile } = useProfile();
+  const updateProfile = useUpdateProfile();
+  const subscription = useSubscription();
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState("");
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [failedText, setFailedText] = useState("");
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [appsOpen, setAppsOpen] = useState(false);
+  const [personaOpen, setPersonaOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [listening, setListening] = useState(false);
+  const [idlePrompt, setIdlePrompt] = useState("");
+  const [online, setOnline] = useState(true);
+  const endRef = useRef<HTMLDivElement>(null);
+  const { sendMessage, isSending, loadConversationHistory, startConversation } = useChat();
+  const conversationsKey = ["workspace", user?.id, "ai-conversations"] as const;
+  const conversations = useQuery({
+    queryKey: conversationsKey,
+    queryFn: () => AIService.listConversations(),
+    enabled: !!user,
+    staleTime: 30_000,
+  });
+  const avatarState: NexoraAvatarState = listening
+    ? "listening"
+    : isSending
+      ? "thinking"
+      : idlePrompt
+        ? "attention"
+        : "idle";
+  const filtered = useMemo(
+    () =>
+      (conversations.data ?? []).filter((c) =>
+        c.title.toLowerCase().includes(search.toLowerCase()),
+      ),
+    [conversations.data, search],
+  );
+  useEffect(() => endRef.current?.scrollIntoView({ behavior: "smooth" }), [messages, isSending]);
+  useEffect(() => {
+    const on = () => setOnline(true),
+      off = () => setOnline(false);
+    setOnline(navigator.onLine);
+    addEventListener("online", on);
+    addEventListener("offline", off);
+    return () => {
+      removeEventListener("online", on);
+      removeEventListener("offline", off);
+    };
+  }, []);
+  useEffect(() => {
+    let timer: number;
+    const reset = () => {
+      setIdlePrompt("");
+      clearTimeout(timer);
+      if (document.visibilityState === "visible")
+        timer = window.setTimeout(
+          () => setIdlePrompt("Posso organizar seu próximo passo."),
+          60_000,
+        );
+    };
+    const events = ["pointerdown", "keydown"] as const;
+    events.forEach((e) => addEventListener(e, reset));
+    reset();
+    return () => {
+      clearTimeout(timer);
+      events.forEach((e) => removeEventListener(e, reset));
+    };
+  }, []);
+  function fresh() {
+    startConversation();
+    setMessages([]);
+    setActiveId(null);
+    setInput("");
+    setError(null);
+    setHistoryOpen(false);
+  }
+  async function open(item: AiConversation) {
+    try {
+      setMessages(await loadConversationHistory(item.id));
+      setActiveId(item.id);
+      setHistoryOpen(false);
+      setError(null);
+    } catch {
+      setError(
+        "Não foi possível abrir o histórico. O restante do Command Center continua disponível.",
+      );
+    }
+  }
+  async function send(value = input) {
+    const text = value.trim();
+    if (!text || isSending || !online) return;
+    const optimistic: ChatMessage = { id: crypto.randomUUID(), role: "user", content: text };
+    setMessages((m) => [...m, optimistic]);
+    setInput("");
+    setError(null);
+    setIdlePrompt("");
+    try {
+      const result = await sendMessage({ content: text, requestId: optimistic.id });
+      setMessages((m) => [
+        ...m.filter((x) => x.id !== optimistic.id),
+        result.userMessage,
+        result.assistantMessage,
+      ]);
+      setActiveId(result.conversationId);
+      await queryClient.invalidateQueries({ queryKey: conversationsKey });
+    } catch (e) {
+      setMessages((m) => m.filter((x) => x.id !== optimistic.id));
+      setInput(text);
+      setFailedText(text);
+      setError(
+        e instanceof AIServiceError
+          ? e.message
+          : "A NEXORA não respondeu. Seu texto foi preservado para tentar novamente.",
+      );
+    }
+  }
+  function listen() {
+    const recognition = createSpeechRecognition();
+    if (!recognition)
+      return toast.info(
+        "Reconhecimento de voz indisponível neste navegador. Digite sua mensagem normalmente.",
+      );
+    setListening(true);
+    recognition.lang = "pt-BR";
+    recognition.interimResults = false;
+    recognition.continuous = false;
+    recognition.onresult = (e) =>
+      setInput((old) => [old, e.results[0]?.[0]?.transcript].filter(Boolean).join(" "));
+    recognition.onerror = () =>
+      toast.error("Não consegui transcrever. Sua mensagem digitada foi mantida.");
+    recognition.onend = () => setListening(false);
+    recognition.start();
+  }
+  async function choosePersona(id: string, premium: boolean) {
+    if (premium && !subscription.data?.isPremium) return navigate({ to: "/premium" });
+    await updateProfile.mutateAsync({
+      preferences: { ...(profile?.preferences ?? {}), nexora_persona: id },
+    });
+    toast.success("Persona NEXORA atualizada");
+  }
+  return (
+    <div className="command-center">
+      <header className="command-center__presence">
+        <div className="flex items-center gap-3">
+          <NexoraAvatar state={avatarState} compact />
+          <div>
+            <p className="text-[10px] uppercase tracking-[.28em] text-gold">NEXORA · online</p>
+            <h1 className="font-display text-xl sm:text-2xl">
+              {preferredName ? `Olá, ${preferredName}.` : "Estou com você."}
+            </h1>
+            <p className="hidden text-sm text-muted-foreground sm:block">
+              Converse comigo ou abra qualquer parte do seu sistema.
+            </p>
           </div>
         </div>
-      </motion.section>
-
-      {isError ? (
-        <div className="mt-8 rounded-2xl border border-destructive/30 bg-destructive/5 p-6">
-          <p className="font-medium">We could not load your dashboard.</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Your data was not replaced with sample values.
-          </p>
-          <Button className="mt-4" variant="outline" onClick={() => refetch()}>
-            Try again
+        <div className="flex gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setHistoryOpen(true)}
+            aria-label="Histórico"
+          >
+            <History />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setAppsOpen(true)}
+            aria-label="Aplicativos"
+          >
+            <Grid2X2 />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setPersonaOpen(true)}
+            aria-label="Personalizar NEXORA"
+          >
+            <Sparkles />
           </Button>
         </div>
-      ) : null}
-      <div
-        className="mt-10 grid gap-8 xl:grid-cols-[1.2fr_0.8fr]"
-        aria-busy={isLoading}
-        aria-live="polite"
-      >
-        <DashboardSection title="Today" subtitle="Due and overdue work from your real task list.">
-          {isLoading ? (
-            <DashboardListSkeleton />
-          ) : data?.todayTasks.length ? (
-            <div className="space-y-3">
-              {data.todayTasks.map((task) => (
-                <Link
-                  key={task.id}
-                  to="/productivity"
-                  className="glass flex min-h-14 items-center gap-3 rounded-2xl p-4 transition hover:border-gold/30"
-                >
-                  <span
-                    className={`h-2.5 w-2.5 shrink-0 rounded-full ${task.overdue ? "bg-destructive" : "bg-gold"}`}
-                    aria-hidden="true"
-                  />
-                  <span className="min-w-0 flex-1 truncate font-medium">{task.title}</span>
-                  <span
-                    className={
-                      task.overdue ? "text-xs text-destructive" : "text-xs text-muted-foreground"
-                    }
-                  >
-                    {task.overdue ? "Overdue" : "Today"}
-                  </span>
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <EmptyState
-              icon={CheckCircle2}
-              title="Today is clear"
-              description="Capture the next concrete action when you are ready. It will stay in your task system."
-              action={
-                <Link to="/productivity">
-                  <Button>Add a task</Button>
-                </Link>
-              }
-            />
-          )}
-        </DashboardSection>
-        <DashboardSection title="Continue" subtitle="Return directly to your latest work.">
-          {isLoading ? (
-            <DashboardListSkeleton />
-          ) : data?.continuations.length ? (
-            <div className="space-y-3">
-              {data.continuations.map((item) => (
-                <a
-                  key={item.id}
-                  href={item.path}
-                  className="glass flex min-h-14 items-center justify-between rounded-2xl p-4 transition hover:border-gold/30"
-                >
-                  <span className="min-w-0">
-                    <span className="block truncate font-medium">{item.title}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {item.detail} · {formatDate(item.occurredAt)}
-                    </span>
-                  </span>
-                  <ArrowRight className="h-4 w-4 shrink-0 text-gold" />
-                </a>
-              ))}
-            </div>
-          ) : (
-            <EmptyState
-              icon={Sparkles}
-              title="Start something worth continuing"
-              description="A project, document or conversation will appear here after you work on it."
-              action={
-                <Link to="/assistant" search={{ conversation: undefined }}>
-                  <Button>Start with NEXORA AI</Button>
-                </Link>
-              }
-            />
-          )}
-        </DashboardSection>
-      </div>
-
-      <div className="mt-12 grid gap-6 xl:grid-cols-2">
-        <DashboardSection title="Recent projects" subtitle="Continue where you left off.">
-          {isLoading ? (
-            <DashboardListSkeleton />
-          ) : data?.recentProjects.length ? (
-            <div className="space-y-3">
-              {data.recentProjects.map((project) => (
-                <Link
-                  key={project.id}
-                  to="/projects/$projectId"
-                  params={{ projectId: project.id }}
-                  className="glass flex items-center justify-between rounded-2xl p-5 transition hover:border-gold/30"
-                >
-                  <div className="min-w-0">
-                    <h3 className="truncate font-medium">{project.title}</h3>
-                    <p className="mt-1 text-xs capitalize text-muted-foreground">
-                      {project.status} · {formatDate(project.updatedAt)}
-                    </p>
-                  </div>
-                  <ArrowRight className="h-4 w-4 shrink-0 text-gold" />
-                </Link>
-              ))}
-            </div>
-          ) : (
-            !isLoading && (
-              <EmptyState
-                icon={FolderKanban}
-                title="Turn an objective into an executable plan"
-                description="Create tasks, track real progress and keep the next action visible."
-                action={
-                  <Link to="/projects">
-                    <Button>Create project</Button>
-                  </Link>
-                }
-              />
-            )
-          )}
-        </DashboardSection>
-        <DashboardSection title="Recent activity" subtitle="Latest changes across your workspace.">
-          {isLoading ? (
-            <DashboardListSkeleton />
-          ) : data?.recentActivity.length ? (
-            <div className="space-y-3">
-              {data.recentActivity.map((activity) => (
-                <div key={activity.id} className="glass flex items-center gap-3 rounded-2xl p-4">
-                  <NotebookPen className="h-4 w-4 shrink-0 text-gold" />
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">{activity.title}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {activity.module} · {formatDate(activity.occurredAt)}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            !isLoading && (
-              <EmptyState
-                icon={Clock3}
-                title="No activity yet"
-                description="Your latest workspace changes will appear here."
-              />
-            )
-          )}
-        </DashboardSection>
-      </div>
-
-      <div className="mt-12">
-        <DashboardQuickActions />
-      </div>
-      <div className="mt-12">
-        <DashboardSection
-          title="Financial activity"
-          subtitle="Totals calculated from your accounts and transactions."
-        >
-          <div className="grid gap-4 sm:grid-cols-3" aria-busy={isLoading}>
-            <Metric
-              label="Income"
-              value={formatMoney(data?.finance.income ?? 0)}
-              icon={<CircleDollarSign />}
-            />
-            <Metric
-              label="Expenses"
-              value={formatMoney(data?.finance.expenses ?? 0)}
-              icon={<CircleDollarSign />}
-            />
-            <Metric
-              label="Balance"
-              value={formatMoney(data?.finance.balance ?? 0)}
-              icon={<Wallet />}
-            />
-          </div>
-        </DashboardSection>
-      </div>
-    </PageShell>
-  );
-}
-
-function formatMoney(value: number) {
-  return new Intl.NumberFormat(undefined, {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 2,
-  }).format(value);
-}
-function formatDate(value: string) {
-  return value ? formatDistanceToNow(new Date(value), { addSuffix: true }) : "Unknown date";
-}
-function DashboardListSkeleton() {
-  return (
-    <div className="space-y-3" role="status" aria-label="Loading recent workspace activity">
-      {Array.from({ length: 3 }).map((_, index) => (
-        <div key={index} className="glass rounded-2xl p-5">
-          <Skeleton className="h-4 w-2/3" />
-          <Skeleton className="mt-3 h-3 w-1/3" />
+      </header>
+      {!online && (
+        <div className="flex items-center justify-center gap-2 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+          <WifiOff className="h-4 w-4" />
+          Sem conexão. Seu rascunho será preservado.
         </div>
-      ))}
-    </div>
-  );
-}
-function Snapshot({
-  label,
-  value,
-  icon,
-  loading,
-}: {
-  label: string;
-  value?: number;
-  icon: React.ReactElement;
-  loading: boolean;
-}) {
-  return (
-    <div className="glass rounded-2xl p-4">
-      {<span className="block h-5 w-5 text-gold">{icon}</span>}
-      <p className="mt-4 text-xs text-muted-foreground">{label}</p>
-      {loading ? (
-        <Skeleton className="mt-2 h-8 w-14" />
-      ) : (
-        <p className="font-display text-3xl">{value ?? 0}</p>
       )}
+      <main className="command-center__messages" aria-live="polite" aria-busy={isSending}>
+        {!messages.length && (
+          <div className="mx-auto flex min-h-full max-w-xl flex-col items-center justify-center py-10 text-center">
+            <Sparkles className="h-7 w-7 text-gold" />
+            <h2 className="mt-4 font-display text-3xl">O que vamos mover hoje?</h2>
+            <p className="mt-3 text-muted-foreground">
+              Posso pensar, planejar, criar e ajudar você a encontrar funções no NEXORA.
+            </p>
+            <div className="mt-6 flex flex-wrap justify-center gap-2">
+              <Button
+                variant="outline"
+                className="rounded-full"
+                onClick={() => setInput("Planeje minhas prioridades desta semana")}
+              >
+                Planejar a semana
+              </Button>
+              <Button
+                variant="outline"
+                className="rounded-full"
+                onClick={() => navigate({ to: "/projects" })}
+              >
+                Abrir projetos
+              </Button>
+            </div>
+          </div>
+        )}
+        {messages.map((m) => (
+          <article
+            key={m.id}
+            className={`command-message ${m.role === "user" ? "is-user" : "is-assistant"}`}
+          >
+            <p className="whitespace-pre-wrap">{m.content}</p>
+            {m.role === "assistant" && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="mt-1 h-7 w-7"
+                onClick={() => {
+                  void navigator.clipboard.writeText(m.content);
+                  toast.success("Copiado");
+                }}
+                aria-label="Copiar resposta"
+              >
+                <Copy className="h-3.5 w-3.5" />
+              </Button>
+            )}
+          </article>
+        ))}
+        {isSending && (
+          <div className="command-message is-assistant flex items-center gap-2 text-muted-foreground">
+            <span className="thinking-dot" />
+            <span className="thinking-dot" />
+            <span className="thinking-dot" /> Pensando…
+          </div>
+        )}
+        {idlePrompt && !messages.length && (
+          <button
+            className="mx-auto block rounded-full border border-gold/20 bg-gold/5 px-4 py-2 text-sm text-gold"
+            onClick={() => {
+              setInput(idlePrompt);
+              setIdlePrompt("");
+            }}
+          >
+            {idlePrompt}
+          </button>
+        )}
+        {error && (
+          <div className="mx-auto max-w-xl rounded-2xl border border-destructive/30 bg-destructive/5 p-4 text-sm">
+            <p>{error}</p>
+            {failedText && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-3"
+                onClick={() => void send(failedText)}
+              >
+                Tentar novamente
+              </Button>
+            )}
+          </div>
+        )}
+        <div ref={endRef} />
+      </main>
+      <footer className="command-center__composer">
+        <div className="mx-auto flex max-w-3xl items-end gap-2">
+          <Button
+            variant={listening ? "default" : "ghost"}
+            size="icon"
+            onClick={listen}
+            aria-label={listening ? "Ouvindo" : "Usar voz"}
+          >
+            <Mic />
+          </Button>
+          <Textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                void send();
+              }
+            }}
+            placeholder={listening ? "Ouvindo… revise antes de enviar" : "Converse com a NEXORA…"}
+            className="max-h-36 min-h-12 resize-none border-0 bg-transparent focus-visible:ring-0"
+            aria-label="Mensagem para NEXORA"
+          />
+          {isSending ? (
+            <Button size="icon" variant="ghost" disabled aria-label="Aguarde">
+              <Square />
+            </Button>
+          ) : (
+            <Button
+              size="icon"
+              onClick={() => void send()}
+              disabled={!input.trim() || !online}
+              aria-label="Enviar"
+            >
+              <Send />
+            </Button>
+          )}
+        </div>
+      </footer>
+      <HistorySheet
+        open={historyOpen}
+        setOpen={setHistoryOpen}
+        items={filtered}
+        search={search}
+        setSearch={setSearch}
+        loading={conversations.isLoading}
+        error={conversations.isError}
+        fresh={fresh}
+        openConversation={open}
+        premium={!!subscription.data?.isPremium}
+      />
+      <AppsDialog open={appsOpen} setOpen={setAppsOpen} />
+      <PersonaDialog
+        open={personaOpen}
+        setOpen={setPersonaOpen}
+        premium={!!subscription.data?.isPremium}
+        selected={String(
+          (profile?.preferences as Record<string, unknown>)?.nexora_persona ?? "nova",
+        )}
+        choose={choosePersona}
+      />
     </div>
   );
 }
-function Metric({
-  label,
-  value,
-  icon,
+
+function HistorySheet({
+  open,
+  setOpen,
+  items,
+  search,
+  setSearch,
+  loading,
+  error,
+  fresh,
+  openConversation,
+  premium,
 }: {
-  label: string;
-  value: string;
-  icon: React.ReactElement;
+  open: boolean;
+  setOpen(v: boolean): void;
+  items: AiConversation[];
+  search: string;
+  setSearch(v: string): void;
+  loading: boolean;
+  error: boolean;
+  fresh(): void;
+  openConversation(i: AiConversation): void;
+  premium: boolean;
 }) {
   return (
-    <div className="glass flex items-center justify-between rounded-2xl p-5">
-      <div>
-        <p className="text-sm text-muted-foreground">{label}</p>
-        <p className="mt-1 font-display text-2xl">{value}</p>
-      </div>
-      <span className="h-5 w-5 text-gold">{icon}</span>
-    </div>
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetContent side="left" className="w-[min(90vw,360px)]">
+        <SheetHeader>
+          <SheetTitle>Conversas</SheetTitle>
+          <SheetDescription>
+            {premium
+              ? "Seu plano inclui histórico completo."
+              : "Plano Free mantém histórico dos últimos 30 dias."}
+          </SheetDescription>
+        </SheetHeader>
+        <Button className="mt-5 w-full" onClick={fresh}>
+          <Plus />
+          Nova conversa
+        </Button>
+        <div className="relative mt-4">
+          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+            placeholder="Buscar conversas"
+          />
+        </div>
+        <div className="mt-4 space-y-1 overflow-y-auto">
+          {loading && <p className="p-3 text-sm text-muted-foreground">Carregando…</p>}
+          {error && <p className="p-3 text-sm text-destructive">Histórico indisponível agora.</p>}
+          {items.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => void openConversation(item)}
+              className="w-full truncate rounded-xl px-3 py-3 text-left text-sm hover:bg-accent"
+            >
+              {item.title}
+            </button>
+          ))}
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+function AppsDialog({ open, setOpen }: { open: boolean; setOpen(v: boolean): void }) {
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Sistema NEXORA</DialogTitle>
+          <DialogDescription>Abra uma função real do seu workspace.</DialogDescription>
+        </DialogHeader>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {MODULES.filter((m) => m.id !== "search").map((m) => (
+            <Link
+              key={m.id}
+              to={m.path}
+              onClick={() => setOpen(false)}
+              className="rounded-2xl border border-border p-4 hover:border-gold/40"
+            >
+              <m.icon className="h-5 w-5 text-gold" />
+              <strong className="mt-3 block text-sm">{m.label}</strong>
+              <span className="mt-1 block text-xs text-muted-foreground">{m.description}</span>
+            </Link>
+          ))}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+function PersonaDialog({
+  open,
+  setOpen,
+  premium,
+  selected,
+  choose,
+}: {
+  open: boolean;
+  setOpen(v: boolean): void;
+  premium: boolean;
+  selected: string;
+  choose(id: string, premium: boolean): Promise<void>;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Personalizar NEXORA</DialogTitle>
+          <DialogDescription>
+            A aparência e o futuro perfil de voz mudam; a inteligência é a mesma.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid grid-cols-2 gap-3">
+          {PERSONAS.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => void choose(p.id, p.premium)}
+              className={`relative rounded-2xl border p-4 text-left ${selected === p.id ? "border-gold bg-gold/5" : "border-border"}`}
+            >
+              <NexoraAvatar compact state="idle" className="mx-auto !w-20" />
+              <strong className="mt-2 block">{p.name}</strong>
+              <span className="text-xs text-muted-foreground">{p.detail}</span>
+              {p.premium && !premium && (
+                <Lock className="absolute right-3 top-3 h-4 w-4 text-gold" />
+              )}
+            </button>
+          ))}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
