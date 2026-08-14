@@ -44,7 +44,7 @@ export class ElevenLabsVoiceProvider implements VoiceProvider {
     );
     return !error && data?.available === true;
   }
-  async speak(text: string, persona = "nova") {
+  async speak(text: string, persona = "nexora") {
     this.stop();
     const { data, error } = await supabase.functions.invoke<Blob>("nexora-voice", {
       body: { action: "speak", text, persona },

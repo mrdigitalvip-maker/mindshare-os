@@ -11,7 +11,7 @@
     "check": "npm run lint && npm run typecheck && npm run build",
     "check:pwa": "node scripts/check-pwa.mjs",
     "check:nexora-actions": "node scripts/check-nexora-actions.mjs",
-    "check:nova-assets": "node scripts/check-nova-assets.mjs",
+    "check:persona-assets": "node scripts/check-persona-assets.mjs",
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write ."

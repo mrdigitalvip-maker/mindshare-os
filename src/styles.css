@@ -598,6 +598,9 @@
 .nexora-avatar.is-compact .nexora-avatar__voice {
   display: none;
 }
+.nexora-avatar.is-nexora .nexora-avatar__environment {
+  background: radial-gradient(circle at 50% 24%, #20282c, transparent 45%), #090b0e;
+}
 .nexora-avatar.is-atlas .nexora-avatar__environment {
   background: radial-gradient(circle at 50% 25%, #1b2529, transparent 45%), #090c0e;
 }
