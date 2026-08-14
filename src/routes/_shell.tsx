@@ -51,11 +51,16 @@ function ShellLayout() {
   // layout goes through it.
   useEffect(() => {
     if (!authLoading && isAuthenticated && !profileLoading && profile && !profile.onboarded) {
-      navigate({ to: "/onboarding", replace: true });
+      navigate({ to: "/dashboard", replace: true });
     }
   }, [authLoading, isAuthenticated, profileLoading, profile, navigate]);
 
-  const ready = !authLoading && isAuthenticated && !profileLoading && !!profile?.onboarded;
+  const ready =
+    !authLoading &&
+    isAuthenticated &&
+    !profileLoading &&
+    !!profile &&
+    (pathname === "/dashboard" || !!profile.onboarded);
 
   if (!ready) {
     return <FullPageLoader />;
