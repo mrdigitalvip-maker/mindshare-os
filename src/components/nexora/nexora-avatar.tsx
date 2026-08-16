@@ -25,7 +25,18 @@ export function NexoraAvatar({
   const rawId = useId();
   const id = `nexora-${rawId.replace(/[^a-zA-Z0-9_-]/g, "")}`;
   const [blinking, setBlinking] = useState(false);
-  const level = Math.min(1, Math.max(0, amplitude));
+  const level = Number.isFinite(amplitude) ? Math.min(1, Math.max(0, amplitude)) : 0;
+  const safeState: NexoraAvatarState = [
+    "idle",
+    "listening",
+    "thinking",
+    "speaking",
+    "attention",
+    "success",
+    "quiet",
+  ].includes(state)
+    ? state
+    : "idle";
 
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
@@ -54,7 +65,7 @@ export function NexoraAvatar({
     <figure
       className={cn(
         "nexora-avatar",
-        `is-${state}`,
+        `is-${safeState}`,
         compact && "is-compact",
         blinking && "is-blinking",
         className,
