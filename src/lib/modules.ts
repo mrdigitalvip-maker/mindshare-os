@@ -25,11 +25,14 @@ export type NexoraModule = {
   group: "core" | "modules" | "system";
   category: "main" | "workspace" | "growth" | "intelligence" | "money" | "account";
   premium?: boolean;
+  /** Whether this module is exposed to release-candidate testers. */
+  releaseReady?: boolean;
 };
 
 export const MODULES: NexoraModule[] = [
   {
     id: "dashboard",
+    releaseReady: true,
     label: "Dashboard",
     path: "/dashboard",
     icon: LayoutDashboard,
@@ -39,6 +42,7 @@ export const MODULES: NexoraModule[] = [
   },
   {
     id: "assistant",
+    releaseReady: true,
     label: "Assistant",
     path: "/assistant",
     icon: Sparkles,
@@ -48,6 +52,7 @@ export const MODULES: NexoraModule[] = [
   },
   {
     id: "search",
+    releaseReady: true,
     label: "Search",
     path: "/search",
     icon: Search,
@@ -57,6 +62,7 @@ export const MODULES: NexoraModule[] = [
   },
   {
     id: "projects",
+    releaseReady: true,
     label: "Projects",
     path: "/projects",
     icon: FolderKanban,
@@ -66,6 +72,7 @@ export const MODULES: NexoraModule[] = [
   },
   {
     id: "productivity",
+    releaseReady: true,
     label: "Productivity",
     path: "/productivity",
     icon: ListChecks,
@@ -84,6 +91,7 @@ export const MODULES: NexoraModule[] = [
   },
   {
     id: "studies",
+    releaseReady: true,
     label: "Studies",
     path: "/studies",
     icon: GraduationCap,
@@ -139,6 +147,7 @@ export const MODULES: NexoraModule[] = [
   },
   {
     id: "premium",
+    releaseReady: true,
     label: "Premium",
     path: "/premium",
     icon: Crown,
@@ -148,6 +157,7 @@ export const MODULES: NexoraModule[] = [
   },
   {
     id: "settings",
+    releaseReady: true,
     label: "Settings",
     path: "/settings",
     icon: Settings,
@@ -156,3 +166,6 @@ export const MODULES: NexoraModule[] = [
     category: "account",
   },
 ];
+
+/** Small allowlist used by the RC launcher; unfinished routes remain available for development. */
+export const RELEASE_MODULES = MODULES.filter((module) => module.releaseReady);

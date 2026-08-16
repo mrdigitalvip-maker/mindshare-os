@@ -11,7 +11,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { useAuth } from "@/lib/auth-context";
-import { MODULES } from "@/lib/modules";
+import { RELEASE_MODULES } from "@/lib/modules";
 import { SearchService, workspaceQueryKeys, type SearchCategory } from "@/services";
 
 export function GlobalSearch({
@@ -44,13 +44,19 @@ export function GlobalSearch({
   });
   const grouped = useMemo(
     () =>
-      results.reduce<Record<SearchCategory, typeof results>>(
-        (groups, result) => {
-          (groups[result.category] ??= []).push(result);
-          return groups;
-        },
-        {} as Record<SearchCategory, typeof results>,
-      ),
+      results
+        .filter((result) =>
+          RELEASE_MODULES.some(
+            (module) => result.path === module.path || result.path.startsWith(`${module.path}/`),
+          ),
+        )
+        .reduce<Record<SearchCategory, typeof results>>(
+          (groups, result) => {
+            (groups[result.category] ??= []).push(result);
+            return groups;
+          },
+          {} as Record<SearchCategory, typeof results>,
+        ),
     [results],
   );
 
@@ -107,7 +113,10 @@ export function GlobalSearch({
         {Object.entries(grouped).map(([category, items]) => (
           <CommandGroup key={category} heading={category as SearchCategory}>
             {items.map((result) => {
-              const module = MODULES.find((item) => item.path === result.path) ?? MODULES[0];
+              const module =
+                RELEASE_MODULES.find(
+                  (item) => result.path === item.path || result.path.startsWith(`${item.path}/`),
+                ) ?? RELEASE_MODULES[0];
               const Icon = module.icon;
               return (
                 <CommandItem
