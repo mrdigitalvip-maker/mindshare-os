@@ -1,21 +1,7 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import {
-  Bell,
-  Lock,
-  Globe,
-  Palette,
-  User,
-  HelpCircle,
-  LogOut,
-  Crown,
-  Info,
-  Shield,
-  Camera,
-  Database,
-  ExternalLink,
-} from "lucide-react";
+import { LogOut, Crown, Camera, Database, ExternalLink } from "lucide-react";
 
 import { useAuth } from "@/lib/auth-context";
 import { useProfile, useUpdateProfile, uploadAvatar } from "@/hooks/use-profile";
@@ -51,11 +37,14 @@ function Settings() {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [proactiveReminders, setProactiveReminders] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (profile?.full_name) setName(profile.full_name);
-  }, [profile?.full_name]);
+    const preferences = profile?.preferences as Record<string, unknown> | undefined;
+    setProactiveReminders(preferences?.proactive_reminders === true);
+  }, [profile?.full_name, profile?.preferences]);
 
   function onAvatarSelected(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -83,6 +72,10 @@ function Settings() {
       await updateProfile.mutateAsync({
         full_name: name.trim() || null,
         avatar_url: avatar_url ?? null,
+        preferences: {
+          ...(profile?.preferences ?? {}),
+          proactive_reminders: proactiveReminders,
+        },
       });
       setAvatarFile(null);
       setAvatarPreview(null);
@@ -98,172 +91,173 @@ function Settings() {
     <PageShell>
       <PageHeader eyebrow="Account" title="Settings" description="Personalize your NEXORA." />
 
-      <div className="mt-8 grid gap-6 lg:grid-cols-[220px_1fr]">
-        <nav className="hidden lg:block">
-          <ul className="space-y-1 text-sm">
-            {[
-              { icon: User, label: "Profile" },
-              { icon: Palette, label: "Appearance" },
-              { icon: Globe, label: "Language" },
-              { icon: Bell, label: "Notifications" },
-              { icon: Database, label: "AI & Usage" },
-              { icon: Shield, label: "Privacy" },
-              { icon: Database, label: "Data & History" },
-              { icon: Lock, label: "Security" },
-              { icon: Crown, label: "Subscription" },
-              { icon: HelpCircle, label: "Help" },
-              { icon: Info, label: "About" },
-            ].map((s) => (
-              <li
-                key={s.label}
-                className="flex items-center gap-2 rounded-lg px-3 py-2 text-muted-foreground hover:bg-surface"
+      <div className="mt-8 mx-auto max-w-4xl space-y-6">
+        <Section title="Profile" description="Update your public info.">
+          <div className="flex flex-col items-center gap-3 sm:flex-row sm:items-start">
+            <Avatar className="h-20 w-20 border border-border">
+              <AvatarImage src={avatarPreview ?? profile?.avatar_url ?? undefined} alt="" />
+              <AvatarFallback className="text-xl">{initials(name)}</AvatarFallback>
+            </Avatar>
+            <div className="flex flex-col items-center gap-2 sm:items-start">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={onAvatarSelected}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="rounded-full"
+                onClick={() => fileInputRef.current?.click()}
               >
-                <s.icon className="h-4 w-4" /> {s.label}
-              </li>
-            ))}
-          </ul>
-        </nav>
-
-        <div className="space-y-6">
-          <Section title="Profile" description="Update your public info.">
-            <div className="flex flex-col items-center gap-3 sm:flex-row sm:items-start">
-              <Avatar className="h-20 w-20 border border-border">
-                <AvatarImage src={avatarPreview ?? profile?.avatar_url ?? undefined} alt="" />
-                <AvatarFallback className="text-xl">{initials(name)}</AvatarFallback>
-              </Avatar>
-              <div className="flex flex-col items-center gap-2 sm:items-start">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={onAvatarSelected}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="rounded-full"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <Camera className="mr-2 h-3.5 w-3.5" />
-                  Change photo
-                </Button>
-                <p className="text-xs text-muted-foreground">JPG or PNG, up to 5MB.</p>
-              </div>
+                <Camera className="mr-2 h-3.5 w-3.5" />
+                Change photo
+              </Button>
+              <p className="text-xs text-muted-foreground">JPG or PNG, up to 5MB.</p>
             </div>
-
-            <div className="mt-6 grid gap-4 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label>Name</Label>
-                <Input value={name} onChange={(e) => setName(e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Email</Label>
-                <Input value={user?.email ?? ""} readOnly disabled />
-              </div>
-            </div>
-            <Button
-              className="mt-4 rounded-full"
-              onClick={onSave}
-              disabled={saving}
-              aria-busy={saving}
-            >
-              {saving ? "Saving…" : "Save changes"}
-            </Button>
-          </Section>
-
-          <Section title="Notifications" description="Choose useful, local-time reminders.">
-            <NotificationSettings />
-          </Section>
-
-          <Section title="AI & Usage" description="Real backend usage and daily entitlements.">
-            <UsageSettings />
-          </Section>
-
-          <Section title="Plan" description="Manage your NEXORA subscription.">
-            <div className="flex items-center justify-between rounded-xl border border-border bg-surface p-4">
+            <div className="mt-4 flex items-center justify-between gap-4 rounded-xl border border-border p-4">
               <div>
-                <p className="font-medium">
-                  {subscription.data?.isPremium ? "Premium plan" : "Free plan"}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {subscription.data?.isPremium
-                    ? "Your subscription is active."
-                    : "Upgrade to unlock everything."}
+                <Label htmlFor="proactive-reminders">Proactive NEXORA reminders</Label>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Allow the assistant to surface relevant follow-ups. Browser delivery is managed
+                  below.
                 </p>
               </div>
+              <Switch
+                id="proactive-reminders"
+                checked={proactiveReminders}
+                onCheckedChange={setProactiveReminders}
+              />
+            </div>
+          </div>
+
+          <div className="mt-6 grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label>Name</Label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Email</Label>
+              <Input value={user?.email ?? ""} readOnly disabled />
+            </div>
+          </div>
+          <Button
+            className="mt-4 rounded-full"
+            onClick={onSave}
+            disabled={saving}
+            aria-busy={saving}
+          >
+            {saving ? "Saving…" : "Save changes"}
+          </Button>
+        </Section>
+
+        <Section title="Notifications" description="Choose useful, local-time reminders.">
+          <NotificationSettings />
+        </Section>
+
+        <Section title="AI & Usage" description="Real backend usage and daily entitlements.">
+          <UsageSettings />
+        </Section>
+
+        <Section title="Plan" description="Manage your NEXORA subscription.">
+          <div className="flex items-center justify-between rounded-xl border border-border bg-surface p-4">
+            <div>
+              <p className="font-medium">
+                {subscription.isLoading
+                  ? "Checking plan…"
+                  : subscription.data?.status === "trialing"
+                    ? "Premium trial"
+                    : subscription.data?.isPremium
+                      ? "Premium plan"
+                      : subscription.data?.status === "canceled"
+                        ? "Canceled plan"
+                        : "Free plan"}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {subscription.data?.isPremium
+                  ? "Your subscription is active."
+                  : "Upgrade to unlock everything."}
+              </p>
+            </div>
+            {!subscription.data?.isPremium && (
               <Link to="/premium">
                 <Button size="sm" className="rounded-full">
                   <Crown className="mr-1 h-3.5 w-3.5" /> Upgrade
                 </Button>
               </Link>
-            </div>
-          </Section>
+            )}
+          </div>
+        </Section>
 
-          <Section title="Data & History" description="Control your Assistant conversation data.">
-            <div className="rounded-xl border border-border bg-surface p-4">
-              <p className="text-sm font-medium">Assistant retention</p>
-              <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                {subscription.data?.isPremium
-                  ? "Your chat history is retained without a time limit while Premium is active."
-                  : "Chat history is retained for 30 days."}
-              </p>
-              {(subscription.data?.cancelAtPeriodEnd ||
-                (!subscription.data?.isPremium && subscription.data?.status)) && (
-                <p className="mt-3 rounded-lg border border-warning/30 bg-warning/5 p-3 text-sm">
-                  When Premium ends, conversations older than 30 days become eligible for permanent
-                  deletion. Deleted history cannot be recovered.
-                </p>
-              )}
-            </div>
-            <Button
-              variant="destructive"
-              onClick={async () => {
-                if (
-                  !window.confirm(
-                    "Permanently delete all Assistant conversations? This cannot be undone.",
-                  )
-                )
-                  return;
-                try {
-                  await AIService.clearHistory();
-                  toast.success("Assistant history deleted");
-                } catch (error) {
-                  toast.error(
-                    error instanceof Error ? error.message : "Couldn't delete Assistant history",
-                  );
-                }
-              }}
-            >
-              <TrashHistoryIcon /> Clear Assistant history
-            </Button>
-            <p className="text-xs leading-5 text-muted-foreground">
-              This action only removes Assistant conversations and messages. Projects, tasks,
-              documents, studies, finances, agents, files, and settings are not affected.
+        <Section title="Data & History" description="Control your Assistant conversation data.">
+          <div className="rounded-xl border border-border bg-surface p-4">
+            <p className="text-sm font-medium">Assistant retention</p>
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">
+              {subscription.data?.isPremium
+                ? "Your chat history is retained without a time limit while Premium is active."
+                : "Chat history is retained for 30 days."}
             </p>
-          </Section>
+            {(subscription.data?.cancelAtPeriodEnd ||
+              (!subscription.data?.isPremium && subscription.data?.status)) && (
+              <p className="mt-3 rounded-lg border border-warning/30 bg-warning/5 p-3 text-sm">
+                When Premium ends, conversations older than 30 days become eligible for permanent
+                deletion. Deleted history cannot be recovered.
+              </p>
+            )}
+          </div>
+          <Button
+            variant="destructive"
+            onClick={async () => {
+              if (
+                !window.confirm(
+                  "Permanently delete all Assistant conversations? This cannot be undone.",
+                )
+              )
+                return;
+              try {
+                await AIService.clearHistory();
+                toast.success("Assistant history deleted");
+              } catch (error) {
+                toast.error(
+                  error instanceof Error ? error.message : "Couldn't delete Assistant history",
+                );
+              }
+            }}
+          >
+            <TrashHistoryIcon /> Clear Assistant history
+          </Button>
+          <p className="text-xs leading-5 text-muted-foreground">
+            This action only removes Assistant conversations and messages. Projects, tasks,
+            documents, studies, finances, agents, files, and settings are not affected.
+          </p>
+        </Section>
 
-          <Section title="Privacy & Legal" description="Review NEXORA's public legal policies.">
-            <div className="divide-y divide-border rounded-xl border border-border bg-surface">
-              <LegalLink label="Privacy Policy" href={LEGAL_URLS.privacyPolicy} />
-              <LegalLink label="Terms of Service" href={LEGAL_URLS.termsOfService} />
-            </div>
-          </Section>
+        <Section title="Privacy & Legal" description="Review NEXORA's public legal policies.">
+          <div className="divide-y divide-border rounded-xl border border-border bg-surface">
+            <LegalLink label="Privacy Policy" href={LEGAL_URLS.privacyPolicy} />
+            <LegalLink label="Terms of Service" href={LEGAL_URLS.termsOfService} />
+          </div>
+        </Section>
 
-          <Section title="Sign out" description="End this session on this device.">
-            <Button
-              variant="outline"
-              className="rounded-full"
-              onClick={async () => {
+        <Section title="Sign out" description="End this session on this device.">
+          <Button
+            variant="outline"
+            className="rounded-full"
+            onClick={async () => {
+              try {
                 await signOut();
                 navigate({ to: "/auth", search: { mode: "signin" }, replace: true });
-              }}
-            >
-              <LogOut className="mr-1 h-4 w-4" /> Sign out
-            </Button>
-          </Section>
-        </div>
+              } catch (error) {
+                toast.error(error instanceof Error ? error.message : "Couldn't sign out");
+              }
+            }}
+          >
+            <LogOut className="mr-1 h-4 w-4" /> Sign out
+          </Button>
+        </Section>
       </div>
     </PageShell>
   );
@@ -302,25 +296,5 @@ function Section({
       {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
       <div className="mt-5 space-y-4">{children}</div>
     </section>
-  );
-}
-
-function Row({
-  label,
-  desc,
-  children,
-}: {
-  label: string;
-  desc: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-6">
-      <div>
-        <p className="text-sm font-medium">{label}</p>
-        <p className="text-xs text-muted-foreground">{desc}</p>
-      </div>
-      {children}
-    </div>
   );
 }

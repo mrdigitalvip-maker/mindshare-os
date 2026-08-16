@@ -99,7 +99,7 @@ function Assistant() {
 
   const visibleConversations = useMemo(
     () =>
-      (conversations.data ?? []).filter((item) =>
+      (Array.isArray(conversations.data) ? conversations.data : []).filter((item) =>
         item.title.toLowerCase().includes(search.toLowerCase()),
       ),
     [conversations.data, search],

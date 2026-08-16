@@ -17,6 +17,7 @@ export type NotificationPreferences = {
   quiet_hours_start: string | null;
   quiet_hours_end: string | null;
 };
+export type PushSubscriptionState = "subscribed" | "not-subscribed" | "unavailable";
 const defaults: NotificationPreferences = {
   tasks_enabled: true,
   projects_enabled: true,
@@ -36,6 +37,14 @@ export const PushService = {
         : Notification.permission === "granted"
           ? "enabled"
           : "available";
+  },
+  async subscriptionState(): Promise<PushSubscriptionState> {
+    if (!isPushNotificationSupported() || Notification.permission !== "granted") {
+      return "unavailable";
+    }
+    const registration = await navigator.serviceWorker.getRegistration("/");
+    if (!registration) return "not-subscribed";
+    return (await registration.pushManager.getSubscription()) ? "subscribed" : "not-subscribed";
   },
   async preferences(): Promise<NotificationPreferences> {
     const userId = await getRequiredUserId();
@@ -84,6 +93,24 @@ export const PushService = {
       { onConflict: "user_id,endpoint" },
     );
     if (error) throw error;
+    // Scheduled reminders iterate persisted preferences. Ensure a first-time
+    // subscriber has an owner-scoped row even before changing a toggle.
+    await this.save({});
     return subscription;
+  },
+  async sendTest(): Promise<number> {
+    const { data, error } = await supabase.functions.invoke("push-send", {
+      body: {
+        title: "NEXORA notifications are ready",
+        body: "This test used your registered Web Push subscription.",
+        url: "/settings",
+      },
+    });
+    if (error) throw error;
+    const delivered = Number((data as { delivered?: unknown } | null)?.delivered ?? 0);
+    if (!Number.isFinite(delivered) || delivered < 1) {
+      throw new Error("No active push subscription accepted the test notification.");
+    }
+    return delivered;
   },
 };

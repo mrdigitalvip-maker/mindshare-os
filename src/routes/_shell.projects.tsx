@@ -35,7 +35,7 @@ function Projects() {
   });
   const filtered = useMemo(
     () =>
-      (projects.data ?? []).filter((p) =>
+      (Array.isArray(projects.data) ? projects.data : []).filter((p) =>
         `${p.title} ${p.objective ?? ""} ${p.description ?? ""}`
           .toLowerCase()
           .includes(search.trim().toLowerCase()),
@@ -68,7 +68,7 @@ function Projects() {
             tasks.refetch();
           }}
         />
-      ) : !projects.data?.length ? (
+      ) : !(Array.isArray(projects.data) && projects.data.length) ? (
         <section className="mx-auto flex min-h-[58dvh] max-w-lg flex-col justify-center py-12 text-center">
           <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl border border-gold/20 bg-gold/10">
             <FolderKanban className="h-8 w-8 text-gold" />
@@ -94,7 +94,9 @@ function Projects() {
                   <ProjectRow
                     key={project.id}
                     project={project}
-                    tasks={(tasks.data ?? []).filter((t) => t.projectId === project.id)}
+                    tasks={(Array.isArray(tasks.data) ? tasks.data : []).filter(
+                      (t) => t.projectId === project.id,
+                    )}
                     featured
                   />
                 ))}
@@ -124,7 +126,9 @@ function Projects() {
                 <ProjectRow
                   key={project.id}
                   project={project}
-                  tasks={(tasks.data ?? []).filter((t) => t.projectId === project.id)}
+                  tasks={(Array.isArray(tasks.data) ? tasks.data : []).filter(
+                    (t) => t.projectId === project.id,
+                  )}
                 />
               ))}
               {!filtered.length && (
