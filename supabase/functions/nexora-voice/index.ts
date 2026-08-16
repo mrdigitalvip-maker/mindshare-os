@@ -7,15 +7,7 @@ import {
   rejectDisallowedOrigin,
 } from "../_shared/http.ts";
 
-const PERSONAS = ["nexora", "atlas", "lyra", "orion"] as const;
-const PREMIUM = new Set(["lyra", "orion"]);
 const MAX_TEXT_LENGTH = 2500;
-const VOICE_KEYS: Record<string, string> = {
-  nexora: "ELEVENLABS_VOICE_ID_NEXORA",
-  atlas: "ELEVENLABS_VOICE_ID_ATLAS",
-  lyra: "ELEVENLABS_VOICE_ID_LYRA",
-  orion: "ELEVENLABS_VOICE_ID_ORION",
-};
 
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return preflightResponse(request);
@@ -36,41 +28,37 @@ Deno.serve(async (request) => {
   const body = (await request.json().catch(() => null)) as {
     action?: string;
     text?: unknown;
-    persona?: unknown;
   } | null;
   const configured = Boolean(
-    Deno.env.get("ELEVENLABS_API_KEY") && PERSONAS.every((p) => Deno.env.get(VOICE_KEYS[p])),
+    Deno.env.get("ELEVENLABS_API_KEY") && Deno.env.get("ELEVENLABS_VOICE_ID_NEXORA"),
   );
-  if (body?.action === "availability") return jsonResponse(request, { available: configured });
+  const { data, error } = await client
+    .from("subscriptions")
+    .select("status,current_period_end")
+    .eq("user_id", user.id)
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const active =
+    !error &&
+    (data?.status === "active" || data?.status === "trialing") &&
+    (!data.current_period_end || new Date(data.current_period_end).getTime() > Date.now());
+  if (body?.action === "availability")
+    return jsonResponse(request, { available: configured && active });
   if (!configured) return jsonResponse(request, { error: { code: "provider_unavailable" } }, 503);
+  if (!active) return jsonResponse(request, { error: { code: "premium_required" } }, 403);
   if (
     body?.action !== "speak" ||
     typeof body.text !== "string" ||
     !body.text.trim() ||
-    body.text.length > MAX_TEXT_LENGTH ||
-    typeof body.persona !== "string" ||
-    !PERSONAS.includes(body.persona as (typeof PERSONAS)[number])
+    body.text.length > MAX_TEXT_LENGTH
   )
     return jsonResponse(request, { error: { code: "invalid_request" } }, 400);
-  if (PREMIUM.has(body.persona)) {
-    const { data, error } = await client
-      .from("subscriptions")
-      .select("status,current_period_end")
-      .eq("user_id", user.id)
-      .order("updated_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    const active =
-      !error &&
-      (data?.status === "active" || data?.status === "trialing") &&
-      (!data.current_period_end || new Date(data.current_period_end).getTime() > Date.now());
-    if (!active) return jsonResponse(request, { error: { code: "premium_required" } }, 403);
-  }
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 20_000);
   try {
     const response = await fetch(
-      `https://api.elevenlabs.io/v1/text-to-speech/${Deno.env.get(VOICE_KEYS[body.persona])}`,
+      `https://api.elevenlabs.io/v1/text-to-speech/${Deno.env.get("ELEVENLABS_VOICE_ID_NEXORA")}`,
       {
         method: "POST",
         signal: controller.signal,

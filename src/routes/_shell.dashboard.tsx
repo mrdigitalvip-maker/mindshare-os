@@ -5,7 +5,6 @@ import {
   Copy,
   Grid2X2,
   History,
-  Lock,
   Mic,
   Plus,
   Search,
@@ -17,12 +16,7 @@ import {
   WifiOff,
 } from "lucide-react";
 import { toast } from "sonner";
-import {
-  NEXORA_PERSONAS,
-  NexoraAvatar,
-  type NexoraAvatarState,
-  type NexoraPersona,
-} from "@/components/nexora/nexora-avatar";
+import { NexoraAvatar, type NexoraAvatarState } from "@/components/nexora/nexora-avatar";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -46,6 +40,7 @@ import { useSubscription } from "@/hooks/use-subscription";
 import { useAuth } from "@/lib/auth-context";
 import { MODULES } from "@/lib/modules";
 import { resolveNexoraAction } from "@/lib/nexora-actions";
+import { resolveNexoraCapabilities } from "@/lib/nexora-capabilities";
 import {
   createSpeechRecognition,
   ElevenLabsVoiceProvider,
@@ -72,10 +67,6 @@ const QUESTIONS: ReadonlyArray<{ key: string; text: string; choices?: readonly s
     choices: ["Sim, por favor", "Agora não"],
   },
 ] as const;
-const PERSONAS = Object.entries(NEXORA_PERSONAS) as Array<
-  [NexoraPersona, (typeof NEXORA_PERSONAS)[NexoraPersona]]
->;
-
 function Dashboard() {
   const { user } = useAuth();
   const { data: profile, isLoading, isError } = useProfile();
@@ -169,7 +160,7 @@ function NexoraIntro() {
   if (done)
     return (
       <div className="nexora-intro">
-        <NexoraAvatar persona="nexora" state="success" priority />
+        <NexoraAvatar state="success" />
         <div className="text-center">
           <p className="text-xs uppercase tracking-[.35em] text-gold">Contexto salvo</p>
           <h1 className="mt-3 font-display text-3xl">
@@ -181,7 +172,7 @@ function NexoraIntro() {
   return (
     <div className="nexora-intro">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,rgba(194,139,78,.13),transparent_43%)]" />
-      <NexoraAvatar persona="nexora" state={state} priority />
+      <NexoraAvatar state={state} />
       <section className="relative w-full max-w-xl text-center" aria-live="polite">
         <p className="text-xs uppercase tracking-[.32em] text-gold">NEXORA · primeiro contato</p>
         <h1 className="mt-4 font-display text-2xl leading-snug sm:text-4xl">{question.text}</h1>
@@ -253,7 +244,6 @@ function CommandCenter({ preferredName }: { preferredName: string }) {
   const [failedText, setFailedText] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [appsOpen, setAppsOpen] = useState(false);
-  const [personaOpen, setPersonaOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [listening, setListening] = useState(false);
   const [idlePrompt, setIdlePrompt] = useState("");
@@ -264,13 +254,6 @@ function CommandCenter({ preferredName }: { preferredName: string }) {
   const voiceRef = useRef(new ElevenLabsVoiceProvider());
   const endRef = useRef<HTMLDivElement>(null);
   const { sendMessage, isSending, loadConversationHistory, startConversation } = useChat();
-  const savedPersona = (profile?.preferences as Record<string, unknown>)?.nexora_persona;
-  const persona: NexoraPersona =
-    savedPersona === "nova"
-      ? "nexora"
-      : typeof savedPersona === "string" && savedPersona in NEXORA_PERSONAS
-        ? (savedPersona as NexoraPersona)
-        : "nexora";
   const voiceOutputEnabled =
     (profile?.preferences as Record<string, unknown>)?.voice_output_enabled === true;
   const conversationsKey = ["workspace", user?.id, "ai-conversations"] as const;
@@ -385,7 +368,7 @@ function CommandCenter({ preferredName }: { preferredName: string }) {
         try {
           const advanced = voiceRef.current;
           const provider = (await advanced.isAvailable()) ? advanced : new FallbackVoiceProvider();
-          await provider.speak(result.assistantMessage.content, persona);
+          await provider.speak(result.assistantMessage.content);
         } catch {
           toast.info("Voz indisponível agora. A conversa por texto continua funcionando.");
         } finally {
@@ -449,17 +432,6 @@ function CommandCenter({ preferredName }: { preferredName: string }) {
       toast.error("Não foi possível iniciar o microfone.");
     }
   }
-  async function choosePersona(id: string, premium: boolean) {
-    if (premium && !subscription.data?.isPremium) return navigate({ to: "/premium" });
-    try {
-      await updateProfile.mutateAsync({
-        preferences: { ...(profile?.preferences ?? {}), nexora_persona: id },
-      });
-      toast.success("Persona NEXORA atualizada");
-    } catch {
-      toast.error("Não foi possível salvar a persona. Tente novamente.");
-    }
-  }
   async function toggleVoiceOutput() {
     voiceRef.current.stop();
     setSpeaking(false);
@@ -475,13 +447,16 @@ function CommandCenter({ preferredName }: { preferredName: string }) {
       toast.error("Não foi possível salvar a preferência de voz.");
     }
   }
+  const capabilities = resolveNexoraCapabilities(subscription.data);
   return (
     <div className="command-center">
       <header className="command-center__presence">
         <div className="flex items-center gap-3">
-          <NexoraAvatar persona={persona} state={avatarState} compact priority />
+          <NexoraAvatar state={avatarState} compact />
           <div>
-            <p className="text-[10px] uppercase tracking-[.28em] text-gold">NEXORA · online</p>
+            <p className="text-[10px] uppercase tracking-[.28em] text-gold">
+              {capabilities.label} · online
+            </p>
             <h1 className="font-display text-xl sm:text-2xl">
               {preferredName ? `Olá, ${preferredName}.` : "Estou com você."}
             </h1>
@@ -515,14 +490,6 @@ function CommandCenter({ preferredName }: { preferredName: string }) {
             aria-label="Aplicativos"
           >
             <Grid2X2 />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setPersonaOpen(true)}
-            aria-label="Personalizar NEXORA"
-          >
-            <Sparkles />
           </Button>
         </div>
       </header>
@@ -667,17 +634,6 @@ function CommandCenter({ preferredName }: { preferredName: string }) {
         premium={!!subscription.data?.isPremium}
       />
       <AppsDialog open={appsOpen} setOpen={setAppsOpen} />
-      <PersonaDialog
-        open={personaOpen}
-        setOpen={setPersonaOpen}
-        premium={!!subscription.data?.isPremium}
-        selected={String(
-          (profile?.preferences as Record<string, unknown>)?.nexora_persona === "nova"
-            ? "nexora"
-            : ((profile?.preferences as Record<string, unknown>)?.nexora_persona ?? "nexora"),
-        )}
-        choose={choosePersona}
-      />
     </div>
   );
 }
@@ -794,54 +750,6 @@ function AppsDialog({ open, setOpen }: { open: boolean; setOpen(v: boolean): voi
               <strong className="mt-3 block text-sm">{m.label}</strong>
               <span className="mt-1 block text-xs text-muted-foreground">{m.description}</span>
             </Link>
-          ))}
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-function PersonaDialog({
-  open,
-  setOpen,
-  premium,
-  selected,
-  choose,
-}: {
-  open: boolean;
-  setOpen(v: boolean): void;
-  premium: boolean;
-  selected: string;
-  choose(id: string, premium: boolean): Promise<void>;
-}) {
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Personalizar NEXORA</DialogTitle>
-          <DialogDescription>
-            A aparência e o futuro perfil de voz mudam; a inteligência é a mesma.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="grid grid-cols-2 gap-3">
-          {PERSONAS.map(([id, p]) => (
-            <button
-              key={id}
-              onClick={() => void choose(id, p.premium)}
-              className={`persona-card ${selected === id ? "is-selected" : ""}`}
-              aria-pressed={selected === id}
-            >
-              <NexoraAvatar persona={id} compact state="quiet" className="persona-card__visual" />
-              <span className="persona-card__copy">
-                <strong>{p.name}</strong>
-                <span>{p.descriptor}</span>
-                <small>{p.premium ? "Premium" : "Free"}</small>
-              </span>
-              {p.premium && !premium && (
-                <span className="persona-card__lock" aria-label="Requer Premium">
-                  <Lock /> Premium
-                </span>
-              )}
-            </button>
           ))}
         </div>
       </DialogContent>
