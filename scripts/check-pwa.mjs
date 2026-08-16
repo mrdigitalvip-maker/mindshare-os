@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 
 const EXPECTED_PACKAGE = "app.vercel.nexora_os_eosin.twa";
 const PLAY_APP_SIGNING_FINGERPRINT =
@@ -9,6 +9,23 @@ const LEGACY_SIGNING_FINGERPRINT =
 const SHA256_FINGERPRINT = /^(?:[0-9A-F]{2}:){31}[0-9A-F]{2}$/;
 
 const readJson = async (path) => JSON.parse(await readFile(path, "utf8"));
+
+const assertBuiltAssetLinks = async () => {
+  const sourcePath = "public/.well-known/assetlinks.json";
+  const builtPath = ".output/public/.well-known/assetlinks.json";
+
+  try {
+    await access(".output/public");
+  } catch {
+    console.log(
+      "Production output is absent; run npm run build before checking its asset links copy.",
+    );
+    return;
+  }
+
+  const [source, built] = await Promise.all([readFile(sourcePath), readFile(builtPath)]);
+  assert.deepEqual(built, source, `${builtPath} must be an exact copy of ${sourcePath}`);
+};
 
 const manifest = await readJson("public/manifest.webmanifest");
 assert.equal(manifest.id, "/", "manifest id must remain on the root origin");
@@ -65,6 +82,8 @@ assert.deepEqual(
   [PLAY_APP_SIGNING_FINGERPRINT, LEGACY_SIGNING_FINGERPRINT],
   "asset links must authorize the confirmed Play App Signing certificate and legacy certificate",
 );
+
+await assertBuiltAssetLinks();
 
 console.log(`PWA/TWA static configuration is consistent for ${EXPECTED_PACKAGE}.`);
 console.log(
