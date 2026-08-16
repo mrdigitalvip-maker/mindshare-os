@@ -230,6 +230,7 @@ export type Database = {
           error_name: string;
           id: string;
           module: string;
+          reference: string | null;
           route: string;
           stack_sanitized: string | null;
           user_id: string | null;
@@ -241,6 +242,7 @@ export type Database = {
           error_name: string;
           id?: string;
           module: string;
+          reference?: string | null;
           route: string;
           stack_sanitized?: string | null;
           user_id?: string | null;
@@ -252,6 +254,7 @@ export type Database = {
           error_name?: string;
           id?: string;
           module?: string;
+          reference?: string | null;
           route?: string;
           stack_sanitized?: string | null;
           user_id?: string | null;

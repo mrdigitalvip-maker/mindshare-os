@@ -41,6 +41,7 @@ import { useAuth } from "@/lib/auth-context";
 import { MODULES } from "@/lib/modules";
 import { resolveNexoraAction } from "@/lib/nexora-actions";
 import { resolveNexoraCapabilities } from "@/lib/nexora-capabilities";
+import { createClientId } from "@/lib/utils";
 import {
   createSpeechRecognition,
   ElevenLabsVoiceProvider,
@@ -359,7 +360,7 @@ function CommandCenter({ preferredName }: { preferredName: string }) {
   async function send(value = input) {
     const text = value.trim();
     if (!text || isSending || !online) return;
-    const optimistic: ChatMessage = { id: crypto.randomUUID(), role: "user", content: text };
+    const optimistic: ChatMessage = { id: createClientId(), role: "user", content: text };
     setMessages((m) => [...m, optimistic]);
     setInput("");
     setError(null);
@@ -521,7 +522,7 @@ function CommandCenter({ preferredName }: { preferredName: string }) {
               <Button
                 variant="outline"
                 className="rounded-full"
-                onClick={() => setInput("Planeje minhas prioridades desta semana")}
+                onClick={() => void send("Planeje minhas prioridades desta semana")}
               >
                 Planejar a semana
               </Button>
