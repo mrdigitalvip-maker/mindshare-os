@@ -84,3 +84,24 @@ The service worker validates notification navigation against the web app origin,
 - [ ] Generate/sign the TWA bundle and complete Play Console requirements.
 - [ ] Provision server-side push storage/sending and protected VAPID secrets.
 - [ ] Run OAuth, installability, offline, App Links, notification, and Play internal-track tests on physical Android devices.
+
+## Final Play-distribution verification
+
+The checked-in web association is only one half of TWA verification. Before tester distribution,
+open **Google Play Console → Setup → App integrity → App signing** and compare the SHA-256 value
+under **App signing key certificate** (not **Upload key certificate**) byte-for-byte with the first
+fingerprint in `public/.well-known/assetlinks.json`. Then inspect **Grow → Deep links** (or the
+current Play Console equivalent) for the production host and resolve any association warning.
+
+Deploy the web project before testing. Confirm `/.well-known/assetlinks.json` on the production
+host returns HTTPS 200 directly, without a redirect, with `Content-Type: application/json`, and
+with the checked-in JSON body. Google's verifier can cache association results, so allow for
+propagation, reinstall or update from the Play test track, and test the Play-signed install rather
+than a locally signed APK.
+
+If the distributed wrapper already targets `https://nexora-os-eosin.vercel.app/dashboard` with
+package `app.vercel.nexora_os_eosin.twa`, deploying the web association is sufficient and no new
+AAB is required. If its generated Android manifest/default URL uses any other origin, package,
+protocol, or path scope, correct that existing wrapper, increment its version, and publish a new
+AAB while retaining the Play identity. Browser chrome must never be hidden with CSS, JavaScript,
+or fullscreen APIs; it disappears only after the browser verifies Digital Asset Links.
