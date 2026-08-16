@@ -3,7 +3,8 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 // Invoke every 30 minutes with a Supabase Scheduled Function. This coordinator
 // evaluates each user's local time, quiet hours and daily dedupe before push-send.
 Deno.serve(async (request) => {
-  if (request.headers.get("x-scheduler-secret") !== Deno.env.get("SCHEDULER_SECRET"))
+  const schedulerSecret = Deno.env.get("SCHEDULER_SECRET");
+  if (!schedulerSecret || request.headers.get("x-scheduler-secret") !== schedulerSecret)
     return new Response("Unauthorized", { status: 401 });
   const url = Deno.env.get("SUPABASE_URL")!,
     key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -46,7 +47,7 @@ Deno.serve(async (request) => {
             method: "POST",
             headers: {
               "content-type": "application/json",
-              "x-scheduler-secret": Deno.env.get("SCHEDULER_SECRET")!,
+              "x-scheduler-secret": schedulerSecret,
             },
             body: JSON.stringify({
               userId: pref.user_id,
@@ -79,7 +80,7 @@ Deno.serve(async (request) => {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "x-scheduler-secret": Deno.env.get("SCHEDULER_SECRET")!,
+        "x-scheduler-secret": schedulerSecret,
       },
       body: JSON.stringify({
         userId: pref.user_id,

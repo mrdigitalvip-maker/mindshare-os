@@ -1,0 +1,217 @@
+import { useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Stack, useLocalSearchParams } from "expo-router";
+import { NativeFormModal } from "@/components/native-form-modal";
+import { EmptyState, ErrorState, LoadingState } from "@/components/screen-state";
+import { useSubject, useWorkspaceMutations } from "@/hooks/use-workspaces";
+import { colors, radius, spacing, typography } from "@/lib/theme";
+type Mode = "goal" | "session" | "note" | null;
+export default function SubjectWorkspace() {
+  const params = useLocalSearchParams<{ subjectId?: string }>();
+  const subjectId = typeof params.subjectId === "string" ? params.subjectId.trim() : "";
+  const query = useSubject(subjectId);
+  const { study } = useWorkspaceMutations();
+  const [mode, setMode] = useState<Mode>(null);
+  const [value, setValue] = useState("");
+  const [noteId, setNoteId] = useState<string>();
+  const [noteContent, setNoteContent] = useState("");
+  if (!subjectId)
+    return <ErrorState title="Invalid subject" message="The study link is incomplete." />;
+  if (query.isPending) return <LoadingState title="Loading subject…" />;
+  if (query.isError)
+    return (
+      <ErrorState
+        title="Subject unavailable"
+        actionLabel="Retry"
+        onAction={() => void query.refetch()}
+      />
+    );
+  if (!query.data)
+    return <EmptyState title="Subject not found" message="It may have been removed." />;
+  const { subject, goals, sessions, notes } = query.data;
+  async function save() {
+    try {
+      if (mode === "goal") await study.mutateAsync({ action: "goal", subjectId, title: value });
+      if (mode === "session")
+        await study.mutateAsync({ action: "session", subjectId, activity: value, duration: 25 });
+      if (mode === "note")
+        await study.mutateAsync({
+          action: "note",
+          subjectId,
+          id: noteId,
+          title: value,
+          content: noteContent,
+        });
+      setMode(null);
+      setValue("");
+      setNoteId(undefined);
+      setNoteContent("");
+    } catch (error) {
+      void error;
+    }
+  }
+  return (
+    <ScrollView contentContainerStyle={styles.page}>
+      <Stack.Screen options={{ title: subject.name }} />
+      <View style={styles.hero}>
+        <Text style={styles.title}>{subject.name}</Text>
+        <Text style={styles.copy}>{subject.description || subject.status}</Text>
+      </View>
+      <Section title="Goals" action="Add goal" onAction={() => setMode("goal")}>
+        {goals.length ? (
+          goals.map((goal) => (
+            <Pressable
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: goal.completed }}
+              key={goal.id}
+              onPress={() =>
+                void study.mutateAsync({
+                  action: "goal-complete",
+                  subjectId,
+                  goalId: goal.id,
+                  completed: !goal.completed,
+                })
+              }
+              style={styles.item}
+            >
+              <Text style={[styles.itemTitle, goal.completed && styles.done]}>{goal.title}</Text>
+              <Text style={styles.meta}>
+                {goal.currentValue}/{goal.targetValue}
+              </Text>
+            </Pressable>
+          ))
+        ) : (
+          <Text style={styles.empty}>No goals yet.</Text>
+        )}
+      </Section>
+      <Section title="Sessions" action="Log 25 min" onAction={() => setMode("session")}>
+        {sessions.length ? (
+          sessions.map((session) => (
+            <View key={session.id} style={styles.item}>
+              <Text style={styles.itemTitle}>{session.activity}</Text>
+              <Text style={styles.meta}>{session.duration} min</Text>
+            </View>
+          ))
+        ) : (
+          <Text style={styles.empty}>No sessions yet.</Text>
+        )}
+      </Section>
+      <Section
+        title="Notes"
+        action="Add note"
+        onAction={() => {
+          setNoteId(undefined);
+          setNoteContent("");
+          setValue("");
+          setMode("note");
+        }}
+      >
+        {notes.length ? (
+          notes.map((note) => (
+            <View key={note.id} style={styles.item}>
+              <View style={styles.flex}>
+                <Text style={styles.itemTitle}>{note.title}</Text>
+                <Text numberOfLines={2} style={styles.meta}>
+                  {note.content || "Empty note"}
+                </Text>
+              </View>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => {
+                  setNoteId(note.id);
+                  setNoteContent(note.content);
+                  setValue(note.title);
+                  setMode("note");
+                }}
+              >
+                <Text style={styles.action}>Edit</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() =>
+                  void study.mutateAsync({ action: "delete-note", subjectId, noteId: note.id })
+                }
+              >
+                <Text style={styles.delete}>Delete</Text>
+              </Pressable>
+            </View>
+          ))
+        ) : (
+          <Text style={styles.empty}>No notes yet.</Text>
+        )}
+      </Section>
+      <NativeFormModal
+        visible={Boolean(mode)}
+        title={mode === "goal" ? "New goal" : mode === "session" ? "Study session" : "New note"}
+        placeholder={mode === "session" ? "What did you study?" : "Title"}
+        value={value}
+        onChange={setValue}
+        secondaryValue={mode === "note" ? noteContent : undefined}
+        secondaryPlaceholder="Note content"
+        onSecondaryChange={setNoteContent}
+        busy={study.isPending}
+        error={study.error?.message}
+        onClose={() => setMode(null)}
+        onSave={() => void save()}
+      />
+    </ScrollView>
+  );
+}
+function Section({
+  title,
+  action,
+  onAction,
+  children,
+}: {
+  title: string;
+  action: string;
+  onAction(): void;
+  children: React.ReactNode;
+}) {
+  return (
+    <View style={styles.section}>
+      <View style={styles.row}>
+        <Text style={styles.heading}>{title}</Text>
+        <Pressable accessibilityRole="button" onPress={onAction}>
+          <Text style={styles.action}>{action}</Text>
+        </Pressable>
+      </View>
+      {children}
+    </View>
+  );
+}
+const styles = StyleSheet.create({
+  page: { gap: spacing.md, padding: spacing.md, backgroundColor: colors.background },
+  hero: {
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+  },
+  title: { ...typography.title, color: colors.text },
+  copy: { ...typography.body, color: colors.textMuted },
+  section: {
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+  },
+  row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  heading: { ...typography.heading, color: colors.text },
+  action: { ...typography.label, color: colors.primaryBright, padding: spacing.sm },
+  item: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  flex: { flex: 1 },
+  itemTitle: { ...typography.body, color: colors.text },
+  done: { textDecorationLine: "line-through", color: colors.textMuted },
+  meta: { ...typography.label, color: colors.textMuted },
+  empty: { ...typography.body, color: colors.textMuted },
+  delete: { ...typography.label, color: colors.danger },
+});

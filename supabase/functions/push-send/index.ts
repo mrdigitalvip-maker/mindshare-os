@@ -12,14 +12,17 @@ Deno.serve(async (request) => {
   const publicKey = Deno.env.get("VAPID_PUBLIC_KEY"),
     privateKey = Deno.env.get("VAPID_PRIVATE_KEY"),
     subject = Deno.env.get("VAPID_SUBJECT");
-  if (!url || !anon || !service || !publicKey || !privateKey || !subject)
+  if (!url || !anon || !service)
     return jsonResponse({ error: "configuration_error" }, 503, request);
   const bearer = request.headers.get("Authorization") ?? "";
   const authClient = createClient(url, anon, { global: { headers: { Authorization: bearer } } });
   const {
     data: { user },
   } = await authClient.auth.getUser();
-  const internal = request.headers.get("x-scheduler-secret") === Deno.env.get("SCHEDULER_SECRET");
+  const schedulerSecret = Deno.env.get("SCHEDULER_SECRET");
+  const internal = Boolean(
+    schedulerSecret && request.headers.get("x-scheduler-secret") === schedulerSecret,
+  );
   if (!user && !internal) return jsonResponse({ error: "unauthorized" }, 401, request);
   const input = await request.json().catch(() => ({}));
   const userId = internal ? input.userId : user?.id;
@@ -30,14 +33,20 @@ Deno.serve(async (request) => {
       ? input.url
       : "/dashboard";
   const admin = createClient(url, service);
-  const { data: subscriptions, error } = await admin
-    .from("push_subscriptions")
-    .select("id,endpoint,p256dh,auth")
-    .eq("user_id", userId);
-  if (error) return jsonResponse({ error: "delivery_lookup_failed" }, 500, request);
-  webpush.setVapidDetails(subject, publicKey, privateKey);
-  let delivered = 0;
-  for (const subscription of subscriptions ?? []) {
+  const [{ data: subscriptions, error }, { data: devices, error: devicesError }] =
+    await Promise.all([
+      admin.from("push_subscriptions").select("id,endpoint,p256dh,auth").eq("user_id", userId),
+      admin
+        .from("push_devices")
+        .select("id,provider,token_or_endpoint")
+        .eq("user_id", userId)
+        .eq("enabled", true),
+    ]);
+  if (error || devicesError) return jsonResponse({ error: "delivery_lookup_failed" }, 500, request);
+  if (publicKey && privateKey && subject) webpush.setVapidDetails(subject, publicKey, privateKey);
+  let accepted = 0,
+    failed = 0;
+  for (const subscription of publicKey && privateKey && subject ? (subscriptions ?? []) : []) {
     try {
       await webpush.sendNotification(
         {
@@ -51,12 +60,49 @@ Deno.serve(async (request) => {
         }),
         { TTL: 3600 },
       );
-      delivered++;
+      accepted++;
     } catch (cause) {
       const status = Number((cause as { statusCode?: number }).statusCode);
       if (status === 404 || status === 410)
         await admin.from("push_subscriptions").delete().eq("id", subscription.id);
+      failed++;
     }
   }
-  return jsonResponse({ delivered }, 200, request);
+  const route = nativeRoute(safePath);
+  for (const device of devices ?? []) {
+    if (device.provider !== "expo") continue;
+    try {
+      const response = await fetch("https://exp.host/--/api/v2/push/send", {
+        method: "POST",
+        headers: { "content-type": "application/json", accept: "application/json" },
+        body: JSON.stringify({
+          to: device.token_or_endpoint,
+          title: input.title.slice(0, 80),
+          body: input.body.slice(0, 240),
+          sound: "default",
+          data: route,
+        }),
+      });
+      const result = (await response.json().catch(() => null)) as {
+        data?: { status?: string; details?: { error?: string } };
+      } | null;
+      if (response.ok && result?.data?.status === "ok") accepted++;
+      else {
+        failed++;
+        if (result?.data?.details?.error === "DeviceNotRegistered")
+          await admin.from("push_devices").update({ enabled: false }).eq("id", device.id);
+      }
+    } catch {
+      failed++;
+    }
+  }
+  return jsonResponse({ accepted, failed }, 200, request);
 });
+
+function nativeRoute(path: string) {
+  const project = path.match(/^\/projects\/([A-Za-z0-9-]+)$/)?.[1];
+  if (project) return { kind: "project", resourceId: project };
+  const study = path.match(/^\/studies\/([A-Za-z0-9-]+)$/)?.[1];
+  if (study) return { kind: "study", resourceId: study };
+  return { kind: "general" };
+}
