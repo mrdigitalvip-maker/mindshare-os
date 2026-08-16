@@ -39,9 +39,6 @@ supabase functions deploy push-send
 supabase secrets set OPENAI_API_KEY=<VALUE>
 supabase secrets set ELEVENLABS_API_KEY=<VALUE>
 supabase secrets set ELEVENLABS_VOICE_ID_NEXORA=<VALUE>
-supabase secrets set ELEVENLABS_VOICE_ID_ATLAS=<VALUE>
-supabase secrets set ELEVENLABS_VOICE_ID_LYRA=<VALUE>
-supabase secrets set ELEVENLABS_VOICE_ID_ORION=<VALUE>
 supabase secrets set VAPID_PUBLIC_KEY=<VALUE>
 supabase secrets set VAPID_PRIVATE_KEY=<VALUE>
 supabase secrets set VAPID_SUBJECT=<VALUE>

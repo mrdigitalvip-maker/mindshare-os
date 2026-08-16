@@ -5,7 +5,7 @@ export type VoiceProviderState = "idle" | "speaking" | "error";
 export interface VoiceProvider {
   readonly id: string;
   isAvailable(): Promise<boolean>;
-  speak(text: string, persona?: string): Promise<void>;
+  speak(text: string): Promise<void>;
   stop(): void;
 }
 
@@ -44,10 +44,10 @@ export class ElevenLabsVoiceProvider implements VoiceProvider {
     );
     return !error && data?.available === true;
   }
-  async speak(text: string, persona = "nexora") {
+  async speak(text: string) {
     this.stop();
     const { data, error } = await supabase.functions.invoke<Blob>("nexora-voice", {
-      body: { action: "speak", text, persona },
+      body: { action: "speak", text },
     });
     if (error || !(data instanceof Blob)) throw new Error("Voz avançada indisponível.");
     this.objectUrl = URL.createObjectURL(data);
