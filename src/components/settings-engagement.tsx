@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BellRing, BrainCircuit } from "lucide-react";
+import { BellRing, BrainCircuit, Mic, Send } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,15 +8,30 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { PushService, type NotificationPreferences } from "@/services/push-service";
 import { UsageService } from "@/services/studio-service";
+import { useAuth } from "@/lib/auth-context";
 export function NotificationSettings() {
+  const { user } = useAuth();
   const client = useQueryClient();
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [enabling, setEnabling] = useState(false);
+  const [testing, setTesting] = useState(false);
   const preferences = useQuery({
-    queryKey: ["notification-preferences"],
+    queryKey: ["notification-preferences", user?.id],
     queryFn: () => PushService.preferences(),
+    enabled: !!user?.id,
+  });
+  const subscription = useQuery({
+    queryKey: ["push-subscription", user?.id],
+    queryFn: () => PushService.subscriptionState(),
+    enabled: !!user?.id,
   });
   const save = useMutation({
     mutationFn: (patch: Partial<NotificationPreferences>) => PushService.save(patch),
-    onSuccess: () => client.invalidateQueries({ queryKey: ["notification-preferences"] }),
+    onSuccess: () => {
+      setActionError(null);
+      void client.invalidateQueries({ queryKey: ["notification-preferences", user?.id] });
+    },
+    onError: (error: Error) => setActionError(error.message),
   });
   const state = PushService.support();
   const p = preferences.data;
@@ -31,29 +47,60 @@ export function NotificationSettings() {
           </p>
         </div>
         <Button
-          disabled={state === "blocked" || state === "unsupported" || state === "enabled"}
+          disabled={state === "blocked" || state === "unsupported" || enabling}
           onClick={async () => {
+            setEnabling(true);
+            setActionError(null);
             try {
               await PushService.enable();
+              await subscription.refetch();
               toast.success("Notifications enabled");
             } catch (error) {
-              toast.error(error instanceof Error ? error.message : "Could not enable push");
+              const message = error instanceof Error ? error.message : "Could not enable push";
+              setActionError(message);
+              toast.error(message);
+            } finally {
+              setEnabling(false);
             }
           }}
         >
           <BellRing className="mr-2 h-4 w-4" />
-          Enable notifications
+          {enabling
+            ? "Enabling…"
+            : state === "enabled"
+              ? "Repair subscription"
+              : "Enable notifications"}
         </Button>
       </div>
+      <p className="text-xs text-muted-foreground">
+        Push subscription:{" "}
+        {subscription.isLoading ? "checking…" : (subscription.data ?? "unavailable")}
+      </p>
+      {preferences.isLoading && (
+        <p className="text-sm text-muted-foreground">Loading preferences…</p>
+      )}
+      {preferences.isError && (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-destructive/30 p-4 text-sm">
+          <span>Notification preferences could not be loaded.</span>
+          <Button size="sm" variant="outline" onClick={() => void preferences.refetch()}>
+            Retry
+          </Button>
+        </div>
+      )}
+      {actionError && (
+        <p
+          role="alert"
+          className="rounded-xl border border-destructive/30 p-3 text-sm text-destructive"
+        >
+          {actionError}
+        </p>
+      )}
       {p && (
         <>
           {(
             [
               ["tasks_enabled", "Tasks"],
               ["projects_enabled", "Projects"],
-              ["studies_enabled", "Studies"],
-              ["studio_enabled", "Studio"],
-              ["daily_summary_enabled", "Daily Summary"],
             ] as const
           ).map(([key, label]) => (
             <div key={key} className="flex min-h-11 items-center justify-between">
@@ -71,8 +118,15 @@ export function NotificationSettings() {
               <Input
                 id="timezone"
                 className="mt-2"
-                value={p.timezone}
-                onChange={(event) => save.mutate({ timezone: event.target.value })}
+                defaultValue={p.timezone}
+                onBlur={(event) => {
+                  try {
+                    Intl.DateTimeFormat("en-US", { timeZone: event.target.value }).format();
+                    save.mutate({ timezone: event.target.value });
+                  } catch {
+                    setActionError("Enter a valid IANA timezone, for example America/Sao_Paulo.");
+                  }
+                }}
               />
             </div>
             <div>
@@ -96,8 +150,77 @@ export function NotificationSettings() {
               />
             </div>
           </div>
+          <Button
+            variant="outline"
+            disabled={state !== "enabled" || subscription.data !== "subscribed" || testing}
+            onClick={async () => {
+              setTesting(true);
+              setActionError(null);
+              try {
+                await PushService.sendTest();
+                toast.success("Test push accepted for delivery");
+              } catch (error) {
+                setActionError(error instanceof Error ? error.message : "Test push failed");
+              } finally {
+                setTesting(false);
+              }
+            }}
+          >
+            <Send className="mr-2 h-4 w-4" /> {testing ? "Sending…" : "Send test notification"}
+          </Button>
         </>
       )}
+      <PermissionsCenter />
+    </div>
+  );
+}
+
+function PermissionsCenter() {
+  const [microphone, setMicrophone] = useState<"prompt" | "granted" | "denied" | "unsupported">(
+    "prompt",
+  );
+  const speechSupported =
+    typeof window !== "undefined" &&
+    ("SpeechRecognition" in window || "webkitSpeechRecognition" in window);
+  const standalone =
+    typeof window !== "undefined" && window.matchMedia("(display-mode: standalone)").matches;
+
+  async function checkMicrophone() {
+    if (!navigator.mediaDevices?.getUserMedia) return setMicrophone("unsupported");
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach((track) => track.stop());
+      setMicrophone("granted");
+    } catch (error) {
+      setMicrophone((error as DOMException).name === "NotAllowedError" ? "denied" : "unsupported");
+    }
+  }
+
+  return (
+    <div className="space-y-3 rounded-xl border p-4">
+      <p className="font-medium">Permissions & device capabilities</p>
+      <Capability label="Notifications" value={PushService.support()} />
+      <Capability label="Microphone" value={microphone} />
+      <Capability
+        label="Speech recognition"
+        value={speechSupported ? "available" : "unsupported"}
+      />
+      <Capability label="Installed app context" value={standalone ? "standalone" : "browser"} />
+      <Button size="sm" variant="outline" onClick={() => void checkMicrophone()}>
+        <Mic className="mr-2 h-4 w-4" /> Test microphone permission
+      </Button>
+      <p className="text-xs text-muted-foreground">
+        Microphone access is requested only by this explicit test and is stopped immediately.
+      </p>
+    </div>
+  );
+}
+
+function Capability({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between gap-4 text-sm">
+      <span>{label}</span>
+      <span className="capitalize text-muted-foreground">{value}</span>
     </div>
   );
 }

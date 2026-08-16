@@ -81,11 +81,11 @@ function Productivity() {
     },
     onError: (error: Error) => toast.error(error.message),
   });
-  const projects = projectsQuery.data ?? [];
+  const projects = Array.isArray(projectsQuery.data) ? projectsQuery.data : [];
   const today = localDay(new Date());
   const tasks = useMemo(() => {
     const searchValue = search.trim().toLowerCase();
-    return (tasksQuery.data ?? [])
+    return (Array.isArray(tasksQuery.data) ? tasksQuery.data : [])
       .filter((task) => {
         const due = task.dueDate ? localDay(task.dueDate) : null;
         const matchesSearch = `${task.title} ${task.description ?? ""}`
