@@ -222,6 +222,42 @@ export type Database = {
           },
         ];
       };
+      runtime_errors: {
+        Row: {
+          context: Json;
+          created_at: string;
+          error_message: string;
+          error_name: string;
+          id: string;
+          module: string;
+          route: string;
+          stack_sanitized: string | null;
+          user_id: string | null;
+        };
+        Insert: {
+          context?: Json;
+          created_at?: string;
+          error_message: string;
+          error_name: string;
+          id?: string;
+          module: string;
+          route: string;
+          stack_sanitized?: string | null;
+          user_id?: string | null;
+        };
+        Update: {
+          context?: Json;
+          created_at?: string;
+          error_message?: string;
+          error_name?: string;
+          id?: string;
+          module?: string;
+          route?: string;
+          stack_sanitized?: string | null;
+          user_id?: string | null;
+        };
+        Relationships: [];
+      };
       api_keys: {
         Row: {
           created_at: string | null;

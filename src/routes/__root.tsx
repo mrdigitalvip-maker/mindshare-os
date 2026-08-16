@@ -10,6 +10,7 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { RuntimeErrorService } from "../services/runtime-error-service";
 import { AuthProvider } from "../lib/auth-context";
 import { Toaster } from "sonner";
 
@@ -36,11 +37,16 @@ function NotFoundComponent() {
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   const router = useRouter();
   const [portuguese, setPortuguese] = useState(false);
+  const [reference] = useState(() => RuntimeErrorService.referenceFor(error));
   useEffect(() => {
     setPortuguese(navigator.language.toLowerCase().startsWith("pt"));
   }, []);
   useEffect(() => {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
+    RuntimeErrorService.capture(error, {
+      boundary: "tanstack_root_error_component",
+      module: window.location.pathname.split("/").filter(Boolean)[0] || "root",
+    });
   }, [error]);
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-6">
@@ -49,13 +55,14 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
           {portuguese ? "Algo deu errado" : "Something broke"}
         </p>
         <h1 className="mt-4 font-display text-5xl">
-          {portuguese ? "Um pequeno imprevisto" : "A small hiccup"}
+          {portuguese ? "Algo deu errado" : "Something went wrong"}
         </h1>
         <p className="mt-3 text-sm text-muted-foreground">
           {portuguese
             ? "A NEXORA não conseguiu concluir isso. Tente novamente ou volte ao início."
             : "NEXORA couldn't finish that. Try again or head home."}
         </p>
+        <p className="mt-3 font-mono text-xs text-muted-foreground">Reference: {reference}</p>
         <div className="mt-8 flex justify-center gap-2">
           <button
             onClick={() => {
@@ -169,6 +176,26 @@ function RootComponent() {
         },
       );
     });
+  }, []);
+  useEffect(() => {
+    const onError = (event: ErrorEvent) => {
+      RuntimeErrorService.capture(event.error ?? new Error(event.message), {
+        boundary: "window_error",
+        module: window.location.pathname.split("/").filter(Boolean)[0] || "root",
+      });
+    };
+    const onRejection = (event: PromiseRejectionEvent) => {
+      RuntimeErrorService.capture(event.reason, {
+        boundary: "unhandled_rejection",
+        module: window.location.pathname.split("/").filter(Boolean)[0] || "root",
+      });
+    };
+    window.addEventListener("error", onError);
+    window.addEventListener("unhandledrejection", onRejection);
+    return () => {
+      window.removeEventListener("error", onError);
+      window.removeEventListener("unhandledrejection", onRejection);
+    };
   }, []);
 
   return (

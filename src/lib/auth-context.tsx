@@ -94,8 +94,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     async function resolveInitialSession() {
       try {
-        const { data } = await supabase.auth.getSession();
+        const { data, error } = await supabase.auth.getSession();
         if (!active) return;
+        // A temporary offline/storage failure is not proof that a session was
+        // signed out. Keep any session delivered by onAuthStateChange intact.
+        if (error) return;
         setSession(data.session);
         setUser(mapUser(data.session?.user ?? null));
       } finally {

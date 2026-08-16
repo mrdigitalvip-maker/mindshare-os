@@ -111,12 +111,22 @@ function NexoraIntro() {
     recognition.interimResults = false;
     recognition.continuous = false;
     recognition.onresult = (e) => setAnswer(e.results[0]?.[0]?.transcript ?? "");
-    recognition.onerror = () => toast.error("Não consegui ouvir. Tente novamente ou digite.");
+    recognition.onerror = () => {
+      setListening(false);
+      setState("idle");
+      toast.error("Não consegui ouvir. Tente novamente ou digite.");
+    };
     recognition.onend = () => {
       setListening(false);
       setState("idle");
     };
-    recognition.start();
+    try {
+      recognition.start();
+    } catch {
+      setListening(false);
+      setState("idle");
+      toast.error("Não foi possível iniciar o microfone. Você ainda pode digitar.");
+    }
   }
   async function submit(value = answer) {
     if (!value.trim() || updateProfile.isPending) return;
