@@ -1,6 +1,7 @@
 import { demoAssistantReply } from "@/lib/demo/demo-data";
 import { DEMO_MODE, canCallBackend } from "@/lib/demo/config";
 import { supabase } from "@/lib/supabase";
+import { createClientId } from "@/lib/utils";
 import { getRequiredUserId } from "./supabase-service";
 
 export type AiErrorCode =
@@ -223,7 +224,7 @@ export const AIService = {
         conversationId: input.conversationId,
         userMessage: { id: input.requestId, role: "user", content: input.message },
         assistantMessage: {
-          id: crypto.randomUUID(),
+          id: createClientId(),
           role: "assistant",
           content: demoAssistantReply(input.message),
         },
@@ -249,6 +250,6 @@ export const AIService = {
         "Real AI actions are unavailable in demo mode.",
       );
     }
-    return invoke({ action, requestId: crypto.randomUUID(), ...input });
+    return invoke({ action, requestId: createClientId(), ...input });
   },
 };

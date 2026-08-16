@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/dialog";
 import { useChat, type ChatMessage } from "@/hooks/use-chat";
 import { useAuth } from "@/lib/auth-context";
+import { createClientId } from "@/lib/utils";
 import {
   AIService,
   AIServiceError,
@@ -134,7 +135,7 @@ function Assistant() {
   async function send(text: string) {
     const normalized = text.trim();
     if (!normalized || isSending) return;
-    const optimistic: ChatMessage = { id: crypto.randomUUID(), role: "user", content: normalized };
+    const optimistic: ChatMessage = { id: createClientId(), role: "user", content: normalized };
     setMessages((current) => [...current, optimistic]);
     setInput("");
     setLoadError(null);
@@ -240,7 +241,7 @@ function Assistant() {
                   {SUGGESTIONS.map((suggestion) => (
                     <button
                       key={suggestion}
-                      onClick={() => send(suggestion)}
+                      onClick={() => void send(suggestion)}
                       className="glass rounded-xl p-4 text-left text-sm transition hover:border-gold/40"
                     >
                       {suggestion}

@@ -39,7 +39,11 @@ export function NexoraAvatar({
     : "idle";
 
   useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    )
+      return;
     let blinkTimer = 0;
     let openTimer = 0;
     const schedule = () => {

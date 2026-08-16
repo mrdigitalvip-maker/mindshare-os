@@ -53,8 +53,8 @@ export const RuntimeErrorService = {
       boundary: context.boundary?.slice(0, 80),
       operation: context.operation?.slice(0, 80),
       queryKey: context.queryKey?.slice(0, 160),
-      online: navigator.onLine,
-      userAgent: navigator.userAgent.slice(0, 300),
+      online: typeof navigator === "undefined" ? undefined : navigator.onLine,
+      userAgent: typeof navigator === "undefined" ? undefined : navigator.userAgent.slice(0, 300),
       appVersion: import.meta.env.VITE_APP_VERSION || import.meta.env.VITE_COMMIT_SHA || null,
       timestamp: new Date().toISOString(),
     };
@@ -68,6 +68,7 @@ export const RuntimeErrorService = {
       .then(async ({ data }) => {
         if (!data.session?.user.id) return;
         await supabase.from("runtime_errors").insert({
+          reference,
           user_id: data.session.user.id,
           route: window.location.pathname.slice(0, 500),
           module: (context.module || "global").slice(0, 80),
