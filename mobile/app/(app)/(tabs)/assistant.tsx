@@ -65,13 +65,13 @@ export default function Assistant() {
     // `handledPrompt` makes this navigation command idempotent; including `submit` would rerun each render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [history.isSuccess, prompt]);
-  if (history.isPending) return <LoadingState title="Loading conversation…" />;
+  if (history.isPending) return <LoadingState title="Carregando conversa…" />;
   if (history.isError)
     return (
       <ErrorState
-        title="Conversation unavailable"
-        message="Your history is still stored. Check your connection."
-        actionLabel="Retry"
+        title="Não foi possível carregar agora."
+        message="Seu histórico continua salvo. Verifique sua conexão."
+        actionLabel="Tentar novamente"
         onAction={() => void history.refetch()}
       />
     );
@@ -85,7 +85,7 @@ export default function Assistant() {
         <NexoraAgent state={agentState} size={86} />
         <View>
           <Text style={styles.heading}>NEXORA</Text>
-          <Text style={styles.status}>{agentState === "thinking" ? "Thinking…" : "Ready"}</Text>
+          <Text style={styles.status}>{agentState === "thinking" ? "Pensando…" : "Pronta"}</Text>
         </View>
       </View>
       <FlatList
@@ -94,8 +94,8 @@ export default function Assistant() {
         contentContainerStyle={messages.length ? styles.list : styles.emptyList}
         ListEmptyComponent={
           <EmptyState
-            title="Start a conversation"
-            message="Ask NEXORA to plan, organize, or think with you."
+            title="Comece uma conversa"
+            message="Peça à NEXORA para planejar, organizar ou pensar com você."
           />
         }
         renderItem={({ item }) => (
@@ -106,15 +106,13 @@ export default function Assistant() {
       />
       {send.isError ? (
         <View style={styles.localError}>
-          <Text style={styles.errorText}>
-            {send.error?.message ?? "Message failed. Your draft was preserved."}
-          </Text>
+          <Text style={styles.errorText}>Não foi possível enviar. Seu texto foi preservado.</Text>
           {failedDraft ? (
             <Pressable
               accessibilityRole="button"
               onPress={() => void submit(failedDraft.content, failedDraft.requestId)}
             >
-              <Text style={styles.retry}>Retry</Text>
+              <Text style={styles.retry}>Tentar novamente</Text>
             </Pressable>
           ) : null}
         </View>
@@ -123,7 +121,7 @@ export default function Assistant() {
         <TextInput
           accessibilityLabel="Message NEXORA"
           multiline
-          placeholder="Message NEXORA…"
+          placeholder="Converse com a NEXORA…"
           placeholderTextColor={colors.textMuted}
           value={draft}
           onChangeText={setDraft}
@@ -131,12 +129,12 @@ export default function Assistant() {
         />
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Send message"
+          accessibilityLabel="Enviar mensagem"
           disabled={!draft.trim() || send.isPending}
           onPress={() => void submit()}
           style={[styles.send, (!draft.trim() || send.isPending) && styles.disabled]}
         >
-          <Text style={styles.sendText}>Send</Text>
+          <Text style={styles.sendText}>Enviar</Text>
         </Pressable>
       </View>
     </KeyboardAvoidingView>

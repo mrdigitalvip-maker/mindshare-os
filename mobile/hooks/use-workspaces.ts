@@ -72,7 +72,7 @@ export function useWorkspaceMutations() {
       invalidate(client, [queryKeys.projects, queryKeys.project(input.projectId)]),
   });
   const mutateTask = useMutation({
-    mutationFn: (
+    mutationFn: async (
       input:
         | {
             action: "create";
@@ -88,12 +88,11 @@ export function useWorkspaceMutations() {
             patch: Parameters<typeof service.updateTask>[2];
           }
         | { action: "delete"; taskId: string; projectId?: string | null },
-    ) =>
-      input.action === "create"
-        ? service.createTask(userId, input)
-        : input.action === "update"
-          ? service.updateTask(userId, input.taskId, input.patch)
-          : service.deleteTask(userId, input.taskId),
+    ) => {
+      if (input.action === "create") await service.createTask(userId, input);
+      else if (input.action === "update") await service.updateTask(userId, input.taskId, input.patch);
+      else await service.deleteTask(userId, input.taskId);
+    },
     onSuccess: (_data, input) => invalidate(client, taskMutationInvalidations(input.projectId)),
   });
   const createSubject = useMutation({

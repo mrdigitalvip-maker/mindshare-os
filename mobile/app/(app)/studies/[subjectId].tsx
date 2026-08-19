@@ -16,18 +16,20 @@ export default function SubjectWorkspace() {
   const [noteId, setNoteId] = useState<string>();
   const [noteContent, setNoteContent] = useState("");
   if (!subjectId)
-    return <ErrorState title="Invalid subject" message="The study link is incomplete." />;
-  if (query.isPending) return <LoadingState title="Loading subject…" />;
+    return (
+      <ErrorState title="Matéria não encontrada" message="Volte e escolha uma matéria válida." />
+    );
+  if (query.isPending) return <LoadingState title="Carregando matéria…" />;
   if (query.isError)
     return (
       <ErrorState
-        title="Subject unavailable"
-        actionLabel="Retry"
+        title="Não foi possível carregar agora."
+        actionLabel="Tentar novamente"
         onAction={() => void query.refetch()}
       />
     );
   if (!query.data)
-    return <EmptyState title="Subject not found" message="It may have been removed." />;
+    return <EmptyState title="Matéria não encontrada" message="Ela pode ter sido removida." />;
   const { subject, goals, sessions, notes } = query.data;
   async function save() {
     try {

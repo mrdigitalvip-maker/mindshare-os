@@ -1,28 +1,55 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import {
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { router } from "expo-router";
+import { NexoraAgent } from "@/components/nexora-agent";
 import { colors, radius, spacing, typography } from "@/lib/theme";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/providers/auth-provider";
 export default function Onboarding() {
   const { session } = useAuth();
+  const [answer, setAnswer] = useState("");
+  const [busy, setBusy] = useState(false);
   async function complete() {
-    if (!session) return;
+    if (!session || !answer.trim()) return;
+    setBusy(true);
     const { error } = await supabase
       .from("profiles")
       .upsert({ id: session.user.id, onboarded: true });
+    setBusy(false);
     if (!error) router.replace("/dashboard");
   }
   return (
-    <View style={styles.page}>
-      <Text style={styles.title}>Meet NEXORA</Text>
-      <Text style={styles.copy}>One focused agent for planning, projects, tasks, and studies.</Text>
-      <Pressable accessibilityRole="button" onPress={() => void complete()} style={styles.button}>
-        <Text style={styles.buttonText}>Enter NEXORA</Text>
-      </Pressable>
-    </View>
+    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={s.page}>
+      <NexoraAgent size={160} state={answer ? "attention" : "quiet"} />
+      <Text style={s.eyebrow}>NEXORA · PRIMEIRO CONTATO</Text>
+      <Text style={s.title}>O que você gostaria de transformar primeiro?</Text>
+      <Text style={s.progress}>1 de 5 · responda do seu jeito</Text>
+      <View style={s.composer}>
+        <TextInput
+          autoFocus
+          multiline
+          value={answer}
+          onChangeText={setAnswer}
+          placeholder="Conte para a NEXORA…"
+          placeholderTextColor={colors.textMuted}
+          style={s.input}
+        />
+        <Pressable disabled={!answer.trim() || busy} onPress={() => void complete()} style={s.send}>
+          <Text style={s.sendText}>{busy ? "…" : "↑"}</Text>
+        </Pressable>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
-const styles = StyleSheet.create({
+const s = StyleSheet.create({
   page: {
     flex: 1,
     justifyContent: "center",
@@ -30,14 +57,33 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     backgroundColor: colors.background,
   },
-  title: { ...typography.title, color: colors.text },
-  copy: { ...typography.body, color: colors.textMuted },
-  button: {
-    minHeight: 48,
-    justifyContent: "center",
+  eyebrow: { ...typography.eyebrow, color: colors.primaryBright },
+  title: { ...typography.display, fontSize: 36, color: colors.text },
+  progress: { ...typography.label, color: colors.textMuted },
+  composer: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: spacing.sm,
     padding: spacing.md,
-    borderRadius: radius.md,
-    backgroundColor: colors.primary,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
-  buttonText: { ...typography.label, textAlign: "center", color: colors.text },
+  input: {
+    ...typography.body,
+    flex: 1,
+    minHeight: 70,
+    color: colors.text,
+    textAlignVertical: "top",
+  },
+  send: {
+    width: 48,
+    height: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 24,
+    backgroundColor: colors.primaryBright,
+  },
+  sendText: { fontSize: 23, color: colors.background },
 });

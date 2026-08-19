@@ -5,17 +5,17 @@ import { NativeFormModal } from "@/components/native-form-modal";
 import { EmptyState, ErrorState, LoadingState } from "@/components/screen-state";
 import { useSubjects, useWorkspaceMutations } from "@/hooks/use-workspaces";
 import { colors, radius, spacing, typography } from "@/lib/theme";
-export default function Studies() {
+export default function Estudos() {
   const query = useSubjects();
   const { createSubject } = useWorkspaceMutations();
   const [modal, setModal] = useState(false);
   const [name, setName] = useState("");
-  if (query.isPending) return <LoadingState title="Loading studies…" />;
+  if (query.isPending) return <LoadingState title="Carregando estudos…" />;
   if (query.isError)
     return (
       <ErrorState
-        title="Studies unavailable"
-        actionLabel="Retry"
+        title="Não foi possível carregar agora."
+        actionLabel="Tentar novamente"
         onAction={() => void query.refetch()}
       />
     );
@@ -32,9 +32,9 @@ export default function Studies() {
   return (
     <View style={styles.page}>
       <View style={styles.header}>
-        <Text style={styles.title}>Studies</Text>
+        <Text style={styles.title}>Estudos</Text>
         <Pressable accessibilityRole="button" onPress={() => setModal(true)} style={styles.add}>
-          <Text style={styles.addText}>New</Text>
+          <Text style={styles.addText}>Nova</Text>
         </Pressable>
       </View>
       <FlatList
@@ -43,9 +43,9 @@ export default function Studies() {
         contentContainerStyle={query.data.length ? styles.list : styles.empty}
         ListEmptyComponent={
           <EmptyState
-            title="No subjects yet"
-            message="Create a subject workspace."
-            actionLabel="Create subject"
+            title="Comece criando sua primeira matéria."
+            message="Organize metas, sessões e notas em um só lugar."
+            actionLabel="Criar matéria"
             onAction={() => setModal(true)}
           />
         }
@@ -65,8 +65,8 @@ export default function Studies() {
       />
       <NativeFormModal
         visible={modal}
-        title="New subject"
-        placeholder="Subject name"
+        title="Nova subject"
+        placeholder="Nome da matéria"
         value={name}
         onChange={setName}
         busy={createSubject.isPending}

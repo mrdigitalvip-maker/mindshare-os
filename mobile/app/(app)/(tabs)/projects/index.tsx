@@ -5,7 +5,7 @@ import { NativeFormModal } from "@/components/native-form-modal";
 import { EmptyState, ErrorState, LoadingState } from "@/components/screen-state";
 import { useProjects, useWorkspaceMutations } from "@/hooks/use-workspaces";
 import { colors, radius, spacing, typography } from "@/lib/theme";
-export default function Projects() {
+export default function Projetos() {
   const query = useProjects();
   const { createProject } = useWorkspaceMutations();
   const [open, setOpen] = useState(false);
@@ -20,22 +20,22 @@ export default function Projects() {
       void error;
     }
   }
-  if (query.isPending) return <LoadingState title="Loading projects…" />;
+  if (query.isPending) return <LoadingState title="Carregando projetos…" />;
   if (query.isError)
     return (
       <ErrorState
-        title="Projects unavailable"
-        message="Your projects remain stored."
-        actionLabel="Retry"
+        title="Não foi possível carregar agora."
+        message="Seus projetos continuam salvos."
+        actionLabel="Tentar novamente"
         onAction={() => void query.refetch()}
       />
     );
   return (
     <View style={styles.page}>
       <View style={styles.header}>
-        <Text style={styles.title}>Projects</Text>
+        <Text style={styles.title}>Projetos</Text>
         <Pressable accessibilityRole="button" onPress={() => setOpen(true)} style={styles.add}>
-          <Text style={styles.addText}>New</Text>
+          <Text style={styles.addText}>Novo</Text>
         </Pressable>
       </View>
       <FlatList
@@ -44,9 +44,9 @@ export default function Projects() {
         contentContainerStyle={query.data.length ? styles.list : styles.empty}
         ListEmptyComponent={
           <EmptyState
-            title="No projects yet"
-            message="Create your first real project."
-            actionLabel="Create project"
+            title="Você ainda não tem projetos."
+            message="Crie seu primeiro projeto para começar."
+            actionLabel="Criar projeto"
             onAction={() => setOpen(true)}
           />
         }
@@ -61,16 +61,16 @@ export default function Projects() {
               <Text style={styles.status}>{item.status}</Text>
             </View>
             <Text numberOfLines={2} style={styles.copy}>
-              {item.description || "No description"}
+              {item.description || "Sem descrição"}
             </Text>
-            <Text style={styles.progress}>{item.progress}% complete</Text>
+            <Text style={styles.progress}>{item.progress}% concluído</Text>
           </Pressable>
         )}
       />
       <NativeFormModal
         visible={open}
-        title="New project"
-        placeholder="Project name"
+        title="Novo project"
+        placeholder="Nome do projeto"
         value={title}
         onChange={setTitle}
         busy={createProject.isPending}

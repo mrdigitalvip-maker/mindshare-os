@@ -16,14 +16,7 @@ export function EmptyState(props: Props) {
   return <State {...props} />;
 }
 export function ErrorState(props: Props & { diagnosticId?: string }) {
-  return (
-    <State
-      {...props}
-      message={[props.message, props.diagnosticId && `Diagnostic: ${props.diagnosticId}`]
-        .filter(Boolean)
-        .join("\n")}
-    />
-  );
+  return <State {...props} />;
 }
 function State({ title, message, actionLabel, onAction }: Props) {
   return (
