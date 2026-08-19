@@ -5,14 +5,14 @@ import { EmptyState, ErrorState, LoadingState } from "@/components/screen-state"
 import { useTasks, useWorkspaceMutations } from "@/hooks/use-workspaces";
 import { colors, radius, spacing, typography } from "@/lib/theme";
 import type { Task } from "@/services/workspace-service";
-type Filter = "Today" | "Inbox" | "Upcoming" | "Overdue" | "Completed";
-const filters: Filter[] = ["Today", "Inbox", "Upcoming", "Overdue", "Completed"];
+type Filter = "Today" | "Entrada" | "Upcoming" | "Overdue" | "Completed";
+const filters: Filter[] = ["Today", "Entrada", "Upcoming", "Overdue", "Completed"];
 const dateOnly = () => new Date().toISOString().slice(0, 10);
 function matches(task: Task, filter: Filter) {
   const today = dateOnly();
   if (filter === "Completed") return task.completed;
   if (task.completed) return false;
-  if (filter === "Inbox") return !task.dueDate;
+  if (filter === "Entrada") return !task.dueDate;
   if (filter === "Today") return task.dueDate === today;
   if (filter === "Overdue") return Boolean(task.dueDate && task.dueDate < today);
   return Boolean(task.dueDate && task.dueDate > today);
@@ -23,22 +23,22 @@ export default function Productivity() {
   const [filter, setFilter] = useState<Filter>("Today");
   const [modal, setModal] = useState(false);
   const [title, setTitle] = useState("");
-  const [editing, setEditing] = useState<Task | null>(null);
+  const [editing, setEditaring] = useState<Task | null>(null);
   const tasks = useMemo(
     () => (query.data ?? []).filter((task) => matches(task, filter)),
     [query.data, filter],
   );
-  if (query.isPending) return <LoadingState title="Loading tasks…" />;
+  if (query.isPending) return <LoadingState title="Carregando tarefas…" />;
   if (query.isError)
     return (
       <ErrorState
-        title="Tasks unavailable"
-        actionLabel="Retry"
+        title="Não foi possível carregar agora."
+        actionLabel="Tentar novamente"
         onAction={() => void query.refetch()}
       />
     );
-  function openEditor(task?: Task) {
-    setEditing(task ?? null);
+  function openEditaror(task?: Task) {
+    setEditaring(task ?? null);
     setTitle(task?.title ?? "");
     setModal(true);
   }
@@ -59,7 +59,7 @@ export default function Productivity() {
         });
       setModal(false);
       setTitle("");
-      setEditing(null);
+      setEditaring(null);
     } catch (error) {
       void error;
     }
@@ -67,9 +67,9 @@ export default function Productivity() {
   return (
     <View style={styles.page}>
       <View style={styles.header}>
-        <Text style={styles.title}>Tasks</Text>
-        <Pressable accessibilityRole="button" onPress={() => openEditor()} style={styles.add}>
-          <Text style={styles.addText}>New</Text>
+        <Text style={styles.title}>Tarefas</Text>
+        <Pressable accessibilityRole="button" onPress={() => openEditaror()} style={styles.add}>
+          <Text style={styles.addText}>Nova</Text>
         </Pressable>
       </View>
       <ScrollView
@@ -94,10 +94,10 @@ export default function Productivity() {
         contentContainerStyle={tasks.length ? styles.list : styles.empty}
         ListEmptyComponent={
           <EmptyState
-            title={`No ${filter.toLowerCase()} tasks`}
-            message="This is a valid clear state."
-            actionLabel="Create task"
-            onAction={() => openEditor()}
+            title={`Nenhuma tarefa por aqui.`}
+            message="Sua lista está em dia."
+            actionLabel="Criar tarefa"
+            onAction={() => openEditaror()}
           />
         }
         renderItem={({ item }) => (
@@ -117,11 +117,11 @@ export default function Productivity() {
             >
               <Text style={[styles.taskTitle, item.completed && styles.done]}>{item.title}</Text>
               <Text style={styles.meta}>
-                {item.priority} · {item.dueDate ?? "Inbox"}
+                {item.priority} · {item.dueDate ?? "Entrada"}
               </Text>
             </Pressable>
-            <Pressable accessibilityRole="button" onPress={() => openEditor(item)}>
-              <Text style={styles.edit}>Edit</Text>
+            <Pressable accessibilityRole="button" onPress={() => openEditaror(item)}>
+              <Text style={styles.edit}>Editar</Text>
             </Pressable>
             <Pressable
               accessibilityRole="button"
@@ -133,15 +133,15 @@ export default function Productivity() {
                 })
               }
             >
-              <Text style={styles.delete}>Delete</Text>
+              <Text style={styles.delete}>Excluir</Text>
             </Pressable>
           </View>
         )}
       />
       <NativeFormModal
         visible={modal}
-        title={editing ? "Edit task" : "New task"}
-        placeholder="Task title"
+        title={editing ? "Editar task" : "Nova task"}
+        placeholder="Título da tarefa"
         value={title}
         onChange={setTitle}
         busy={mutateTask.isPending}

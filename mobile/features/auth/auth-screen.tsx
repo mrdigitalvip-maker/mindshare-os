@@ -23,7 +23,8 @@ export function AuthScreen() {
 
   async function submit() {
     if (!hasSupabaseConfig) {
-      setMessage("Add the two EXPO_PUBLIC_SUPABASE values before signing in.");
+      console.error("NEXORA auth configuration is unavailable.");
+      setMessage("Não foi possível entrar agora. Tente novamente mais tarde.");
       return;
     }
     setBusy(true);
@@ -38,11 +39,12 @@ export function AuthScreen() {
           });
     setBusy(false);
     if (result.error) {
-      setMessage(result.error.message);
+      console.error("NEXORA authentication failed", result.error);
+      setMessage("E-mail ou senha inválidos. Verifique os dados e tente novamente.");
       return;
     }
     if (result.data.session) router.replace("/dashboard");
-    else setMessage("Check your email to confirm your account.");
+    else setMessage("Confira seu e-mail para confirmar a conta.");
   }
 
   return (
@@ -51,16 +53,16 @@ export function AuthScreen() {
       style={styles.page}
     >
       <View style={styles.card}>
-        <Text style={styles.eyebrow}>NEXORA · NATIVE</Text>
+        <Text style={styles.brand}>NEXORA</Text>
         <Text style={styles.title}>
-          {mode === "login" ? "Welcome back" : "Create your account"}
+          {mode === "login" ? "Boas-vindas de volta" : "Crie sua conta"}
         </Text>
-        <Text style={styles.copy}>A secure, native session. No browser or embedded website.</Text>
+        <Text style={styles.copy}>Entre para continuar no seu espaço.</Text>
         <TextInput
           autoCapitalize="none"
           autoComplete="email"
           keyboardType="email-address"
-          placeholder="Email"
+          placeholder="E-mail"
           placeholderTextColor={colors.textMuted}
           value={email}
           onChangeText={setEmail}
@@ -69,7 +71,7 @@ export function AuthScreen() {
         <TextInput
           autoCapitalize="none"
           autoComplete={mode === "login" ? "current-password" : "new-password"}
-          placeholder="Password"
+          placeholder="Senha"
           placeholderTextColor={colors.textMuted}
           secureTextEntry
           value={password}
@@ -88,7 +90,7 @@ export function AuthScreen() {
           style={styles.primary}
         >
           <Text style={styles.primaryText}>
-            {busy ? "Please wait…" : mode === "login" ? "Sign in" : "Sign up"}
+            {busy ? "Aguarde…" : mode === "login" ? "Entrar" : "Criar conta"}
           </Text>
         </Pressable>
         <Pressable
@@ -96,12 +98,13 @@ export function AuthScreen() {
           onPress={() => setMode(mode === "login" ? "signup" : "login")}
         >
           <Text style={styles.link}>
-            {mode === "login" ? "Need an account? Sign up" : "Already registered? Sign in"}
+            {mode === "login" ? "Novo na NEXORA? Criar uma conta" : "Já tem uma conta? Entrar"}
           </Text>
         </Pressable>
         <Link href="/auth/recovery" style={styles.link}>
-          Forgot password?
+          Esqueceu a senha?
         </Link>
+        <Text style={styles.terms}>Ao continuar, você concorda com os Termos e a Política de Privacidade.</Text>
       </View>
     </KeyboardAvoidingView>
   );
@@ -115,13 +118,9 @@ const styles = StyleSheet.create({
   },
   card: {
     gap: spacing.md,
-    padding: spacing.lg,
-    borderRadius: radius.lg,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
+    paddingVertical: spacing.lg,
   },
-  eyebrow: { ...typography.label, color: colors.primaryBright },
+  brand: { fontSize: 18, fontWeight: "700", letterSpacing: 5, color: colors.text, marginBottom: spacing.xl },
   title: { ...typography.title, color: colors.text },
   copy: { ...typography.body, color: colors.textMuted },
   input: {
@@ -136,15 +135,16 @@ const styles = StyleSheet.create({
   message: { ...typography.label, color: colors.warning },
   primary: {
     padding: spacing.md,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.text,
     borderRadius: radius.md,
     alignItems: "center",
   },
-  primaryText: { ...typography.label, color: colors.text },
+  primaryText: { ...typography.label, color: colors.background },
   link: {
     ...typography.label,
     color: colors.primaryBright,
     textAlign: "center",
     padding: spacing.sm,
   },
+  terms: { ...typography.caption, color: colors.textMuted, textAlign: "center", marginTop: spacing.lg },
 });

@@ -50,10 +50,10 @@ export function NativeFormModal({
               style={[styles.input, styles.multiline]}
             />
           ) : null}
-          {error ? <Text style={styles.error}>{error}</Text> : null}
+          {error ? <Text style={styles.error}>Não foi possível salvar agora.</Text> : null}
           <View style={styles.actions}>
             <Pressable accessibilityRole="button" onPress={onClose} style={styles.secondary}>
-              <Text style={styles.secondaryText}>Cancel</Text>
+              <Text style={styles.secondaryText}>Cancelar</Text>
             </Pressable>
             <Pressable
               accessibilityRole="button"
@@ -61,7 +61,7 @@ export function NativeFormModal({
               onPress={onSave}
               style={styles.primary}
             >
-              <Text style={styles.primaryText}>{busy ? "Saving…" : "Save"}</Text>
+              <Text style={styles.primaryText}>{busy ? "Salvando…" : "Salvar"}</Text>
             </Pressable>
           </View>
         </View>
