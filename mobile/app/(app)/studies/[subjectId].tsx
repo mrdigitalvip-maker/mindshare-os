@@ -5,6 +5,7 @@ import { NativeFormModal } from "@/components/native-form-modal";
 import { EmptyState, ErrorState, LoadingState } from "@/components/screen-state";
 import { useSubject, useWorkspaceMutations } from "@/hooks/use-workspaces";
 import { colors, radius, spacing, typography } from "@/lib/theme";
+import { getDisplayProjectStatus } from "@/lib/presentation";
 type Mode = "goal" | "session" | "note" | null;
 export default function SubjectWorkspace() {
   const params = useLocalSearchParams<{ subjectId?: string }>();
@@ -62,7 +63,9 @@ export default function SubjectWorkspace() {
       <Stack.Screen options={{ title: subject.name }} />
       <View style={styles.hero}>
         <Text style={styles.title}>{subject.name}</Text>
-        <Text style={styles.copy}>{subject.description || subject.status}</Text>
+        <Text style={styles.copy}>
+          {subject.description || getDisplayProjectStatus(subject.status)}
+        </Text>
       </View>
       <Section title="Metas" action="Adicionar meta" onAction={() => setMode("goal")}>
         {goals.length ? (

@@ -15,16 +15,12 @@ export function AppHeader({ onMenu }: { onMenu(): void }) {
       <Pressable accessibilityLabel="Abrir menu" onPress={onMenu} style={styles.icon}>
         <Text style={styles.iconText}>☰</Text>
       </Pressable>
-      <Pressable
-        accessibilityLabel="Conversar com a NEXORA"
-        onPress={() => router.push("/assistant")}
-        style={styles.search}
-      >
+      <View accessibilityRole="header" style={styles.search}>
         <Text numberOfLines={1} ellipsizeMode="tail" style={styles.searchText}>
-          Pergunte à NEXORA
+          Command Center
         </Text>
         <Text style={styles.gold}>✦</Text>
-      </Pressable>
+      </View>
       <Pressable
         accessibilityLabel="Configurações"
         onPress={() => router.push("/settings")}

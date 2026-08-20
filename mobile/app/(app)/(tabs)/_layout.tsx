@@ -19,6 +19,7 @@ export default function MainTabs() {
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarActiveTintColor: colors.primaryBright,
+        tabBarHideOnKeyboard: true,
         tabBarInactiveTintColor: colors.textMuted,
         tabBarLabelStyle: { ...typography.caption, fontSize: 11, lineHeight: 15, marginTop: 1 },
         tabBarStyle: {

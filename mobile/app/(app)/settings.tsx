@@ -9,6 +9,7 @@ import { useSubscription } from "@/hooks/use-subscription";
 import { queryKeys } from "@/lib/query-keys";
 import { supabase } from "@/lib/supabase";
 import { colors, radius, spacing, typography } from "@/lib/theme";
+import { getDisplayEntitlement, getDisplayPlan } from "@/lib/presentation";
 import { useAuth } from "@/providers/auth-provider";
 import {
   notificationPermission,
@@ -91,7 +92,7 @@ export default function Settings() {
             <Text numberOfLines={1} style={styles.help}>
               {session?.user.email ?? "Conta autenticada"}
             </Text>
-            <Text style={styles.badge}>Plano: {subscription.data?.plan ?? "Gratuito"}</Text>
+            <Text style={styles.badge}>Plano: {getDisplayPlan(subscription.data?.plan)}</Text>
           </View>
         </View>
       </Section>
@@ -127,7 +128,7 @@ export default function Settings() {
         <Text style={styles.value}>
           {subscription.isPending
             ? "Carregando…"
-            : `Plano atual: ${subscription.data?.entitlement ?? "Indisponível"}`}
+            : `Plano atual: ${getDisplayEntitlement(subscription.data?.entitlement)}`}
         </Text>
         <Text style={styles.help}>
           Compras estarão disponíveis quando a cobrança nativa do Google Play for implementada.

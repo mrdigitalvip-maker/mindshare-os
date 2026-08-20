@@ -7,7 +7,9 @@ import { AppHeader, DrawerMenu } from "@/components/product-ui";
 import { useProfile } from "@/hooks/use-profile";
 import { useSubscription } from "@/hooks/use-subscription";
 import { useProjects, useSubjects, useTasks } from "@/hooks/use-workspaces";
+import { useAuth } from "@/providers/auth-provider";
 import { resolveCapabilityTier } from "@/lib/capabilities";
+import { getDailyActions, getWeeklyChallenge, type DailyAction } from "@/lib/daily-experience";
 import {
   getActiveProjects,
   getDueLabel,
@@ -17,6 +19,7 @@ import {
   getTaskPreviews,
   getTodayTasks,
 } from "@/lib/dashboard-selectors";
+import { getDisplayProjectStatus } from "@/lib/presentation";
 import { colors, radius, spacing, typography } from "@/lib/theme";
 import type { Project, Subject, Task } from "@/services/workspace-service";
 
@@ -105,7 +108,7 @@ function ProjectCard({ project, tasks }: { project: Project; tasks: Task[] }) {
         <Text numberOfLines={1} style={styles.cardTitle}>
           {project.title}
         </Text>
-        <Text style={styles.status}>{project.status}</Text>
+        <Text style={styles.status}>{getDisplayProjectStatus(project.status)}</Text>
       </View>
       {project.description ? (
         <Text numberOfLines={2} style={styles.muted}>
@@ -146,7 +149,7 @@ function StudyCard({ subject }: { subject: Subject }) {
           {subject.name}
         </Text>
         <Text numberOfLines={1} style={styles.meta}>
-          {subject.description || subject.status}
+          {subject.description || getDisplayProjectStatus(subject.status)}
         </Text>
       </View>
       <Text style={styles.arrow}>›</Text>
@@ -154,7 +157,39 @@ function StudyCard({ subject }: { subject: Subject }) {
   );
 }
 
+function DailySection({ actions }: { actions: DailyAction[] }) {
+  if (!actions.length) return null;
+  return (
+    <View style={styles.section}>
+      <SectionHeader title="PARA HOJE" />
+      <View style={styles.dailyCard}>
+        {actions.map((action, index) => (
+          <Pressable
+            key={action.id}
+            accessibilityRole="button"
+            accessibilityLabel={`${action.title}. ${action.detail}`}
+            onPress={() => router.push(action.href)}
+            style={[styles.dailyRow, index > 0 && styles.dailyDivider]}
+          >
+            <Text style={styles.dailyBullet}>✦</Text>
+            <View style={styles.flex}>
+              <Text numberOfLines={2} style={styles.itemTitle}>
+                {action.title}
+              </Text>
+              <Text numberOfLines={2} style={styles.meta}>
+                {action.detail}
+              </Text>
+            </View>
+            <Text style={styles.arrow}>›</Text>
+          </Pressable>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 export default function Dashboard() {
+  const { session } = useAuth();
   const [drawer, setDrawer] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const profile = useProfile();
@@ -176,6 +211,14 @@ export default function Dashboard() {
   const subjects = (subjectsQuery.data ?? [])
     .filter((subject) => subject.status.toLowerCase() !== "archived")
     .slice(0, 2);
+  const dailyActions = useMemo(
+    () => getDailyActions(tasks, projects, subjectsQuery.data ?? []),
+    [projects, subjectsQuery.data, tasks],
+  );
+  const weeklyChallenge = useMemo(
+    () => getWeeklyChallenge(tasks, session?.user.id ?? ""),
+    [session?.user.id, tasks],
+  );
   const name = profile.data?.fullName?.trim().split(" ")[0] || "você";
   const tier = subscription.isError
     ? "NEXORA BASIC"
@@ -292,6 +335,53 @@ export default function Dashboard() {
           </View>
         ) : null}
 
+        {!tasksQuery.isPending &&
+        !tasksQuery.isError &&
+        !projectsQuery.isPending &&
+        !subjectsQuery.isPending ? (
+          <DailySection actions={dailyActions} />
+        ) : null}
+
+        {weeklyChallenge ? (
+          <View style={styles.section}>
+            <SectionHeader title="DESAFIO DA SEMANA" />
+            <View style={styles.challengeCard}>
+              <Text style={styles.challengeTitle}>{weeklyChallenge.title}</Text>
+              <View
+                accessible
+                accessibilityRole="progressbar"
+                accessibilityLabel={`${weeklyChallenge.completed} de ${weeklyChallenge.target} tarefas concluídas no desafio da semana`}
+                accessibilityValue={{
+                  min: 0,
+                  max: weeklyChallenge.target,
+                  now: weeklyChallenge.completed,
+                }}
+              >
+                <View style={styles.challengeTrack}>
+                  <View
+                    style={[
+                      styles.challengeFill,
+                      { width: `${(weeklyChallenge.completed / weeklyChallenge.target) * 100}%` },
+                    ]}
+                  />
+                </View>
+                <Text style={styles.meta}>
+                  {weeklyChallenge.completed} de {weeklyChallenge.target} concluídas
+                </Text>
+              </View>
+              <Text style={styles.muted}>{weeklyChallenge.benefit}</Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Ver tarefas do desafio semanal"
+                onPress={() => router.push(weeklyChallenge.href)}
+                style={styles.openButton}
+              >
+                <Text style={styles.openButtonText}>Ver tarefas</Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : null}
+
         <View style={styles.section}>
           <SectionHeader
             title="PROJETOS ATIVOS"
@@ -337,18 +427,17 @@ export default function Dashboard() {
             ) : null}
           </View>
         ) : null}
-
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Abrir Chat rápido com a NEXORA"
-          onPress={() => router.push("/assistant")}
-          style={styles.quickChat}
-        >
-          <Text style={styles.quickChatSpark}>✦</Text>
-          <Text style={styles.quickChatText}>Chat rápido</Text>
-          <Text style={styles.arrow}>›</Text>
-        </Pressable>
       </ScrollView>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Conversar com a NEXORA"
+        accessibilityHint="Abre o Assistente"
+        onPress={() => router.push("/assistant")}
+        style={({ pressed }) => [styles.quickNexora, pressed && styles.quickNexoraPressed]}
+      >
+        <Text style={styles.quickChatSpark}>✦</Text>
+        <Text style={styles.quickNexoraText}>NEXORA</Text>
+      </Pressable>
     </AppScreen>
   );
 }
@@ -357,8 +446,8 @@ const styles = StyleSheet.create({
   page: {
     paddingHorizontal: spacing.md,
     paddingTop: spacing.xs,
-    paddingBottom: spacing.xl,
-    gap: spacing.lg,
+    paddingBottom: 96,
+    gap: spacing.xl,
   },
   flex: { flex: 1, minWidth: 0 },
   identity: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
@@ -368,7 +457,7 @@ const styles = StyleSheet.create({
   hero: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm },
   spark: { fontSize: 20, color: colors.primaryBright, paddingTop: 3 },
   title: { ...typography.display, fontSize: 28, lineHeight: 34, color: colors.text, flex: 1 },
-  section: { gap: spacing.sm },
+  section: { gap: 12 },
   sectionHeader: {
     minHeight: 32,
     flexDirection: "row",
@@ -424,6 +513,44 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     backgroundColor: colors.surface,
   },
+  dailyCard: {
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
+  },
+  dailyRow: {
+    minHeight: 68,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 12,
+  },
+  dailyDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
+  dailyBullet: { color: colors.primaryBright, fontSize: 13 },
+  challengeCard: {
+    gap: 12,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.accentMuted,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
+  },
+  challengeTitle: { ...typography.heading, fontSize: 19, lineHeight: 25, color: colors.text },
+  challengeTrack: {
+    height: 5,
+    marginBottom: spacing.sm,
+    overflow: "hidden",
+    borderRadius: radius.pill,
+    backgroundColor: colors.border,
+  },
+  challengeFill: {
+    height: "100%",
+    borderRadius: radius.pill,
+    backgroundColor: colors.primaryBright,
+  },
   nextLabel: { ...typography.eyebrow, color: colors.primaryBright },
   nextTitle: { ...typography.heading, color: colors.text },
   openButton: {
@@ -463,17 +590,22 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   subjectColor: { width: 4, height: 38, borderRadius: 2 },
-  quickChat: {
-    minHeight: 48,
+  quickNexora: {
+    position: "absolute",
+    right: spacing.md,
+    bottom: spacing.md,
+    minHeight: 44,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.md,
+    paddingHorizontal: 18,
+    borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    borderColor: colors.accentMuted,
+    backgroundColor: colors.surfaceRaised,
+    elevation: 7,
   },
+  quickNexoraPressed: { opacity: 0.78 },
   quickChatSpark: { color: colors.primaryBright, fontSize: 16 },
-  quickChatText: { ...typography.label, color: colors.text, flex: 1 },
+  quickNexoraText: { ...typography.label, color: colors.text, letterSpacing: 1 },
 });

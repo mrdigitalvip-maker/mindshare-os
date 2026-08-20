@@ -51,15 +51,7 @@ export function getProjectTaskSections(tasks: Task[], now = new Date()) {
   ].filter((section) => section.data.length);
 }
 
-export function getProjectStatusLabel(status: string) {
-  const labels: Record<string, string> = {
-    active: "Em andamento",
-    paused: "Pausado",
-    completed: "Concluído",
-    archived: "Arquivado",
-  };
-  return labels[status.trim().toLowerCase()] ?? status;
-}
+export { getDisplayProjectStatus as getProjectStatusLabel } from "@/lib/presentation";
 
 export function getProjectAttention(project: Project, tasks: Task[], now = new Date()) {
   if (completeStatuses.has(project.status.trim().toLowerCase())) return "Concluído";

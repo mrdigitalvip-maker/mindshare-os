@@ -5,6 +5,7 @@ import { NativeFormModal } from "@/components/native-form-modal";
 import { EmptyState, ErrorState, LoadingState } from "@/components/screen-state";
 import { useSubjects, useWorkspaceMutations } from "@/hooks/use-workspaces";
 import { colors, radius, spacing, typography } from "@/lib/theme";
+import { getDisplayProjectStatus } from "@/lib/presentation";
 export default function Estudos() {
   const query = useSubjects();
   const { createSubject } = useWorkspaceMutations();
@@ -61,7 +62,7 @@ export default function Estudos() {
                 {item.name}
               </Text>
               <Text numberOfLines={2} style={styles.copy}>
-                {item.description || item.status}
+                {item.description || getDisplayProjectStatus(item.status)}
               </Text>
             </View>
           </Pressable>
