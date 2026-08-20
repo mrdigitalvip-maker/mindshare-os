@@ -17,10 +17,14 @@ export const queryKeys = {
   subscription: ["subscription"] as const,
 };
 
-export function taskMutationInvalidations(projectId?: string | null) {
+export function taskMutationInvalidations(
+  projectId?: string | null,
+  previousProjectId?: string | null,
+) {
+  const projectIds = [...new Set([projectId, previousProjectId].filter(Boolean) as string[])];
   return [
     queryKeys.tasks,
     queryKeys.projects,
-    ...(projectId ? [queryKeys.project(projectId), queryKeys.projectTasks(projectId)] : []),
+    ...projectIds.flatMap((id) => [queryKeys.project(id), queryKeys.projectTasks(id)]),
   ] as const;
 }

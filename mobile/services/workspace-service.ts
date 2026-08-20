@@ -66,10 +66,10 @@ export async function listProjects(userId: string): Promise<Project[]> {
     .order("updated_at", { ascending: false });
   if (error) throw error;
   return (data ?? []).map((row) => ({
-      id: row.id,
-      title: row.title ?? "Untitled project",
-      description: row.description ?? "",
-      status: row.status ?? "active",
+    id: row.id,
+    title: row.title ?? "Untitled project",
+    description: row.description ?? "",
+    status: row.status ?? "active",
   }));
 }
 export async function createProject(
@@ -144,13 +144,20 @@ export async function listTasks(userId: string, projectId?: string): Promise<Tas
 }
 export async function createTask(
   userId: string,
-  input: { title: string; projectId?: string | null; priority?: string; dueDate?: string | null },
+  input: {
+    title: string;
+    description?: string;
+    projectId?: string | null;
+    priority?: string;
+    dueDate?: string | null;
+  },
 ): Promise<string> {
   const { data, error } = await supabase
     .from("tasks")
     .insert({
       user_id: owner(userId),
       title: required(input.title, "Task title"),
+      description: input.description?.trim() || null,
       project_id: input.projectId ? resource(input.projectId) : null,
       priority: input.priority ?? "medium",
       due_date: input.dueDate || null,

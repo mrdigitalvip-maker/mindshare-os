@@ -1,4 +1,5 @@
-import { Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import type { ReactNode } from "react";
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { colors, radius, spacing, typography } from "@/lib/theme";
 export function NativeFormModal({
   visible,
@@ -16,6 +17,9 @@ export function NativeFormModal({
   onDateChange,
   onSave,
   onClose,
+  children,
+  errorMessage,
+  destructiveAction,
 }: {
   visible: boolean;
   title: string;
@@ -32,11 +36,14 @@ export function NativeFormModal({
   onDateChange?(value: string): void;
   onSave(): void;
   onClose(): void;
+  children?: ReactNode;
+  errorMessage?: string;
+  destructiveAction?: { label: string; onPress(): void; busy?: boolean };
 }) {
   return (
     <Modal animationType="slide" transparent visible={visible} onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <View style={styles.sheet}>
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.sheet}>
           <Text style={styles.title}>{title}</Text>
           <TextInput
             autoFocus
@@ -69,7 +76,10 @@ export function NativeFormModal({
               style={styles.input}
             />
           ) : null}
-          {error ? <Text style={styles.error}>Não foi possível salvar agora.</Text> : null}
+          {children}
+          {error ? (
+            <Text style={styles.error}>{errorMessage ?? "Não foi possível salvar agora."}</Text>
+          ) : null}
           <View style={styles.actions}>
             <Pressable accessibilityRole="button" onPress={onClose} style={styles.secondary}>
               <Text style={styles.secondaryText}>Cancelar</Text>
@@ -83,7 +93,17 @@ export function NativeFormModal({
               <Text style={styles.primaryText}>{busy ? "Salvando…" : "Salvar"}</Text>
             </Pressable>
           </View>
-        </View>
+          {destructiveAction ? (
+            <Pressable
+              accessibilityRole="button"
+              disabled={destructiveAction.busy}
+              onPress={destructiveAction.onPress}
+              style={styles.destructive}
+            >
+              <Text style={styles.error}>{destructiveAction.label}</Text>
+            </Pressable>
+          ) : null}
+        </ScrollView>
       </View>
     </Modal>
   );
@@ -97,6 +117,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: radius.lg,
     borderTopRightRadius: radius.lg,
     backgroundColor: colors.surface,
+    maxHeight: "92%",
   },
   title: { ...typography.heading, color: colors.text },
   input: {
@@ -110,6 +131,7 @@ const styles = StyleSheet.create({
   },
   multiline: { minHeight: 110, textAlignVertical: "top" },
   error: { ...typography.label, color: colors.danger },
+  destructive: { minHeight: 44, alignItems: "center", justifyContent: "center" },
   actions: { flexDirection: "row", gap: spacing.sm },
   secondary: { flex: 1, minHeight: 48, justifyContent: "center" },
   secondaryText: { ...typography.label, textAlign: "center", color: colors.textMuted },
