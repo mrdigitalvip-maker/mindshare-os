@@ -7,10 +7,13 @@ export function NativeFormModal({
   placeholder,
   secondaryValue,
   secondaryPlaceholder,
+  dateValue,
+  datePlaceholder,
   busy,
   error,
   onChange,
   onSecondaryChange,
+  onDateChange,
   onSave,
   onClose,
 }: {
@@ -20,10 +23,13 @@ export function NativeFormModal({
   placeholder: string;
   secondaryValue?: string;
   secondaryPlaceholder?: string;
+  dateValue?: string;
+  datePlaceholder?: string;
   busy?: boolean;
   error?: string | null;
   onChange(value: string): void;
   onSecondaryChange?(value: string): void;
+  onDateChange?(value: string): void;
   onSave(): void;
   onClose(): void;
 }) {
@@ -48,6 +54,19 @@ export function NativeFormModal({
               value={secondaryValue}
               onChangeText={onSecondaryChange}
               style={[styles.input, styles.multiline]}
+            />
+          ) : null}
+          {dateValue !== undefined && onDateChange ? (
+            <TextInput
+              accessibilityLabel="Prazo da tarefa"
+              autoCapitalize="none"
+              keyboardType="numbers-and-punctuation"
+              maxLength={10}
+              placeholder={datePlaceholder}
+              placeholderTextColor={colors.textMuted}
+              value={dateValue}
+              onChangeText={onDateChange}
+              style={styles.input}
             />
           ) : null}
           {error ? <Text style={styles.error}>Não foi possível salvar agora.</Text> : null}

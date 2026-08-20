@@ -57,7 +57,8 @@ export function useWorkspaceMutations() {
   const userId = useUserId();
   const client = useQueryClient();
   const createProject = useMutation({
-    mutationFn: (title: string) => service.createProject(userId, title),
+    mutationFn: (input: Parameters<typeof service.createProject>[1]) =>
+      service.createProject(userId, input),
     onSuccess: () => client.invalidateQueries({ queryKey: queryKeys.projects }),
   });
   const updateProject = useMutation({
@@ -70,6 +71,11 @@ export function useWorkspaceMutations() {
     }) => service.updateProject(userId, projectId, patch),
     onSuccess: (_data, input) =>
       invalidate(client, [queryKeys.projects, queryKeys.project(input.projectId)]),
+  });
+  const deleteProject = useMutation({
+    mutationFn: (projectId: string) => service.deleteProject(userId, projectId),
+    onSuccess: (_data, projectId) =>
+      invalidate(client, [queryKeys.projects, queryKeys.tasks, queryKeys.project(projectId)]),
   });
   const mutateTask = useMutation({
     mutationFn: async (
@@ -120,5 +126,5 @@ export function useWorkspaceMutations() {
     onSuccess: (_data, input) =>
       invalidate(client, [queryKeys.studySubjects, queryKeys.studySubject(input.subjectId)]),
   });
-  return { createProject, updateProject, mutateTask, createSubject, study };
+  return { createProject, updateProject, deleteProject, mutateTask, createSubject, study };
 }

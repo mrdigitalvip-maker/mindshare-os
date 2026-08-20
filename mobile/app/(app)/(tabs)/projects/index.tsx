@@ -1,37 +1,132 @@
-import { useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { useMemo, useState } from "react";
+import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { NativeFormModal } from "@/components/native-form-modal";
 import { AppScreen } from "@/components/app-screen";
 import { StandardHeader } from "@/components/product-ui";
 import { EmptyState, ErrorState, LoadingState } from "@/components/screen-state";
-import { useProjects, useWorkspaceMutations } from "@/hooks/use-workspaces";
+import { useProjects, useTasks, useWorkspaceMutations } from "@/hooks/use-workspaces";
+import {
+  getProjectAttention,
+  getProjectNextAction,
+  getProjectOverdueTasks,
+  getProjectProgress,
+  getProjectStatusLabel,
+  groupTasksByProject,
+  sortProjectsByAttention,
+} from "@/lib/project-selectors";
 import { colors, radius, spacing, typography } from "@/lib/theme";
+import type { Project, Task } from "@/services/workspace-service";
+
+function ProjectCard({ project, tasks }: { project: Project; tasks: Task[] }) {
+  const progress = getProjectProgress(tasks);
+  const attention = getProjectAttention(project, tasks);
+  const overdue = getProjectOverdueTasks(tasks).length;
+  const next = getProjectNextAction(tasks);
+  const subdued = ["completed", "archived"].includes(project.status.toLowerCase());
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Abrir projeto ${project.title}. ${attention}`}
+      onPress={() => router.push(`/projects/${project.id}`)}
+      style={({ pressed }) => [styles.card, subdued && styles.subdued, pressed && styles.pressed]}
+    >
+      <View style={styles.cardTop}>
+        <Text numberOfLines={2} style={styles.cardTitle}>
+          {project.title}
+        </Text>
+        <Text
+          accessibilityLabel={`Status: ${getProjectStatusLabel(project.status)}`}
+          style={styles.status}
+        >
+          {attention}
+        </Text>
+      </View>
+      {project.description ? (
+        <Text numberOfLines={2} style={styles.copy}>
+          {project.description}
+        </Text>
+      ) : null}
+      {progress ? (
+        <View
+          accessible
+          accessibilityRole="progressbar"
+          accessibilityLabel={`${progress.completed} de ${progress.total} tarefas concluídas`}
+          accessibilityValue={{ min: 0, max: 100, now: Math.round(progress.ratio * 100) }}
+          style={styles.progressBlock}
+        >
+          <View style={styles.progressTrack}>
+            <View style={[styles.progressFill, { width: `${progress.ratio * 100}%` }]} />
+          </View>
+          <View style={styles.metaRow}>
+            <Text style={styles.meta}>
+              {progress.completed} de {progress.total} concluídas
+            </Text>
+            {overdue ? (
+              <Text style={styles.overdue}>
+                {overdue} {overdue === 1 ? "atrasada" : "atrasadas"}
+              </Text>
+            ) : null}
+          </View>
+          {next ? (
+            <Text numberOfLines={1} style={styles.next}>
+              Próxima: {next.title}
+            </Text>
+          ) : null}
+        </View>
+      ) : (
+        <Text style={styles.meta}>Sem tarefas vinculadas</Text>
+      )}
+    </Pressable>
+  );
+}
+
 export default function Projetos() {
-  const query = useProjects();
+  const projectsQuery = useProjects();
+  const tasksQuery = useTasks();
   const { createProject } = useWorkspaceMutations();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
+  const grouped = useMemo(() => groupTasksByProject(tasksQuery.data ?? []), [tasksQuery.data]);
+  const projects = useMemo(
+    () => sortProjectsByAttention(projectsQuery.data ?? [], grouped),
+    [projectsQuery.data, grouped],
+  );
   async function save() {
     try {
-      const id = await createProject.mutateAsync(title);
+      const id = await createProject.mutateAsync({ title, description });
       setOpen(false);
       setTitle("");
+      setDescription("");
       router.push(`/projects/${id}`);
-    } catch (error) {
-      void error;
+    } catch {
+      /* The modal preserves input and presents a safe error. */
     }
   }
-  if (query.isPending) return <LoadingState title="Carregando projetos…" />;
-  if (query.isError)
+  async function refresh() {
+    setRefreshing(true);
+    await Promise.allSettled([projectsQuery.refetch(), tasksQuery.refetch()]);
+    setRefreshing(false);
+  }
+  if (projectsQuery.isPending || tasksQuery.isPending)
+    return <LoadingState title="Carregando projetos…" />;
+  if (projectsQuery.isError || tasksQuery.isError)
     return (
       <ErrorState
-        title="Não foi possível carregar agora."
-        message="Seus projetos continuam salvos."
+        title="Não foi possível carregar seus projetos."
+        message="Tente novamente em instantes."
         actionLabel="Tentar novamente"
-        onAction={() => void query.refetch()}
+        onAction={() => void refresh()}
       />
     );
+  const openProjects = projects.filter(
+    (project) => !["completed", "archived"].includes(project.status.toLowerCase()),
+  ).length;
+  const attentionCount = projects.filter(
+    (project) => getProjectOverdueTasks(grouped.get(project.id) ?? []).length > 0,
+  ).length;
   return (
     <AppScreen contentContainerStyle={styles.page}>
       <StandardHeader
@@ -42,34 +137,39 @@ export default function Projetos() {
           </Pressable>
         }
       />
+      {projects.length ? (
+        <View style={styles.summary}>
+          <Text style={styles.summaryText}>
+            {openProjects} {openProjects === 1 ? "projeto em aberto" : "projetos em aberto"}
+          </Text>
+          {attentionCount ? (
+            <Text style={styles.overdue}>
+              {attentionCount} {attentionCount === 1 ? "precisa" : "precisam"} de atenção
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
       <FlatList
-        data={query.data}
+        data={projects}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={query.data.length ? styles.list : styles.empty}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => void refresh()}
+            tintColor={colors.primaryBright}
+            colors={[colors.primaryBright]}
+          />
+        }
+        contentContainerStyle={projects.length ? styles.list : styles.empty}
         ListEmptyComponent={
           <EmptyState
-            title="Você ainda não tem projetos."
-            message="Crie seu primeiro projeto para começar."
-            actionLabel="Criar projeto"
+            title="Nenhum projeto ainda."
+            message="Crie um projeto para reunir tarefas e acompanhar seu progresso."
+            actionLabel="Novo projeto"
             onAction={() => setOpen(true)}
           />
         }
-        renderItem={({ item }) => (
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => router.push(`/projects/${item.id}`)}
-            style={styles.card}
-          >
-            <View style={styles.row}>
-              <Text style={styles.cardTitle}>{item.title}</Text>
-              <Text style={styles.status}>{item.status}</Text>
-            </View>
-            <Text numberOfLines={2} style={styles.copy}>
-              {item.description || "Sem descrição"}
-            </Text>
-            <Text style={styles.progress}>{item.progress}% concluído</Text>
-          </Pressable>
-        )}
+        renderItem={({ item }) => <ProjectCard project={item} tasks={grouped.get(item.id) ?? []} />}
       />
       <NativeFormModal
         visible={open}
@@ -77,23 +177,20 @@ export default function Projetos() {
         placeholder="Nome do projeto"
         value={title}
         onChange={setTitle}
+        secondaryValue={description}
+        secondaryPlaceholder="Descrição (opcional)"
+        onSecondaryChange={setDescription}
         busy={createProject.isPending}
-        error={createProject.error?.message}
+        error={createProject.error ? "Não foi possível salvar o projeto." : null}
         onClose={() => setOpen(false)}
         onSave={() => void save()}
       />
     </AppScreen>
   );
 }
+
 const styles = StyleSheet.create({
   page: { flex: 1 },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: spacing.md,
-  },
-  title: { ...typography.title, color: colors.text },
   add: {
     minHeight: 44,
     justifyContent: "center",
@@ -102,19 +199,58 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   addText: { ...typography.label, color: colors.text },
-  list: { gap: spacing.sm },
+  summary: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    gap: spacing.sm,
+    paddingBottom: spacing.md,
+  },
+  summaryText: { ...typography.caption, color: colors.textMuted },
+  list: { gap: spacing.sm, paddingBottom: spacing.xl },
   empty: { flexGrow: 1 },
   card: {
     gap: spacing.sm,
     padding: spacing.md,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
   },
-  row: { flexDirection: "row", justifyContent: "space-between" },
+  subdued: { opacity: 0.72 },
+  pressed: { opacity: 0.76 },
+  cardTop: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm },
   cardTitle: { ...typography.heading, fontSize: 19, lineHeight: 25, color: colors.text, flex: 1 },
-  status: { ...typography.label, color: colors.primaryBright },
-  copy: { ...typography.body, color: colors.textMuted },
-  progress: { ...typography.label, color: colors.success },
+  status: {
+    ...typography.caption,
+    color: colors.primaryBright,
+    borderWidth: 1,
+    borderColor: colors.accentMuted,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    flexShrink: 0,
+  },
+  copy: { ...typography.body, fontSize: 14, lineHeight: 20, color: colors.textMuted },
+  progressBlock: { gap: spacing.sm },
+  progressTrack: {
+    height: 3,
+    overflow: "hidden",
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceRaised,
+  },
+  progressFill: {
+    height: "100%",
+    borderRadius: radius.pill,
+    backgroundColor: colors.primaryBright,
+  },
+  metaRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    gap: spacing.sm,
+  },
+  meta: { ...typography.caption, color: colors.textMuted },
+  overdue: { ...typography.caption, color: colors.danger },
+  next: { ...typography.caption, color: colors.text },
 });
