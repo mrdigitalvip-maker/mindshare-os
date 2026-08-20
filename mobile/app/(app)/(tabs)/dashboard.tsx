@@ -212,8 +212,11 @@ export default function Dashboard() {
     .filter((subject) => subject.status.toLowerCase() !== "archived")
     .slice(0, 2);
   const dailyActions = useMemo(
-    () => getDailyActions(tasks, projects, subjectsQuery.data ?? []),
-    [projects, subjectsQuery.data, tasks],
+    () =>
+      getDailyActions(tasks, projects, subjectsQuery.data ?? [], new Date(), {
+        excludeTaskId: nextAction?.id,
+      }),
+    [nextAction?.id, projects, subjectsQuery.data, tasks],
   );
   const weeklyChallenge = useMemo(
     () => getWeeklyChallenge(tasks, session?.user.id ?? ""),
@@ -264,6 +267,33 @@ export default function Dashboard() {
           <Text style={styles.title}>O que vamos mover hoje?</Text>
         </View>
 
+        {!tasksQuery.isPending && !tasksQuery.isError ? (
+          <View style={styles.section}>
+            <SectionHeader title="AGORA" />
+            {nextAction ? (
+              <View style={styles.nextCard}>
+                <Text style={styles.nextLabel}>{getDueLabel(nextAction)}</Text>
+                <Text style={styles.nextTitle}>{nextAction.title}</Text>
+                {nextAction.projectId && projectById.get(nextAction.projectId) ? (
+                  <Text numberOfLines={1} style={styles.meta}>
+                    {projectById.get(nextAction.projectId)?.title}
+                  </Text>
+                ) : null}
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Abrir tarefa ${nextAction.title}`}
+                  onPress={() => router.push("/productivity")}
+                  style={styles.openButton}
+                >
+                  <Text style={styles.openButtonText}>Abrir tarefas</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <Text style={styles.calm}>Nenhuma ação urgente agora.</Text>
+            )}
+          </View>
+        ) : null}
+
         <View style={styles.section}>
           <SectionHeader
             title="HOJE"
@@ -312,28 +342,6 @@ export default function Dashboard() {
             </View>
           ) : null}
         </View>
-
-        {!tasksQuery.isPending && !tasksQuery.isError ? (
-          <View style={styles.section}>
-            <SectionHeader title="PRÓXIMA AÇÃO" />
-            {nextAction ? (
-              <View style={styles.nextCard}>
-                <Text style={styles.nextLabel}>{getDueLabel(nextAction)}</Text>
-                <Text style={styles.nextTitle}>{nextAction.title}</Text>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={`Abrir tarefa ${nextAction.title}`}
-                  onPress={() => router.push("/productivity")}
-                  style={styles.openButton}
-                >
-                  <Text style={styles.openButtonText}>Abrir tarefas</Text>
-                </Pressable>
-              </View>
-            ) : (
-              <Text style={styles.calm}>Nenhuma ação urgente agora.</Text>
-            )}
-          </View>
-        ) : null}
 
         {!tasksQuery.isPending &&
         !tasksQuery.isError &&
