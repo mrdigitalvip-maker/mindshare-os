@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
-import { Stack, useLocalSearchParams } from "expo-router";
+import { router, Stack, useLocalSearchParams } from "expo-router";
 import { NativeFormModal } from "@/components/native-form-modal";
 import { EmptyState, ErrorState, LoadingState } from "@/components/screen-state";
 import { useProject, useWorkspaceMutations } from "@/hooks/use-workspaces";
@@ -17,18 +17,32 @@ export default function ProjectWorkspace() {
   const [projectTitle, setProjectTitle] = useState("");
   const [projectDescription, setProjectDescription] = useState("");
   if (!projectId)
-    return <ErrorState title="Invalid project" message="The project link is incomplete." />;
-  if (query.isPending) return <LoadingState title="Loading project…" />;
+    return (
+      <ErrorState
+        title="Projeto não encontrado"
+        message="O link do projeto está incompleto."
+        actionLabel="Voltar para projetos"
+        onAction={() => router.replace("/projects")}
+      />
+    );
+  if (query.isPending) return <LoadingState title="Carregando projeto…" />;
   if (query.isError)
     return (
       <ErrorState
-        title="Project unavailable"
-        actionLabel="Retry"
+        title="Projeto indisponível"
+        actionLabel="Tentar novamente"
         onAction={() => void query.refetch()}
       />
     );
   if (!query.data)
-    return <EmptyState title="Project not found" message="It may have been removed." />;
+    return (
+      <EmptyState
+        title="Projeto não encontrado"
+        message="Ele pode ter sido removido."
+        actionLabel="Voltar para projetos"
+        onAction={() => router.replace("/projects")}
+      />
+    );
   const { project, tasks } = query.data;
   async function addTask() {
     try {

@@ -28,7 +28,7 @@ export default function RootLayout() {
         <AppErrorBoundary>
           <QueryProvider>
             <AuthProvider>
-              <StatusBar style="light" />
+              <StatusBar style="light" backgroundColor={colors.background} translucent={false} />
               <Stack
                 screenOptions={{
                   headerStyle: { backgroundColor: colors.surface },

@@ -1,4 +1,5 @@
 import { Redirect, Stack } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ErrorState, LoadingState } from "@/components/screen-state";
 import { useProfile } from "@/hooks/use-profile";
@@ -6,6 +7,7 @@ import { colors } from "@/lib/theme";
 import { useAuth } from "@/providers/auth-provider";
 
 export default function AppLayout() {
+  const insets = useSafeAreaInsets();
   const { status } = useAuth();
   const profile = useProfile();
   if (status === "initializing") return <LoadingState title="Preparando a NEXORA…" />;
@@ -32,11 +34,41 @@ export default function AppLayout() {
       }}
     >
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="projects/[projectId]" options={{ title: "Projeto" }} />
-      <Stack.Screen name="studies/index" options={{ title: "Estudos" }} />
-      <Stack.Screen name="studies/[subjectId]" options={{ title: "Matéria" }} />
-      <Stack.Screen name="settings" options={{ title: "Configurações" }} />
-      <Stack.Screen name="premium" options={{ title: "NEXORA Premium" }} />
+      <Stack.Screen
+        name="projects/[projectId]"
+        options={{
+          title: "Projeto",
+          contentStyle: { backgroundColor: colors.background, paddingBottom: insets.bottom },
+        }}
+      />
+      <Stack.Screen
+        name="studies/index"
+        options={{
+          title: "Estudos",
+          contentStyle: { backgroundColor: colors.background, paddingBottom: insets.bottom },
+        }}
+      />
+      <Stack.Screen
+        name="studies/[subjectId]"
+        options={{
+          title: "Matéria",
+          contentStyle: { backgroundColor: colors.background, paddingBottom: insets.bottom },
+        }}
+      />
+      <Stack.Screen
+        name="settings"
+        options={{
+          title: "Configurações",
+          contentStyle: { backgroundColor: colors.background, paddingBottom: insets.bottom },
+        }}
+      />
+      <Stack.Screen
+        name="premium"
+        options={{
+          title: "NEXORA Premium",
+          contentStyle: { backgroundColor: colors.background, paddingBottom: insets.bottom },
+        }}
+      />
     </Stack>
   );
 }

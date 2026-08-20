@@ -1,6 +1,7 @@
 import { router } from "expo-router";
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { AppScreen } from "@/components/app-screen";
 import { AppHeader, DrawerMenu } from "@/components/product-ui";
 import { NexoraAgent } from "@/components/nexora-agent";
 import { useProfile } from "@/hooks/use-profile";
@@ -23,7 +24,7 @@ export default function Dashboard() {
     router.push({ pathname: "/assistant", params: { prompt } });
   }
   return (
-    <View style={styles.screen}>
+    <AppScreen padded={false}>
       <AppHeader onMenu={() => setDrawer(true)} />
       <DrawerMenu visible={drawer} onClose={() => setDrawer(false)} />
       <ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
@@ -66,12 +67,11 @@ export default function Dashboard() {
           </Pressable>
         </View>
       </ScrollView>
-    </View>
+    </AppScreen>
   );
 }
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  page: { padding: spacing.lg, gap: spacing.lg },
+  page: { paddingTop: spacing.md, paddingBottom: spacing.lg, gap: spacing.lg },
   identity: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   eyebrow: { ...typography.eyebrow, color: colors.primaryBright },
   greeting: { ...typography.body, color: colors.text },

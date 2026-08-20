@@ -1,26 +1,28 @@
 import { useMemo, useState } from "react";
 import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { NativeFormModal } from "@/components/native-form-modal";
+import { AppScreen } from "@/components/app-screen";
+import { StandardHeader } from "@/components/product-ui";
 import { EmptyState, ErrorState, LoadingState } from "@/components/screen-state";
 import { useTasks, useWorkspaceMutations } from "@/hooks/use-workspaces";
 import { colors, radius, spacing, typography } from "@/lib/theme";
 import type { Task } from "@/services/workspace-service";
-type Filter = "Today" | "Entrada" | "Upcoming" | "Overdue" | "Completed";
-const filters: Filter[] = ["Today", "Entrada", "Upcoming", "Overdue", "Completed"];
+type Filter = "Hoje" | "Entrada" | "Próximas" | "Atrasadas" | "Concluídas";
+const filters: Filter[] = ["Hoje", "Entrada", "Próximas", "Atrasadas", "Concluídas"];
 const dateOnly = () => new Date().toISOString().slice(0, 10);
 function matches(task: Task, filter: Filter) {
   const today = dateOnly();
-  if (filter === "Completed") return task.completed;
+  if (filter === "Concluídas") return task.completed;
   if (task.completed) return false;
   if (filter === "Entrada") return !task.dueDate;
-  if (filter === "Today") return task.dueDate === today;
-  if (filter === "Overdue") return Boolean(task.dueDate && task.dueDate < today);
+  if (filter === "Hoje") return task.dueDate === today;
+  if (filter === "Atrasadas") return Boolean(task.dueDate && task.dueDate < today);
   return Boolean(task.dueDate && task.dueDate > today);
 }
 export default function Productivity() {
   const query = useTasks();
   const { mutateTask } = useWorkspaceMutations();
-  const [filter, setFilter] = useState<Filter>("Today");
+  const [filter, setFilter] = useState<Filter>("Hoje");
   const [modal, setModal] = useState(false);
   const [title, setTitle] = useState("");
   const [editing, setEditaring] = useState<Task | null>(null);
@@ -55,7 +57,7 @@ export default function Productivity() {
         await mutateTask.mutateAsync({
           action: "create",
           title,
-          dueDate: filter === "Today" ? dateOnly() : null,
+          dueDate: filter === "Hoje" ? dateOnly() : null,
         });
       setModal(false);
       setTitle("");
@@ -65,13 +67,15 @@ export default function Productivity() {
     }
   }
   return (
-    <View style={styles.page}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Tarefas</Text>
-        <Pressable accessibilityRole="button" onPress={() => openEditaror()} style={styles.add}>
-          <Text style={styles.addText}>Nova</Text>
-        </Pressable>
-      </View>
+    <AppScreen contentContainerStyle={styles.page}>
+      <StandardHeader
+        title="Tarefas"
+        action={
+          <Pressable accessibilityRole="button" onPress={() => openEditaror()} style={styles.add}>
+            <Text style={styles.addText}>Nova</Text>
+          </Pressable>
+        }
+      />
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -80,6 +84,7 @@ export default function Productivity() {
         {filters.map((item) => (
           <Pressable
             accessibilityRole="button"
+            accessibilityState={{ selected: item === filter }}
             key={item}
             onPress={() => setFilter(item)}
             style={[styles.filter, item === filter && styles.activeFilter]}
@@ -140,7 +145,7 @@ export default function Productivity() {
       />
       <NativeFormModal
         visible={modal}
-        title={editing ? "Editar task" : "Nova task"}
+        title={editing ? "Editar tarefa" : "Nova tarefa"}
         placeholder="Título da tarefa"
         value={title}
         onChange={setTitle}
@@ -149,11 +154,11 @@ export default function Productivity() {
         onClose={() => setModal(false)}
         onSave={() => void save()}
       />
-    </View>
+    </AppScreen>
   );
 }
 const styles = StyleSheet.create({
-  page: { flex: 1, padding: spacing.md, backgroundColor: colors.background },
+  page: { flex: 1 },
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   title: { ...typography.title, color: colors.text },
   add: {
@@ -166,7 +171,7 @@ const styles = StyleSheet.create({
   addText: { ...typography.label, color: colors.text },
   filters: { gap: spacing.sm, paddingVertical: spacing.md },
   filter: {
-    height: 40,
+    minHeight: 44,
     justifyContent: "center",
     paddingHorizontal: spacing.md,
     borderRadius: radius.pill,

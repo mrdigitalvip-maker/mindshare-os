@@ -16,6 +16,15 @@ export const colors = {
 } as const;
 
 export const spacing = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32, xxl: 48 } as const;
+export const layout = {
+  screenPadding: 16,
+  screenTop: 8,
+  sectionGap: 24,
+  cardGap: 8,
+  headerHeight: 56,
+  tabBarBaseHeight: 58,
+  maxContentWidth: 720,
+} as const;
 export const radius = { sm: 8, md: 14, lg: 22, pill: 999 } as const;
 export const typography = {
   display: { fontSize: 42, lineHeight: 48, fontWeight: "600" } satisfies TextStyle,
@@ -24,7 +33,12 @@ export const typography = {
   body: { fontSize: 16, lineHeight: 23, fontWeight: "400" } satisfies TextStyle,
   label: { fontSize: 14, lineHeight: 19, fontWeight: "600" } satisfies TextStyle,
   caption: { fontSize: 12, lineHeight: 17, fontWeight: "500" } satisfies TextStyle,
-  eyebrow: { fontSize: 12, lineHeight: 17, fontWeight: "700", letterSpacing: 2 } satisfies TextStyle,
+  eyebrow: {
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: "700",
+    letterSpacing: 2,
+  } satisfies TextStyle,
 } as const;
 export const shadows = {
   raised: {

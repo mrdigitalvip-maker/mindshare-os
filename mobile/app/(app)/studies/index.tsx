@@ -65,7 +65,7 @@ export default function Estudos() {
       />
       <NativeFormModal
         visible={modal}
-        title="Nova subject"
+        title="Nova matéria"
         placeholder="Nome da matéria"
         value={name}
         onChange={setName}

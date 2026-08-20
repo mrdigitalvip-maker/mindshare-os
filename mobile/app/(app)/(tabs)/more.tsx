@@ -1,9 +1,12 @@
 import { StyleSheet, Text, View } from "react-native";
 import { ModuleCard } from "@/components/product-ui";
+import { AppScreen } from "@/components/app-screen";
+import { StandardHeader } from "@/components/product-ui";
 import { colors, spacing, typography } from "@/lib/theme";
 export default function More() {
   return (
-    <View style={styles.page}>
+    <AppScreen scroll contentContainerStyle={styles.page}>
+      <StandardHeader title="Mais" />
       <Text style={styles.eyebrow}>MÓDULOS NEXORA</Text>
       <Text style={styles.title}>Mais possibilidades.</Text>
       <Text style={styles.copy}>Acesse os módulos disponíveis no seu espaço.</Text>
@@ -27,11 +30,11 @@ export default function More() {
           href="/settings"
         />
       </View>
-    </View>
+    </AppScreen>
   );
 }
 const styles = StyleSheet.create({
-  page: { flex: 1, gap: spacing.sm, padding: spacing.lg, backgroundColor: colors.background },
+  page: { gap: spacing.sm, paddingBottom: spacing.lg },
   eyebrow: { ...typography.eyebrow, color: colors.primaryBright },
   title: { ...typography.title, color: colors.text },
   copy: { ...typography.body, color: colors.textMuted, marginBottom: spacing.lg },

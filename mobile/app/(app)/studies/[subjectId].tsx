@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { Stack, useLocalSearchParams } from "expo-router";
+import { router, Stack, useLocalSearchParams } from "expo-router";
 import { NativeFormModal } from "@/components/native-form-modal";
 import { EmptyState, ErrorState, LoadingState } from "@/components/screen-state";
 import { useSubject, useWorkspaceMutations } from "@/hooks/use-workspaces";
@@ -17,7 +17,12 @@ export default function SubjectWorkspace() {
   const [noteContent, setNoteContent] = useState("");
   if (!subjectId)
     return (
-      <ErrorState title="Matéria não encontrada" message="Volte e escolha uma matéria válida." />
+      <ErrorState
+        title="Matéria não encontrada"
+        message="Volte e escolha uma matéria válida."
+        actionLabel="Voltar para estudos"
+        onAction={() => router.replace("/studies")}
+      />
     );
   if (query.isPending) return <LoadingState title="Carregando matéria…" />;
   if (query.isError)

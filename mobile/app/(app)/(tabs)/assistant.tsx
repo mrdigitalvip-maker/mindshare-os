@@ -1,15 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocalSearchParams } from "expo-router";
-import {
-  FlatList,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { AppScreen } from "@/components/app-screen";
 import { useRecentConversation, useSendChat } from "@/hooks/use-chat";
 import { NexoraAgent } from "@/components/nexora-agent";
 import { EmptyState, ErrorState, LoadingState } from "@/components/screen-state";
@@ -76,11 +68,7 @@ export default function Assistant() {
       />
     );
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={88}
-      style={styles.page}
-    >
+    <AppScreen keyboard padded={false}>
       <View style={styles.agent}>
         <NexoraAgent state={agentState} size={86} />
         <View>
@@ -119,7 +107,7 @@ export default function Assistant() {
       ) : null}
       <View style={styles.composer}>
         <TextInput
-          accessibilityLabel="Message NEXORA"
+          accessibilityLabel="Mensagem para a NEXORA"
           multiline
           placeholder="Converse com a NEXORA…"
           placeholderTextColor={colors.textMuted}
@@ -137,7 +125,7 @@ export default function Assistant() {
           <Text style={styles.sendText}>Enviar</Text>
         </Pressable>
       </View>
-    </KeyboardAvoidingView>
+    </AppScreen>
   );
 }
 const styles = StyleSheet.create({
