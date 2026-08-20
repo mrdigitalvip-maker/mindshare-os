@@ -5,7 +5,6 @@ export type Project = {
   title: string;
   description: string;
   status: string;
-  progress: number;
 };
 export type Task = {
   id: string;
@@ -58,39 +57,46 @@ const taskFrom = (row: Record<string, unknown>): Task => ({
 
 export async function listProjects(userId: string): Promise<Project[]> {
   const id = owner(userId);
-  const [{ data, error }, { data: tasks, error: taskError }] = await Promise.all([
-    supabase
-      .from("projects")
-      .select("id,title,description,status")
-      .eq("user_id", id)
-      .order("updated_at", { ascending: false }),
-    supabase.from("tasks").select("project_id,completed").eq("user_id", id),
-  ]);
-  if (error || taskError) throw error ?? taskError;
-  return (data ?? []).map((row) => {
-    const projectTasks = (tasks ?? []).filter((task) => task.project_id === row.id);
-    const done = projectTasks.filter((task) => task.completed).length;
-    return {
+  const { data, error } = await supabase
+    .from("projects")
+    .select("id,title,description,status")
+    .eq("user_id", id)
+    .order("updated_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map((row) => ({
       id: row.id,
       title: row.title ?? "Untitled project",
       description: row.description ?? "",
       status: row.status ?? "active",
-      progress: projectTasks.length
-        ? Math.round((done / projectTasks.length) * 100)
-        : row.status === "completed"
-          ? 100
-          : 0,
-    };
-  });
+  }));
 }
-export async function createProject(userId: string, title: string): Promise<string> {
+export async function createProject(
+  userId: string,
+  input: { title: string; description?: string },
+): Promise<string> {
   const { data, error } = await supabase
     .from("projects")
-    .insert({ user_id: owner(userId), title: required(title, "Project name"), status: "active" })
+    .insert({
+      user_id: owner(userId),
+      title: required(input.title, "Project name"),
+      description: input.description?.trim() || null,
+      status: "active",
+    })
     .select("id")
     .single();
   if (error) throw error;
   return data.id;
+}
+export async function deleteProject(userId: string, projectId: string): Promise<void> {
+  const { data, error } = await supabase
+    .from("projects")
+    .delete()
+    .eq("id", resource(projectId))
+    .eq("user_id", owner(userId))
+    .select("id")
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) throw new Error("Project not found.");
 }
 export async function updateProject(
   userId: string,
