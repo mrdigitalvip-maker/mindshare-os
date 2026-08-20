@@ -111,6 +111,7 @@ export default function Assistant() {
 
       <FlatList
         ref={list}
+        style={styles.listViewport}
         data={messages}
         keyExtractor={(item) => item.id}
         keyboardDismissMode="interactive"
@@ -172,6 +173,7 @@ export default function Assistant() {
         <TextInput
           accessibilityLabel="Mensagem para a NEXORA"
           multiline
+          blurOnSubmit={false}
           maxLength={12000}
           placeholder="Mensagem para a NEXORA…"
           placeholderTextColor={colors.textMuted}
@@ -213,6 +215,7 @@ const styles = StyleSheet.create({
   status: { ...typography.caption, color: colors.textMuted },
   newButton: { minHeight: 44, justifyContent: "center", paddingHorizontal: spacing.sm },
   newButtonText: { ...typography.label, color: colors.primaryBright },
+  listViewport: { flex: 1 },
   list: { flexGrow: 1, gap: spacing.md, padding: spacing.md, paddingBottom: spacing.lg },
   emptyList: { flexGrow: 1, justifyContent: "center", padding: spacing.lg },
   empty: { alignItems: "center", gap: spacing.sm },
@@ -269,10 +272,12 @@ const styles = StyleSheet.create({
   errorDetail: { ...typography.caption, color: colors.textMuted },
   retry: { ...typography.label, color: colors.primaryBright, paddingVertical: spacing.sm },
   composer: {
+    flexShrink: 0,
     flexDirection: "row",
     alignItems: "flex-end",
     gap: spacing.sm,
-    padding: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 12,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
     backgroundColor: colors.surface,

@@ -11,6 +11,7 @@
       "supportsTablet": true
     },
     "android": {
+      "softwareKeyboardLayoutMode": "resize",
       "package": "app.vercel.nexora_os_eosin.twa",
       "versionCode": 1,
       "permissions": ["POST_NOTIFICATIONS"],

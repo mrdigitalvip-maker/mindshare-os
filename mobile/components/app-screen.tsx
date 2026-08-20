@@ -44,7 +44,7 @@ export function AppScreen({
     <SafeAreaView edges={includeBottomInset ? ["top", "bottom"] : ["top"]} style={styles.safeArea}>
       {keyboard ? (
         <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
           style={styles.flex}
         >
           {content}

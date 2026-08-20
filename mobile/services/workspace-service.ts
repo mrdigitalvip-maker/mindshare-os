@@ -14,6 +14,7 @@ export type Task = {
   dueDate: string | null;
   projectId: string | null;
   completed: boolean;
+  updatedAt?: string | null;
 };
 export type Subject = {
   id: string;
@@ -53,6 +54,7 @@ const taskFrom = (row: Record<string, unknown>): Task => ({
   dueDate: typeof row.due_date === "string" ? row.due_date : null,
   projectId: typeof row.project_id === "string" ? row.project_id : null,
   completed: row.completed === true,
+  updatedAt: typeof row.updated_at === "string" ? row.updated_at : null,
 });
 
 export async function listProjects(userId: string): Promise<Project[]> {
@@ -132,7 +134,7 @@ export async function getProject(
 export async function listTasks(userId: string, projectId?: string): Promise<Task[]> {
   let query = supabase
     .from("tasks")
-    .select("id,title,description,priority,due_date,project_id,completed")
+    .select("id,title,description,priority,due_date,project_id,completed,updated_at")
     .eq("user_id", owner(userId))
     .order("updated_at", { ascending: false });
   if (projectId) query = query.eq("project_id", resource(projectId));
