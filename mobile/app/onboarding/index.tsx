@@ -1,22 +1,18 @@
 import { useState } from "react";
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
-import { router } from "expo-router";
+import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Redirect, router } from "expo-router";
 import { NexoraAgent } from "@/components/nexora-agent";
+import { AppScreen } from "@/components/app-screen";
+import { LoadingState } from "@/components/screen-state";
 import { colors, radius, spacing, typography } from "@/lib/theme";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/providers/auth-provider";
 export default function Onboarding() {
-  const { session } = useAuth();
+  const { session, status } = useAuth();
   const [answer, setAnswer] = useState("");
   const [busy, setBusy] = useState(false);
+  if (status === "initializing") return <LoadingState title="Preparando seu espaço…" />;
+  if (status === "unauthenticated") return <Redirect href="/auth" />;
   async function complete() {
     if (!session || !answer.trim()) return;
     setBusy(true);
@@ -27,7 +23,7 @@ export default function Onboarding() {
     if (!error) router.replace("/dashboard");
   }
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={s.page}>
+    <AppScreen keyboard includeBottomInset contentContainerStyle={s.page}>
       <NexoraAgent size={160} state={answer ? "attention" : "quiet"} />
       <Text style={s.eyebrow}>NEXORA · PRIMEIRO CONTATO</Text>
       <Text style={s.title}>O que você gostaria de transformar primeiro?</Text>
@@ -46,7 +42,7 @@ export default function Onboarding() {
           <Text style={s.sendText}>{busy ? "…" : "↑"}</Text>
         </Pressable>
       </View>
-    </KeyboardAvoidingView>
+    </AppScreen>
   );
 }
 const s = StyleSheet.create({
@@ -54,8 +50,6 @@ const s = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     gap: spacing.md,
-    padding: spacing.lg,
-    backgroundColor: colors.background,
   },
   eyebrow: { ...typography.eyebrow, color: colors.primaryBright },
   title: { ...typography.display, fontSize: 36, color: colors.text },

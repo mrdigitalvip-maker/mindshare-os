@@ -6,7 +6,7 @@ import { useAuth } from "@/providers/auth-provider";
 
 export default function Index() {
   const { status } = useAuth();
-  if (status === "initializing") return <LoadingState title="Restoring your session…" />;
+  if (status === "initializing") return <LoadingState title="Restaurando sua sessão…" />;
   if (!hasSupabaseConfig) return <Redirect href="/auth" />;
   return <Redirect href={status === "authenticated" ? "/dashboard" : "/auth"} />;
 }

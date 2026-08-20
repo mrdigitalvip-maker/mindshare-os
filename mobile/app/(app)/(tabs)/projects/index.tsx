@@ -2,6 +2,8 @@ import { useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { NativeFormModal } from "@/components/native-form-modal";
+import { AppScreen } from "@/components/app-screen";
+import { StandardHeader } from "@/components/product-ui";
 import { EmptyState, ErrorState, LoadingState } from "@/components/screen-state";
 import { useProjects, useWorkspaceMutations } from "@/hooks/use-workspaces";
 import { colors, radius, spacing, typography } from "@/lib/theme";
@@ -31,13 +33,15 @@ export default function Projetos() {
       />
     );
   return (
-    <View style={styles.page}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Projetos</Text>
-        <Pressable accessibilityRole="button" onPress={() => setOpen(true)} style={styles.add}>
-          <Text style={styles.addText}>Novo</Text>
-        </Pressable>
-      </View>
+    <AppScreen contentContainerStyle={styles.page}>
+      <StandardHeader
+        title="Projetos"
+        action={
+          <Pressable accessibilityRole="button" onPress={() => setOpen(true)} style={styles.add}>
+            <Text style={styles.addText}>Novo</Text>
+          </Pressable>
+        }
+      />
       <FlatList
         data={query.data}
         keyExtractor={(item) => item.id}
@@ -69,7 +73,7 @@ export default function Projetos() {
       />
       <NativeFormModal
         visible={open}
-        title="Novo project"
+        title="Novo projeto"
         placeholder="Nome do projeto"
         value={title}
         onChange={setTitle}
@@ -78,11 +82,11 @@ export default function Projetos() {
         onClose={() => setOpen(false)}
         onSave={() => void save()}
       />
-    </View>
+    </AppScreen>
   );
 }
 const styles = StyleSheet.create({
-  page: { flex: 1, padding: spacing.md, backgroundColor: colors.background },
+  page: { flex: 1 },
   header: {
     flexDirection: "row",
     alignItems: "center",

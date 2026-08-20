@@ -1,5 +1,6 @@
-import { router, type Href } from "expo-router";
+import { router, type Href, usePathname } from "expo-router";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { colors, radius, spacing, typography } from "@/lib/theme";
 
@@ -28,6 +29,17 @@ export function AppHeader({ onMenu }: { onMenu(): void }) {
   );
 }
 
+export function StandardHeader({ title, action }: { title: string; action?: React.ReactNode }) {
+  return (
+    <View style={styles.standardHeader}>
+      <Text accessibilityRole="header" style={styles.title}>
+        {title}
+      </Text>
+      {action}
+    </View>
+  );
+}
+
 const sections: Array<{ title: string; items: Array<[string, Href]> }> = [
   {
     title: "PRINCIPAL",
@@ -40,7 +52,7 @@ const sections: Array<{ title: string; items: Array<[string, Href]> }> = [
     title: "ESPAÇO DE TRABALHO",
     items: [
       ["Projetos", "/projects"],
-      ["Produtividade", "/productivity"],
+      ["Tarefas", "/productivity"],
     ],
   },
   { title: "CRESCIMENTO", items: [["Estudos", "/studies"]] },
@@ -53,10 +65,18 @@ const sections: Array<{ title: string; items: Array<[string, Href]> }> = [
   },
 ];
 export function DrawerMenu({ visible, onClose }: { visible: boolean; onClose(): void }) {
+  const insets = useSafeAreaInsets();
+  const pathname = usePathname();
   return (
     <Modal transparent animationType="fade" visible={visible} onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <ScrollView style={styles.drawer} contentContainerStyle={styles.drawerContent}>
+        <ScrollView
+          style={styles.drawer}
+          contentContainerStyle={[
+            styles.drawerContent,
+            { paddingTop: insets.top + spacing.sm, paddingBottom: insets.bottom + spacing.lg },
+          ]}
+        >
           <View style={styles.brandRow}>
             <Text style={styles.brand}>NEXORA</Text>
             <Pressable accessibilityLabel="Fechar menu" onPress={onClose} style={styles.icon}>
@@ -71,9 +91,11 @@ export function DrawerMenu({ visible, onClose }: { visible: boolean; onClose(): 
                   key={label}
                   onPress={() => {
                     onClose();
-                    router.push(href);
+                    router.navigate(href);
                   }}
-                  style={styles.navRow}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: pathname === href }}
+                  style={[styles.navRow, pathname === href && styles.activeNavRow]}
                 >
                   <Text style={styles.gold}>◇</Text>
                   <Text style={styles.navText}>{label}</Text>
@@ -122,6 +144,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
+  standardHeader: {
+    minHeight: 56,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  title: { ...typography.title, color: colors.text, flexShrink: 1 },
   icon: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   iconText: { color: colors.text, fontSize: 22 },
   search: {
@@ -171,6 +200,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     borderRadius: radius.md,
   },
+  activeNavRow: { backgroundColor: colors.surfaceRaised },
   navText: { ...typography.body, flex: 1, color: colors.text },
   chevron: { fontSize: 24, color: colors.textMuted },
   module: {

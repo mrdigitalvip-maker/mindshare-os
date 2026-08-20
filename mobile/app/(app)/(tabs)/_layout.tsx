@@ -2,7 +2,7 @@ import { Tabs } from "expo-router";
 import { Text } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { colors, typography } from "@/lib/theme";
+import { colors, layout, typography } from "@/lib/theme";
 
 const icons: Record<string, string> = {
   dashboard: "⌂",
@@ -22,7 +22,7 @@ export default function MainTabs() {
         tabBarInactiveTintColor: colors.textMuted,
         tabBarLabelStyle: { ...typography.caption, marginTop: 2 },
         tabBarStyle: {
-          height: 58 + insets.bottom,
+          height: layout.tabBarBaseHeight + insets.bottom,
           paddingTop: 7,
           paddingBottom: Math.max(insets.bottom, 7),
           backgroundColor: colors.background,
