@@ -2,9 +2,10 @@ import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { NexoraAgent } from "@/components/nexora-agent";
 import { useSubscription } from "@/hooks/use-subscription";
 import { colors, radius, spacing, typography } from "@/lib/theme";
+import { getDisplayEntitlement } from "@/lib/presentation";
 export default function Premium() {
   const subscription = useSubscription();
-  const tier = subscription.data?.entitlement ?? "Básico";
+  const tier = getDisplayEntitlement(subscription.data?.entitlement);
   return (
     <ScrollView contentContainerStyle={s.page}>
       <NexoraAgent size={92} state="attention" />
@@ -12,7 +13,7 @@ export default function Premium() {
       <Text style={s.title}>{tier}</Text>
       <Text style={s.copy}>Sua experiência NEXORA acompanha o estado atual da sua assinatura.</Text>
       <View style={s.card}>
-        <Text style={s.heading}>Benefícios do NEXORA</Text>
+        <Text style={s.heading}>Disponível agora</Text>
         <Text style={s.item}>✦ Assistência conectada ao seu espaço</Text>
         <Text style={s.item}>✦ Projetos, tarefas e estudos integrados</Text>
         <Text style={s.item}>✦ Histórico e continuidade entre sessões</Text>

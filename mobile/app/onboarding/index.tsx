@@ -7,41 +7,51 @@ import { LoadingState } from "@/components/screen-state";
 import { colors, radius, spacing, typography } from "@/lib/theme";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/providers/auth-provider";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 export default function Onboarding() {
   const { session, status } = useAuth();
-  const [answer, setAnswer] = useState("");
+  const client = useQueryClient();
+  const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string>();
   if (status === "initializing") return <LoadingState title="Preparando seu espaço…" />;
   if (status === "unauthenticated") return <Redirect href="/auth" />;
   async function complete() {
-    if (!session || !answer.trim()) return;
+    if (!session || !name.trim() || busy) return;
     setBusy(true);
+    setErrorMessage(undefined);
     const { error } = await supabase
       .from("profiles")
-      .upsert({ id: session.user.id, onboarded: true });
+      .upsert({ id: session.user.id, full_name: name.trim(), onboarded: true });
     setBusy(false);
-    if (!error) router.replace("/dashboard");
+    if (error) {
+      setErrorMessage("Não foi possível concluir agora. Seu nome foi mantido; tente novamente.");
+      return;
+    }
+    await client.invalidateQueries({ queryKey: queryKeys.profile });
+    router.replace("/dashboard");
   }
   return (
     <AppScreen keyboard includeBottomInset contentContainerStyle={s.page}>
-      <NexoraAgent size={160} state={answer ? "attention" : "quiet"} />
-      <Text style={s.eyebrow}>NEXORA · PRIMEIRO CONTATO</Text>
-      <Text style={s.title}>O que você gostaria de transformar primeiro?</Text>
-      <Text style={s.progress}>1 de 5 · responda do seu jeito</Text>
+      <NexoraAgent size={160} state={name ? "attention" : "quiet"} />
+      <Text style={s.eyebrow}>BOAS-VINDAS À NEXORA</Text>
+      <Text style={s.title}>Como podemos chamar você?</Text>
+      <Text style={s.progress}>Organize tarefas, projetos e estudos em um só lugar.</Text>
       <View style={s.composer}>
         <TextInput
           autoFocus
-          multiline
-          value={answer}
-          onChangeText={setAnswer}
-          placeholder="Conte para a NEXORA…"
+          value={name}
+          onChangeText={setName}
+          placeholder="Seu nome"
           placeholderTextColor={colors.textMuted}
           style={s.input}
         />
-        <Pressable disabled={!answer.trim() || busy} onPress={() => void complete()} style={s.send}>
-          <Text style={s.sendText}>{busy ? "…" : "↑"}</Text>
+        <Pressable disabled={!name.trim() || busy} onPress={() => void complete()} style={s.send}>
+          <Text style={s.sendText}>{busy ? "Salvando…" : "Começar"}</Text>
         </Pressable>
       </View>
+      {errorMessage ? <Text style={s.error}>{errorMessage}</Text> : null}
     </AppScreen>
   );
 }
@@ -56,7 +66,7 @@ const s = StyleSheet.create({
   progress: { ...typography.label, color: colors.textMuted },
   composer: {
     flexDirection: "row",
-    alignItems: "flex-end",
+    alignItems: "center",
     gap: spacing.sm,
     padding: spacing.md,
     borderRadius: radius.lg,
@@ -67,17 +77,18 @@ const s = StyleSheet.create({
   input: {
     ...typography.body,
     flex: 1,
-    minHeight: 70,
+    minHeight: 48,
     color: colors.text,
     textAlignVertical: "top",
   },
   send: {
-    width: 48,
+    minWidth: 96,
     height: 48,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 24,
     backgroundColor: colors.primaryBright,
   },
-  sendText: { fontSize: 23, color: colors.background },
+  sendText: { ...typography.label, color: colors.background },
+  error: { ...typography.body, color: colors.danger },
 });

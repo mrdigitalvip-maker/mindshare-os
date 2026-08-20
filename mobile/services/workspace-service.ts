@@ -48,7 +48,7 @@ const owner = (userId: string) => required(userId, "User ID");
 const resource = (id: string) => required(id, "Resource ID");
 const taskFrom = (row: Record<string, unknown>): Task => ({
   id: String(row.id),
-  title: String(row.title ?? "Untitled task"),
+  title: String(row.title ?? "Tarefa sem título"),
   description: String(row.description ?? ""),
   priority: String(row.priority ?? "medium"),
   dueDate: typeof row.due_date === "string" ? row.due_date : null,
@@ -67,7 +67,7 @@ export async function listProjects(userId: string): Promise<Project[]> {
   if (error) throw error;
   return (data ?? []).map((row) => ({
     id: row.id,
-    title: row.title ?? "Untitled project",
+    title: row.title ?? "Projeto sem título",
     description: row.description ?? "",
     status: row.status ?? "active",
   }));
@@ -212,7 +212,7 @@ export async function listSubjects(userId: string): Promise<Subject[]> {
   if (error) throw error;
   return (data ?? []).map((row) => ({
     id: row.id,
-    name: row.name ?? "Untitled subject",
+    name: row.name ?? "Matéria sem nome",
     description: row.description ?? "",
     status: row.status ?? "active",
     color: row.color ?? "#8B7CFF",

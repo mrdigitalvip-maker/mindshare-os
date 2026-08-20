@@ -21,16 +21,22 @@ export function AuthProvider({ children }: PropsWithChildren) {
   useEffect(() => {
     let mounted = true;
     const removeLifecycle = installAuthRefreshLifecycle();
-    void supabase.auth.getSession().then(async ({ data }) => {
-      let restored = data.session;
-      if (restored?.expires_at && restored.expires_at * 1000 <= Date.now() + 30_000) {
-        const refreshed = await supabase.auth.refreshSession(restored);
-        restored = refreshed.data.session;
-      }
-      if (!mounted) return;
-      setSession(restored);
-      setInitialized(true);
-    });
+    void supabase.auth
+      .getSession()
+      .then(async ({ data }) => {
+        let restored = data.session;
+        if (restored?.expires_at && restored.expires_at * 1000 <= Date.now() + 30_000) {
+          const refreshed = await supabase.auth.refreshSession(restored);
+          restored = refreshed.data.session;
+        }
+        if (mounted) setSession(restored);
+      })
+      .catch(() => {
+        if (mounted) setSession(null);
+      })
+      .finally(() => {
+        if (mounted) setInitialized(true);
+      });
     const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
       setInitialized(true);

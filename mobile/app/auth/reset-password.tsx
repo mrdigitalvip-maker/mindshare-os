@@ -6,25 +6,33 @@ import { colors, radius, spacing, typography } from "@/lib/theme";
 export default function ResetPassword() {
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState<string>();
+  const [busy, setBusy] = useState(false);
   async function update() {
+    if (password.length < 8 || busy) return;
+    setBusy(true);
     const { error } = await supabase.auth.updateUser({ password });
-    if (error) setMessage(error.message);
+    setBusy(false);
+    if (error) setMessage("Não foi possível atualizar a senha. Tente novamente.");
     else router.replace("/dashboard");
   }
   return (
     <View style={styles.page}>
-      <Text style={styles.title}>Choose a new password</Text>
+      <Text style={styles.title}>Crie uma nova senha</Text>
       <TextInput
         secureTextEntry
         value={password}
         onChangeText={setPassword}
-        placeholder="New password"
+        placeholder="Nova senha (mínimo de 8 caracteres)"
         placeholderTextColor={colors.textMuted}
         style={styles.input}
       />
       {message ? <Text style={styles.message}>{message}</Text> : null}
-      <Pressable onPress={() => void update()} style={styles.button}>
-        <Text style={styles.buttonText}>Update password</Text>
+      <Pressable
+        disabled={password.length < 8 || busy}
+        onPress={() => void update()}
+        style={styles.button}
+      >
+        <Text style={styles.buttonText}>{busy ? "Atualizando…" : "Atualizar senha"}</Text>
       </Pressable>
     </View>
   );

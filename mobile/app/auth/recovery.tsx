@@ -6,15 +6,23 @@ import { colors, radius, spacing, typography } from "@/lib/theme";
 export default function Recovery() {
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState<string>();
+  const [busy, setBusy] = useState(false);
   async function send() {
+    if (!email.trim() || busy) return;
+    setBusy(true);
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
       redirectTo: passwordRecoveryUrl,
     });
-    setMessage(error?.message ?? "Check your email for the recovery link.");
+    setBusy(false);
+    setMessage(
+      error
+        ? "Não foi possível enviar o link. Confira o e-mail e tente novamente."
+        : "Confira seu e-mail para acessar o link de recuperação.",
+    );
   }
   return (
     <View style={styles.page}>
-      <Text style={styles.title}>Recover access</Text>
+      <Text style={styles.title}>Recuperar acesso</Text>
       <TextInput
         autoCapitalize="none"
         keyboardType="email-address"
@@ -25,8 +33,8 @@ export default function Recovery() {
         style={styles.input}
       />
       {message ? <Text style={styles.message}>{message}</Text> : null}
-      <Pressable onPress={() => void send()} style={styles.button}>
-        <Text style={styles.buttonText}>Send recovery link</Text>
+      <Pressable disabled={!email.trim() || busy} onPress={() => void send()} style={styles.button}>
+        <Text style={styles.buttonText}>{busy ? "Enviando…" : "Enviar link de recuperação"}</Text>
       </Pressable>
     </View>
   );
