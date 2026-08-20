@@ -529,15 +529,6 @@ Deno.serve(async (req) => {
         requestId,
       );
     }
-    if ((await dailyUsage(supabase, user.id)) >= policy.dailyMessages) {
-      const code = plan === "premium" ? "premium_limit_reached" : "free_limit_reached";
-      return failure(
-        code,
-        "Your daily assistant limit has been reached. Please try again tomorrow.",
-        429,
-        requestId,
-      );
-    }
     const apiKey = Deno.env.get("OPENAI_API_KEY");
     if (!apiKey)
       return failure(
@@ -552,6 +543,15 @@ Deno.serve(async (req) => {
       return failure("invalid_request", "Conversation was not found.", 404, requestId);
     }
     if (!conversationId) {
+      if ((await dailyUsage(supabase, user.id)) >= policy.dailyMessages) {
+        const code = plan === "premium" ? "premium_limit_reached" : "free_limit_reached";
+        return failure(
+          code,
+          "Your daily assistant limit has been reached. Please try again tomorrow.",
+          429,
+          requestId,
+        );
+      }
       const { data, error } = await supabase
         .from("ai_conversations")
         .insert({ user_id: user.id, title: message.slice(0, 80) })
@@ -563,22 +563,54 @@ Deno.serve(async (req) => {
 
     const { data: duplicate, error: duplicateError } = await supabase
       .from("ai_messages")
-      .select("id")
+      .select("id, role, content, created_at")
       .eq("id", body.requestId)
       .eq("conversation_id", conversationId)
       .maybeSingle();
     if (duplicateError) throw new Error("persistence_error");
-    if (duplicate) {
-      return failure("invalid_request", "This message was already submitted.", 409, requestId);
+    if (duplicate && duplicate.content !== message) {
+      return failure(
+        "invalid_request",
+        "This request ID belongs to another message.",
+        409,
+        requestId,
+      );
     }
-
-    const { error: userMessageError } = await supabase.from("ai_messages").insert({
-      id: body.requestId,
-      conversation_id: conversationId,
-      role: "user",
-      content: message,
-    });
-    if (userMessageError) throw new Error("persistence_error");
+    if (!duplicate && (await dailyUsage(supabase, user.id)) >= policy.dailyMessages) {
+      const code = plan === "premium" ? "premium_limit_reached" : "free_limit_reached";
+      return failure(
+        code,
+        "Your daily assistant limit has been reached. Please try again tomorrow.",
+        429,
+        requestId,
+      );
+    }
+    if (duplicate) {
+      const { data: completedReply, error: completedReplyError } = await supabase
+        .from("ai_messages")
+        .select("id, role, content, created_at")
+        .eq("conversation_id", conversationId)
+        .eq("role", "assistant")
+        .gte("created_at", duplicate.created_at)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (completedReplyError) throw new Error("persistence_error");
+      if (completedReply) {
+        return json({
+          ok: true,
+          data: { conversationId, userMessage: duplicate, assistantMessage: completedReply },
+        });
+      }
+    } else {
+      const { error: userMessageError } = await supabase.from("ai_messages").insert({
+        id: body.requestId,
+        conversation_id: conversationId,
+        role: "user",
+        content: message,
+      });
+      if (userMessageError) throw new Error("persistence_error");
+    }
 
     const { data: historyRows, error: historyError } = await supabase
       .from("ai_messages")
@@ -631,14 +663,23 @@ Deno.serve(async (req) => {
       /* untrusted malformed output */
     }
     if (!parsedModelResponse) throw new Error("provider_error");
-    const { error: usageError } = await supabase.from("ai_usage").insert({
-      user_id: user.id,
-      action: "assistant",
-      request_id: body.requestId,
-      input_units: result.inputTokens,
-      output_units: result.tokens,
-    });
-    if (usageError) throw new Error("duplicate_request");
+    const { data: existingUsage, error: existingUsageError } = await supabase
+      .from("ai_usage")
+      .select("request_id")
+      .eq("user_id", user.id)
+      .eq("request_id", body.requestId)
+      .maybeSingle();
+    if (existingUsageError) throw new Error("persistence_error");
+    if (!existingUsage) {
+      const { error: usageError } = await supabase.from("ai_usage").insert({
+        user_id: user.id,
+        action: "assistant",
+        request_id: body.requestId,
+        input_units: result.inputTokens,
+        output_units: result.tokens,
+      });
+      if (usageError) throw new Error("duplicate_request");
+    }
     const { data: assistantMessage, error: assistantError } = await supabase
       .from("ai_messages")
       .insert({

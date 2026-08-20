@@ -1,4 +1,10 @@
 import { supabase } from "@/lib/supabase";
+import {
+  buildAssistantSendPayload,
+  classifyAssistantError,
+  validateAssistantSendData,
+  type AssistantErrorCategory,
+} from "@/lib/chat-contract";
 
 export type ChatMessage = {
   id: string;
@@ -63,6 +69,7 @@ export class ChatServiceError extends Error {
     public readonly code: string,
     message: string,
     public readonly diagnosticId?: string,
+    public readonly category: AssistantErrorCategory = classifyAssistantError(code),
   ) {
     super(message);
     this.name = "ChatServiceError";
@@ -130,19 +137,19 @@ export async function sendChat(
   conversationId: string | null,
   requestId: string,
 ): Promise<ChatResult> {
-  const content = message.trim();
-  if (!content) throw new ChatServiceError("invalid_request", "Write a message first.");
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 35_000);
+  const payload = buildAssistantSendPayload(message, conversationId, requestId);
   try {
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    let session = sessionData.session;
+    if (!sessionError && session?.expires_at && session.expires_at * 1000 - Date.now() < 30_000) {
+      const refreshed = await supabase.auth.refreshSession();
+      session = refreshed.data.session;
+    }
+    if (sessionError || !session?.access_token)
+      throw new ChatServiceError("unauthorized", "An authenticated session is required.");
     const { data, error } = await supabase.functions.invoke<EdgeResult>("ai-chat", {
-      body: {
-        action: "send",
-        message: content,
-        conversationId: validId(conversationId),
-        requestId,
-      },
-      signal: controller.signal,
+      body: payload,
+      headers: { Authorization: `Bearer ${session.access_token}` },
     });
     if (error) throw await invocationError(error);
     if (!data?.ok)
@@ -151,19 +158,19 @@ export async function sendChat(
         data?.error.message ?? "NEXORA could not respond.",
         data?.error.requestId,
       );
-    if (!data.data.conversationId || !data.data.userMessage || !data.data.assistantMessage)
+    let normalized: ReturnType<typeof validateAssistantSendData>;
+    try {
+      normalized = validateAssistantSendData(data.data);
+    } catch {
       throw new ChatServiceError("invalid_response", "NEXORA returned an invalid response.");
+    }
     return {
-      conversationId: data.data.conversationId,
-      userMessage: mapMessage(data.data.userMessage),
-      assistantMessage: mapMessage(data.data.assistantMessage),
+      conversationId: normalized.conversationId,
+      userMessage: mapMessage(normalized.userMessage),
+      assistantMessage: mapMessage(normalized.assistantMessage),
     };
   } catch (error) {
     if (error instanceof ChatServiceError) throw error;
-    if (controller.signal.aborted)
-      throw new ChatServiceError("timeout", "NEXORA took too long. Try again.");
     throw new ChatServiceError("unavailable", "NEXORA is temporarily unavailable.");
-  } finally {
-    clearTimeout(timeout);
   }
 }

@@ -1,14 +1,6 @@
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
-import {
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { AppScreen } from "@/components/app-screen";
 import { NexoraAgent } from "@/components/nexora-agent";
 import { AppHeader, DrawerMenu } from "@/components/product-ui";
@@ -164,7 +156,6 @@ function StudyCard({ subject }: { subject: Subject }) {
 
 export default function Dashboard() {
   const [drawer, setDrawer] = useState(false);
-  const [draft, setDraft] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const profile = useProfile();
   const subscription = useSubscription();
@@ -190,12 +181,6 @@ export default function Dashboard() {
     ? "NEXORA BASIC"
     : resolveCapabilityTier(subscription.data?.plan, subscription.data?.status);
 
-  function send() {
-    const prompt = draft.trim();
-    if (!prompt) return;
-    setDraft("");
-    router.push({ pathname: "/assistant", params: { prompt } });
-  }
   async function refresh() {
     setRefreshing(true);
     await Promise.allSettled([
@@ -353,31 +338,16 @@ export default function Dashboard() {
           </View>
         ) : null}
 
-        <View style={styles.section}>
-          <SectionHeader title="CONVERSAR COM A NEXORA" />
-          <Text style={styles.composerHint}>Envie sua ideia para continuar no Assistente.</Text>
-          <View style={styles.composer}>
-            <TextInput
-              accessibilityLabel="Mensagem para a NEXORA"
-              multiline
-              value={draft}
-              onChangeText={setDraft}
-              placeholder="No que você quer pensar?"
-              placeholderTextColor={colors.textMuted}
-              style={styles.input}
-            />
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Continuar no Assistente"
-              accessibilityState={{ disabled: !draft.trim() }}
-              disabled={!draft.trim()}
-              onPress={send}
-              style={[styles.send, !draft.trim() && styles.sendDisabled]}
-            >
-              <Text style={styles.sendText}>↑</Text>
-            </Pressable>
-          </View>
-        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Abrir Chat rápido com a NEXORA"
+          onPress={() => router.push("/assistant")}
+          style={styles.quickChat}
+        >
+          <Text style={styles.quickChatSpark}>✦</Text>
+          <Text style={styles.quickChatText}>Chat rápido</Text>
+          <Text style={styles.arrow}>›</Text>
+        </Pressable>
       </ScrollView>
     </AppScreen>
   );
@@ -493,33 +463,17 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   subjectColor: { width: 4, height: 38, borderRadius: 2 },
-  composerHint: { ...typography.label, color: colors.textMuted },
-  composer: {
-    minHeight: 82,
+  quickChat: {
+    minHeight: 48,
     flexDirection: "row",
-    alignItems: "flex-end",
+    alignItems: "center",
     gap: spacing.sm,
-    padding: spacing.md,
-    borderRadius: radius.lg,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
   },
-  input: {
-    ...typography.body,
-    flex: 1,
-    maxHeight: 96,
-    color: colors.text,
-    textAlignVertical: "top",
-  },
-  send: {
-    width: 44,
-    height: 44,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 22,
-    backgroundColor: colors.primaryBright,
-  },
-  sendDisabled: { opacity: 0.4 },
-  sendText: { fontSize: 24, color: colors.background },
+  quickChatSpark: { color: colors.primaryBright, fontSize: 16 },
+  quickChatText: { ...typography.label, color: colors.text, flex: 1 },
 });

@@ -10,7 +10,7 @@
     "lint": "expo lint",
     "doctor": "expo-doctor",
     "export": "expo export --platform android",
-    "test": "bun test tests"
+    "test": "bun test tests/correctness.test.ts && bun test tests/dashboard-selectors.test.ts && bun test tests/chat-contract.test.ts"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^2.2.0",
