@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import { loadConversation, loadRecentConversation, sendChat } from "@/services/chat-service";
+import type { ChatMessage } from "@/services/chat-service";
 export function useRecentConversation() {
   return useQuery({ queryKey: ["conversations", "recent"], queryFn: loadRecentConversation });
 }
@@ -24,14 +25,23 @@ export function useSendChat() {
       requestId: string;
     }) => sendChat(message, conversationId, requestId),
     onSuccess: async (result) => {
-      client.setQueryData(queryKeys.conversation(result.conversationId), [
-        result.userMessage,
-        result.assistantMessage,
-      ]);
-      client.setQueryData(["conversations", "recent"], {
-        conversationId: result.conversationId,
-        messages: [result.userMessage, result.assistantMessage],
-      });
+      const appendUnique = (messages: ChatMessage[] = []) => {
+        const byId = new Map(messages.map((message) => [message.id, message]));
+        byId.set(result.userMessage.id, result.userMessage);
+        byId.set(result.assistantMessage.id, result.assistantMessage);
+        return [...byId.values()];
+      };
+      client.setQueryData(queryKeys.conversation(result.conversationId), appendUnique);
+      client.setQueryData<{ conversationId: string | null; messages: ChatMessage[] }>(
+        ["conversations", "recent"],
+        (current) => ({
+          conversationId: result.conversationId,
+          messages:
+            current?.conversationId === result.conversationId
+              ? appendUnique(current.messages)
+              : [result.userMessage, result.assistantMessage],
+        }),
+      );
       await client.invalidateQueries({ queryKey: queryKeys.conversations });
     },
   });
