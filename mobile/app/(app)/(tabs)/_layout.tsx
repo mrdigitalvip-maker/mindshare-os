@@ -20,10 +20,10 @@ export default function MainTabs() {
         headerShown: false,
         tabBarActiveTintColor: colors.primaryBright,
         tabBarInactiveTintColor: colors.textMuted,
-        tabBarLabelStyle: { ...typography.caption, marginTop: 2 },
+        tabBarLabelStyle: { ...typography.caption, fontSize: 11, lineHeight: 15, marginTop: 1 },
         tabBarStyle: {
           height: layout.tabBarBaseHeight + insets.bottom,
-          paddingTop: 7,
+          paddingTop: 6,
           paddingBottom: Math.max(insets.bottom, 7),
           backgroundColor: colors.background,
           borderTopColor: colors.border,

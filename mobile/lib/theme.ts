@@ -19,17 +19,20 @@ export const spacing = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32, xxl: 48 } as cons
 export const layout = {
   screenPadding: 16,
   screenTop: 8,
-  sectionGap: 24,
-  cardGap: 8,
-  headerHeight: 56,
-  tabBarBaseHeight: 58,
+  sectionGap: 20,
+  cardGap: 10,
+  cardPadding: 16,
+  controlHeight: 44,
+  chipHeight: 42,
+  headerHeight: 52,
+  tabBarBaseHeight: 60,
   maxContentWidth: 720,
 } as const;
 export const radius = { sm: 8, md: 14, lg: 22, pill: 999 } as const;
 export const typography = {
-  display: { fontSize: 42, lineHeight: 48, fontWeight: "600" } satisfies TextStyle,
-  title: { fontSize: 30, lineHeight: 36, fontWeight: "700" } satisfies TextStyle,
-  heading: { fontSize: 24, lineHeight: 30, fontWeight: "600" } satisfies TextStyle,
+  display: { fontSize: 36, lineHeight: 42, fontWeight: "600" } satisfies TextStyle,
+  title: { fontSize: 27, lineHeight: 33, fontWeight: "600" } satisfies TextStyle,
+  heading: { fontSize: 21, lineHeight: 27, fontWeight: "600" } satisfies TextStyle,
   body: { fontSize: 16, lineHeight: 23, fontWeight: "400" } satisfies TextStyle,
   label: { fontSize: 14, lineHeight: 19, fontWeight: "600" } satisfies TextStyle,
   caption: { fontSize: 12, lineHeight: 17, fontWeight: "500" } satisfies TextStyle,

@@ -7,7 +7,7 @@ export default function Premium() {
   const tier = subscription.data?.entitlement ?? "Básico";
   return (
     <ScrollView contentContainerStyle={s.page}>
-      <NexoraAgent size={112} state="attention" />
+      <NexoraAgent size={92} state="attention" />
       <Text style={s.eyebrow}>SEU PLANO</Text>
       <Text style={s.title}>{tier}</Text>
       <Text style={s.copy}>Sua experiência NEXORA acompanha o estado atual da sua assinatura.</Text>
@@ -27,17 +27,17 @@ export default function Premium() {
 const s = StyleSheet.create({
   page: {
     alignItems: "center",
-    gap: spacing.md,
-    padding: spacing.lg,
+    gap: spacing.sm,
+    padding: spacing.md,
     backgroundColor: colors.background,
   },
   eyebrow: { ...typography.eyebrow, color: colors.primaryBright },
-  title: { ...typography.display, color: colors.text },
+  title: { ...typography.title, color: colors.text },
   copy: { ...typography.body, color: colors.textMuted, textAlign: "center" },
   card: {
     alignSelf: "stretch",
-    gap: spacing.md,
-    padding: spacing.lg,
+    gap: spacing.sm,
+    padding: spacing.md,
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,

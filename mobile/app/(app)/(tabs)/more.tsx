@@ -8,7 +8,7 @@ export default function More() {
     <AppScreen scroll contentContainerStyle={styles.page}>
       <StandardHeader title="Mais" />
       <Text style={styles.eyebrow}>MÓDULOS NEXORA</Text>
-      <Text style={styles.title}>Mais possibilidades.</Text>
+      <Text style={styles.title}>Mais possibilidades</Text>
       <Text style={styles.copy}>Acesse os módulos disponíveis no seu espaço.</Text>
       <View style={styles.grid}>
         <ModuleCard
@@ -37,6 +37,6 @@ const styles = StyleSheet.create({
   page: { gap: spacing.sm, paddingBottom: spacing.lg },
   eyebrow: { ...typography.eyebrow, color: colors.primaryBright },
   title: { ...typography.title, color: colors.text },
-  copy: { ...typography.body, color: colors.textMuted, marginBottom: spacing.lg },
-  grid: { gap: spacing.md },
+  copy: { ...typography.body, color: colors.textMuted, marginBottom: spacing.sm },
+  grid: { gap: spacing.sm },
 });

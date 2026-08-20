@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { NativeFormModal } from "@/components/native-form-modal";
+import { ProfileAvatar } from "@/components/profile-avatar";
 import { useProfile } from "@/hooks/use-profile";
 import { useSubscription } from "@/hooks/use-subscription";
 import { queryKeys } from "@/lib/query-keys";
@@ -31,9 +32,9 @@ export default function Settings() {
       await updateProfileName(session.user.id, name);
       await client.invalidateQueries({ queryKey: queryKeys.profile });
       setProfileOpen(false);
-      setMessage("Profile saved.");
+      setMessage("Perfil salvo.");
     } catch {
-      setMessage("Profile could not be saved. Retry.");
+      setMessage("Não foi possível salvar o perfil. Tente novamente.");
     } finally {
       setBusy(false);
     }
@@ -45,11 +46,11 @@ export default function Settings() {
       const result = await registerNativeNotifications(session.user.id);
       setMessage(
         result.registered
-          ? "Notifications enabled on this device."
-          : `Notification permission is ${result.permission}.`,
+          ? "Notificações ativadas neste dispositivo."
+          : `A permissão de notificações está como ${result.permission}.`,
       );
     } catch {
-      setMessage("Notifications could not be enabled. Verify EAS configuration.");
+      setMessage("Não foi possível ativar as notificações.");
     } finally {
       setBusy(false);
     }
@@ -61,17 +62,17 @@ export default function Settings() {
       const result = await sendTestNotification();
       setMessage(
         result.accepted
-          ? "Test notification accepted by the provider."
-          : "No active device registration. Enable notifications first.",
+          ? "Notificação de teste enviada."
+          : "Nenhum dispositivo ativo. Ative as notificações primeiro.",
       );
     } catch {
-      setMessage("Test delivery failed. Verify push-send deployment.");
+      setMessage("Falha ao enviar a notificação de teste.");
     } finally {
       setBusy(false);
     }
   }
   async function checkPermission() {
-    setMessage(`Notification permission is ${await notificationPermission()}.`);
+    setMessage(`Permissão de notificações: ${await notificationPermission()}.`);
   }
   async function logout() {
     await supabase.auth.signOut();
@@ -79,47 +80,62 @@ export default function Settings() {
   }
   return (
     <ScrollView contentContainerStyle={styles.page}>
-      <Text style={styles.title}>Settings</Text>
-      <Section title="Account">
-        <Text style={styles.value}>{session?.user.email ?? "Authenticated account"}</Text>
+      <Text style={styles.title}>Configurações</Text>
+      <Section title="Conta">
+        <View style={styles.account}>
+          <ProfileAvatar name={profile.data?.fullName} email={session?.user.email} size={52} />
+          <View style={styles.accountCopy}>
+            <Text numberOfLines={1} style={styles.value}>
+              {profile.data?.fullName ?? "Nome não informado"}
+            </Text>
+            <Text numberOfLines={1} style={styles.help}>
+              {session?.user.email ?? "Conta autenticada"}
+            </Text>
+            <Text style={styles.badge}>Plano: {subscription.data?.plan ?? "Gratuito"}</Text>
+          </View>
+        </View>
       </Section>
-      <Section title="Profile">
-        <Text style={styles.value}>{profile.data?.fullName ?? "Name not set"}</Text>
+      <Section title="Perfil">
+        <Text style={styles.value}>{profile.data?.fullName ?? "Nome não informado"}</Text>
         <Action
-          label="Edit profile name"
+          label="Editar nome do perfil"
           onPress={() => {
             setName(profile.data?.fullName ?? "");
             setProfileOpen(true);
           }}
         />
       </Section>
-      <Section title="Notifications">
+      <Section title="Notificações">
         <Action
-          label="Enable native notifications"
+          label="Ativar notificações"
           disabled={busy}
           onPress={() => void enableNotifications()}
         />
         <Action
-          label="Send test notification"
+          label="Enviar notificação de teste"
           disabled={busy}
           onPress={() => void testNotification()}
         />
       </Section>
-      <Section title="Permissions">
-        <Action label="Check notification permission" onPress={() => void checkPermission()} />
+      <Section title="Permissões">
+        <Action
+          label="Verificar permissão de notificações"
+          onPress={() => void checkPermission()}
+        />
       </Section>
-      <Section title="Subscription">
+      <Section title="Assinatura">
         <Text style={styles.value}>
-          {subscription.isPending ? "Loading…" : (subscription.data?.entitlement ?? "Unavailable")}
+          {subscription.isPending
+            ? "Carregando…"
+            : `Plano atual: ${subscription.data?.entitlement ?? "Indisponível"}`}
         </Text>
         <Text style={styles.help}>
-          Purchases are unavailable until Google Play Billing is implemented.
+          Compras estarão disponíveis quando a cobrança nativa do Google Play for implementada.
         </Text>
       </Section>
-      <Section title="Legal">
+      <Section title="Privacidade e termos">
         <Text style={styles.help}>
-          Privacy and legal terms remain governed by the NEXORA account agreements. No external
-          checkout is opened.
+          Privacidade · Termos de Serviço. Nenhum checkout externo é aberto.
         </Text>
       </Section>
       {message ? (
@@ -128,16 +144,16 @@ export default function Settings() {
         </Text>
       ) : null}
       <Pressable accessibilityRole="button" onPress={() => void logout()} style={styles.logout}>
-        <Text style={styles.logoutText}>Log out</Text>
+        <Text style={styles.logoutText}>Sair</Text>
       </Pressable>
       <NativeFormModal
         visible={profileOpen}
-        title="Profile name"
-        placeholder="Your name"
+        title="Editar nome do perfil"
+        placeholder="Seu nome"
         value={name}
         onChange={setName}
         busy={busy}
-        error={message?.includes("could not") ? message : null}
+        error={message?.includes("Não foi possível") ? message : null}
         onClose={() => setProfileOpen(false)}
         onSave={() => void saveName()}
       />
@@ -173,7 +189,12 @@ function Action({
   );
 }
 const styles = StyleSheet.create({
-  page: { gap: spacing.md, padding: spacing.lg, backgroundColor: colors.background },
+  page: {
+    gap: spacing.md,
+    padding: spacing.md,
+    paddingBottom: spacing.xl,
+    backgroundColor: colors.background,
+  },
   title: { ...typography.title, color: colors.text },
   section: {
     gap: spacing.sm,
@@ -183,13 +204,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  heading: { ...typography.heading, color: colors.text },
+  heading: { ...typography.label, color: colors.primaryBright },
+  account: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+  accountCopy: { flex: 1, minWidth: 0, gap: spacing.xs },
+  badge: { ...typography.caption, alignSelf: "flex-start", color: colors.primaryBright },
   value: { ...typography.body, color: colors.text },
   help: { ...typography.body, color: colors.textMuted },
   action: {
-    minHeight: 48,
+    minHeight: 44,
     justifyContent: "center",
-    padding: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     borderRadius: radius.md,
     backgroundColor: colors.surfaceRaised,
   },

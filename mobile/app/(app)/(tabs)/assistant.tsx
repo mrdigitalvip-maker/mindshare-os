@@ -148,10 +148,20 @@ const styles = StyleSheet.create({
   messageText: { ...typography.body, color: colors.text },
   localError: {
     flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: spacing.sm,
     justifyContent: "space-between",
     paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
   },
-  errorText: { ...typography.label, color: colors.danger },
+  errorText: {
+    ...typography.label,
+    color: colors.danger,
+    flexGrow: 1,
+    flexShrink: 1,
+    minWidth: 190,
+  },
   retry: { ...typography.label, color: colors.primaryBright },
   composer: {
     flexDirection: "row",
