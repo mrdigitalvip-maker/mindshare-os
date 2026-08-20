@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys, taskMutationInvalidations } from "@/lib/query-keys";
 import { useAuth } from "@/providers/auth-provider";
 import * as service from "@/services/workspace-service";
+import type { Task } from "@/services/workspace-service";
 
 function useUserId() {
   const { session } = useAuth();
@@ -83,6 +84,7 @@ export function useWorkspaceMutations() {
         | {
             action: "create";
             title: string;
+            description?: string;
             projectId?: string | null;
             priority?: string;
             dueDate?: string | null;
@@ -91,15 +93,38 @@ export function useWorkspaceMutations() {
             action: "update";
             taskId: string;
             projectId?: string | null;
+            previousProjectId?: string | null;
             patch: Parameters<typeof service.updateTask>[2];
           }
         | { action: "delete"; taskId: string; projectId?: string | null },
     ) => {
       if (input.action === "create") await service.createTask(userId, input);
-      else if (input.action === "update") await service.updateTask(userId, input.taskId, input.patch);
+      else if (input.action === "update")
+        await service.updateTask(userId, input.taskId, input.patch);
       else await service.deleteTask(userId, input.taskId);
     },
-    onSuccess: (_data, input) => invalidate(client, taskMutationInvalidations(input.projectId)),
+    onMutate: async (input) => {
+      if (input.action !== "update" || input.patch.completed === undefined) return undefined;
+      await client.cancelQueries({ queryKey: queryKeys.tasks });
+      const previous = client.getQueryData<Task[]>(queryKeys.tasks);
+      client.setQueryData<Task[]>(queryKeys.tasks, (tasks) =>
+        tasks?.map((task) =>
+          task.id === input.taskId ? { ...task, completed: input.patch.completed! } : task,
+        ),
+      );
+      return { previous };
+    },
+    onError: (_error, _input, context) => {
+      if (context?.previous) client.setQueryData(queryKeys.tasks, context.previous);
+    },
+    onSettled: (_data, _error, input) =>
+      invalidate(
+        client,
+        taskMutationInvalidations(
+          input.action === "update" ? (input.patch.projectId ?? input.projectId) : input.projectId,
+          input.action === "update" ? input.previousProjectId : undefined,
+        ),
+      ),
   });
   const createSubject = useMutation({
     mutationFn: (name: string) => service.createSubject(userId, name),
