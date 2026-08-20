@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   row: { flexDirection: "row", justifyContent: "space-between" },
-  cardTitle: { ...typography.heading, color: colors.text, flex: 1 },
+  cardTitle: { ...typography.heading, fontSize: 19, lineHeight: 25, color: colors.text, flex: 1 },
   status: { ...typography.label, color: colors.primaryBright },
   copy: { ...typography.body, color: colors.textMuted },
   progress: { ...typography.label, color: colors.success },

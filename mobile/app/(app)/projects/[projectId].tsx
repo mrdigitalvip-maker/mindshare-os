@@ -77,11 +77,11 @@ export default function ProjectWorkspace() {
             }
           >
             <Text style={styles.action}>
-              {project.status === "completed" ? "Reopen" : "Complete"}
+              {project.status === "completed" ? "Reabrir" : "Concluir"}
             </Text>
           </Pressable>
         </View>
-        <Text style={styles.copy}>{project.description || "No description"}</Text>
+        <Text style={styles.copy}>{project.description || "Sem descrição"}</Text>
         <Pressable
           accessibilityRole="button"
           onPress={() => {
@@ -90,17 +90,18 @@ export default function ProjectWorkspace() {
             setProjectModal(true);
           }}
         >
-          <Text style={styles.action}>Edit project name</Text>
+          <Text style={styles.action}>Editar projeto</Text>
         </Pressable>
         <Text style={styles.progress}>
-          {project.progress}% · {tasks.filter((task) => task.completed).length}/{tasks.length} tasks
+          {project.progress}% · {tasks.filter((task) => task.completed).length}/{tasks.length}{" "}
+          tarefas
         </Text>
         <Text style={styles.copy}>
-          Next action: {tasks.find((task) => !task.completed)?.title ?? "No open task"}
+          Próxima ação: {tasks.find((task) => !task.completed)?.title ?? "Nenhuma tarefa aberta"}
         </Text>
       </View>
       <View style={styles.row}>
-        <Text style={styles.section}>Tasks</Text>
+        <Text style={styles.section}>Tarefas</Text>
         <Pressable
           accessibilityRole="button"
           onPress={() => {
@@ -109,7 +110,7 @@ export default function ProjectWorkspace() {
             setModal(true);
           }}
         >
-          <Text style={styles.action}>Add task</Text>
+          <Text style={styles.action}>Adicionar tarefa</Text>
         </Pressable>
       </View>
       <FlatList
@@ -117,7 +118,10 @@ export default function ProjectWorkspace() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={tasks.length ? styles.list : styles.empty}
         ListEmptyComponent={
-          <EmptyState title="No project tasks" message="Add the next concrete action." />
+          <EmptyState
+            title="Nenhuma tarefa no projeto"
+            message="Adicione a próxima ação concreta."
+          />
         }
         renderItem={({ item }) => (
           <View style={styles.task}>
@@ -129,7 +133,7 @@ export default function ProjectWorkspace() {
                 setModal(true);
               }}
             >
-              <Text style={styles.action}>Edit</Text>
+              <Text style={styles.action}>Editar</Text>
             </Pressable>
             <Pressable
               accessibilityRole="checkbox"
@@ -149,20 +153,20 @@ export default function ProjectWorkspace() {
             </Pressable>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={`Delete ${item.title}`}
+              accessibilityLabel={`Excluir ${item.title}`}
               onPress={() =>
                 void mutateTask.mutateAsync({ action: "delete", taskId: item.id, projectId })
               }
             >
-              <Text style={styles.delete}>Delete</Text>
+              <Text style={styles.delete}>Excluir</Text>
             </Pressable>
           </View>
         )}
       />
       <NativeFormModal
         visible={modal}
-        title={editingTaskId ? "Edit project task" : "Project task"}
-        placeholder="Next action"
+        title={editingTaskId ? "Editar tarefa do projeto" : "Tarefa do projeto"}
+        placeholder="Próxima ação"
         value={taskTitle}
         onChange={setTaskTitle}
         busy={mutateTask.isPending}
@@ -172,12 +176,12 @@ export default function ProjectWorkspace() {
       />
       <NativeFormModal
         visible={projectModal}
-        title="Edit project"
-        placeholder="Project name"
+        title="Editar projeto"
+        placeholder="Nome do projeto"
         value={projectTitle}
         onChange={setProjectTitle}
         secondaryValue={projectDescription}
-        secondaryPlaceholder="Project description"
+        secondaryPlaceholder="Descrição do projeto"
         onSecondaryChange={setProjectDescription}
         busy={updateProject.isPending}
         error={updateProject.error?.message}

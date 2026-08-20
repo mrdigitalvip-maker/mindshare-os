@@ -3,8 +3,13 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-nati
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { colors, radius, spacing, typography } from "@/lib/theme";
+import { useProfile } from "@/hooks/use-profile";
+import { useAuth } from "@/providers/auth-provider";
+import { ProfileAvatar } from "@/components/profile-avatar";
 
 export function AppHeader({ onMenu }: { onMenu(): void }) {
+  const profile = useProfile();
+  const { session } = useAuth();
   return (
     <View style={styles.header}>
       <Pressable accessibilityLabel="Abrir menu" onPress={onMenu} style={styles.icon}>
@@ -15,15 +20,17 @@ export function AppHeader({ onMenu }: { onMenu(): void }) {
         onPress={() => router.push("/assistant")}
         style={styles.search}
       >
-        <Text style={styles.searchText}>Pergunte à NEXORA</Text>
+        <Text numberOfLines={1} ellipsizeMode="tail" style={styles.searchText}>
+          Pergunte à NEXORA
+        </Text>
         <Text style={styles.gold}>✦</Text>
       </Pressable>
       <Pressable
         accessibilityLabel="Configurações"
         onPress={() => router.push("/settings")}
-        style={styles.avatar}
+        style={styles.avatarButton}
       >
-        <Text style={styles.avatarText}>N</Text>
+        <ProfileAvatar name={profile.data?.fullName} email={session?.user.email} size={36} />
       </Pressable>
     </View>
   );
@@ -165,35 +172,25 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     backgroundColor: colors.surface,
   },
-  searchText: { ...typography.label, color: colors.textMuted },
+  searchText: { ...typography.label, color: colors.textMuted, flex: 1, marginRight: spacing.sm },
   gold: { color: colors.primaryBright },
-  avatar: {
-    width: 38,
-    height: 38,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 19,
-    borderWidth: 1,
-    borderColor: colors.primary,
-    backgroundColor: colors.surfaceRaised,
-  },
-  avatarText: { ...typography.label, color: colors.primaryBright },
+  avatarButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   overlay: { flex: 1, flexDirection: "row" },
   drawer: {
-    width: "84%",
-    maxWidth: 360,
+    width: "82%",
+    maxWidth: 340,
     backgroundColor: colors.background,
     borderRightWidth: 1,
     borderRightColor: colors.border,
   },
-  drawerContent: { padding: spacing.lg, gap: spacing.lg },
+  drawerContent: { paddingHorizontal: spacing.md, gap: spacing.md },
   scrim: { flex: 1, backgroundColor: "rgba(0,0,0,.65)" },
   brandRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   brand: { fontSize: 20, fontWeight: "700", letterSpacing: 4, color: colors.text },
   section: { gap: spacing.xs },
   eyebrow: { ...typography.eyebrow, color: colors.textMuted, marginBottom: spacing.xs },
   navRow: {
-    minHeight: 48,
+    minHeight: 44,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
@@ -204,7 +201,7 @@ const styles = StyleSheet.create({
   navText: { ...typography.body, flex: 1, color: colors.text },
   chevron: { fontSize: 24, color: colors.textMuted },
   module: {
-    minHeight: 104,
+    minHeight: 84,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
@@ -215,6 +212,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   moduleIcon: { fontSize: 24, color: colors.primaryBright },
-  moduleTitle: { ...typography.heading, fontSize: 19, color: colors.text },
-  moduleCopy: { ...typography.body, fontSize: 14, color: colors.textMuted },
+  moduleTitle: { ...typography.heading, fontSize: 18, lineHeight: 23, color: colors.text },
+  moduleCopy: { ...typography.body, fontSize: 14, lineHeight: 20, color: colors.textMuted },
 });

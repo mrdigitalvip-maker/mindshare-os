@@ -56,9 +56,13 @@ export default function Estudos() {
             style={styles.card}
           >
             <View style={[styles.color, { backgroundColor: item.color }]} />
-            <View>
-              <Text style={styles.cardTitle}>{item.name}</Text>
-              <Text style={styles.copy}>{item.description || item.status}</Text>
+            <View style={styles.cardCopy}>
+              <Text numberOfLines={2} style={styles.cardTitle}>
+                {item.name}
+              </Text>
+              <Text numberOfLines={2} style={styles.copy}>
+                {item.description || item.status}
+              </Text>
             </View>
           </Pressable>
         )}
@@ -105,6 +109,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   color: { width: 12, height: 48, borderRadius: radius.pill },
+  cardCopy: { flex: 1, minWidth: 0 },
   cardTitle: { ...typography.heading, color: colors.text },
   copy: { ...typography.body, color: colors.textMuted },
 });

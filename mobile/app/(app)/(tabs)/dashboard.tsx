@@ -30,7 +30,7 @@ export default function Dashboard() {
       <ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
         <View style={styles.identity}>
           <NexoraAgent size={62} state="idle" />
-          <View>
+          <View style={styles.identityCopy}>
             <Text style={styles.eyebrow}>{tier} · ONLINE</Text>
             <Text style={styles.greeting}>Olá, {name}.</Text>
           </View>
@@ -71,18 +71,26 @@ export default function Dashboard() {
   );
 }
 const styles = StyleSheet.create({
-  page: { paddingTop: spacing.md, paddingBottom: spacing.lg, gap: spacing.lg },
+  page: {
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.lg,
+    gap: spacing.md,
+  },
   identity: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+  identityCopy: { flex: 1, minWidth: 0 },
   eyebrow: { ...typography.eyebrow, color: colors.primaryBright },
   greeting: { ...typography.body, color: colors.text },
-  hero: { gap: spacing.md, paddingVertical: spacing.lg },
-  spark: { fontSize: 28, color: colors.primaryBright },
-  title: { ...typography.display, color: colors.text },
+  hero: { gap: spacing.sm, paddingVertical: spacing.md, maxWidth: 560 },
+  spark: { fontSize: 24, color: colors.primaryBright },
+  title: { ...typography.display, fontSize: 34, lineHeight: 40, color: colors.text, flexShrink: 1 },
   copy: { ...typography.body, color: colors.textMuted, maxWidth: 520 },
   actions: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   chip: {
     paddingHorizontal: spacing.md,
-    paddingVertical: 12,
+    minHeight: 44,
+    justifyContent: "center",
+    paddingVertical: spacing.sm,
     borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: colors.border,
@@ -90,7 +98,7 @@ const styles = StyleSheet.create({
   },
   chipText: { ...typography.label, color: colors.text },
   composer: {
-    minHeight: 112,
+    minHeight: 96,
     flexDirection: "row",
     alignItems: "flex-end",
     gap: spacing.sm,
@@ -108,11 +116,11 @@ const styles = StyleSheet.create({
     textAlignVertical: "top",
   },
   send: {
-    width: 46,
-    height: 46,
+    width: 44,
+    height: 44,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 23,
+    borderRadius: 22,
     backgroundColor: colors.primaryBright,
   },
   sendText: { fontSize: 24, color: colors.background },

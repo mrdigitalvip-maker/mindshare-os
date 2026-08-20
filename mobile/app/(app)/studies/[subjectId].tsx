@@ -64,7 +64,7 @@ export default function SubjectWorkspace() {
         <Text style={styles.title}>{subject.name}</Text>
         <Text style={styles.copy}>{subject.description || subject.status}</Text>
       </View>
-      <Section title="Goals" action="Add goal" onAction={() => setMode("goal")}>
+      <Section title="Metas" action="Adicionar meta" onAction={() => setMode("goal")}>
         {goals.length ? (
           goals.map((goal) => (
             <Pressable
@@ -81,31 +81,31 @@ export default function SubjectWorkspace() {
               }
               style={styles.item}
             >
-              <Text style={[styles.itemTitle, goal.completed && styles.done]}>{goal.title}</Text>
+              <Text style={[styles.itemTítulo, goal.completed && styles.done]}>{goal.title}</Text>
               <Text style={styles.meta}>
                 {goal.currentValue}/{goal.targetValue}
               </Text>
             </Pressable>
           ))
         ) : (
-          <Text style={styles.empty}>No goals yet.</Text>
+          <Text style={styles.empty}>Nenhuma meta ainda.</Text>
         )}
       </Section>
-      <Section title="Sessions" action="Log 25 min" onAction={() => setMode("session")}>
+      <Section title="Sessões" action="Registrar 25 min" onAction={() => setMode("session")}>
         {sessions.length ? (
           sessions.map((session) => (
             <View key={session.id} style={styles.item}>
-              <Text style={styles.itemTitle}>{session.activity}</Text>
+              <Text style={styles.itemTítulo}>{session.activity}</Text>
               <Text style={styles.meta}>{session.duration} min</Text>
             </View>
           ))
         ) : (
-          <Text style={styles.empty}>No sessions yet.</Text>
+          <Text style={styles.empty}>Nenhuma sessão ainda.</Text>
         )}
       </Section>
       <Section
-        title="Notes"
-        action="Add note"
+        title="Notas"
+        action="Adicionar nota"
         onAction={() => {
           setNoteId(undefined);
           setNoteContent("");
@@ -117,9 +117,9 @@ export default function SubjectWorkspace() {
           notes.map((note) => (
             <View key={note.id} style={styles.item}>
               <View style={styles.flex}>
-                <Text style={styles.itemTitle}>{note.title}</Text>
+                <Text style={styles.itemTítulo}>{note.title}</Text>
                 <Text numberOfLines={2} style={styles.meta}>
-                  {note.content || "Empty note"}
+                  {note.content || "Nota vazia"}
                 </Text>
               </View>
               <Pressable
@@ -131,7 +131,7 @@ export default function SubjectWorkspace() {
                   setMode("note");
                 }}
               >
-                <Text style={styles.action}>Edit</Text>
+                <Text style={styles.action}>Editar</Text>
               </Pressable>
               <Pressable
                 accessibilityRole="button"
@@ -139,22 +139,24 @@ export default function SubjectWorkspace() {
                   void study.mutateAsync({ action: "delete-note", subjectId, noteId: note.id })
                 }
               >
-                <Text style={styles.delete}>Delete</Text>
+                <Text style={styles.delete}>Excluir</Text>
               </Pressable>
             </View>
           ))
         ) : (
-          <Text style={styles.empty}>No notes yet.</Text>
+          <Text style={styles.empty}>Nenhuma nota ainda.</Text>
         )}
       </Section>
       <NativeFormModal
         visible={Boolean(mode)}
-        title={mode === "goal" ? "New goal" : mode === "session" ? "Study session" : "New note"}
-        placeholder={mode === "session" ? "What did you study?" : "Title"}
+        title={
+          mode === "goal" ? "Nova meta" : mode === "session" ? "Sessão de estudo" : "Nova nota"
+        }
+        placeholder={mode === "session" ? "O que você estudou?" : "Título"}
         value={value}
         onChange={setValue}
         secondaryValue={mode === "note" ? noteContent : undefined}
-        secondaryPlaceholder="Note content"
+        secondaryPlaceholder="Conteúdo da nota"
         onSecondaryChange={setNoteContent}
         busy={study.isPending}
         error={study.error?.message}
@@ -216,7 +218,7 @@ const styles = StyleSheet.create({
     borderTopColor: colors.border,
   },
   flex: { flex: 1 },
-  itemTitle: { ...typography.body, color: colors.text },
+  itemTítulo: { ...typography.body, color: colors.text },
   done: { textDecorationLine: "line-through", color: colors.textMuted },
   meta: { ...typography.label, color: colors.textMuted },
   empty: { ...typography.body, color: colors.textMuted },

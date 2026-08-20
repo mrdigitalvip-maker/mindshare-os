@@ -78,6 +78,7 @@ export default function Productivity() {
       />
       <ScrollView
         horizontal
+        style={styles.filterScroller}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.filters}
       >
@@ -99,7 +100,7 @@ export default function Productivity() {
         contentContainerStyle={tasks.length ? styles.list : styles.empty}
         ListEmptyComponent={
           <EmptyState
-            title={`Nenhuma tarefa por aqui.`}
+            title="Nenhuma tarefa por aqui."
             message="Sua lista está em dia."
             actionLabel="Criar tarefa"
             onAction={() => openEditaror()}
@@ -169,9 +170,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   addText: { ...typography.label, color: colors.text },
-  filters: { gap: spacing.sm, paddingVertical: spacing.md },
+  filterScroller: { flexGrow: 0, marginHorizontal: -spacing.md },
+  filters: { gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   filter: {
-    minHeight: 44,
+    height: 42,
     justifyContent: "center",
     paddingHorizontal: spacing.md,
     borderRadius: radius.pill,
@@ -181,7 +183,7 @@ const styles = StyleSheet.create({
   filterText: { ...typography.label, color: colors.textMuted },
   activeText: { color: colors.text },
   list: { gap: spacing.sm },
-  empty: { flexGrow: 1 },
+  empty: { flexGrow: 1, paddingTop: spacing.md },
   task: {
     flexDirection: "row",
     alignItems: "center",
