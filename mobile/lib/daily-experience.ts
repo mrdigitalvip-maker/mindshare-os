@@ -18,6 +18,8 @@ export type WeeklyChallenge = {
   href: "/productivity";
 };
 
+type DailyOptions = { excludeTaskId?: string | null };
+
 function localDateKey(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
@@ -30,16 +32,30 @@ export function getWeekKey(date = new Date()) {
   return localDateKey(monday);
 }
 
-function isUpdatedInWeek(task: Task, now: Date) {
-  if (!task.updatedAt) return false;
-  const updated = new Date(task.updatedAt);
-  if (Number.isNaN(updated.getTime())) return false;
+function getWeekBounds(now: Date) {
   const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const day = start.getDay();
   start.setDate(start.getDate() - (day === 0 ? 6 : day - 1));
   const end = new Date(start);
   end.setDate(end.getDate() + 7);
-  return updated >= start && updated < end;
+  return { start, end };
+}
+
+function dueInWeek(task: Task, now: Date) {
+  if (!task.dueDate) return false;
+  const [year, month, day] = task.dueDate.slice(0, 10).split("-").map(Number);
+  if (!year || !month || !day) return false;
+  const due = new Date(year, month - 1, day);
+  const { start, end } = getWeekBounds(now);
+  return due >= start && due < end;
+}
+
+function stableScore(value: string) {
+  let score = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    score = (score * 31 + value.charCodeAt(index)) >>> 0;
+  }
+  return score;
 }
 
 export function getDailyActions(
@@ -47,10 +63,12 @@ export function getDailyActions(
   projects: Project[],
   subjects: Subject[],
   now = new Date(),
+  options: DailyOptions = {},
 ): DailyAction[] {
   const actions: DailyAction[] = [];
-  const overdue = getOverdueTasks(tasks, now);
-  const today = getTodayTasks(tasks, now);
+  const eligibleTasks = tasks.filter((task) => task.id !== options.excludeTaskId);
+  const overdue = getOverdueTasks(eligibleTasks, now);
+  const today = getTodayTasks(eligibleTasks, now);
   if (overdue.length) {
     actions.push({
       id: "overdue",
@@ -91,18 +109,29 @@ export function getDailyActions(
   return actions.slice(0, 3);
 }
 
-/** Calculated from persisted tasks; no challenge state is stored locally. */
+/**
+ * Uses the current completion state of a stable, due-this-week task cohort.
+ * `updatedAt` is deliberately not treated as a completion timestamp.
+ */
 export function getWeeklyChallenge(tasks: Task[], userId: string, now = new Date()): WeeklyChallenge | null {
-  const completed = tasks.filter((task) => task.completed && isUpdatedInWeek(task, now)).length;
-  const measurable = completed + tasks.filter((task) => !task.completed).length;
-  if (!userId.trim() || measurable < 3) return null;
-  const target = Math.min(5, measurable);
+  if (!userId.trim()) return null;
+  const weekKey = getWeekKey(now);
+  const cohort = tasks
+    .filter((task) => dueInWeek(task, now))
+    .sort((left, right) => {
+      const difference = stableScore(`${weekKey}:${userId}:${left.id}`) - stableScore(`${weekKey}:${userId}:${right.id}`);
+      return difference || left.id.localeCompare(right.id);
+    })
+    .slice(0, 5);
+  if (!cohort.length) return null;
+  const target = cohort.length;
+  const completed = cohort.filter((task) => task.completed).length;
   return {
-    key: `${getWeekKey(now)}:${userId}:tasks`,
+    key: `${weekKey}:${userId}:tasks-due`,
     type: "tasks",
-    title: `Conclua ${target} tarefas nesta semana`,
-    benefit: "Construa consistência e feche a semana com progresso real.",
-    completed: Math.min(completed, target),
+    title: target === 1 ? "Conclua sua tarefa com prazo nesta semana" : `Conclua ${target} tarefas com prazo nesta semana`,
+    benefit: "Reduza pendências e termine a semana com progresso visível.",
+    completed,
     target,
     href: "/productivity",
   };

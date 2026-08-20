@@ -43,24 +43,35 @@ test("daily actions prioritize real overdue and today context and remain capped"
   assert.equal(actions.length, 3);
 });
 
-test("weekly challenge is deterministic and progress uses completions updated this week", () => {
+test("daily actions suppress the task already represented by Agora", () => {
+  const actions = getDailyActions(
+    [task("now", "2026-08-19"), task("other", "2026-08-20")],
+    [],
+    [],
+    now,
+    { excludeTaskId: "now" },
+  );
+  assert.deepEqual(actions.map(({ id }) => id), ["today"]);
+  assert.equal(actions[0]?.title, "other");
+});
+
+test("weekly challenge deterministically measures the completion state of tasks due this week", () => {
   const tasks = [
-    task("done", null, true, "2026-08-18T10:00:00.000Z"),
-    task("old", null, true, "2026-08-10T10:00:00.000Z"),
-    task("one", null),
-    task("two", null),
-    task("three", null),
+    task("done", "2026-08-18", true, "2026-08-10T10:00:00.000Z"),
+    task("one", "2026-08-20"),
+    task("outside", "2026-08-24", true, "2026-08-20T10:00:00.000Z"),
   ];
   const first = getWeeklyChallenge(tasks, "user-1", now);
   const second = getWeeklyChallenge([...tasks].reverse(), "user-1", now);
   assert.deepEqual(first, second);
-  assert.equal(first?.key, "2026-08-17:user-1:tasks");
+  assert.equal(first?.key, "2026-08-17:user-1:tasks-due");
   assert.equal(first?.completed, 1);
-  assert.equal(first?.target, 4);
+  assert.equal(first?.target, 2);
 });
 
-test("weekly challenge is omitted without enough measurable task data", () => {
+test("weekly challenge is omitted when no due-this-week cohort is measurable", () => {
   assert.equal(getWeeklyChallenge([task("only", null)], "user-1", now), null);
+  assert.equal(getWeeklyChallenge([task("later", "2026-08-24")], "user-1", now), null);
   assert.equal(getWeeklyChallenge([task("a", null), task("b", null), task("c", null)], "", now), null);
 });
 
