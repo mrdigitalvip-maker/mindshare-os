@@ -27,10 +27,15 @@ export default function Settings() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [name, setName] = useState(profile.data?.fullName ?? "");
   async function saveName() {
-    if (!session) return;
+    const normalizedName = name.trim();
+    if (!session || !normalizedName || busy) return;
+    if (normalizedName === profile.data?.fullName?.trim()) {
+      setProfileOpen(false);
+      return;
+    }
     setBusy(true);
     try {
-      await updateProfileName(session.user.id, name);
+      await updateProfileName(session.user.id, normalizedName);
       await client.invalidateQueries({ queryKey: queryKeys.profile });
       setProfileOpen(false);
       setMessage("Perfil salvo.");
@@ -48,7 +53,7 @@ export default function Settings() {
       setMessage(
         result.registered
           ? "Notificações ativadas neste dispositivo."
-          : `A permissão de notificações está como ${result.permission}.`,
+          : "A permissão não foi concedida. Você pode tentar novamente nas configurações do aparelho.",
       );
     } catch {
       setMessage("Não foi possível ativar as notificações.");
@@ -73,7 +78,13 @@ export default function Settings() {
     }
   }
   async function checkPermission() {
-    setMessage(`Permissão de notificações: ${await notificationPermission()}.`);
+    const permission = await notificationPermission();
+    const labels: Record<string, string> = {
+      granted: "permitida",
+      denied: "negada",
+      undetermined: "ainda não solicitada",
+    };
+    setMessage(`Permissão de notificações: ${labels[permission] ?? "indisponível"}.`);
   }
   async function logout() {
     await supabase.auth.signOut();
