@@ -88,6 +88,7 @@ export default function Settings() {
   }
   async function logout() {
     await supabase.auth.signOut();
+    client.clear();
     router.replace("/auth");
   }
   return (
@@ -95,7 +96,12 @@ export default function Settings() {
       <Text style={styles.title}>Configurações</Text>
       <Section title="Conta">
         <View style={styles.account}>
-          <ProfileAvatar name={profile.data?.fullName} email={session?.user.email} size={52} />
+          <ProfileAvatar
+            imageUrl={profile.data?.avatarUrl}
+            name={profile.data?.displayName}
+            email={session?.user.email}
+            size={52}
+          />
           <View style={styles.accountCopy}>
             <Text numberOfLines={1} style={styles.value}>
               {profile.data?.fullName ?? "Nome não informado"}

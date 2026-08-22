@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { Redirect, router } from "expo-router";
 import { NexoraAgent } from "@/components/nexora-agent";
@@ -9,12 +9,18 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/providers/auth-provider";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
+import { useProfile } from "@/hooks/use-profile";
 export default function Onboarding() {
   const { session, status } = useAuth();
   const client = useQueryClient();
+  const profile = useProfile();
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>();
+  useEffect(() => {
+    if (!name && profile.data?.displayName !== "Conta NEXORA")
+      setName(profile.data?.displayName ?? "");
+  }, [name, profile.data?.displayName]);
   if (status === "initializing") return <LoadingState title="Preparando seu espaço…" />;
   if (status === "unauthenticated") return <Redirect href="/auth" />;
   async function complete() {
