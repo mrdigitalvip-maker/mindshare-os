@@ -3,17 +3,23 @@ import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { router } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { colors, radius, spacing, typography } from "@/lib/theme";
+import { useAuth } from "@/providers/auth-provider";
+import { ensureAuthenticatedProfile } from "@/services/profile-service";
 export default function ResetPassword() {
+  const { session } = useAuth();
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState<string>();
   const [busy, setBusy] = useState(false);
   async function update() {
-    if (password.length < 8 || busy) return;
+    if (password.length < 8 || busy || !session) return;
     setBusy(true);
     const { error } = await supabase.auth.updateUser({ password });
     setBusy(false);
     if (error) setMessage("Não foi possível atualizar a senha. Tente novamente.");
-    else router.replace("/dashboard");
+    else {
+      const profile = await ensureAuthenticatedProfile(session.user);
+      router.replace(profile.onboarded ? "/dashboard" : "/onboarding");
+    }
   }
   return (
     <View style={styles.page}>

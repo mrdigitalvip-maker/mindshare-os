@@ -26,7 +26,12 @@ export function AppHeader({ onMenu }: { onMenu(): void }) {
         onPress={() => router.push("/settings")}
         style={styles.avatarButton}
       >
-        <ProfileAvatar name={profile.data?.fullName} email={session?.user.email} size={36} />
+        <ProfileAvatar
+          imageUrl={profile.data?.avatarUrl}
+          name={profile.data?.displayName}
+          email={session?.user.email}
+          size={36}
+        />
       </Pressable>
     </View>
   );
