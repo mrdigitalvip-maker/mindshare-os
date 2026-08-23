@@ -88,6 +88,8 @@ export class ChatServiceError extends Error {
     message: string,
     public readonly diagnosticId?: string,
     public readonly category: AssistantErrorCategory = classifyAssistantError(code),
+    public readonly status?: number,
+    public readonly stage: "session" | "invoke" | "response" = "invoke",
   ) {
     super(message);
     this.name = "ChatServiceError";
@@ -110,9 +112,19 @@ async function invocationError(error: unknown): Promise<ChatServiceError> {
       payload?.error?.code ?? statusCodes[context.status] ?? "unavailable",
       payload?.error?.message ?? "NEXORA is temporarily unavailable.",
       payload?.error?.requestId,
+      classifyAssistantError(payload?.error?.code ?? statusCodes[context.status] ?? "unavailable"),
+      context.status,
+      "invoke",
     );
   }
-  return new ChatServiceError("unavailable", "NEXORA is temporarily unavailable.");
+  return new ChatServiceError(
+    "unavailable",
+    "NEXORA is temporarily unavailable.",
+    undefined,
+    "NETWORK",
+    undefined,
+    "invoke",
+  );
 }
 export async function loadRecentConversation(): Promise<{
   conversationId: string | null;
@@ -172,7 +184,14 @@ export async function sendChat(
       session = refreshed.data.session;
     }
     if (sessionError || !session?.access_token)
-      throw new ChatServiceError("unauthorized", "An authenticated session is required.");
+      throw new ChatServiceError(
+        "unauthorized",
+        "An authenticated session is required.",
+        undefined,
+        "AUTH",
+        undefined,
+        "session",
+      );
     const { data, error } = await supabase.functions.invoke<EdgeResult>("ai-chat", {
       body: payload,
       headers: { Authorization: `Bearer ${session.access_token}` },
@@ -188,7 +207,14 @@ export async function sendChat(
     try {
       normalized = validateAssistantSendData(data.data);
     } catch {
-      throw new ChatServiceError("invalid_response", "NEXORA returned an invalid response.");
+      throw new ChatServiceError(
+        "invalid_response",
+        "NEXORA returned an invalid response.",
+        undefined,
+        "VALIDATION",
+        undefined,
+        "response",
+      );
     }
     return {
       conversationId: normalized.conversationId,

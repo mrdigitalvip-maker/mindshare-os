@@ -46,6 +46,10 @@ export function createAssistantRequestId(random = Math.random): string {
   });
 }
 
+export function isAssistantRequestId(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
 export function buildAssistantSendPayload(
   message: string,
   conversationId: string | null,
@@ -54,6 +58,7 @@ export function buildAssistantSendPayload(
 ): AssistantSendPayload {
   const content = message.trim();
   if (!content) throw new Error("invalid_request");
+  if (!isAssistantRequestId(requestId)) throw new Error("invalid_request_id");
   return {
     action: "send",
     message: content,
@@ -127,7 +132,11 @@ export function classifyAssistantError(code?: string): AssistantErrorCategory {
   if (["unauthorized", "forbidden"].includes(code ?? "")) return "AUTH";
   if (["free_limit_reached", "premium_limit_reached", "provider_rate_limited"].includes(code ?? ""))
     return "RATE_LIMIT";
-  if (["invalid_request", "input_too_large", "invalid_response"].includes(code ?? ""))
+  if (
+    ["invalid_request", "invalid_request_id", "input_too_large", "invalid_response"].includes(
+      code ?? "",
+    )
+  )
     return "VALIDATION";
   if (code === "persistence_error" || code?.includes("history")) return "PERSISTENCE";
   if (

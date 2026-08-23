@@ -10,18 +10,41 @@ import {
 } from "../lib/chat-contract.ts";
 
 test("builds the exact ai-chat send payload and trims user input", () => {
-  assert.deepEqual(buildAssistantSendPayload("  olá  ", " conversation-1 ", "request-1"), {
-    action: "send",
-    message: "olá",
-    conversationId: "conversation-1",
-    requestId: "request-1",
-  });
-  assert.throws(() => buildAssistantSendPayload("  ", null, "request-1"));
+  assert.deepEqual(
+    buildAssistantSendPayload(
+      "  olá  ",
+      " conversation-1 ",
+      "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    ),
+    {
+      action: "send",
+      message: "olá",
+      conversationId: "conversation-1",
+      requestId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    },
+  );
+  assert.throws(() =>
+    buildAssistantSendPayload("  ", null, "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"),
+  );
 });
 
 test("creates UUID-shaped request IDs accepted by ai_messages.id", () => {
   const id = createAssistantRequestId(() => 0.5);
   assert.match(id, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+});
+
+test("rejects malformed request IDs before invoking ai-chat", () => {
+  assert.throws(() => buildAssistantSendPayload("oi", null, "mobile-123"), /invalid_request_id/);
+  assert.equal(classifyAssistantError("invalid_request_id"), "VALIDATION");
+});
+
+test("text-only send does not require or serialize attachments", () => {
+  const payload = buildAssistantSendPayload(
+    "Vjbgbgunv",
+    null,
+    "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+  );
+  assert.equal("attachments" in payload, false);
 });
 
 test("validates and normalizes a successful Edge Function response", () => {
@@ -69,9 +92,11 @@ test("serializes and parses private attachment metadata", async () => {
     size: 20,
     storagePath: "user/request/a.jpg",
   };
-  assert.deepEqual(buildAssistantSendPayload("Veja", null, "request", [attachment]).attachments, [
-    attachment,
-  ]);
+  assert.deepEqual(
+    buildAssistantSendPayload("Veja", null, "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", [attachment])
+      .attachments,
+    [attachment],
+  );
   const { parseWireAttachments } = await import("../lib/chat-contract.ts");
   assert.deepEqual(parseWireAttachments([attachment]), [attachment]);
   assert.deepEqual(
