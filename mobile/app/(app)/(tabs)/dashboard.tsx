@@ -11,13 +11,12 @@ import { useAuth } from "@/providers/auth-provider";
 import { resolveCapabilityTier } from "@/lib/capabilities";
 import { getDailyActions, getWeeklyChallenge, type DailyAction } from "@/lib/daily-experience";
 import {
-  getActiveProjects,
   getDueLabel,
+  getHomeContextMessage,
+  getHomeDaySummary,
+  getHomeProjects,
   getNextAction,
-  getOverdueTasks,
   getProjectProgress,
-  getTaskPreviews,
-  getTodayTasks,
 } from "@/lib/dashboard-selectors";
 import { getDisplayProjectStatus } from "@/lib/presentation";
 import { colors, radius, spacing, typography } from "@/lib/theme";
@@ -71,32 +70,8 @@ function SectionState({
   return null;
 }
 
-function TaskRow({ task, project }: { task: Task; project?: Project }) {
-  const overdue = getDueLabel(task).startsWith("Atrasada");
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${task.title}, ${getDueLabel(task)}`}
-      onPress={() => router.push("/productivity")}
-      style={styles.taskRow}
-    >
-      <View style={[styles.taskMarker, overdue && styles.taskMarkerDanger]} />
-      <View style={styles.flex}>
-        <Text numberOfLines={1} style={styles.itemTitle}>
-          {task.title}
-        </Text>
-        <Text numberOfLines={1} style={[styles.meta, overdue && styles.danger]}>
-          {getDueLabel(task)}
-          {project ? ` · ${project.title}` : ""}
-        </Text>
-      </View>
-      <Text style={styles.arrow}>›</Text>
-    </Pressable>
-  );
-}
-
-function ProjectCard({ project, tasks }: { project: Project; tasks: Task[] }) {
-  const progress = getProjectProgress(project.id, tasks);
+function ProjectCard({ project, tasks }: { project: Project; tasks?: Task[] }) {
+  const progress = tasks ? getProjectProgress(project.id, tasks) : null;
   return (
     <Pressable
       accessibilityRole="button"
@@ -115,7 +90,9 @@ function ProjectCard({ project, tasks }: { project: Project; tasks: Task[] }) {
           {project.description}
         </Text>
       ) : null}
-      {progress ? (
+      {!tasks ? (
+        <Text style={styles.meta}>Dados de tarefas indisponíveis</Text>
+      ) : progress ? (
         <View
           accessible
           accessibilityLabel={`${progress.completed} de ${progress.total} tarefas concluídas`}
@@ -157,33 +134,30 @@ function StudyCard({ subject }: { subject: Subject }) {
   );
 }
 
-function DailySection({ actions }: { actions: DailyAction[] }) {
+function DailyActions({ actions }: { actions: DailyAction[] }) {
   if (!actions.length) return null;
   return (
-    <View style={styles.section}>
-      <SectionHeader title="PARA HOJE" />
-      <View style={styles.dailyCard}>
-        {actions.map((action, index) => (
-          <Pressable
-            key={action.id}
-            accessibilityRole="button"
-            accessibilityLabel={`${action.title}. ${action.detail}`}
-            onPress={() => router.push(action.href)}
-            style={[styles.dailyRow, index > 0 && styles.dailyDivider]}
-          >
-            <Text style={styles.dailyBullet}>✦</Text>
-            <View style={styles.flex}>
-              <Text numberOfLines={2} style={styles.itemTitle}>
-                {action.title}
-              </Text>
-              <Text numberOfLines={2} style={styles.meta}>
-                {action.detail}
-              </Text>
-            </View>
-            <Text style={styles.arrow}>›</Text>
-          </Pressable>
-        ))}
-      </View>
+    <View style={styles.dailyRows}>
+      {actions.map((action, index) => (
+        <Pressable
+          key={action.id}
+          accessibilityRole="button"
+          accessibilityLabel={`${action.title}. ${action.detail}`}
+          onPress={() => router.push(action.href)}
+          style={[styles.dailyRow, index > 0 && styles.dailyDivider]}
+        >
+          <Text style={styles.dailyBullet}>✦</Text>
+          <View style={styles.flex}>
+            <Text numberOfLines={2} style={styles.itemTitle}>
+              {action.title}
+            </Text>
+            <Text numberOfLines={2} style={styles.meta}>
+              {action.detail}
+            </Text>
+          </View>
+          <Text style={styles.arrow}>›</Text>
+        </Pressable>
+      ))}
     </View>
   );
 }
@@ -199,18 +173,32 @@ export default function Dashboard() {
   const subjectsQuery = useSubjects();
   const tasks = useMemo(() => tasksQuery.data ?? [], [tasksQuery.data]);
   const projects = useMemo(() => projectsQuery.data ?? [], [projectsQuery.data]);
-  const todayTasks = useMemo(() => getTodayTasks(tasks), [tasks]);
-  const overdueTasks = useMemo(() => getOverdueTasks(tasks), [tasks]);
-  const previews = useMemo(() => getTaskPreviews(tasks), [tasks]);
   const nextAction = useMemo(() => getNextAction(tasks), [tasks]);
-  const activeProjects = useMemo(() => getActiveProjects(projects), [projects]);
+  const daySummary = useMemo(() => getHomeDaySummary(tasks), [tasks]);
+  const contextMessage = useMemo(
+    () => getHomeContextMessage(daySummary, Boolean(nextAction)),
+    [daySummary, nextAction],
+  );
+  const activeProjects = useMemo(() => getHomeProjects(projects, tasks), [projects, tasks]);
   const projectById = useMemo(
     () => new Map(projects.map((project) => [project.id, project])),
     [projects],
   );
-  const subjects = (subjectsQuery.data ?? [])
-    .filter((subject) => subject.status.toLowerCase() !== "archived")
-    .slice(0, 2);
+  const tasksByProject = useMemo(() => {
+    const grouped = new Map<string, Task[]>();
+    for (const task of tasks) {
+      if (!task.projectId) continue;
+      grouped.set(task.projectId, [...(grouped.get(task.projectId) ?? []), task]);
+    }
+    return grouped;
+  }, [tasks]);
+  const subjects = useMemo(
+    () =>
+      (subjectsQuery.data ?? [])
+        .filter((subject) => subject.status.toLowerCase() !== "archived")
+        .slice(0, 2),
+    [subjectsQuery.data],
+  );
   const dailyActions = useMemo(
     () =>
       getDailyActions(tasks, projects, subjectsQuery.data ?? [], new Date(), {
@@ -256,10 +244,11 @@ export default function Dashboard() {
         }
       >
         <View style={styles.identity}>
-          <NexoraAgent size={48} state="idle" />
+          <NexoraAgent size={40} state="idle" />
           <View style={styles.identityCopy}>
-            <Text style={styles.eyebrow}>{tier} · ONLINE</Text>
+            <Text style={styles.eyebrow}>{tier}</Text>
             <Text style={styles.greeting}>Olá, {name}.</Text>
+            <Text style={styles.context}>{contextMessage}</Text>
           </View>
         </View>
         <View style={styles.hero}>
@@ -285,18 +274,23 @@ export default function Dashboard() {
                   onPress={() => router.push("/productivity")}
                   style={styles.openButton}
                 >
-                  <Text style={styles.openButtonText}>Abrir tarefas</Text>
+                  <Text style={styles.openButtonText}>Abrir tarefa</Text>
                 </Pressable>
               </View>
             ) : (
-              <Text style={styles.calm}>Nenhuma ação urgente agora.</Text>
+              <View style={styles.compactState}>
+                <Text style={styles.calm}>Nenhuma ação urgente agora.</Text>
+                <Pressable accessibilityRole="button" onPress={() => router.push("/productivity")}>
+                  <Text style={styles.link}>Ver tarefas</Text>
+                </Pressable>
+              </View>
             )}
           </View>
         ) : null}
 
         <View style={styles.section}>
           <SectionHeader
-            title="HOJE"
+            title="SEU DIA"
             action="Ver tarefas"
             onAction={() => router.push("/productivity")}
           />
@@ -309,31 +303,39 @@ export default function Dashboard() {
             <View style={styles.todayCard}>
               <View style={styles.summary}>
                 <View>
-                  <Text style={styles.metric}>{todayTasks.length}</Text>
+                  <Text style={styles.metric}>{daySummary.pending}</Text>
                   <Text style={styles.meta}>
-                    {todayTasks.length === 1 ? "tarefa para hoje" : "tarefas para hoje"}
+                    {daySummary.pending === 1 ? "pendente hoje" : "pendentes hoje"}
                   </Text>
                 </View>
                 <View style={styles.divider} />
                 <View>
-                  <Text style={[styles.metric, overdueTasks.length > 0 && styles.danger]}>
-                    {overdueTasks.length}
+                  <Text style={[styles.metric, daySummary.overdue > 0 && styles.danger]}>
+                    {daySummary.overdue}
                   </Text>
                   <Text style={styles.meta}>
-                    {overdueTasks.length === 1 ? "atrasada" : "atrasadas"}
+                    {daySummary.overdue === 1 ? "atrasada" : "atrasadas"}
                   </Text>
                 </View>
               </View>
-              {previews.length ? (
-                <View style={styles.rows}>
-                  {previews.map((task) => (
-                    <TaskRow
-                      key={task.id}
-                      task={task}
-                      project={task.projectId ? projectById.get(task.projectId) : undefined}
-                    />
-                  ))}
+              {daySummary.percentage !== null ? (
+                <View
+                  accessible
+                  accessibilityRole="progressbar"
+                  accessibilityLabel={`${daySummary.completed} de ${daySummary.total} tarefas de hoje concluídas`}
+                  accessibilityValue={{ min: 0, max: daySummary.total, now: daySummary.completed }}
+                  style={styles.dayProgress}
+                >
+                  <View style={styles.progressTrack}>
+                    <View style={[styles.progressFill, { width: `${daySummary.percentage}%` }]} />
+                  </View>
+                  <Text style={styles.meta}>
+                    {daySummary.completed} de {daySummary.total} concluídas
+                  </Text>
                 </View>
+              ) : null}
+              {dailyActions.length ? (
+                <DailyActions actions={dailyActions} />
               ) : (
                 <Text style={styles.calm}>
                   Hoje está tranquilo. Nenhuma tarefa pendente com prazo.
@@ -342,13 +344,6 @@ export default function Dashboard() {
             </View>
           ) : null}
         </View>
-
-        {!tasksQuery.isPending &&
-        !tasksQuery.isError &&
-        !projectsQuery.isPending &&
-        !subjectsQuery.isPending ? (
-          <DailySection actions={dailyActions} />
-        ) : null}
 
         {weeklyChallenge ? (
           <View style={styles.section}>
@@ -392,7 +387,7 @@ export default function Dashboard() {
 
         <View style={styles.section}>
           <SectionHeader
-            title="PROJETOS ATIVOS"
+            title="PROJETOS EM MOVIMENTO"
             action="Ver todos"
             onAction={() => router.push("/projects")}
           />
@@ -405,7 +400,11 @@ export default function Dashboard() {
             activeProjects.length ? (
               <View style={styles.cardList}>
                 {activeProjects.map((project) => (
-                  <ProjectCard key={project.id} project={project} tasks={tasks} />
+                  <ProjectCard
+                    key={project.id}
+                    project={project}
+                    tasks={tasksQuery.isError ? undefined : (tasksByProject.get(project.id) ?? [])}
+                  />
                 ))}
               </View>
             ) : (
@@ -417,7 +416,7 @@ export default function Dashboard() {
         {subjectsQuery.isPending || subjectsQuery.isError || subjects.length > 0 ? (
           <View style={styles.section}>
             <SectionHeader
-              title="CONTINUAR ESTUDANDO"
+              title="CONTINUAR"
               action="Ver estudos"
               onAction={() => router.push("/studies")}
             />
@@ -444,7 +443,7 @@ export default function Dashboard() {
         style={({ pressed }) => [styles.quickNexora, pressed && styles.quickNexoraPressed]}
       >
         <Text style={styles.quickChatSpark}>✦</Text>
-        <Text style={styles.quickNexoraText}>NEXORA</Text>
+        <Text style={styles.quickNexoraText}>Perguntar à NEXORA</Text>
       </Pressable>
     </AppScreen>
   );
@@ -454,17 +453,18 @@ const styles = StyleSheet.create({
   page: {
     paddingHorizontal: spacing.md,
     paddingTop: spacing.xs,
-    paddingBottom: 96,
-    gap: spacing.xl,
+    paddingBottom: 104,
+    gap: spacing.lg,
   },
   flex: { flex: 1, minWidth: 0 },
   identity: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   identityCopy: { flex: 1, minWidth: 0 },
   eyebrow: { ...typography.eyebrow, color: colors.primaryBright },
   greeting: { ...typography.body, color: colors.text },
+  context: { ...typography.label, color: colors.textMuted, marginTop: 2 },
   hero: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm },
   spark: { fontSize: 20, color: colors.primaryBright, paddingTop: 3 },
-  title: { ...typography.display, fontSize: 28, lineHeight: 34, color: colors.text, flex: 1 },
+  title: { ...typography.heading, fontSize: 22, lineHeight: 28, color: colors.text, flex: 1 },
   section: { gap: 12 },
   sectionHeader: {
     minHeight: 32,
@@ -487,6 +487,7 @@ const styles = StyleSheet.create({
   },
   muted: { ...typography.body, color: colors.textMuted },
   calm: { ...typography.body, color: colors.textMuted, paddingVertical: spacing.sm },
+  compactState: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   todayCard: {
     overflow: "hidden",
     borderWidth: 1,
@@ -497,18 +498,6 @@ const styles = StyleSheet.create({
   summary: { flexDirection: "row", alignItems: "center", gap: spacing.lg, padding: spacing.md },
   metric: { ...typography.title, color: colors.text, fontSize: 25, lineHeight: 29 },
   divider: { width: 1, alignSelf: "stretch", backgroundColor: colors.border },
-  rows: { borderTopWidth: 1, borderTopColor: colors.border },
-  taskRow: {
-    minHeight: 58,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  taskMarker: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.primaryBright },
-  taskMarkerDanger: { backgroundColor: colors.danger },
   itemTitle: { ...typography.body, color: colors.text },
   meta: { ...typography.label, color: colors.textMuted },
   danger: { color: colors.danger },
@@ -521,13 +510,8 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     backgroundColor: colors.surface,
   },
-  dailyCard: {
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.lg,
-    backgroundColor: colors.surface,
-  },
+  dayProgress: { paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
+  dailyRows: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
   dailyRow: {
     minHeight: 68,
     flexDirection: "row",

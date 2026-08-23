@@ -5,7 +5,7 @@ export type DailyAction = {
   id: string;
   title: string;
   detail: string;
-  href: "/productivity" | "/projects" | "/studies";
+  href: "/productivity" | `/projects/${string}` | `/studies/${string}`;
 };
 
 export type WeeklyChallenge = {
@@ -71,16 +71,16 @@ export function getDailyActions(
   const today = getTodayTasks(eligibleTasks, now);
   if (overdue.length) {
     actions.push({
-      id: "overdue",
-      title: overdue.length === 1 ? `Concluir ${overdue[0].title}` : `Concluir ${overdue.length} tarefas atrasadas`,
+      id: `task-${overdue[0].id}`,
+      title: overdue[0].title,
       detail: "Comece pelo que já passou do prazo.",
       href: "/productivity",
     });
   }
   if (today.length) {
     actions.push({
-      id: "today",
-      title: today.length === 1 ? today[0].title : `${today.length} tarefas para hoje`,
+      id: `task-${today[0].id}`,
+      title: today[0].title,
       detail: "Prioridades com prazo de hoje.",
       href: "/productivity",
     });
@@ -92,9 +92,9 @@ export function getDailyActions(
   if (active) {
     actions.push({
       id: `project-${active.id}`,
-      title: `Definir a próxima tarefa de ${active.title}`,
+      title: `Definir a próxima ação de ${active.title}`,
       detail: "Este projeto está sem uma próxima ação.",
-      href: "/projects",
+      href: `/projects/${active.id}`,
     });
   }
   const subject = subjects.find((item) => item.status.trim().toLowerCase() !== "archived");
@@ -103,7 +103,7 @@ export function getDailyActions(
       id: `study-${subject.id}`,
       title: `Continuar ${subject.name}`,
       detail: "Retome uma matéria ativa.",
-      href: "/studies",
+      href: `/studies/${subject.id}`,
     });
   }
   return actions.slice(0, 3);

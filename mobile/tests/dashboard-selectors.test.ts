@@ -2,12 +2,15 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   getNextAction,
+  getHomeContextMessage,
+  getHomeDaySummary,
+  getHomeProjects,
   getOverdueTasks,
   getProjectProgress,
   getTodayTasks,
   getUpcomingTasks,
 } from "../lib/dashboard-selectors";
-import type { Task } from "../services/workspace-service";
+import type { Project, Task } from "../services/workspace-service";
 
 const now = new Date(2026, 7, 20, 12);
 const task = (id: string, dueDate: string | null, completed = false): Task => ({
@@ -77,4 +80,26 @@ test("project progress is derived from real related tasks and absent with no tas
     percentage: 50,
   });
   assert.equal(getProjectProgress("empty", tasks), null);
+});
+
+test("home context is deterministic for overdue, today, calm, and no-action states", () => {
+  assert.equal(getHomeContextMessage({ overdue: 1, pending: 2 }, true), "Vamos tirar uma pendência do caminho.");
+  assert.equal(getHomeContextMessage({ overdue: 0, pending: 2 }, true), "Você tem 2 prioridades para hoje.");
+  assert.equal(getHomeContextMessage({ overdue: 0, pending: 0 }, true), "Seu dia está sob controle.");
+  assert.equal(getHomeContextMessage({ overdue: 0, pending: 0 }, false), "Vamos definir o próximo passo.");
+});
+
+test("day progress only measures tasks whose due date is the local today", () => {
+  assert.deepEqual(getHomeDaySummary([task("done", "2026-08-20", true), task("open", "2026-08-20"), task("old", "2026-08-19")], now), {
+    completed: 1, pending: 1, total: 2, overdue: 1, percentage: 50,
+  });
+  assert.equal(getHomeDaySummary([], now).percentage, null);
+});
+
+test("home project ranking favors actionable work, is stable, and remains capped", () => {
+  const projects: Project[] = ["empty", "pending", "late", "today"].map((id) => ({ id, title: id, description: "", status: "active" }));
+  const linked = [task("pending-task", null), task("late-task", "2026-08-19"), task("today-task", "2026-08-20")];
+  linked[0].projectId = "pending"; linked[1].projectId = "late"; linked[2].projectId = "today";
+  assert.deepEqual(getHomeProjects(projects, linked, now, 3).map(({ id }) => id), ["late", "today", "pending"]);
+  assert.deepEqual(getHomeProjects([...projects].reverse(), linked, now, 3).map(({ id }) => id), ["late", "today", "pending"]);
 });
