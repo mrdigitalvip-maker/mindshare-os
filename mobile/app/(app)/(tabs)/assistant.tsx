@@ -5,6 +5,7 @@ import {
   Alert,
   FlatList,
   Image,
+  Keyboard,
   Pressable,
   StyleSheet,
   Text,
@@ -20,6 +21,13 @@ import { ErrorState, LoadingState } from "@/components/screen-state";
 import { useRecentConversation, useSendChat } from "@/hooks/use-chat";
 import { assistantErrorCopy, createAssistantRequestId } from "@/lib/chat-contract";
 import {
+  ASSISTANT_QUICK_ACTIONS,
+  attachmentFromPickerAsset,
+  canSendAssistantMessage,
+  removeAssistantAttachment,
+  resolveQuickAction,
+} from "@/lib/assistant-composer";
+import {
   formatFileSize,
   validateChatAttachment,
   type ChatAttachment,
@@ -29,12 +37,6 @@ import { colors, radius, spacing, typography } from "@/lib/theme";
 import { uploadChatAttachment } from "@/services/chat-attachment-service";
 import { ChatServiceError, type ChatMessage } from "@/services/chat-service";
 
-const STARTERS = [
-  "Organizar meu dia",
-  "Revisar minhas tarefas",
-  "Ajudar com um projeto",
-  "Analisar uma imagem",
-] as const;
 const uuid = () => createAssistantRequestId();
 
 export default function Assistant() {
@@ -45,6 +47,7 @@ export default function Assistant() {
   const send = useSendChat();
   const [draft, setDraft] = useState("");
   const [attachment, setAttachment] = useState<LocalChatAttachment | null>(null);
+  const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [newConversation, setNewConversation] = useState(false);
   const [speakingId, setSpeakingId] = useState<string | null>(null);
@@ -52,6 +55,7 @@ export default function Assistant() {
     content: string;
     requestId: string;
     code?: string;
+    uploadedAttachment?: ChatAttachment;
   } | null>(null);
   const [optimistic, setOptimistic] = useState<ChatMessage | null>(null);
   const messages = useMemo(() => {
@@ -74,7 +78,10 @@ export default function Assistant() {
           ? "Escolha um arquivo de até 6 MB."
           : "Use JPG, PNG, WEBP ou texto simples.",
       );
-    else setAttachment(next);
+    else {
+      setAttachment(next);
+      setFailed(null);
+    }
   };
   const pickGallery = async () => {
     try {
@@ -90,15 +97,8 @@ export default function Assistant() {
         quality: 1,
       });
       if (result.canceled) return;
-      const asset = result.assets[0];
-      validateDraft({
-        id: uuid(),
-        uri: asset.uri,
-        kind: "image",
-        name: asset.fileName || "foto.jpg",
-        mimeType: asset.mimeType || "image/jpeg",
-        size: asset.fileSize || 0,
-      });
+      const next = attachmentFromPickerAsset(result.assets[0], "image", uuid());
+      if (next) validateDraft(next);
     } catch {
       Alert.alert("Galeria indisponível", "Não foi possível abrir suas fotos agora.");
     }
@@ -113,15 +113,8 @@ export default function Assistant() {
         );
       const result = await ImagePicker.launchCameraAsync({ mediaTypes: ["images"], quality: 0.9 });
       if (result.canceled) return;
-      const asset = result.assets[0];
-      validateDraft({
-        id: uuid(),
-        uri: asset.uri,
-        kind: "image",
-        name: asset.fileName || "camera.jpg",
-        mimeType: asset.mimeType || "image/jpeg",
-        size: asset.fileSize || 0,
-      });
+      const next = attachmentFromPickerAsset(result.assets[0], "image", uuid());
+      if (next) validateDraft(next);
     } catch {
       Alert.alert("Câmera indisponível", "Não foi possível abrir a câmera neste aparelho.");
     }
@@ -134,36 +127,33 @@ export default function Assistant() {
         copyToCacheDirectory: true,
       });
       if (result.canceled) return;
-      const asset = result.assets[0];
-      validateDraft({
-        id: uuid(),
-        uri: asset.uri,
-        kind: "document",
-        name: asset.name,
-        mimeType: asset.mimeType || "text/plain",
-        size: asset.size || 0,
-      });
+      const next = attachmentFromPickerAsset(result.assets[0], "document", uuid());
+      if (next) validateDraft(next);
     } catch {
       Alert.alert("Arquivo indisponível", "Não foi possível abrir o seletor de arquivos.");
     }
   };
-  const openAttachmentMenu = () =>
-    Alert.alert("Adicionar", "Escolha uma origem", [
-      { text: "Foto da galeria", onPress: () => void pickGallery() },
-      { text: "Câmera", onPress: () => void takePhoto() },
-      { text: "Arquivo de texto", onPress: () => void pickDocument() },
-      { text: "Cancelar", style: "cancel" },
-    ]);
+  const openAttachmentMenu = () => {
+    Keyboard.dismiss();
+    setAttachmentMenuOpen(true);
+  };
+  const runPicker = (picker: "camera" | "gallery" | "document") => {
+    setAttachmentMenuOpen(false);
+    if (picker === "camera") void takePhoto();
+    else if (picker === "gallery") void pickGallery();
+    else void pickDocument();
+  };
 
   const submit = useCallback(
-    async (value: string, retryId?: string) => {
+    async (value: string, retryId?: string, retryAttachment?: ChatAttachment) => {
       const content = value.trim();
       if ((!content && !attachment) || send.isPending || uploading) return;
       const id = retryId ?? createAssistantRequestId();
       setFailed(null);
-      setUploading(Boolean(attachment));
+      setUploading(Boolean(attachment && !retryAttachment));
+      let uploaded = retryAttachment;
       try {
-        const uploaded = attachment ? await uploadChatAttachment(attachment, id) : undefined;
+        uploaded ??= attachment ? await uploadChatAttachment(attachment, id) : undefined;
         const finalContent =
           content ||
           (attachment?.kind === "image" ? "Analise esta imagem." : "Analise este arquivo.");
@@ -187,7 +177,7 @@ export default function Assistant() {
       } catch (error) {
         const code = error instanceof ChatServiceError ? error.code : undefined;
         setOptimistic(null);
-        setFailed({ content, requestId: id, code });
+        setFailed({ content, requestId: id, code, uploadedAttachment: uploaded });
       } finally {
         setUploading(false);
       }
@@ -235,6 +225,8 @@ export default function Assistant() {
       />
     );
   const errorCopy = failed ? assistantErrorCopy(failed.code) : null;
+  const busy = send.isPending || uploading;
+  const canSend = canSendAssistantMessage(draft, attachment, busy);
   return (
     <AppScreen keyboard padded={false}>
       <View style={styles.header}>
@@ -248,10 +240,12 @@ export default function Assistant() {
         </View>
         <Pressable
           accessibilityRole="button"
+          accessibilityLabel="Iniciar nova conversa"
           onPress={() => {
             setNewConversation(true);
             setDraft("");
             setAttachment(null);
+            setAttachmentMenuOpen(false);
             setFailed(null);
           }}
           style={styles.newButton}
@@ -261,6 +255,7 @@ export default function Assistant() {
       </View>
       <FlatList
         ref={list}
+        style={styles.conversation}
         data={messages}
         keyExtractor={(item) => item.id}
         keyboardDismissMode="interactive"
@@ -274,15 +269,19 @@ export default function Assistant() {
               Use seus dados reais da NEXORA ou envie uma imagem.
             </Text>
             <View style={styles.starters}>
-              {STARTERS.map((starter) => (
+              {ASSISTANT_QUICK_ACTIONS.map((action) => (
                 <Pressable
-                  key={starter}
-                  onPress={() =>
-                    starter === "Analisar uma imagem" ? openAttachmentMenu() : void submit(starter)
-                  }
+                  accessibilityRole="button"
+                  accessibilityLabel={action.label}
+                  key={action.label}
+                  onPress={() => {
+                    const resolved = resolveQuickAction(action);
+                    if (resolved.picker) runPicker(resolved.picker);
+                    else setDraft(resolved.draft);
+                  }}
                   style={styles.starter}
                 >
-                  <Text style={styles.starterText}>{starter}</Text>
+                  <Text style={styles.starterText}>{action.label}</Text>
                 </Pressable>
               ))}
             </View>
@@ -309,7 +308,12 @@ export default function Assistant() {
               </Text>
             </View>
             {item.role === "assistant" && (
-              <Pressable onPress={() => void toggleSpeech(item)} style={styles.listen}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`${speakingId === item.id ? "Parar" : "Ouvir"} resposta da NEXORA`}
+                onPress={() => void toggleSpeech(item)}
+                style={styles.listen}
+              >
                 <Text style={styles.listenText}>{speakingId === item.id ? "Parar" : "Ouvir"}</Text>
               </Pressable>
             )}
@@ -325,7 +329,14 @@ export default function Assistant() {
             <Text style={styles.errorTitle}>{errorCopy.title}</Text>
             <Text style={styles.errorDetail}>{errorCopy.detail}</Text>
           </View>
-          <Pressable onPress={() => void submit(failed!.content, failed!.requestId)}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Tentar enviar novamente"
+            disabled={busy}
+            onPress={() =>
+              void submit(failed!.content, failed!.requestId, failed!.uploadedAttachment)
+            }
+          >
             <Text style={styles.retry}>Tentar novamente</Text>
           </Pressable>
         </View>
@@ -349,16 +360,63 @@ export default function Assistant() {
           {uploading ? (
             <ActivityIndicator color={colors.primaryBright} />
           ) : (
-            <Pressable accessibilityLabel="Remover arquivo" onPress={() => setAttachment(null)}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Remover anexo ${attachment.name}`}
+              onPress={() => {
+                setAttachment(removeAssistantAttachment());
+                setFailed(null);
+              }}
+            >
               <Text style={styles.remove}>×</Text>
             </Pressable>
           )}
         </View>
       )}
+      {attachmentMenuOpen && (
+        <View accessibilityRole="menu" style={styles.attachmentMenu}>
+          <View style={styles.menuHeading}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.menuTitle}>Adicionar ao chat</Text>
+              <Text style={styles.menuCaption}>Escolha uma origem compatível</Text>
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Fechar opções de anexo"
+              onPress={() => setAttachmentMenuOpen(false)}
+              hitSlop={8}
+            >
+              <Text style={styles.menuClose}>×</Text>
+            </Pressable>
+          </View>
+          <View style={styles.menuActions}>
+            {(
+              [
+                ["camera", "◎", "Câmera"],
+                ["gallery", "▧", "Galeria"],
+                ["document", "▤", "Arquivo .txt"],
+              ] as const
+            ).map(([value, icon, label]) => (
+              <Pressable
+                accessibilityRole="menuitem"
+                accessibilityLabel={label}
+                key={value}
+                onPress={() => runPicker(value)}
+                style={({ pressed }) => [styles.menuAction, pressed && styles.pressed]}
+              >
+                <Text style={styles.menuIcon}>{icon}</Text>
+                <Text style={styles.menuActionText}>{label}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      )}
       <View style={styles.composer}>
         <Pressable
+          accessibilityRole="button"
           accessibilityLabel="Adicionar anexo"
-          disabled={send.isPending || uploading}
+          accessibilityState={{ disabled: busy, expanded: attachmentMenuOpen }}
+          disabled={busy}
           onPress={openAttachmentMenu}
           style={styles.attach}
         >
@@ -367,6 +425,7 @@ export default function Assistant() {
         <TextInput
           accessibilityLabel="Mensagem para a NEXORA"
           multiline
+          scrollEnabled
           blurOnSubmit={false}
           maxLength={12000}
           placeholder="Mensagem para a NEXORA…"
@@ -380,13 +439,12 @@ export default function Assistant() {
           textAlignVertical="top"
         />
         <Pressable
+          accessibilityRole="button"
           accessibilityLabel="Enviar mensagem"
-          disabled={(!draft.trim() && !attachment) || send.isPending || uploading}
+          accessibilityState={{ disabled: !canSend, busy }}
+          disabled={!canSend}
           onPress={() => void submit(draft)}
-          style={[
-            styles.send,
-            ((!draft.trim() && !attachment) || send.isPending || uploading) && styles.disabled,
-          ]}
+          style={[styles.send, !canSend && styles.disabled]}
         >
           {uploading ? (
             <ActivityIndicator color={colors.text} />
@@ -414,6 +472,7 @@ const styles = StyleSheet.create({
   status: { ...typography.caption, color: colors.textMuted },
   newButton: { minHeight: 44, justifyContent: "center", paddingHorizontal: spacing.sm },
   newText: { ...typography.label, color: colors.primaryBright },
+  conversation: { flex: 1, minHeight: 0 },
   list: { flexGrow: 1, gap: spacing.md, padding: spacing.md, paddingBottom: spacing.lg },
   emptyList: { flexGrow: 1, justifyContent: "center", padding: spacing.lg },
   empty: { alignItems: "center", gap: spacing.sm },
@@ -486,6 +545,34 @@ const styles = StyleSheet.create({
   thumb: { width: 52, height: 52, borderRadius: radius.sm },
   docIcon: { fontSize: 28, color: colors.primaryBright },
   remove: { fontSize: 28, color: colors.textMuted, paddingHorizontal: 8 },
+  attachmentMenu: {
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.sm,
+    padding: spacing.md,
+    gap: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surfaceRaised,
+    elevation: 12,
+  },
+  menuHeading: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  menuTitle: { ...typography.label, color: colors.text },
+  menuCaption: { ...typography.caption, color: colors.textMuted },
+  menuClose: { color: colors.textMuted, fontSize: 28, lineHeight: 32, paddingHorizontal: 4 },
+  menuActions: { flexDirection: "row", gap: spacing.sm },
+  menuAction: {
+    flex: 1,
+    minHeight: 68,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xs,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+  },
+  menuIcon: { color: colors.primaryBright, fontSize: 23 },
+  menuActionText: { ...typography.caption, color: colors.text, textAlign: "center" },
+  pressed: { opacity: 0.72 },
   composer: {
     flexShrink: 0,
     flexDirection: "row",
