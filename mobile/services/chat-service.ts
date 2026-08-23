@@ -3,14 +3,17 @@ import {
   buildAssistantSendPayload,
   classifyAssistantError,
   validateAssistantSendData,
+  parseWireAttachments,
   type AssistantErrorCategory,
 } from "@/lib/chat-contract";
+import type { ChatAttachment } from "@/lib/chat-attachments";
 
 export type ChatMessage = {
   id: string;
   role: "user" | "assistant";
   content: string;
   createdAt: string | null;
+  attachments: ChatAttachment[];
 };
 export type ChatResult = {
   conversationId: string;
@@ -22,13 +25,8 @@ type EdgeResult =
       ok: true;
       data: {
         conversationId: string | null;
-        userMessage: { id: string; role: "user"; content: string; created_at?: string | null };
-        assistantMessage: {
-          id: string;
-          role: "assistant";
-          content: string;
-          created_at?: string | null;
-        };
+        userMessage: import("@/lib/chat-contract").AssistantWireMessage;
+        assistantMessage: import("@/lib/chat-contract").AssistantWireMessage;
       };
     }
   | { ok: false; error: { code?: string; message?: string; requestId?: string } };
@@ -42,6 +40,7 @@ type HistoryResult =
           role: "user" | "assistant";
           content: string;
           created_at?: string | null;
+          attachments?: import("@/lib/chat-contract").AssistantWireMessage["attachments"];
         }>;
       };
     }
@@ -56,13 +55,32 @@ function mapMessage(value: {
   role: "user" | "assistant";
   content: string;
   created_at?: string | null;
+  attachments?: import("@/lib/chat-contract").AssistantWireMessage["attachments"];
 }): ChatMessage {
   return {
     id: value.id,
     role: value.role,
     content: value.content,
     createdAt: value.created_at ?? null,
+    attachments: parseWireAttachments(value.attachments),
   };
+}
+async function hydrateMessage(value: Parameters<typeof mapMessage>[0]): Promise<ChatMessage> {
+  const message = mapMessage(value);
+  message.attachments = await Promise.all(
+    message.attachments.map(async (attachment) => ({
+      ...attachment,
+      previewUri:
+        attachment.kind === "image"
+          ? (
+              await supabase.storage
+                .from("ai-attachments")
+                .createSignedUrl(attachment.storagePath, 300)
+            ).data?.signedUrl
+          : undefined,
+    })),
+  );
+  return message;
 }
 export class ChatServiceError extends Error {
   constructor(
@@ -111,7 +129,7 @@ export async function loadRecentConversation(): Promise<{
     );
   return {
     conversationId: validId(data.data.conversationId),
-    messages: (data.data.messages ?? []).map(mapMessage),
+    messages: await Promise.all((data.data.messages ?? []).map(hydrateMessage)),
   };
 }
 export async function loadConversation(conversationId: string): Promise<ChatMessage[]> {
@@ -119,25 +137,33 @@ export async function loadConversation(conversationId: string): Promise<ChatMess
   if (!id) throw new ChatServiceError("invalid_request", "Conversation ID is required.");
   const { data, error } = await supabase
     .from("ai_messages")
-    .select("id, role, content, created_at")
+    .select("id, role, content, created_at, attachments")
     .eq("conversation_id", id)
     .in("role", ["user", "assistant"])
     .order("created_at", { ascending: true });
   if (error)
     throw new ChatServiceError("history_failed", "Conversation history could not be loaded.");
-  return (data ?? [])
-    .filter(
-      (item): item is typeof item & { role: "user" | "assistant" } =>
-        item.role === "user" || item.role === "assistant",
-    )
-    .map(mapMessage);
+  return Promise.all(
+    (data ?? [])
+      .filter(
+        (item): item is typeof item & { role: "user" | "assistant" } =>
+          item.role === "user" || item.role === "assistant",
+      )
+      .map(hydrateMessage),
+  );
 }
 export async function sendChat(
   message: string,
   conversationId: string | null,
   requestId: string,
+  attachments: ChatAttachment[] = [],
 ): Promise<ChatResult> {
-  const payload = buildAssistantSendPayload(message, conversationId, requestId);
+  const payload = buildAssistantSendPayload(
+    message,
+    conversationId,
+    requestId,
+    attachments.map(({ previewUri: _previewUri, ...attachment }) => attachment),
+  );
   try {
     const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
     let session = sessionData.session;

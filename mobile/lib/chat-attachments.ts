@@ -14,6 +14,37 @@ export type ChatAttachment = {
   previewUri?: string;
 };
 
+export type LocalChatAttachment = Omit<ChatAttachment, "storagePath"> & { uri: string };
+const EXTENSIONS: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "text/plain": "txt",
+};
+export function attachmentExtension(mimeType: string) {
+  return EXTENSIONS[mimeType.toLowerCase()] ?? null;
+}
+export function buildAttachmentStoragePath(
+  userId: string,
+  requestId: string,
+  attachmentId: string,
+  mimeType: string,
+) {
+  const extension = attachmentExtension(mimeType);
+  const segment = /^[0-9a-f-]{20,}$/i;
+  if (
+    !segment.test(userId) ||
+    !segment.test(requestId) ||
+    !segment.test(attachmentId) ||
+    !extension
+  )
+    throw new Error("invalid_attachment_path");
+  return `${userId}/${requestId}/${attachmentId}.${extension}`;
+}
+export function isOwnedAttachmentPath(path: string, userId: string) {
+  return path.split("/")[0] === userId && path.split("/").length === 3 && !path.includes("..");
+}
+
 export function validateChatAttachment(value: Pick<ChatAttachment, "kind" | "mimeType" | "size">) {
   if (!Number.isFinite(value.size) || value.size <= 0) return "ATTACHMENT_SIZE" as const;
   if (value.size > CHAT_ATTACHMENT_MAX_BYTES) return "ATTACHMENT_SIZE" as const;
@@ -30,10 +61,10 @@ export function formatFileSize(bytes: number) {
 }
 
 export const assistantCapabilities = {
-  imageUpload: false,
-  camera: false,
-  documents: false,
+  imageUpload: true,
+  camera: true,
+  documents: true,
   voiceRecording: false,
   speechToText: false,
-  textToSpeech: false,
+  textToSpeech: true,
 } as const;

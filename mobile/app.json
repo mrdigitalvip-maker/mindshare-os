@@ -14,17 +14,38 @@
       "softwareKeyboardLayoutMode": "resize",
       "package": "app.vercel.nexora_os_eosin.twa",
       "versionCode": 1,
-      "permissions": ["POST_NOTIFICATIONS"],
+      "permissions": [
+        "POST_NOTIFICATIONS"
+      ],
       "intentFilters": [
         {
           "action": "VIEW",
           "autoVerify": false,
-          "data": [{ "scheme": "nexora" }],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "data": [
+            {
+              "scheme": "nexora"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
-    "plugins": ["expo-router", "expo-secure-store", "expo-notifications"],
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-notifications",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Permita que a NEXORA acesse a foto escolhida para análise.",
+          "cameraPermission": "Permita que a NEXORA use a câmera para fotografar."
+        }
+      ],
+      "expo-document-picker"
+    ],
     "experiments": {
       "typedRoutes": true
     }

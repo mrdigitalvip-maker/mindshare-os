@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import { loadConversation, loadRecentConversation, sendChat } from "@/services/chat-service";
 import type { ChatMessage } from "@/services/chat-service";
+import type { ChatAttachment } from "@/lib/chat-attachments";
 export function useRecentConversation() {
   return useQuery({ queryKey: ["conversations", "recent"], queryFn: loadRecentConversation });
 }
@@ -19,11 +20,13 @@ export function useSendChat() {
       message,
       conversationId,
       requestId,
+      attachments,
     }: {
       message: string;
       conversationId: string | null;
       requestId: string;
-    }) => sendChat(message, conversationId, requestId),
+      attachments?: ChatAttachment[];
+    }) => sendChat(message, conversationId, requestId, attachments),
     onSuccess: async (result) => {
       const appendUnique = (messages: ChatMessage[] = []) => {
         const byId = new Map(messages.map((message) => [message.id, message]));

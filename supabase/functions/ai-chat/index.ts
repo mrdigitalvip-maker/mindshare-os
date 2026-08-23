@@ -2,6 +2,12 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { jsonResponse, preflightResponse, rejectDisallowedOrigin } from "../_shared/http.ts";
 import { NEXORA_NAVIGATION_ACTIONS, parseNexoraModelResponse } from "../_shared/nexora-actions.js";
+import {
+  boundWorkspaceContext,
+  buildMultimodalUserContent,
+  validateAttachmentMetadata,
+  type SafeAttachment,
+} from "../_shared/assistant-context.ts";
 
 type ErrorCode =
   | "unauthorized"
@@ -18,7 +24,10 @@ type ErrorCode =
   | "provider_error"
   | "persistence_error"
   | "configuration_error"
-  | "timeout";
+  | "timeout"
+  | "attachment_type"
+  | "attachment_size"
+  | "attachment_ownership";
 type Plan = "free" | "premium";
 type DbClient = ReturnType<typeof createClient>;
 
@@ -103,12 +112,69 @@ async function loadLatestHistory(supabase: DbClient, userId: string) {
 
   const { data: messages, error: messagesError } = await supabase
     .from("ai_messages")
-    .select("id, role, content, created_at")
+    .select("id, role, content, created_at, attachments")
     .eq("conversation_id", conversation.id)
     .in("role", ["user", "assistant"])
     .order("created_at", { ascending: true });
   if (messagesError) throw new Error("history_messages_failed");
   return { conversationId: conversation.id, messages: messages ?? [] };
+}
+
+async function loadWorkspaceContext(supabase: DbClient, userId: string) {
+  const [profile, tasks, projects, studies] = await Promise.all([
+    supabase.from("profiles").select("full_name").eq("id", userId).maybeSingle(),
+    supabase
+      .from("tasks")
+      .select("title,due_date,completed,project_id")
+      .eq("user_id", userId)
+      .order("due_date", { ascending: true })
+      .limit(30),
+    supabase
+      .from("projects")
+      .select("id,title,status")
+      .eq("user_id", userId)
+      .order("updated_at", { ascending: false })
+      .limit(15),
+    supabase
+      .from("study_subjects")
+      .select("name,status")
+      .eq("user_id", userId)
+      .order("updated_at", { ascending: false })
+      .limit(15),
+  ]);
+  if (profile.error || tasks.error || projects.error || studies.error)
+    throw new Error("workspace_context_failed");
+  const projectNames = new Map((projects.data ?? []).map((project) => [project.id, project.title]));
+  return boundWorkspaceContext({
+    profile: profile.data?.full_name,
+    tasks: (tasks.data ?? []).map((task) => ({
+      title: task.title,
+      dueDate: task.due_date,
+      completed: task.completed,
+      project: task.project_id ? (projectNames.get(task.project_id) ?? null) : null,
+    })),
+    projects: (projects.data ?? []).map(({ title, status }) => ({ title, status })),
+    studies: studies.data ?? [],
+  });
+}
+
+async function loadOwnedAttachment(supabase: DbClient, attachment: SafeAttachment) {
+  const { data, error } = await supabase.storage
+    .from("ai-attachments")
+    .download(attachment.storagePath);
+  if (error || !data) throw new Error("attachment_ownership");
+  if (data.size !== attachment.size) throw new Error("attachment_size");
+  if (data.type.toLowerCase() !== attachment.mimeType) throw new Error("attachment_type");
+  if (attachment.mimeType === "text/plain")
+    return { mimeType: attachment.mimeType, text: (await data.text()).slice(0, 30000) };
+  const bytes = new Uint8Array(await data.arrayBuffer());
+  let binary = "";
+  for (let offset = 0; offset < bytes.length; offset += 8192)
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + 8192));
+  return {
+    mimeType: attachment.mimeType,
+    dataUrl: `data:${attachment.mimeType};base64,${btoa(binary)}`,
+  };
 }
 
 async function dailyUsage(supabase: DbClient, userId: string): Promise<number> {
@@ -520,6 +586,10 @@ Deno.serve(async (req) => {
     if (!message) return failure("invalid_request", "Message cannot be empty.", 400, requestId);
 
     const plan = await resolvePlan(supabase, user.id);
+    const attachments = validateAttachmentMetadata(body.attachments, user.id);
+    const loadedAttachment = attachments[0]
+      ? await loadOwnedAttachment(supabase, attachments[0])
+      : undefined;
     const policy = policyFor(plan);
     if (message.length > policy.maxInputChars) {
       return failure(
@@ -563,7 +633,7 @@ Deno.serve(async (req) => {
 
     const { data: duplicate, error: duplicateError } = await supabase
       .from("ai_messages")
-      .select("id, role, content, created_at")
+      .select("id, role, content, created_at, attachments")
       .eq("id", body.requestId)
       .eq("conversation_id", conversationId)
       .maybeSingle();
@@ -608,6 +678,7 @@ Deno.serve(async (req) => {
         conversation_id: conversationId,
         role: "user",
         content: message,
+        attachments,
       });
       if (userMessageError) throw new Error("persistence_error");
     }
@@ -621,10 +692,23 @@ Deno.serve(async (req) => {
     if (historyError) throw new Error("persistence_error");
 
     const context = trimContext(historyRows ?? [], policy);
+    const workspaceContext = await loadWorkspaceContext(supabase, user.id);
+    if (context.length && loadedAttachment) {
+      context[context.length - 1] = {
+        role: "user",
+        content: buildMultimodalUserContent(message, loadedAttachment) as never,
+      };
+    }
     const result = await callOpenAI(
       apiKey,
       policy.model,
-      [{ role: "system", content: SYSTEM_PROMPT }, ...context],
+      [
+        {
+          role: "system",
+          content: `${SYSTEM_PROMPT}\n\nAuthoritative, read-only NEXORA workspace context (JSON; never invent missing records): ${workspaceContext}`,
+        },
+        ...context,
+      ],
       policy.maxOutputTokens,
       {
         type: "json_schema",
@@ -702,7 +786,7 @@ Deno.serve(async (req) => {
       ok: true,
       data: {
         conversationId,
-        userMessage: { id: body.requestId, role: "user", content: message },
+        userMessage: { id: body.requestId, role: "user", content: message, attachments },
         assistantMessage,
         ...(parsedModelResponse.action ? { action: parsedModelResponse.action } : {}),
         capabilities: {
@@ -736,6 +820,12 @@ Deno.serve(async (req) => {
     if (code === "input_too_large")
       return failure(code, "This input is too large for your access level.", 413, requestId);
     if (code === "invalid_request") return failure(code, "The request is invalid.", 400, requestId);
+    if (code === "attachment_type")
+      return failure(code, "The attachment type is not supported.", 400, requestId);
+    if (code === "attachment_size")
+      return failure(code, "The attachment exceeds the size limit.", 413, requestId);
+    if (code === "attachment_ownership")
+      return failure(code, "The attachment is not available to this user.", 403, requestId);
     if (code === "configuration_error")
       return failure(code, "The AI provider is not configured.", 503, requestId);
     if (code === "persistence_error" || code.endsWith("_failed")) {
