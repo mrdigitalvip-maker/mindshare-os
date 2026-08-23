@@ -21,13 +21,20 @@ export function AppHeader({ onMenu }: { onMenu(): void }) {
       >
         <Text style={styles.iconText}>☰</Text>
       </Pressable>
-      <View accessibilityRole="header" style={styles.search}>
-        <Text numberOfLines={1} ellipsizeMode="tail" style={styles.searchText}>
-          Command Center
-        </Text>
-        <Text style={styles.gold}>✦</Text>
-      </View>
       <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Pergunte à NEXORA"
+        accessibilityHint="Abre o Assistente"
+        onPress={() => router.push("/assistant")}
+        style={({ pressed }) => [styles.search, pressed && styles.pressed]}
+      >
+        <Text style={styles.gold}>✦</Text>
+        <Text numberOfLines={1} ellipsizeMode="tail" style={styles.searchText}>
+          Pergunte à NEXORA
+        </Text>
+      </Pressable>
+      <Pressable
+        accessibilityRole="button"
         accessibilityLabel="Configurações"
         onPress={() => router.push("/settings")}
         style={styles.avatarButton}
@@ -102,13 +109,14 @@ const styles = StyleSheet.create({
     height: 44,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    gap: spacing.sm,
     paddingHorizontal: spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radius.pill,
     backgroundColor: colors.surface,
   },
+  pressed: { opacity: 0.76 },
   searchText: { ...typography.label, color: colors.textMuted, flex: 1, marginRight: spacing.sm },
   gold: { color: colors.primaryBright },
   avatarButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },

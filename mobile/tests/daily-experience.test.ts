@@ -39,7 +39,7 @@ test("daily actions prioritize real overdue and today context and remain capped"
     [subject("Matemática")],
     now,
   );
-  assert.deepEqual(actions.map(({ id }) => id), ["overdue", "today", "project-empty-project"]);
+  assert.deepEqual(actions.map(({ id }) => id), ["task-late", "task-today", "project-empty-project"]);
   assert.equal(actions.length, 3);
 });
 
@@ -51,7 +51,7 @@ test("daily actions suppress the task already represented by Agora", () => {
     now,
     { excludeTaskId: "now" },
   );
-  assert.deepEqual(actions.map(({ id }) => id), ["today"]);
+  assert.deepEqual(actions.map(({ id }) => id), ["task-other"]);
   assert.equal(actions[0]?.title, "other");
 });
 
