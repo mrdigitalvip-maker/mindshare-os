@@ -6,6 +6,9 @@ export type AssistantErrorCategory =
   | "RATE_LIMIT"
   | "AI_PROVIDER"
   | "PERSISTENCE"
+  | "ATTACHMENT_UPLOAD"
+  | "ATTACHMENT_TYPE"
+  | "ATTACHMENT_SIZE"
   | "UNKNOWN";
 
 export type AssistantWireMessage = {
@@ -13,6 +16,14 @@ export type AssistantWireMessage = {
   role: "user" | "assistant";
   content: string;
   created_at?: string | null;
+  attachments?: Array<{
+    id: string;
+    kind: "image" | "document";
+    name: string;
+    mimeType: string;
+    size: number;
+    storagePath: string;
+  }>;
 };
 
 export type AssistantSendPayload = {
@@ -20,6 +31,7 @@ export type AssistantSendPayload = {
   message: string;
   conversationId: string | null;
   requestId: string;
+  attachments?: AssistantWireMessage["attachments"];
 };
 
 export function createAssistantRequestId(random = Math.random): string {
@@ -34,6 +46,7 @@ export function buildAssistantSendPayload(
   message: string,
   conversationId: string | null,
   requestId: string,
+  attachments: AssistantWireMessage["attachments"] = [],
 ): AssistantSendPayload {
   const content = message.trim();
   if (!content) throw new Error("invalid_request");
@@ -42,6 +55,7 @@ export function buildAssistantSendPayload(
     message: content,
     conversationId: conversationId?.trim() || null,
     requestId,
+    ...(attachments.length ? { attachments } : {}),
   };
 }
 
@@ -80,6 +94,9 @@ export function validateAssistantSendData(value: unknown): {
 }
 
 export function classifyAssistantError(code?: string): AssistantErrorCategory {
+  if (code === "attachment_type") return "ATTACHMENT_TYPE";
+  if (code === "attachment_size") return "ATTACHMENT_SIZE";
+  if (code === "attachment_upload") return "ATTACHMENT_UPLOAD";
   if (["unauthorized", "forbidden"].includes(code ?? "")) return "AUTH";
   if (["free_limit_reached", "premium_limit_reached", "provider_rate_limited"].includes(code ?? ""))
     return "RATE_LIMIT";
