@@ -8,9 +8,14 @@ export function useNotificationRouting() {
     const response = Notifications.addNotificationResponseReceivedListener((event) =>
       router.push(notificationRoute(event.notification.request.content.data)),
     );
-    void Notifications.getLastNotificationResponseAsync().then((event) => {
-      if (event) router.push(notificationRoute(event.notification.request.content.data));
-    });
+    void Notifications.getLastNotificationResponseAsync()
+      .then((event) => {
+        if (event) router.push(notificationRoute(event.notification.request.content.data));
+      })
+      .catch(() => {
+        // Notification history is optional; navigation remains available when Android cannot read it.
+        console.info("NEXORA could not read the initial notification response.");
+      });
     return () => {
       received.remove();
       response.remove();

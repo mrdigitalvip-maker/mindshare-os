@@ -1,13 +1,12 @@
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { router } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { NativeFormModal } from "@/components/native-form-modal";
 import { ProfileAvatar } from "@/components/profile-avatar";
 import { useProfile } from "@/hooks/use-profile";
+import { useLogout } from "@/hooks/use-logout";
 import { useSubscription } from "@/hooks/use-subscription";
 import { queryKeys } from "@/lib/query-keys";
-import { supabase } from "@/lib/supabase";
 import { colors, radius, spacing, typography } from "@/lib/theme";
 import { getDisplayEntitlement, getDisplayPlan } from "@/lib/presentation";
 import { useAuth } from "@/providers/auth-provider";
@@ -22,6 +21,7 @@ export default function Settings() {
   const profile = useProfile();
   const subscription = useSubscription();
   const client = useQueryClient();
+  const performLogout = useLogout();
   const [message, setMessage] = useState<string>();
   const [busy, setBusy] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -78,18 +78,27 @@ export default function Settings() {
     }
   }
   async function checkPermission() {
-    const permission = await notificationPermission();
-    const labels: Record<string, string> = {
-      granted: "permitida",
-      denied: "negada",
-      undetermined: "ainda não solicitada",
-    };
-    setMessage(`Permissão de notificações: ${labels[permission] ?? "indisponível"}.`);
+    try {
+      const permission = await notificationPermission();
+      const labels: Record<string, string> = {
+        granted: "permitida",
+        denied: "negada",
+        undetermined: "ainda não solicitada",
+      };
+      setMessage(`Permissão de notificações: ${labels[permission] ?? "indisponível"}.`);
+    } catch {
+      setMessage("Não foi possível verificar a permissão de notificações.");
+    }
   }
   async function logout() {
-    await supabase.auth.signOut();
-    client.clear();
-    router.replace("/auth");
+    if (busy) return;
+    setBusy(true);
+    try {
+      await performLogout();
+    } catch {
+      setMessage("Não foi possível sair. Verifique sua conexão e tente novamente.");
+      setBusy(false);
+    }
   }
   return (
     <ScrollView contentContainerStyle={styles.page}>
@@ -161,7 +170,13 @@ export default function Settings() {
           {message}
         </Text>
       ) : null}
-      <Pressable accessibilityRole="button" onPress={() => void logout()} style={styles.logout}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ disabled: busy }}
+        disabled={busy}
+        onPress={() => void logout()}
+        style={styles.logout}
+      >
         <Text style={styles.logoutText}>Sair</Text>
       </Pressable>
       <NativeFormModal

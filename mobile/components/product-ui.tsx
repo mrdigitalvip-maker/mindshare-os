@@ -1,18 +1,24 @@
-import { router, type Href, usePathname } from "expo-router";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { router, type Href } from "expo-router";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { colors, radius, spacing, typography } from "@/lib/theme";
 import { useProfile } from "@/hooks/use-profile";
 import { useAuth } from "@/providers/auth-provider";
 import { ProfileAvatar } from "@/components/profile-avatar";
 
+export { DrawerMenu } from "@/components/drawer-menu";
+
 export function AppHeader({ onMenu }: { onMenu(): void }) {
   const profile = useProfile();
   const { session } = useAuth();
   return (
     <View style={styles.header}>
-      <Pressable accessibilityLabel="Abrir menu" onPress={onMenu} style={styles.icon}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Abrir menu de navegação"
+        onPress={onMenu}
+        style={styles.icon}
+      >
         <Text style={styles.iconText}>☰</Text>
       </Pressable>
       <View accessibilityRole="header" style={styles.search}>
@@ -48,76 +54,6 @@ export function StandardHeader({ title, action }: { title: string; action?: Reac
   );
 }
 
-const sections: Array<{ title: string; items: Array<[string, Href]> }> = [
-  {
-    title: "PRINCIPAL",
-    items: [
-      ["Início", "/dashboard"],
-      ["Assistente", "/assistant"],
-    ],
-  },
-  {
-    title: "ESPAÇO DE TRABALHO",
-    items: [
-      ["Projetos", "/projects"],
-      ["Tarefas", "/productivity"],
-    ],
-  },
-  { title: "CRESCIMENTO", items: [["Estudos", "/studies"]] },
-  {
-    title: "CONTA",
-    items: [
-      ["Premium", "/premium"],
-      ["Configurações", "/settings"],
-    ],
-  },
-];
-export function DrawerMenu({ visible, onClose }: { visible: boolean; onClose(): void }) {
-  const insets = useSafeAreaInsets();
-  const pathname = usePathname();
-  return (
-    <Modal transparent animationType="fade" visible={visible} onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <ScrollView
-          style={styles.drawer}
-          contentContainerStyle={[
-            styles.drawerContent,
-            { paddingTop: insets.top + spacing.sm, paddingBottom: insets.bottom + spacing.lg },
-          ]}
-        >
-          <View style={styles.brandRow}>
-            <Text style={styles.brand}>NEXORA</Text>
-            <Pressable accessibilityLabel="Fechar menu" onPress={onClose} style={styles.icon}>
-              <Text style={styles.iconText}>×</Text>
-            </Pressable>
-          </View>
-          {sections.map((section) => (
-            <View key={section.title} style={styles.section}>
-              <Text style={styles.eyebrow}>{section.title}</Text>
-              {section.items.map(([label, href]) => (
-                <Pressable
-                  key={label}
-                  onPress={() => {
-                    onClose();
-                    router.navigate(href);
-                  }}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: pathname === href }}
-                  style={[styles.navRow, pathname === href && styles.activeNavRow]}
-                >
-                  <Text style={styles.gold}>◇</Text>
-                  <Text style={styles.navText}>{label}</Text>
-                  <Text style={styles.chevron}>›</Text>
-                </Pressable>
-              ))}
-            </View>
-          ))}
-        </ScrollView>
-        <Pressable accessibilityLabel="Fechar menu" onPress={onClose} style={styles.scrim} />
-      </View>
-    </Modal>
-  );
-}
 export function ModuleCard({
   icon,
   title,
@@ -176,30 +112,6 @@ const styles = StyleSheet.create({
   searchText: { ...typography.label, color: colors.textMuted, flex: 1, marginRight: spacing.sm },
   gold: { color: colors.primaryBright },
   avatarButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
-  overlay: { flex: 1, flexDirection: "row" },
-  drawer: {
-    width: "82%",
-    maxWidth: 340,
-    backgroundColor: colors.background,
-    borderRightWidth: 1,
-    borderRightColor: colors.border,
-  },
-  drawerContent: { paddingHorizontal: spacing.md, gap: spacing.md },
-  scrim: { flex: 1, backgroundColor: "rgba(0,0,0,.65)" },
-  brandRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  brand: { fontSize: 20, fontWeight: "700", letterSpacing: 4, color: colors.text },
-  section: { gap: spacing.xs },
-  eyebrow: { ...typography.eyebrow, color: colors.textMuted, marginBottom: spacing.xs },
-  navRow: {
-    minHeight: 44,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radius.md,
-  },
-  activeNavRow: { backgroundColor: colors.surfaceRaised },
-  navText: { ...typography.body, flex: 1, color: colors.text },
   chevron: { fontSize: 24, color: colors.textMuted },
   module: {
     minHeight: 84,
