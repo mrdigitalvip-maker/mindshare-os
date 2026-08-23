@@ -584,6 +584,10 @@ Deno.serve(async (req) => {
     }
     const message = body.message.trim();
     if (!message) return failure("invalid_request", "Message cannot be empty.", 400, requestId);
+    if (
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(body.requestId)
+    )
+      return failure("invalid_request", "Request ID must be a UUID.", 400, requestId);
 
     const plan = await resolvePlan(supabase, user.id);
     const attachments = validateAttachmentMetadata(body.attachments, user.id);
@@ -609,6 +613,31 @@ Deno.serve(async (req) => {
       );
 
     let conversationId = typeof body.conversationId === "string" ? body.conversationId : null;
+    // Resolve retries by their globally unique message ID first. The first attempt may
+    // have created a conversation before a provider/network failure reached the client.
+    const { data: priorRequest, error: priorRequestError } = await supabase
+      .from("ai_messages")
+      .select("id, conversation_id, role, content, created_at, attachments")
+      .eq("id", body.requestId)
+      .maybeSingle();
+    if (priorRequestError) throw new Error("persistence_error");
+    if (priorRequest) {
+      if (priorRequest.content !== message)
+        return failure(
+          "invalid_request",
+          "This request ID belongs to another message.",
+          409,
+          requestId,
+        );
+      if (conversationId && conversationId !== priorRequest.conversation_id)
+        return failure(
+          "invalid_request",
+          "This request belongs to another conversation.",
+          409,
+          requestId,
+        );
+      conversationId = priorRequest.conversation_id;
+    }
     if (conversationId && !(await ownedConversation(supabase, user.id, conversationId))) {
       return failure("invalid_request", "Conversation was not found.", 404, requestId);
     }
@@ -631,21 +660,7 @@ Deno.serve(async (req) => {
       conversationId = data.id;
     }
 
-    const { data: duplicate, error: duplicateError } = await supabase
-      .from("ai_messages")
-      .select("id, role, content, created_at, attachments")
-      .eq("id", body.requestId)
-      .eq("conversation_id", conversationId)
-      .maybeSingle();
-    if (duplicateError) throw new Error("persistence_error");
-    if (duplicate && duplicate.content !== message) {
-      return failure(
-        "invalid_request",
-        "This request ID belongs to another message.",
-        409,
-        requestId,
-      );
-    }
+    const duplicate = priorRequest;
     if (!duplicate && (await dailyUsage(supabase, user.id)) >= policy.dailyMessages) {
       const code = plan === "premium" ? "premium_limit_reached" : "free_limit_reached";
       return failure(

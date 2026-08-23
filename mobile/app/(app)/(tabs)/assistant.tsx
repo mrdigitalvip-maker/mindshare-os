@@ -42,6 +42,7 @@ const uuid = () => createAssistantRequestId();
 export default function Assistant() {
   const { prompt } = useLocalSearchParams<{ prompt?: string }>();
   const list = useRef<FlatList<ChatMessage>>(null);
+  const submitting = useRef(false);
   const handledPrompt = useRef<string | undefined>(undefined);
   const history = useRecentConversation();
   const send = useSendChat();
@@ -147,7 +148,8 @@ export default function Assistant() {
   const submit = useCallback(
     async (value: string, retryId?: string, retryAttachment?: ChatAttachment) => {
       const content = value.trim();
-      if ((!content && !attachment) || send.isPending || uploading) return;
+      if ((!content && !attachment) || submitting.current || send.isPending || uploading) return;
+      submitting.current = true;
       const id = retryId ?? createAssistantRequestId();
       setFailed(null);
       setUploading(Boolean(attachment && !retryAttachment));
@@ -176,9 +178,23 @@ export default function Assistant() {
         setOptimistic(null);
       } catch (error) {
         const code = error instanceof ChatServiceError ? error.code : undefined;
+        if (__DEV__) {
+          const diagnostic =
+            error instanceof ChatServiceError
+              ? {
+                  code: error.code,
+                  category: error.category,
+                  status: error.status,
+                  stage: error.stage,
+                  diagnosticId: error.diagnosticId,
+                }
+              : { code: "unexpected", stage: "client" };
+          console.warn("[assistant-send]", diagnostic);
+        }
         setOptimistic(null);
         setFailed({ content, requestId: id, code, uploadedAttachment: uploaded });
       } finally {
+        submitting.current = false;
         setUploading(false);
       }
     },

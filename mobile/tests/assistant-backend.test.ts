@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFileSync } from "node:fs";
 import {
   boundWorkspaceContext,
   buildMultimodalUserContent,
@@ -46,4 +47,23 @@ test("speech state permits one response and toggles stop", () => {
   assert.deepEqual(nextSpeechState({ speakingId: null }, "one"), { speakingId: "one" });
   assert.deepEqual(nextSpeechState({ speakingId: "one" }, "one"), { speakingId: null });
   assert.deepEqual(nextSpeechState({ speakingId: "one" }, "two"), { speakingId: "two" });
+});
+
+test("ai-chat retry resolves the original conversation before inserting", () => {
+  const source = readFileSync("../supabase/functions/ai-chat/index.ts", "utf8");
+  const lookup = source.indexOf('.eq("id", body.requestId)');
+  const conversationCreation = source.indexOf("if (!conversationId) {", lookup);
+  const insert = source.indexOf('.from("ai_messages").insert', conversationCreation);
+  assert.ok(lookup > 0 && conversationCreation > lookup && insert > conversationCreation);
+  assert.match(
+    source.slice(lookup, conversationCreation),
+    /conversationId = priorRequest\.conversation_id/,
+  );
+});
+
+test("ai-chat prevents request ID reuse for a different message or conversation", () => {
+  const source = readFileSync("../supabase/functions/ai-chat/index.ts", "utf8");
+  assert.match(source, /priorRequest\.content !== message/);
+  assert.match(source, /conversationId !== priorRequest\.conversation_id/);
+  assert.match(source, /if \(duplicate\)[\s\S]*completedReply/);
 });

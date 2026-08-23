@@ -31,7 +31,8 @@ export function AppScreen({
 }: Props) {
   const content = scroll ? (
     <ScrollView
-      contentContainerStyle={[styles.content, padded && styles.padded, contentContainerStyle]}
+      style={styles.scroll}
+      contentContainerStyle={[styles.scrollContent, padded && styles.padded, contentContainerStyle]}
       keyboardShouldPersistTaps="handled"
     >
       {children}
@@ -59,6 +60,16 @@ export function AppScreen({
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
   flex: { flex: 1 },
-  content: { flexGrow: 1, width: "100%", maxWidth: layout.maxContentWidth, alignSelf: "center" },
+  // A non-scrolling screen must be allowed to shrink when Android adjustResize changes
+  // the window. flexGrow alone retains the pre-keyboard measured height (flexShrink is 0).
+  content: {
+    flex: 1,
+    minHeight: 0,
+    width: "100%",
+    maxWidth: layout.maxContentWidth,
+    alignSelf: "center",
+  },
+  scroll: { flex: 1, width: "100%", maxWidth: layout.maxContentWidth, alignSelf: "center" },
+  scrollContent: { flexGrow: 1 },
   padded: { paddingHorizontal: layout.screenPadding, paddingTop: layout.screenTop },
 });
