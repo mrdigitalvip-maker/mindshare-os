@@ -7,6 +7,7 @@ import {
   type AssistantErrorCategory,
 } from "@/lib/chat-contract";
 import type { ChatAttachment } from "@/lib/chat-attachments";
+import { mapConversationRows, type AssistantConversation } from "@/lib/assistant-conversations";
 
 export type ChatMessage = {
   id: string;
@@ -144,19 +145,29 @@ export async function loadRecentConversation(): Promise<{
     messages: await Promise.all((data.data.messages ?? []).map(hydrateMessage)),
   };
 }
+export async function listConversations(): Promise<AssistantConversation[]> {
+  const { data, error } = await supabase
+    .from("ai_conversations")
+    .select("id, title, updated_at")
+    .order("updated_at", { ascending: false })
+    .limit(30);
+  if (error) throw new ChatServiceError("history_failed", "Conversations could not be loaded.");
+  return mapConversationRows(data ?? []);
+}
 export async function loadConversation(conversationId: string): Promise<ChatMessage[]> {
   const id = validId(conversationId);
   if (!id) throw new ChatServiceError("invalid_request", "Conversation ID is required.");
-  const { data, error } = await supabase
-    .from("ai_messages")
-    .select("id, role, content, created_at, attachments")
-    .eq("conversation_id", id)
-    .in("role", ["user", "assistant"])
-    .order("created_at", { ascending: true });
-  if (error)
-    throw new ChatServiceError("history_failed", "Conversation history could not be loaded.");
+  const { data, error } = await supabase.functions.invoke<HistoryResult>("ai-chat", {
+    body: { action: "history", conversationId: id },
+  });
+  if (error) throw await invocationError(error);
+  if (!data?.ok)
+    throw new ChatServiceError(
+      data?.error.code ?? "history_failed",
+      data?.error.message ?? "Conversation history could not be loaded.",
+    );
   return Promise.all(
-    (data ?? [])
+    (data.data.messages ?? [])
       .filter(
         (item): item is typeof item & { role: "user" | "assistant" } =>
           item.role === "user" || item.role === "assistant",

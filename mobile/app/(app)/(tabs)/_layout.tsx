@@ -38,6 +38,7 @@ export default function MainTabs() {
     >
       <Tabs.Screen name="dashboard" options={{ title: "Início" }} />
       <Tabs.Screen name="assistant" options={{ title: "Assistente" }} />
+      <Tabs.Screen name="assistant-chat" options={{ href: null }} />
       <Tabs.Screen name="projects/index" options={{ title: "Projetos" }} />
       <Tabs.Screen name="productivity" options={{ title: "Tarefas" }} />
       <Tabs.Screen name="more" options={{ title: "Mais" }} />
