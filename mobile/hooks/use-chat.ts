@@ -1,10 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
-import { loadConversation, loadRecentConversation, sendChat } from "@/services/chat-service";
+import {
+  listConversations,
+  loadConversation,
+  loadRecentConversation,
+  sendChat,
+} from "@/services/chat-service";
 import type { ChatMessage } from "@/services/chat-service";
 import type { ChatAttachment } from "@/lib/chat-attachments";
 export function useRecentConversation() {
   return useQuery({ queryKey: ["conversations", "recent"], queryFn: loadRecentConversation });
+}
+export function useConversations() {
+  return useQuery({ queryKey: queryKeys.conversations, queryFn: listConversations });
 }
 export function useConversation(conversationId: string | null) {
   return useQuery({
@@ -35,16 +43,6 @@ export function useSendChat() {
         return [...byId.values()];
       };
       client.setQueryData(queryKeys.conversation(result.conversationId), appendUnique);
-      client.setQueryData<{ conversationId: string | null; messages: ChatMessage[] }>(
-        ["conversations", "recent"],
-        (current) => ({
-          conversationId: result.conversationId,
-          messages:
-            current?.conversationId === result.conversationId
-              ? appendUnique(current.messages)
-              : [result.userMessage, result.assistantMessage],
-        }),
-      );
       await client.invalidateQueries({ queryKey: queryKeys.conversations });
     },
   });

@@ -147,6 +147,32 @@ async function loadLatestHistory(supabase: DbClient, userId: string) {
   return { conversationId: conversation.id, messages: messages ?? [] };
 }
 
+async function loadConversationHistory(supabase: DbClient, userId: string, conversationId: string) {
+  const conversation = await ownedConversation(supabase, userId, conversationId);
+  if (!conversation) throw new Error("conversation_not_found");
+  const { data: messages, error } = await supabase
+    .from("ai_messages")
+    .select("id, role, content, created_at, attachments")
+    .eq("conversation_id", conversationId)
+    .in("role", ["user", "assistant"])
+    .order("created_at", { ascending: true });
+  if (error) throw new Error("history_messages_failed");
+  return { conversationId, messages: messages ?? [] };
+}
+
+function conversationTitle(message: string, maxLength = 56) {
+  const cleaned = message
+    .replace(/https?:\/\/\S+/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!cleaned) return "Conversa com a NEXORA";
+  const plain = cleaned.replace(/[\"'“”]/g, "").replace(/[.!?,;:]+$/, "");
+  if (plain.length <= maxLength) return plain;
+  const clipped = plain.slice(0, maxLength + 1);
+  const boundary = clipped.lastIndexOf(" ");
+  return clipped.slice(0, boundary >= maxLength * 0.6 ? boundary : maxLength).trim();
+}
+
 async function loadWorkspaceContext(supabase: DbClient, userId: string) {
   const [profile, tasks, projects, studies] = await Promise.all([
     supabase.from("profiles").select("full_name").eq("id", userId).maybeSingle(),
@@ -582,7 +608,10 @@ Deno.serve(async (req) => {
 
   try {
     if (body.action === "history") {
-      const history = await loadLatestHistory(supabase, user.id);
+      const history =
+        typeof body.conversationId === "string"
+          ? await loadConversationHistory(supabase, user.id, body.conversationId)
+          : await loadLatestHistory(supabase, user.id);
       return json({ ok: true, data: history });
     }
     if (
@@ -696,7 +725,7 @@ Deno.serve(async (req) => {
       }
       const { data, error } = await supabase
         .from("ai_conversations")
-        .insert({ user_id: user.id, title: message.slice(0, 80) })
+        .insert({ user_id: user.id, title: conversationTitle(message) })
         .select("id")
         .single();
       if (error || !data) throw new Error("persistence_error");
@@ -833,9 +862,19 @@ Deno.serve(async (req) => {
       .select("id, role, content, created_at")
       .single();
     if (assistantError || !assistantMessage) throw new Error("persistence_error");
+    const existingConversation = await ownedConversation(supabase, user.id, conversationId);
+    const genericTitle =
+      !existingConversation?.title ||
+      ["nova conversa", "new chat", "conversation", "conversa"].includes(
+        existingConversation.title.trim().toLowerCase(),
+      );
+    const firstUserContent = historyRows?.find((row) => row.role === "user")?.content ?? message;
     const { error: updateError } = await supabase
       .from("ai_conversations")
-      .update({ updated_at: new Date().toISOString() })
+      .update({
+        updated_at: new Date().toISOString(),
+        ...(genericTitle ? { title: conversationTitle(firstUserContent) } : {}),
+      })
       .eq("id", conversationId)
       .eq("user_id", user.id);
     if (updateError) log("conversation_timestamp_failed", { requestId, userId: user.id });
@@ -875,6 +914,8 @@ Deno.serve(async (req) => {
       return failure(code, "This request was already submitted.", 409, requestId);
     if (code === "resource_not_found")
       return failure(code, "The requested resource was not found.", 404, requestId);
+    if (code === "conversation_not_found")
+      return failure(code, "The conversation was not found.", 404, requestId);
     if (code === "input_too_large")
       return failure(code, "This input is too large for your access level.", 413, requestId);
     if (code === "invalid_request") return failure(code, "The request is invalid.", 400, requestId);

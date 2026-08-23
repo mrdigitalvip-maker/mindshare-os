@@ -1,481 +1,157 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useLocalSearchParams } from "expo-router";
+import { useState } from "react";
+import { router } from "expo-router";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
-  Image,
-  Keyboard,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
-import * as ImagePicker from "expo-image-picker";
-import * as DocumentPicker from "expo-document-picker";
-import * as Speech from "expo-speech";
 import { AppScreen } from "@/components/app-screen";
 import { NexoraAgent } from "@/components/nexora-agent";
-import { ErrorState, LoadingState } from "@/components/screen-state";
-import { useRecentConversation, useSendChat } from "@/hooks/use-chat";
-import { assistantErrorCopy, createAssistantRequestId } from "@/lib/chat-contract";
-import {
-  ASSISTANT_QUICK_ACTIONS,
-  attachmentFromPickerAsset,
-  canSendAssistantMessage,
-  removeAssistantAttachment,
-  resolveQuickAction,
-} from "@/lib/assistant-composer";
-import {
-  formatFileSize,
-  validateChatAttachment,
-  type ChatAttachment,
-  type LocalChatAttachment,
-} from "@/lib/chat-attachments";
+import { useConversations } from "@/hooks/use-chat";
+import { isGenericConversationTitle } from "@/lib/assistant-conversations";
 import { colors, radius, spacing, typography } from "@/lib/theme";
-import { uploadChatAttachment } from "@/services/chat-attachment-service";
-import { ChatServiceError, type ChatMessage } from "@/services/chat-service";
 
-const uuid = () => createAssistantRequestId();
-
-export default function Assistant() {
-  const { prompt } = useLocalSearchParams<{ prompt?: string }>();
-  const list = useRef<FlatList<ChatMessage>>(null);
-  const submitting = useRef(false);
-  const handledPrompt = useRef<string | undefined>(undefined);
-  const history = useRecentConversation();
-  const send = useSendChat();
+export default function AssistantHome() {
+  const conversations = useConversations();
   const [draft, setDraft] = useState("");
-  const [attachment, setAttachment] = useState<LocalChatAttachment | null>(null);
-  const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [newConversation, setNewConversation] = useState(false);
-  const [speakingId, setSpeakingId] = useState<string | null>(null);
-  const [failed, setFailed] = useState<{
-    content: string;
-    requestId: string;
-    code?: string;
-    uploadedAttachment?: ChatAttachment;
-  } | null>(null);
-  const [optimistic, setOptimistic] = useState<ChatMessage | null>(null);
-  const messages = useMemo(() => {
-    const persisted = newConversation ? [] : (history.data?.messages ?? []);
-    return optimistic ? [...persisted, optimistic] : persisted;
-  }, [history.data?.messages, newConversation, optimistic]);
-
-  useEffect(
-    () => () => {
-      void Speech.stop();
-    },
-    [],
-  );
-  const validateDraft = (next: LocalChatAttachment) => {
-    const error = validateChatAttachment(next);
-    if (error)
-      Alert.alert(
-        "Arquivo não suportado",
-        error === "ATTACHMENT_SIZE"
-          ? "Escolha um arquivo de até 6 MB."
-          : "Use JPG, PNG, WEBP ou texto simples.",
-      );
-    else {
-      setAttachment(next);
-      setFailed(null);
-    }
+  const begin = () => {
+    const prompt = draft.trim();
+    router.push({ pathname: "/(app)/(tabs)/assistant-chat", params: prompt ? { prompt } : {} });
+    setDraft("");
   };
-  const pickGallery = async () => {
-    try {
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permission.granted)
-        return Alert.alert(
-          "Acesso às fotos negado",
-          "Libere o acesso nas configurações do Android para escolher uma foto.",
-        );
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ["images"],
-        allowsEditing: false,
-        quality: 1,
-      });
-      if (result.canceled) return;
-      const next = attachmentFromPickerAsset(result.assets[0], "image", uuid());
-      if (next) validateDraft(next);
-    } catch {
-      Alert.alert("Galeria indisponível", "Não foi possível abrir suas fotos agora.");
-    }
-  };
-  const takePhoto = async () => {
-    try {
-      const permission = await ImagePicker.requestCameraPermissionsAsync();
-      if (!permission.granted)
-        return Alert.alert(
-          "Câmera não autorizada",
-          "Libere a câmera nas configurações do Android para fotografar.",
-        );
-      const result = await ImagePicker.launchCameraAsync({ mediaTypes: ["images"], quality: 0.9 });
-      if (result.canceled) return;
-      const next = attachmentFromPickerAsset(result.assets[0], "image", uuid());
-      if (next) validateDraft(next);
-    } catch {
-      Alert.alert("Câmera indisponível", "Não foi possível abrir a câmera neste aparelho.");
-    }
-  };
-  const pickDocument = async () => {
-    try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: "text/plain",
-        multiple: false,
-        copyToCacheDirectory: true,
-      });
-      if (result.canceled) return;
-      const next = attachmentFromPickerAsset(result.assets[0], "document", uuid());
-      if (next) validateDraft(next);
-    } catch {
-      Alert.alert("Arquivo indisponível", "Não foi possível abrir o seletor de arquivos.");
-    }
-  };
-  const openAttachmentMenu = () => {
-    Keyboard.dismiss();
-    setAttachmentMenuOpen(true);
-  };
-  const runPicker = (picker: "camera" | "gallery" | "document") => {
-    setAttachmentMenuOpen(false);
-    if (picker === "camera") void takePhoto();
-    else if (picker === "gallery") void pickGallery();
-    else void pickDocument();
-  };
-
-  const submit = useCallback(
-    async (value: string, retryId?: string, retryAttachment?: ChatAttachment) => {
-      const content = value.trim();
-      if ((!content && !attachment) || submitting.current || send.isPending || uploading) return;
-      submitting.current = true;
-      const id = retryId ?? createAssistantRequestId();
-      setFailed(null);
-      setUploading(Boolean(attachment && !retryAttachment));
-      let uploaded = retryAttachment;
-      try {
-        uploaded ??= attachment ? await uploadChatAttachment(attachment, id) : undefined;
-        const finalContent =
-          content ||
-          (attachment?.kind === "image" ? "Analise esta imagem." : "Analise este arquivo.");
-        setOptimistic({
-          id,
-          role: "user",
-          content: finalContent,
-          createdAt: null,
-          attachments: uploaded ? [uploaded] : [],
-        });
-        await send.mutateAsync({
-          message: finalContent,
-          conversationId: newConversation ? null : (history.data?.conversationId ?? null),
-          requestId: id,
-          attachments: uploaded ? [uploaded] : [],
-        });
-        setDraft("");
-        setAttachment(null);
-        setNewConversation(false);
-        setOptimistic(null);
-      } catch (error) {
-        const code = error instanceof ChatServiceError ? error.code : undefined;
-        if (__DEV__) {
-          const diagnostic =
-            error instanceof ChatServiceError
-              ? {
-                  code: error.code,
-                  category: error.category,
-                  status: error.status,
-                  stage: error.stage,
-                  diagnosticId: error.diagnosticId,
-                }
-              : { code: "unexpected", stage: "client" };
-          console.warn("[assistant-send]", diagnostic);
-        }
-        setOptimistic(null);
-        setFailed({ content, requestId: id, code, uploadedAttachment: uploaded });
-      } finally {
-        submitting.current = false;
-        setUploading(false);
-      }
-    },
-    [attachment, history.data?.conversationId, newConversation, send, uploading],
-  );
-
-  useEffect(() => {
-    if (history.isSuccess && prompt && handledPrompt.current !== prompt) {
-      handledPrompt.current = prompt;
-      void submit(prompt);
-    }
-  }, [history.isSuccess, prompt, submit]);
-  useEffect(() => {
-    if (messages.length) requestAnimationFrame(() => list.current?.scrollToEnd({ animated: true }));
-  }, [messages.length]);
-  const toggleSpeech = async (item: ChatMessage) => {
-    try {
-      await Speech.stop();
-      if (speakingId === item.id) return setSpeakingId(null);
-      setSpeakingId(item.id);
-      Speech.speak(item.content, {
-        language: "pt-BR",
-        onDone: () => setSpeakingId(null),
-        onStopped: () => setSpeakingId(null),
-        onError: () => {
-          setSpeakingId(null);
-          Alert.alert("Áudio indisponível", "Não foi possível reproduzir esta resposta.");
-        },
-      });
-    } catch {
-      setSpeakingId(null);
-      Alert.alert("Áudio indisponível", "Não foi possível reproduzir esta resposta.");
-    }
-  };
-
-  if (history.isPending) return <LoadingState title="Carregando conversa…" />;
-  if (history.isError)
-    return (
-      <ErrorState
-        title="Não foi possível carregar agora."
-        message="Seu histórico continua salvo. Verifique sua conexão."
-        actionLabel="Tentar novamente"
-        onAction={() => void history.refetch()}
-      />
-    );
-  const errorCopy = failed ? assistantErrorCopy(failed.code) : null;
-  const busy = send.isPending || uploading;
-  const canSend = canSendAssistantMessage(draft, attachment, busy);
   return (
-    <AppScreen keyboard padded={false}>
+    <AppScreen padded={false}>
       <View style={styles.header}>
-        <NexoraAgent
-          state={send.isPending ? "thinking" : failed ? "attention" : "idle"}
-          size={52}
-        />
-        <View style={styles.headerCopy}>
+        <NexoraAgent state="idle" size={56} />
+        <View style={{ flex: 1 }}>
           <Text style={styles.brand}>NEXORA</Text>
-          <Text style={styles.status}>{send.isPending ? "Pensando…" : "Pronta para ajudar"}</Text>
+          <Text style={styles.subtitle}>Assistente</Text>
         </View>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Iniciar nova conversa"
-          onPress={() => {
-            setNewConversation(true);
-            setDraft("");
-            setAttachment(null);
-            setAttachmentMenuOpen(false);
-            setFailed(null);
-          }}
+          accessibilityLabel="Novo chat"
+          onPress={begin}
           style={styles.newButton}
         >
-          <Text style={styles.newText}>Nova</Text>
+          <Text style={styles.newText}>＋ Novo chat</Text>
         </Pressable>
       </View>
       <FlatList
-        ref={list}
-        style={styles.conversation}
-        data={messages}
+        data={conversations.data ?? []}
         keyExtractor={(item) => item.id}
-        keyboardDismissMode="interactive"
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={messages.length ? styles.list : styles.emptyList}
-        ListEmptyComponent={
-          <View style={styles.empty}>
-            <NexoraAgent state="quiet" size={76} />
-            <Text style={styles.emptyTitle}>Como posso ajudar agora?</Text>
-            <Text style={styles.emptyBody}>
-              Use seus dados reais da NEXORA ou envie uma imagem.
+        contentContainerStyle={styles.content}
+        ListHeaderComponent={
+          <>
+            <Text style={styles.hero}>Como posso ajudar agora?</Text>
+            <Text style={styles.invitation}>
+              Ideias, planejamento e respostas com o contexto da sua NEXORA.
             </Text>
-            <View style={styles.starters}>
-              {ASSISTANT_QUICK_ACTIONS.map((action) => (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={action.label}
-                  key={action.label}
-                  onPress={() => {
-                    const resolved = resolveQuickAction(action);
-                    if (resolved.picker) runPicker(resolved.picker);
-                    else setDraft(resolved.draft);
-                  }}
-                  style={styles.starter}
-                >
-                  <Text style={styles.starterText}>{action.label}</Text>
-                </Pressable>
-              ))}
-            </View>
-          </View>
-        }
-        renderItem={({ item }) => (
-          <View style={styles.messageRow}>
-            {item.role === "assistant" && <Text style={styles.author}>NEXORA</Text>}
-            <View style={[styles.message, item.role === "user" ? styles.user : styles.assistant]}>
-              {item.attachments.map((file) =>
-                file.kind === "image" && file.previewUri ? (
-                  <Image key={file.id} source={{ uri: file.previewUri }} style={styles.sentImage} />
-                ) : (
-                  <View key={file.id} style={styles.fileChip}>
-                    <Text style={styles.fileName}>▤ {file.name}</Text>
-                    <Text style={styles.fileMeta}>
-                      {file.mimeType} · {formatFileSize(file.size)}
-                    </Text>
-                  </View>
-                ),
-              )}
-              <Text selectable style={styles.messageText}>
-                {item.content}
-              </Text>
-            </View>
-            {item.role === "assistant" && (
+            <View style={styles.composer}>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={`${speakingId === item.id ? "Parar" : "Ouvir"} resposta da NEXORA`}
-                onPress={() => void toggleSpeech(item)}
-                style={styles.listen}
+                accessibilityLabel="Adicionar anexo"
+                onPress={() =>
+                  router.push({
+                    pathname: "/(app)/(tabs)/assistant-chat",
+                    params: { attachment: "open" },
+                  })
+                }
+                style={styles.attach}
               >
-                <Text style={styles.listenText}>{speakingId === item.id ? "Parar" : "Ouvir"}</Text>
+                <Text style={styles.attachText}>＋</Text>
               </Pressable>
-            )}
-          </View>
-        )}
-        ListFooterComponent={
-          send.isPending ? <Text style={styles.thinking}>✦ NEXORA está pensando…</Text> : null
-        }
-      />
-      {errorCopy && (
-        <View accessibilityRole="alert" style={styles.error}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.errorTitle}>{errorCopy.title}</Text>
-            <Text style={styles.errorDetail}>{errorCopy.detail}</Text>
-          </View>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Tentar enviar novamente"
-            disabled={busy}
-            onPress={() =>
-              void submit(failed!.content, failed!.requestId, failed!.uploadedAttachment)
-            }
-          >
-            <Text style={styles.retry}>Tentar novamente</Text>
-          </Pressable>
-        </View>
-      )}
-      {attachment && (
-        <View style={styles.preview}>
-          {attachment.kind === "image" ? (
-            <Image source={{ uri: attachment.uri }} style={styles.thumb} />
-          ) : (
-            <Text style={styles.docIcon}>▤</Text>
-          )}
-          <View style={{ flex: 1 }}>
-            <Text numberOfLines={1} style={styles.fileName}>
-              {attachment.name}
-            </Text>
-            <Text style={styles.fileMeta}>
-              {attachment.mimeType} · {formatFileSize(attachment.size)}
-              {uploading ? " · Enviando…" : " · Pronto"}
-            </Text>
-          </View>
-          {uploading ? (
-            <ActivityIndicator color={colors.primaryBright} />
-          ) : (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`Remover anexo ${attachment.name}`}
-              onPress={() => {
-                setAttachment(removeAssistantAttachment());
-                setFailed(null);
-              }}
-            >
-              <Text style={styles.remove}>×</Text>
-            </Pressable>
-          )}
-        </View>
-      )}
-      {attachmentMenuOpen && (
-        <View accessibilityRole="menu" style={styles.attachmentMenu}>
-          <View style={styles.menuHeading}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.menuTitle}>Adicionar ao chat</Text>
-              <Text style={styles.menuCaption}>Escolha uma origem compatível</Text>
-            </View>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Fechar opções de anexo"
-              onPress={() => setAttachmentMenuOpen(false)}
-              hitSlop={8}
-            >
-              <Text style={styles.menuClose}>×</Text>
-            </Pressable>
-          </View>
-          <View style={styles.menuActions}>
-            {(
-              [
-                ["camera", "◎", "Câmera"],
-                ["gallery", "▧", "Galeria"],
-                ["document", "▤", "Arquivo .txt"],
-              ] as const
-            ).map(([value, icon, label]) => (
+              <TextInput
+                accessibilityLabel="Mensagem para a NEXORA"
+                multiline
+                maxLength={12000}
+                placeholder="Pergunte à NEXORA…"
+                placeholderTextColor={colors.textMuted}
+                value={draft}
+                onChangeText={setDraft}
+                style={styles.input}
+              />
               <Pressable
-                accessibilityRole="menuitem"
-                accessibilityLabel={label}
-                key={value}
-                onPress={() => runPicker(value)}
-                style={({ pressed }) => [styles.menuAction, pressed && styles.pressed]}
+                accessibilityRole="button"
+                accessibilityLabel="Enviar mensagem"
+                accessibilityState={{ disabled: !draft.trim() }}
+                disabled={!draft.trim()}
+                onPress={begin}
+                style={[styles.send, !draft.trim() && styles.disabled]}
               >
-                <Text style={styles.menuIcon}>{icon}</Text>
-                <Text style={styles.menuActionText}>{label}</Text>
+                <Text style={styles.sendText}>↑</Text>
               </Pressable>
-            ))}
-          </View>
-        </View>
-      )}
-      <View style={styles.composer}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Adicionar anexo"
-          accessibilityState={{ disabled: busy, expanded: attachmentMenuOpen }}
-          disabled={busy}
-          onPress={openAttachmentMenu}
-          style={styles.attach}
-        >
-          <Text style={styles.attachText}>＋</Text>
-        </Pressable>
-        <TextInput
-          accessibilityLabel="Mensagem para a NEXORA"
-          multiline
-          scrollEnabled
-          blurOnSubmit={false}
-          maxLength={12000}
-          placeholder="Mensagem para a NEXORA…"
-          placeholderTextColor={colors.textMuted}
-          value={draft}
-          onChangeText={(v) => {
-            setDraft(v);
-            if (failed && v !== failed.content) setFailed(null);
-          }}
-          style={styles.input}
-          textAlignVertical="top"
-        />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Enviar mensagem"
-          accessibilityState={{ disabled: !canSend, busy }}
-          disabled={!canSend}
-          onPress={() => void submit(draft)}
-          style={[styles.send, !canSend && styles.disabled]}
-        >
-          {uploading ? (
-            <ActivityIndicator color={colors.text} />
-          ) : (
-            <Text style={styles.sendText}>↑</Text>
-          )}
-        </Pressable>
-      </View>
+            </View>
+            <View style={styles.sectionHeading}>
+              <Text style={styles.sectionTitle}>Conversas recentes</Text>
+              {conversations.isFetching && (
+                <ActivityIndicator size="small" color={colors.primaryBright} />
+              )}
+            </View>
+            {conversations.isError && (
+              <View accessibilityRole="alert" style={styles.error}>
+                <Text style={styles.errorText}>Não foi possível carregar suas conversas.</Text>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Tentar carregar conversas novamente"
+                  onPress={() => void conversations.refetch()}
+                >
+                  <Text style={styles.retry}>Tentar novamente</Text>
+                </Pressable>
+              </View>
+            )}
+          </>
+        }
+        ListEmptyComponent={
+          !conversations.isPending && !conversations.isError ? (
+            <View style={styles.empty}>
+              <Text style={styles.emptyTitle}>Seu próximo chat começa aqui</Text>
+              <Text style={styles.emptyBody}>
+                Envie uma mensagem acima. A conversa será salva depois do primeiro envio.
+              </Text>
+            </View>
+          ) : null
+        }
+        renderItem={({ item }) => {
+          const title = isGenericConversationTitle(item.title)
+            ? "Conversa com a NEXORA"
+            : item.title!;
+          const date = new Date(item.updatedAt).toLocaleDateString("pt-BR", {
+            day: "2-digit",
+            month: "short",
+          });
+          return (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Abrir conversa ${title}`}
+              onPress={() =>
+                router.push({
+                  pathname: "/(app)/(tabs)/assistant-chat",
+                  params: { conversationId: item.id },
+                })
+              }
+              style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+            >
+              <View style={{ flex: 1 }}>
+                <Text numberOfLines={1} style={styles.rowTitle}>
+                  {title}
+                </Text>
+                <Text style={styles.date}>Atividade em {date}</Text>
+              </View>
+              <Text style={styles.chevron}>›</Text>
+            </Pressable>
+          );
+        }}
+      />
     </AppScreen>
   );
 }
-
 const styles = StyleSheet.create({
   header: {
-    minHeight: 68,
+    minHeight: 76,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
@@ -483,142 +159,33 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
   },
-  headerCopy: { flex: 1 },
   brand: { ...typography.eyebrow, color: colors.primaryBright, letterSpacing: 2 },
-  status: { ...typography.caption, color: colors.textMuted },
+  subtitle: { ...typography.caption, color: colors.textMuted },
   newButton: { minHeight: 44, justifyContent: "center", paddingHorizontal: spacing.sm },
   newText: { ...typography.label, color: colors.primaryBright },
-  conversation: { flex: 1, minHeight: 0 },
-  list: { flexGrow: 1, gap: spacing.md, padding: spacing.md, paddingBottom: spacing.lg },
-  emptyList: { flexGrow: 1, justifyContent: "center", padding: spacing.lg },
-  empty: { alignItems: "center", gap: spacing.sm },
-  emptyTitle: { ...typography.heading, color: colors.text, textAlign: "center" },
-  emptyBody: { ...typography.body, color: colors.textMuted, textAlign: "center" },
-  starters: { width: "100%", gap: spacing.sm, marginTop: spacing.md },
-  starter: {
-    minHeight: 44,
-    justifyContent: "center",
-    paddingHorizontal: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
-  },
-  starterText: { ...typography.label, color: colors.text },
-  messageRow: { minWidth: 0 },
-  author: { ...typography.caption, color: colors.primaryBright, marginBottom: 4, marginLeft: 4 },
-  message: {
-    maxWidth: 520,
-    width: "auto",
-    paddingHorizontal: spacing.md,
-    paddingVertical: 11,
-    borderRadius: radius.lg,
-  },
-  user: {
-    alignSelf: "flex-end",
-    backgroundColor: colors.accentMuted,
-    borderBottomRightRadius: radius.sm,
-  },
-  assistant: {
-    alignSelf: "flex-start",
-    backgroundColor: colors.surfaceRaised,
-    borderBottomLeftRadius: radius.sm,
-  },
-  messageText: { ...typography.body, color: colors.text },
-  listen: { alignSelf: "flex-start", paddingHorizontal: 6, paddingVertical: 7 },
-  listenText: { ...typography.caption, color: colors.primaryBright },
-  thinking: { ...typography.label, color: colors.textMuted, paddingVertical: spacing.md },
-  sentImage: { width: 220, height: 150, borderRadius: radius.md, marginBottom: spacing.sm },
-  fileChip: {
-    marginBottom: spacing.sm,
-    padding: spacing.sm,
-    borderRadius: radius.sm,
-    backgroundColor: colors.surface,
-  },
-  fileName: { ...typography.label, color: colors.text },
-  fileMeta: { ...typography.caption, color: colors.textMuted },
-  error: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.danger,
-  },
-  errorTitle: { ...typography.label, color: colors.danger },
-  errorDetail: { ...typography.caption, color: colors.textMuted },
-  retry: { ...typography.label, color: colors.primaryBright, paddingVertical: spacing.sm },
-  preview: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    marginHorizontal: spacing.md,
-    padding: spacing.sm,
-    borderRadius: radius.md,
-    backgroundColor: colors.surfaceRaised,
-  },
-  thumb: { width: 52, height: 52, borderRadius: radius.sm },
-  docIcon: { fontSize: 28, color: colors.primaryBright },
-  remove: { fontSize: 28, color: colors.textMuted, paddingHorizontal: 8 },
-  attachmentMenu: {
-    marginHorizontal: spacing.md,
-    marginBottom: spacing.sm,
-    padding: spacing.md,
-    gap: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.lg,
-    backgroundColor: colors.surfaceRaised,
-    elevation: 12,
-  },
-  menuHeading: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  menuTitle: { ...typography.label, color: colors.text },
-  menuCaption: { ...typography.caption, color: colors.textMuted },
-  menuClose: { color: colors.textMuted, fontSize: 28, lineHeight: 32, paddingHorizontal: 4 },
-  menuActions: { flexDirection: "row", gap: spacing.sm },
-  menuAction: {
-    flex: 1,
-    minHeight: 68,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.xs,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
-  },
-  menuIcon: { color: colors.primaryBright, fontSize: 23 },
-  menuActionText: { ...typography.caption, color: colors.text, textAlign: "center" },
-  pressed: { opacity: 0.72 },
+  content: { flexGrow: 1, padding: spacing.lg, paddingBottom: spacing.xl, gap: spacing.sm },
+  hero: { ...typography.heading, color: colors.text, marginTop: spacing.lg },
+  invitation: { ...typography.body, color: colors.textMuted, marginBottom: spacing.md },
   composer: {
-    flexShrink: 0,
     flexDirection: "row",
     alignItems: "flex-end",
     gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 12,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
+    padding: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
     backgroundColor: colors.surface,
   },
-  attach: {
-    width: 46,
-    height: 48,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 23,
-    backgroundColor: colors.surfaceRaised,
-  },
+  attach: { width: 44, height: 48, alignItems: "center", justifyContent: "center" },
   attachText: { color: colors.primaryBright, fontSize: 26 },
   input: {
     ...typography.body,
     flex: 1,
     minHeight: 48,
-    maxHeight: 128,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 12,
-    borderRadius: radius.md,
-    backgroundColor: colors.surfaceRaised,
+    maxHeight: 120,
+    padding: spacing.sm,
     color: colors.text,
+    textAlignVertical: "top",
   },
   send: {
     width: 48,
@@ -629,5 +196,31 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   disabled: { opacity: 0.4 },
-  sendText: { color: colors.text, fontSize: 24, lineHeight: 26 },
+  sendText: { color: colors.text, fontSize: 24 },
+  sectionHeading: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    marginTop: spacing.xl,
+    marginBottom: spacing.xs,
+  },
+  sectionTitle: { ...typography.label, color: colors.text },
+  row: {
+    minHeight: 70,
+    flexDirection: "row",
+    alignItems: "center",
+    padding: spacing.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceRaised,
+  },
+  rowTitle: { ...typography.label, color: colors.text },
+  date: { ...typography.caption, color: colors.textMuted, marginTop: 3 },
+  chevron: { color: colors.primaryBright, fontSize: 28 },
+  pressed: { opacity: 0.72 },
+  empty: { alignItems: "center", paddingVertical: spacing.xl, gap: spacing.xs },
+  emptyTitle: { ...typography.label, color: colors.text },
+  emptyBody: { ...typography.body, color: colors.textMuted, textAlign: "center" },
+  error: { padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.surfaceRaised },
+  errorText: { ...typography.body, color: colors.textMuted },
+  retry: { ...typography.label, color: colors.primaryBright, marginTop: spacing.sm },
 });
