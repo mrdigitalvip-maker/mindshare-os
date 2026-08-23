@@ -67,3 +67,12 @@ test("ai-chat prevents request ID reuse for a different message or conversation"
   assert.match(source, /conversationId !== priorRequest\.conversation_id/);
   assert.match(source, /if \(duplicate\)[\s\S]*completedReply/);
 });
+
+test("ai-chat uses the supported strict JSON schema subset and safe provider diagnostics", () => {
+  const source = readFileSync("../supabase/functions/ai-chat/index.ts", "utf8");
+  assert.doesNotMatch(source, /message: \{ type: "string", minLength:/);
+  assert.match(source, /type: "json_schema"/);
+  assert.match(source, /strict: true/);
+  assert.match(source, /param: safeProviderErrorField\(fields\.param\)/);
+  assert.match(source, /message: safeProviderErrorField\(fields\.message, 300\)/);
+});

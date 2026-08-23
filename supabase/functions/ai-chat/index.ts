@@ -72,12 +72,20 @@ function log(event: string, data: Record<string, unknown> = {}) {
   console.log(JSON.stringify({ event, ...data }));
 }
 
-type OpenAIErrorMetadata = { type?: string; code?: string };
+type OpenAIErrorMetadata = {
+  type?: string;
+  code?: string;
+  param?: string;
+  message?: string;
+};
 
-function safeProviderErrorField(value: unknown): string | undefined {
+function safeProviderErrorField(value: unknown, maxLength = 200): string | undefined {
   if (typeof value !== "string") return undefined;
-  const normalized = value.trim();
-  return normalized ? normalized.slice(0, 200) : undefined;
+  const normalized = value
+    .replace(/[\u0000-\u001f\u007f]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return normalized ? normalized.slice(0, maxLength) : undefined;
 }
 
 function parseOpenAIError(payload: unknown): OpenAIErrorMetadata {
@@ -88,6 +96,8 @@ function parseOpenAIError(payload: unknown): OpenAIErrorMetadata {
   return {
     type: safeProviderErrorField(fields.type),
     code: safeProviderErrorField(fields.code),
+    param: safeProviderErrorField(fields.param),
+    message: safeProviderErrorField(fields.message, 300),
   };
 }
 
@@ -807,7 +817,7 @@ Deno.serve(async (req) => {
             additionalProperties: false,
             required: ["message", "action"],
             properties: {
-              message: { type: "string", minLength: 1 },
+              message: { type: "string" },
               action: {
                 anyOf: [
                   { type: "null" },
