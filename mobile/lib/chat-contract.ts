@@ -9,6 +9,10 @@ export type AssistantErrorCategory =
   | "ATTACHMENT_UPLOAD"
   | "ATTACHMENT_TYPE"
   | "ATTACHMENT_SIZE"
+  | "ATTACHMENT_OWNERSHIP"
+  | "PERMISSION"
+  | "CAMERA"
+  | "TTS"
   | "UNKNOWN";
 
 export type AssistantWireMessage = {
@@ -71,6 +75,25 @@ function isWireMessage(value: unknown, role: "user" | "assistant"): value is Ass
   );
 }
 
+export function parseWireAttachments(
+  value: unknown,
+): NonNullable<AssistantWireMessage["attachments"]> {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is NonNullable<AssistantWireMessage["attachments"]>[number] => {
+    if (!item || typeof item !== "object") return false;
+    const row = item as Record<string, unknown>;
+    return (
+      typeof row.id === "string" &&
+      (row.kind === "image" || row.kind === "document") &&
+      typeof row.name === "string" &&
+      typeof row.mimeType === "string" &&
+      typeof row.size === "number" &&
+      typeof row.storagePath === "string" &&
+      !row.storagePath.startsWith("http")
+    );
+  });
+}
+
 export function validateAssistantSendData(value: unknown): {
   conversationId: string;
   userMessage: AssistantWireMessage;
@@ -97,6 +120,10 @@ export function classifyAssistantError(code?: string): AssistantErrorCategory {
   if (code === "attachment_type") return "ATTACHMENT_TYPE";
   if (code === "attachment_size") return "ATTACHMENT_SIZE";
   if (code === "attachment_upload") return "ATTACHMENT_UPLOAD";
+  if (code === "attachment_ownership") return "ATTACHMENT_OWNERSHIP";
+  if (code === "permission") return "PERMISSION";
+  if (code === "camera") return "CAMERA";
+  if (code === "tts") return "TTS";
   if (["unauthorized", "forbidden"].includes(code ?? "")) return "AUTH";
   if (["free_limit_reached", "premium_limit_reached", "provider_rate_limited"].includes(code ?? ""))
     return "RATE_LIMIT";

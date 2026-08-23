@@ -59,3 +59,23 @@ test("classifies failures and keeps product-safe PT-BR copy", () => {
     detail: "Sua mensagem foi preservada. Tente novamente.",
   });
 });
+
+test("serializes and parses private attachment metadata", async () => {
+  const attachment = {
+    id: "a",
+    kind: "image" as const,
+    name: "foto.jpg",
+    mimeType: "image/jpeg",
+    size: 20,
+    storagePath: "user/request/a.jpg",
+  };
+  assert.deepEqual(buildAssistantSendPayload("Veja", null, "request", [attachment]).attachments, [
+    attachment,
+  ]);
+  const { parseWireAttachments } = await import("../lib/chat-contract.ts");
+  assert.deepEqual(parseWireAttachments([attachment]), [attachment]);
+  assert.deepEqual(
+    parseWireAttachments([{ ...attachment, storagePath: "https://evil.test/x" }]),
+    [],
+  );
+});
