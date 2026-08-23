@@ -72,6 +72,33 @@ function log(event: string, data: Record<string, unknown> = {}) {
   console.log(JSON.stringify({ event, ...data }));
 }
 
+type OpenAIErrorMetadata = { type?: string; code?: string };
+
+function safeProviderErrorField(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const normalized = value.trim();
+  return normalized ? normalized.slice(0, 200) : undefined;
+}
+
+function parseOpenAIError(payload: unknown): OpenAIErrorMetadata {
+  if (!payload || typeof payload !== "object") return {};
+  const error = (payload as Record<string, unknown>).error;
+  if (!error || typeof error !== "object") return {};
+  const fields = error as Record<string, unknown>;
+  return {
+    type: safeProviderErrorField(fields.type),
+    code: safeProviderErrorField(fields.code),
+  };
+}
+
+function classifyOpenAIStatus(
+  status: number,
+): "provider_rate_limited" | "provider_unavailable" | "provider_error" {
+  if (status === 429) return "provider_rate_limited";
+  if (status >= 500) return "provider_unavailable";
+  return "provider_error";
+}
+
 async function resolvePlan(supabase: DbClient, userId: string): Promise<Plan> {
   const { data, error } = await supabase
     .from("subscriptions")
@@ -236,9 +263,25 @@ async function callOpenAI(
         ...(responseFormat ? { response_format: responseFormat } : {}),
       }),
     });
-    if (response.status === 429) throw new Error("provider_rate_limited");
-    if (!response.ok)
-      throw new Error(response.status >= 500 ? "provider_unavailable" : "provider_error");
+    if (!response.ok) {
+      const providerError = await response
+        .json()
+        .then(parseOpenAIError)
+        .catch(() => ({}));
+      const providerRequestId = safeProviderErrorField(
+        response.headers.get("x-request-id") ??
+          response.headers.get("openai-request-id") ??
+          response.headers.get("request-id"),
+      );
+      log("ai_provider_error", {
+        provider: "openai",
+        model,
+        status: response.status,
+        error: providerError,
+        ...(providerRequestId ? { requestId: providerRequestId } : {}),
+      });
+      throw new Error(classifyOpenAIStatus(response.status));
+    }
     const payload = await response.json();
     const content = payload?.choices?.[0]?.message?.content;
     if (typeof content !== "string" || !content.trim()) throw new Error("provider_error");
