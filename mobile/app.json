@@ -31,7 +31,12 @@
             "DEFAULT"
           ]
         }
-      ]
+      ],
+      "icon": "./assets/branding/nexora-app-icon-master.png",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/branding/nexora-app-icon-master.png",
+        "backgroundColor": "#000000"
+      }
     },
     "plugins": [
       "expo-router",
@@ -48,6 +53,7 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "icon": "./assets/branding/nexora-app-icon-master.png"
   }
 }
