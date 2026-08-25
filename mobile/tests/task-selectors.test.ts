@@ -9,6 +9,10 @@ import {
   getTaskDisplayData,
   getTaskDuePresentation,
   getTaskExecutionState,
+  getTaskNudge,
+  getTaskNextActionState,
+  getTaskStaleness,
+  getTaskWorkState,
   getTaskPriorityLabel,
   groupTasksForExecution,
   sortTasksForExecution,
@@ -170,4 +174,31 @@ test("reschedule choices use local calendar dates", () => {
   assert.equal(getRescheduleDate("tomorrow", now), "2026-08-21");
   assert.equal(getRescheduleDate("three-days", now), "2026-08-23");
   assert.equal(getRescheduleDate("next-week", now), "2026-08-27");
+});
+
+test("execution state, next action and blockers are truthful", () => {
+  const active = {
+    ...task("active", null),
+    executionStatus: "in_progress" as const,
+    nextAction: "Abrir o rascunho",
+    lastProgressAt: "2026-08-15T12:00:00Z",
+  };
+  assert.equal(getTaskWorkState(active), "in_progress");
+  assert.equal(getTaskNextActionState(active), "defined");
+  assert.equal(getTaskStaleness(active, now), 5);
+  assert.match(getTaskNudge(active, now), /sem progresso há 5 dias/);
+  const blocked = {
+    ...active,
+    executionStatus: "blocked" as const,
+    blockerNote: "Aguardando fotos",
+  };
+  assert.equal(getTaskWorkState(blocked), "blocked");
+  assert.match(getTaskNudge(blocked, now), /bloqueio registrado/);
+  assert.equal(getTaskNextActionState(task("missing", null)), "missing");
+});
+
+test("completion overrides stale active execution state", () => {
+  const inconsistent = { ...task("done", null, true), executionStatus: "in_progress" as const };
+  assert.equal(getTaskWorkState(inconsistent), "completed");
+  assert.equal(getFocusTask([inconsistent], now), null);
 });

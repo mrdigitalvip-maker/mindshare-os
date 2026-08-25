@@ -28,6 +28,7 @@ import {
 } from "@/lib/task-selectors";
 import { colors, radius, spacing, typography } from "@/lib/theme";
 import type { Task } from "@/services/workspace-service";
+import { cancelTaskReminder } from "@/services/notification-service";
 
 type Filter = "Agora" | "Hoje" | "Atrasadas" | "Próximas" | "Sem prazo" | "Concluídas" | "Todas";
 const filters: Filter[] = [
@@ -163,6 +164,7 @@ export default function Productivity() {
         projectId: task.projectId,
         patch: { completed: !task.completed },
       });
+      if (!task.completed) await cancelTaskReminder(task.id);
     } catch {
       setActionError("Não foi possível atualizar a tarefa.");
     } finally {
@@ -183,6 +185,7 @@ export default function Productivity() {
         onPress: () => {
           void mutateTask
             .mutateAsync({ action: "delete", taskId: task.id, projectId: task.projectId })
+            .then(() => cancelTaskReminder(task.id))
             .then(() => setModal(false))
             .catch(() => setActionError("Não foi possível excluir a tarefa."));
         },
@@ -256,7 +259,7 @@ export default function Productivity() {
                 <View style={styles.focusActions}>
                   <Pressable
                     accessibilityRole="button"
-                    onPress={() => openEditor(focus)}
+                    onPress={() => router.push(`/tasks/${focus.id}`)}
                     style={styles.focusButton}
                   >
                     <Text style={styles.focusButtonText}>Abrir</Text>
@@ -333,7 +336,7 @@ export default function Productivity() {
             projectTitle={projectTitles.get(item.projectId ?? "")}
             pending={pendingIds.has(item.id)}
             onToggle={() => void toggle(item)}
-            onEdit={() => openEditor(item)}
+            onEdit={() => router.push(`/tasks/${item.id}`)}
             onProject={
               item.projectId ? () => router.push(`/projects/${item.projectId}`) : undefined
             }

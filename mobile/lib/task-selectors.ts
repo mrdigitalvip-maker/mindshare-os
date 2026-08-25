@@ -2,6 +2,7 @@ import type { Project, Task } from "@/services/workspace-service";
 
 export type TaskExecutionGroup = "overdue" | "today" | "upcoming" | "undated" | "completed";
 export type TaskQueue = "now" | "today" | "overdue" | "upcoming" | "undated" | "completed" | "all";
+export type TaskWorkState = "not_started" | "in_progress" | "blocked" | "completed";
 
 const priorityLabels: Record<string, string> = { high: "Alta", medium: "Média", low: "Baixa" };
 const priorityRank: Record<string, number> = { high: 0, medium: 1, low: 2 };
@@ -38,6 +39,42 @@ export function getTaskExecutionState(task: Task, now = new Date()): TaskExecuti
   if (due < today) return "overdue";
   if (due === today) return "today";
   return "upcoming";
+}
+
+export function getTaskWorkState(task: Task): TaskWorkState {
+  if (task.completed || task.executionStatus === "completed") return "completed";
+  return task.executionStatus === "blocked" || task.executionStatus === "in_progress"
+    ? task.executionStatus
+    : "not_started";
+}
+
+export function getTaskNextActionState(task: Task) {
+  return task.nextAction?.trim() ? ("defined" as const) : ("missing" as const);
+}
+
+export function getTaskStaleness(task: Task, now = new Date()) {
+  if (getTaskWorkState(task) !== "in_progress" || !task.lastProgressAt) return null;
+  const days = Math.floor((now.getTime() - new Date(task.lastProgressAt).getTime()) / 86_400_000);
+  return Number.isFinite(days) && days >= 3 ? days : null;
+}
+
+export function getTaskNudge(task: Task, now = new Date()) {
+  const work = getTaskWorkState(task);
+  if (work === "completed") return "Esta tarefa foi concluída.";
+  if (work === "blocked")
+    return "Há um bloqueio registrado. Resolva-o ou redefina o caminho antes de continuar.";
+  const deadline = getTaskExecutionState(task, now);
+  if (deadline === "overdue")
+    return "O prazo passou. Escolha entre concluir, reagendar ou redefinir o próximo passo.";
+  if (deadline === "today") return "Esta tarefa vence hoje. Você quer avançar nela agora?";
+  const stale = getTaskStaleness(task, now);
+  if (stale) return `Esta tarefa está sem progresso há ${stale} dias. Retome com uma ação pequena.`;
+  if (!task.nextAction?.trim()) return "Comece definindo o menor próximo passo.";
+  if (!task.dueDate)
+    return "Esta tarefa ainda não tem prazo. Definir quando ela precisa acontecer ajuda a priorizá-la.";
+  return work === "in_progress"
+    ? "Continue pela próxima ação definida."
+    : "A próxima ação está clara. Comece quando estiver pronto.";
 }
 
 export function getTaskDuePresentation(task: Task, now = new Date()) {
@@ -80,7 +117,7 @@ export function groupTasksForExecution(tasks: Task[], now = new Date()) {
   return grouped;
 }
 
-/** Deterministic: overdue, today, upcoming high priority, nearest dated, then undated. */
+/** Deterministic: overdue high priority, due today, active, nearest due, high undated, actionable. */
 export function getFocusTask(tasks: Task[], now = new Date()) {
   const groups = groupTasksForExecution(tasks, now);
   const byPriority = (values: Task[]) =>
@@ -94,6 +131,7 @@ export function getFocusTask(tasks: Task[], now = new Date()) {
   return (
     byPriority(groups.overdue)[0] ??
     byPriority(groups.today)[0] ??
+    tasks.find((task) => !task.completed && getTaskWorkState(task) === "in_progress") ??
     groups.upcoming.find((task) => task.priority.toLowerCase() === "high") ??
     groups.upcoming[0] ??
     groups.undated[0] ??
@@ -153,10 +191,11 @@ export function getTaskAttentionSummary(tasks: Task[], projects: Project[] = [],
 }
 
 export function getRescheduleDate(
-  option: "tomorrow" | "three-days" | "next-week",
+  option: "later-today" | "tomorrow" | "three-days" | "next-week",
   now = new Date(),
 ) {
-  const days = option === "tomorrow" ? 1 : option === "three-days" ? 3 : 7;
+  const days =
+    option === "later-today" ? 0 : option === "tomorrow" ? 1 : option === "three-days" ? 3 : 7;
   return dateKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() + days));
 }
 

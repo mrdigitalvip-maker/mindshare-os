@@ -88,6 +88,7 @@ export function useWorkspaceMutations() {
             projectId?: string | null;
             priority?: string;
             dueDate?: string | null;
+            nextAction?: string | null;
           }
         | {
             action: "update";

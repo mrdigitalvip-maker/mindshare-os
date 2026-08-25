@@ -17,6 +17,12 @@ export type Task = {
   projectId: string | null;
   completed: boolean;
   updatedAt?: string | null;
+  executionStatus?: "not_started" | "in_progress" | "blocked" | "completed";
+  nextAction?: string | null;
+  blockerNote?: string | null;
+  startedAt?: string | null;
+  lastProgressAt?: string | null;
+  reminderAt?: string | null;
 };
 export type Subject = {
   id: string;
@@ -57,6 +63,17 @@ const taskFrom = (row: Record<string, unknown>): Task => ({
   projectId: typeof row.project_id === "string" ? row.project_id : null,
   completed: row.completed === true,
   updatedAt: typeof row.updated_at === "string" ? row.updated_at : null,
+  executionStatus:
+    row.completed === true
+      ? "completed"
+      : ["not_started", "in_progress", "blocked"].includes(String(row.execution_status))
+        ? (row.execution_status as Task["executionStatus"])
+        : "not_started",
+  nextAction: typeof row.next_action === "string" ? row.next_action : null,
+  blockerNote: typeof row.blocker_note === "string" ? row.blocker_note : null,
+  startedAt: typeof row.started_at === "string" ? row.started_at : null,
+  lastProgressAt: typeof row.last_progress_at === "string" ? row.last_progress_at : null,
+  reminderAt: typeof row.reminder_at === "string" ? row.reminder_at : null,
 });
 
 export async function listProjects(userId: string): Promise<Project[]> {
@@ -141,7 +158,9 @@ export async function getProject(
 export async function listTasks(userId: string, projectId?: string): Promise<Task[]> {
   let query = supabase
     .from("tasks")
-    .select("id,title,description,priority,due_date,project_id,completed,updated_at")
+    .select(
+      "id,title,description,priority,due_date,project_id,completed,updated_at,execution_status,next_action,blocker_note,started_at,last_progress_at,reminder_at",
+    )
     .eq("user_id", owner(userId))
     .order("updated_at", { ascending: false });
   if (projectId) query = query.eq("project_id", resource(projectId));
@@ -157,6 +176,7 @@ export async function createTask(
     projectId?: string | null;
     priority?: string;
     dueDate?: string | null;
+    nextAction?: string | null;
   },
 ): Promise<string> {
   const { data, error } = await supabase
@@ -169,6 +189,7 @@ export async function createTask(
       priority: input.priority ?? "medium",
       due_date: input.dueDate || null,
       completed: false,
+      next_action: input.nextAction?.trim() || null,
     })
     .select("id")
     .single();
@@ -179,7 +200,21 @@ export async function updateTask(
   userId: string,
   taskId: string,
   patch: Partial<
-    Pick<Task, "title" | "description" | "priority" | "dueDate" | "projectId" | "completed">
+    Pick<
+      Task,
+      | "title"
+      | "description"
+      | "priority"
+      | "dueDate"
+      | "projectId"
+      | "completed"
+      | "executionStatus"
+      | "nextAction"
+      | "blockerNote"
+      | "startedAt"
+      | "lastProgressAt"
+      | "reminderAt"
+    >
   >,
 ): Promise<void> {
   const update = {
@@ -189,6 +224,12 @@ export async function updateTask(
     ...(patch.dueDate !== undefined ? { due_date: patch.dueDate } : {}),
     ...(patch.projectId !== undefined ? { project_id: patch.projectId } : {}),
     ...(patch.completed !== undefined ? { completed: patch.completed } : {}),
+    ...(patch.executionStatus !== undefined ? { execution_status: patch.executionStatus } : {}),
+    ...(patch.nextAction !== undefined ? { next_action: patch.nextAction?.trim() || null } : {}),
+    ...(patch.blockerNote !== undefined ? { blocker_note: patch.blockerNote?.trim() || null } : {}),
+    ...(patch.startedAt !== undefined ? { started_at: patch.startedAt } : {}),
+    ...(patch.lastProgressAt !== undefined ? { last_progress_at: patch.lastProgressAt } : {}),
+    ...(patch.reminderAt !== undefined ? { reminder_at: patch.reminderAt } : {}),
     updated_at: new Date().toISOString(),
   };
   const { data, error } = await supabase
