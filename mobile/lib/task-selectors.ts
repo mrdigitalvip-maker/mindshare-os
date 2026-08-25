@@ -128,13 +128,21 @@ export function getFocusTask(tasks: Task[], now = new Date()) {
       if (priority) return priority;
       return sortTasksForExecution([a, b])[0].id === a.id ? -1 : 1;
     });
+  const open = uniqueTasks(tasks).filter((task) => !task.completed);
+  const overdue = byPriority(groups.overdue);
   return (
-    byPriority(groups.overdue)[0] ??
+    overdue.find((task) => task.priority.toLowerCase() === "high") ??
+    overdue[0] ??
     byPriority(groups.today)[0] ??
-    tasks.find((task) => !task.completed && getTaskWorkState(task) === "in_progress") ??
-    groups.upcoming.find((task) => task.priority.toLowerCase() === "high") ??
-    groups.upcoming[0] ??
-    groups.undated[0] ??
+    sortTasksForExecution(
+      open.filter(
+        (task) =>
+          Boolean(task.nextAction?.trim()) || getTaskWorkState(task) === "in_progress",
+      ),
+    )[0] ??
+    byPriority(groups.upcoming).find((task) => task.priority.toLowerCase() === "high") ??
+    byPriority(groups.upcoming)[0] ??
+    byPriority(groups.undated)[0] ??
     null
   );
 }
@@ -165,6 +173,13 @@ export function getTaskCounts(tasks: Task[], now = new Date()) {
 export function getTaskAttentionSummary(tasks: Task[], projects: Project[] = [], now = new Date()) {
   const groups = groupTasksForExecution(tasks, now);
   const messages: string[] = [];
+  const blocked = uniqueTasks(tasks).filter(
+    (task) => !task.completed && getTaskWorkState(task) === "blocked" && task.blockerNote?.trim(),
+  );
+  if (blocked.length)
+    messages.push(
+      `${blocked.length} ${blocked.length === 1 ? "tarefa está bloqueada" : "tarefas estão bloqueadas"}.`,
+    );
   if (groups.overdue.length)
     messages.push(
       `${groups.overdue.length} ${groups.overdue.length === 1 ? "tarefa está atrasada" : "tarefas estão atrasadas"}.`,

@@ -213,7 +213,7 @@ export default function TaskWorkspace() {
           <Card label="PROGRESSO">
             <Text style={styles.body}>{stateLabel[workState]}</Text>
             <View style={styles.actions}>
-              {workState === "not_started" && <Button label="Começar" onPress={start} />}{" "}
+              {workState === "not_started" && <Button label="Começar" onPress={start} />}
               {workState !== "completed" && <Button label="Concluir" onPress={complete} />}
             </View>
           </Card>

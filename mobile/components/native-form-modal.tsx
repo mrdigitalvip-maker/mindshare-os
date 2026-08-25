@@ -1,5 +1,15 @@
 import type { ReactNode } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { colors, radius, spacing, typography } from "@/lib/theme";
 export function NativeFormModal({
   visible,
@@ -42,7 +52,10 @@ export function NativeFormModal({
 }) {
   return (
     <Modal animationType="slide" transparent visible={visible} onRequestClose={onClose}>
-      <View style={styles.overlay}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={styles.overlay}
+      >
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.sheet}>
           <Text style={styles.title}>{title}</Text>
           <TextInput
@@ -104,7 +117,7 @@ export function NativeFormModal({
             </Pressable>
           ) : null}
         </ScrollView>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

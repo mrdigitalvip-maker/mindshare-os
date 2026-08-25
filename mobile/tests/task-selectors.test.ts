@@ -123,6 +123,14 @@ test("priority orders focus candidates with the same deadline state", () => {
   );
 });
 
+test("a persisted next action outranks ordinary upcoming work", () => {
+  const actionable = { ...task("action", null), nextAction: "Enviar o orçamento" };
+  assert.equal(
+    getFocusTask([task("ordinary", "2026-08-21"), actionable], now)?.id,
+    "action",
+  );
+});
+
 test("active queues exclude completed tasks and duplicate ids", () => {
   const duplicate = task("same", "2026-08-19");
   assert.deepEqual(
@@ -194,6 +202,10 @@ test("execution state, next action and blockers are truthful", () => {
   };
   assert.equal(getTaskWorkState(blocked), "blocked");
   assert.match(getTaskNudge(blocked, now), /bloqueio registrado/);
+  assert.deepEqual(getTaskAttentionSummary([blocked], [], now), [
+    "1 tarefa está bloqueada.",
+    "Há uma tarefa sem prazo.",
+  ]);
   assert.equal(getTaskNextActionState(task("missing", null)), "missing");
 });
 
