@@ -2,13 +2,19 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { taskMutationInvalidations } from "../lib/query-keys";
 import {
+  getFocusTask,
+  getRescheduleDate,
+  getTaskAttentionSummary,
+  getTaskCounts,
+  getTaskDisplayData,
   getTaskDuePresentation,
   getTaskExecutionState,
   getTaskPriorityLabel,
   groupTasksForExecution,
   sortTasksForExecution,
+  getTasksForQueue,
 } from "../lib/task-selectors";
-import type { Task } from "../services/workspace-service";
+import type { Project, Task } from "../services/workspace-service";
 const now = new Date(2026, 7, 20, 12);
 const task = (
   id: string,
@@ -74,7 +80,7 @@ test("presents dates with local-calendar execution semantics", () => {
     [null, "2026-08-19", "2026-08-20", "2026-08-21", "2026-08-22"].map((due) =>
       getTaskDuePresentation(task(String(due), due), now),
     ),
-    ["Sem data", "Atrasada", "Hoje", "Amanhã", "22 ago"],
+    ["Sem prazo", "Atrasada", "Hoje", "Amanhã", "22 ago"],
   );
   assert.equal(getTaskExecutionState(task("done", null, true), now), "completed");
 });
@@ -87,4 +93,81 @@ test("project reassignment invalidates both project workspaces", () => {
     ["projects", "project-a"],
     ["tasks", "project", "project-a"],
   ]);
+});
+
+test("focus follows overdue, today, upcoming and undated execution order", () => {
+  const values = [
+    task("loose", null),
+    task("future", "2026-08-22", false, "high"),
+    task("today", "2026-08-20"),
+    task("late", "2026-08-19", false, "low"),
+  ];
+  assert.equal(getFocusTask(values, now)?.id, "late");
+  assert.equal(getFocusTask(values.slice(0, 3), now)?.id, "today");
+  assert.equal(getFocusTask(values.slice(0, 2), now)?.id, "future");
+  assert.equal(getFocusTask([values[0]], now)?.id, "loose");
+  assert.equal(getFocusTask([], now), null);
+});
+
+test("priority orders focus candidates with the same deadline state", () => {
+  assert.equal(
+    getFocusTask(
+      [task("low", "2026-08-20", false, "low"), task("high", "2026-08-20", false, "high")],
+      now,
+    )?.id,
+    "high",
+  );
+});
+
+test("active queues exclude completed tasks and duplicate ids", () => {
+  const duplicate = task("same", "2026-08-19");
+  assert.deepEqual(
+    getTasksForQueue(
+      [duplicate, { ...duplicate, title: "duplicate" }, task("done", null, true)],
+      "overdue",
+      now,
+    ).map(({ id }) => id),
+    ["same"],
+  );
+  assert.deepEqual(getTasksForQueue([task("done", "2026-08-20", true)], "today", now), []);
+});
+
+test("counts and attention are derived from actual task state", () => {
+  const values = [
+    task("late", "2026-08-19"),
+    task("today", "2026-08-20"),
+    task("future", "2026-08-21"),
+    task("loose", null),
+    task("done", null, true),
+  ];
+  assert.deepEqual(getTaskCounts(values, now), {
+    open: 4,
+    overdue: 1,
+    today: 1,
+    upcoming: 1,
+    undated: 1,
+    completed: 1,
+  });
+  assert.deepEqual(getTaskAttentionSummary(values, [], now), [
+    "1 tarefa está atrasada.",
+    "1 tarefa vence hoje.",
+    "Há uma tarefa sem prazo.",
+  ]);
+});
+
+test("attention reports real project concentration and display linkage", () => {
+  const project: Project = { id: "p", title: "Lançamento", description: "", status: "active" };
+  const values = [1, 2, 3, 4].map((value) => ({ ...task(String(value), null), projectId: "p" }));
+  assert.ok(
+    getTaskAttentionSummary(values, [project], now).includes(
+      "O projeto “Lançamento” concentra 4 tarefas pendentes.",
+    ),
+  );
+  assert.equal(getTaskDisplayData(values[0], [project]).project?.title, "Lançamento");
+});
+
+test("reschedule choices use local calendar dates", () => {
+  assert.equal(getRescheduleDate("tomorrow", now), "2026-08-21");
+  assert.equal(getRescheduleDate("three-days", now), "2026-08-23");
+  assert.equal(getRescheduleDate("next-week", now), "2026-08-27");
 });

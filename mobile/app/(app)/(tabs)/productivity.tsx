@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useRouter } from "expo-router";
 import {
   Alert,
   Pressable,
@@ -14,32 +15,38 @@ import { NativeFormModal } from "@/components/native-form-modal";
 import { StandardHeader } from "@/components/product-ui";
 import { EmptyState, ErrorState, LoadingState } from "@/components/screen-state";
 import { useProjects, useTasks, useWorkspaceMutations } from "@/hooks/use-workspaces";
-import { getNextAction } from "@/lib/dashboard-selectors";
 import {
+  getFocusTask,
+  getRescheduleDate,
+  getTaskAttentionSummary,
+  getTaskCounts,
   getTaskDuePresentation,
   getTaskExecutionState,
   getTaskPriorityLabel,
-  groupTasksForExecution,
-  type TaskExecutionGroup,
+  getTasksForQueue,
+  type TaskQueue,
 } from "@/lib/task-selectors";
 import { colors, radius, spacing, typography } from "@/lib/theme";
 import type { Task } from "@/services/workspace-service";
 
-type Filter = "Abertas" | "Hoje" | "Atrasadas" | "Próximas" | "Sem data" | "Concluídas";
-const filters: Filter[] = ["Abertas", "Hoje", "Atrasadas", "Próximas", "Sem data", "Concluídas"];
-const groupLabels: Record<TaskExecutionGroup, string> = {
-  overdue: "Atrasadas",
-  today: "Hoje",
-  upcoming: "Próximas",
-  undated: "Sem data",
-  completed: "Concluídas",
-};
-const filterGroup: Record<Exclude<Filter, "Abertas">, TaskExecutionGroup> = {
+type Filter = "Agora" | "Hoje" | "Atrasadas" | "Próximas" | "Sem prazo" | "Concluídas" | "Todas";
+const filters: Filter[] = [
+  "Agora",
+  "Hoje",
+  "Atrasadas",
+  "Próximas",
+  "Sem prazo",
+  "Concluídas",
+  "Todas",
+];
+const filterQueue: Record<Filter, TaskQueue> = {
+  Agora: "now",
   Hoje: "today",
   Atrasadas: "overdue",
   Próximas: "upcoming",
-  "Sem data": "undated",
+  "Sem prazo": "undated",
   Concluídas: "completed",
+  Todas: "all",
 };
 const priorities = ["high", "medium", "low"] as const;
 
@@ -49,10 +56,11 @@ function localDate() {
 }
 
 export default function Productivity() {
+  const router = useRouter();
   const tasksQuery = useTasks();
   const projectsQuery = useProjects();
   const { mutateTask } = useWorkspaceMutations();
-  const [filter, setFilter] = useState<Filter>("Abertas");
+  const [filter, setFilter] = useState<Filter>("Agora");
   const [modal, setModal] = useState(false);
   const [editing, setEditing] = useState<Task | null>(null);
   const [title, setTitle] = useState("");
@@ -63,21 +71,20 @@ export default function Productivity() {
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
   const [actionError, setActionError] = useState<string | null>(null);
   const tasks = useMemo(() => tasksQuery.data ?? [], [tasksQuery.data]);
-  const groups = useMemo(() => groupTasksForExecution(tasks), [tasks]);
+  const counts = useMemo(() => getTaskCounts(tasks), [tasks]);
+  const focus = useMemo(() => getFocusTask(tasks), [tasks]);
   const projectTitles = useMemo(
     () => new Map((projectsQuery.data ?? []).map((project) => [project.id, project.title])),
     [projectsQuery.data],
   );
+  const attention = useMemo(
+    () => getTaskAttentionSummary(tasks, projectsQuery.data ?? []),
+    [projectsQuery.data, tasks],
+  );
   const sections = useMemo(() => {
-    const keys: TaskExecutionGroup[] =
-      filter === "Abertas" ? ["overdue", "today", "upcoming", "undated"] : [filterGroup[filter]];
-    return keys
-      .filter((key) => groups[key].length)
-      .map((key) => ({ key, title: groupLabels[key], data: groups[key] }));
-  }, [filter, groups]);
-  const openCount =
-    groups.overdue.length + groups.today.length + groups.upcoming.length + groups.undated.length;
-  const next = getNextAction(tasks);
+    const data = getTasksForQueue(tasks, filterQueue[filter]);
+    return data.length ? [{ key: filterQueue[filter], title: filter, data }] : [];
+  }, [filter, tasks]);
 
   if (tasksQuery.isPending) return <LoadingState title="Carregando tarefas…" />;
   if (tasksQuery.isError)
@@ -99,6 +106,24 @@ export default function Productivity() {
     setPriority(task?.priority ?? "medium");
     setProjectId(task?.projectId ?? null);
     setModal(true);
+  }
+
+  function reschedule(task: Task) {
+    const apply = (option: "tomorrow" | "three-days" | "next-week") =>
+      void mutateTask
+        .mutateAsync({
+          action: "update",
+          taskId: task.id,
+          projectId: task.projectId,
+          patch: { dueDate: getRescheduleDate(option) },
+        })
+        .catch(() => setActionError("Não foi possível adiar a tarefa."));
+    Alert.alert("Adiar tarefa", "Escolha um novo prazo", [
+      { text: "Amanhã", onPress: () => apply("tomorrow") },
+      { text: "Em 3 dias", onPress: () => apply("three-days") },
+      { text: "Próxima semana", onPress: () => apply("next-week") },
+      { text: "Cancelar", style: "cancel" },
+    ]);
   }
 
   async function save() {
@@ -172,8 +197,8 @@ export default function Productivity() {
         ? "Nenhuma tarefa atrasada."
         : filter === "Concluídas"
           ? "Nenhuma tarefa concluída."
-          : filter === "Abertas"
-            ? "Você está sem tarefas pendentes."
+          : filter === "Agora"
+            ? "Seu espaço de execução está livre."
             : `Nenhuma tarefa em ${filter.toLowerCase()}.`;
 
   return (
@@ -201,29 +226,67 @@ export default function Productivity() {
         contentContainerStyle={sections.length ? styles.list : styles.empty}
         ListHeaderComponent={
           <View style={styles.headerContent}>
+            <Text accessibilityLiveRegion="polite" style={styles.syncState}>
+              {tasksQuery.isRefetching || projectsQuery.isRefetching
+                ? "Sincronizando…"
+                : tasksQuery.dataUpdatedAt
+                  ? `Atualizado às ${new Date(tasksQuery.dataUpdatedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`
+                  : "Atualização pendente"}
+            </Text>
             <View
-              accessibilityLabel={`${groups.overdue.length} atrasadas, ${groups.today.length} para hoje, ${openCount} em aberto`}
+              accessibilityLabel={`${counts.overdue} atrasadas, ${counts.today} para hoje, ${counts.open} em aberto`}
               style={styles.summary}
             >
-              <SummaryMetric value={groups.overdue.length} label="atrasadas" tone="danger" />
-              <SummaryMetric value={groups.today.length} label="para hoje" />
-              <SummaryMetric value={openCount} label="em aberto" />
+              <SummaryMetric value={counts.overdue} label="atrasadas" tone="danger" />
+              <SummaryMetric value={counts.today} label="para hoje" />
+              <SummaryMetric value={counts.open} label="em aberto" />
             </View>
-            {next ? (
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => openEditor(next)}
-                style={styles.next}
-              >
-                <Text style={styles.eyebrow}>PRÓXIMA</Text>
+            {focus ? (
+              <View style={styles.next}>
+                <Text style={styles.eyebrow}>FOCO AGORA</Text>
                 <Text numberOfLines={1} style={styles.nextTitle}>
-                  {next.title}
+                  {focus.title}
                 </Text>
                 <Text style={styles.nextMeta}>
-                  {getTaskDuePresentation(next)} ·{" "}
-                  {projectTitles.get(next.projectId ?? "") ?? "Sem projeto"}
+                  {getTaskDuePresentation(focus)} · {getTaskPriorityLabel(focus.priority)}
                 </Text>
-              </Pressable>
+                {projectTitles.get(focus.projectId ?? "") ? (
+                  <Text style={styles.focusProject}>{projectTitles.get(focus.projectId!)}</Text>
+                ) : null}
+                <View style={styles.focusActions}>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => openEditor(focus)}
+                    style={styles.focusButton}
+                  >
+                    <Text style={styles.focusButtonText}>Abrir</Text>
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => void toggle(focus)}
+                    style={styles.focusButton}
+                  >
+                    <Text style={styles.focusButtonText}>Concluir</Text>
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => reschedule(focus)}
+                    style={styles.quietButton}
+                  >
+                    <Text style={styles.quietButtonText}>Adiar</Text>
+                  </Pressable>
+                </View>
+              </View>
+            ) : null}
+            {attention.length ? (
+              <View style={styles.attention}>
+                <Text style={styles.eyebrow}>PRECISA DE ATENÇÃO</Text>
+                {attention.slice(0, 3).map((message) => (
+                  <Text key={message} style={styles.attentionText}>
+                    • {message}
+                  </Text>
+                ))}
+              </View>
             ) : null}
             {actionError ? (
               <Text accessibilityRole="alert" style={styles.error}>
@@ -245,6 +308,11 @@ export default function Productivity() {
                 >
                   <Text style={[styles.filterText, item === filter && styles.activeText]}>
                     {item}
+                    {item === "Hoje" && counts.today
+                      ? ` ${counts.today}`
+                      : item === "Atrasadas" && counts.overdue
+                        ? ` ${counts.overdue}`
+                        : ""}
                   </Text>
                 </Pressable>
               ))}
@@ -266,6 +334,9 @@ export default function Productivity() {
             pending={pendingIds.has(item.id)}
             onToggle={() => void toggle(item)}
             onEdit={() => openEditor(item)}
+            onProject={
+              item.projectId ? () => router.push(`/projects/${item.projectId}`) : undefined
+            }
           />
         )}
       />
@@ -380,12 +451,14 @@ function TaskRow({
   pending,
   onToggle,
   onEdit,
+  onProject,
 }: {
   task: Task;
   projectTitle?: string;
   pending: boolean;
   onToggle(): void;
   onEdit(): void;
+  onProject?: () => void;
 }) {
   const state = getTaskExecutionState(task);
   return (
@@ -420,9 +493,16 @@ function TaskRow({
             {getTaskDuePresentation(task)}
           </Text>
           {projectTitle ? (
-            <Text numberOfLines={1} style={styles.project}>
-              ◇ {projectTitle}
-            </Text>
+            <Pressable
+              accessibilityRole="link"
+              accessibilityLabel={`Abrir projeto ${projectTitle}`}
+              onPress={onProject}
+              hitSlop={10}
+            >
+              <Text numberOfLines={1} style={styles.project}>
+                ◇ {projectTitle}
+              </Text>
+            </Pressable>
           ) : null}
           <Text style={styles.priority}>{getTaskPriorityLabel(task.priority)}</Text>
         </View>
@@ -443,6 +523,7 @@ const styles = StyleSheet.create({
   },
   addText: { ...typography.label, color: colors.text },
   headerContent: { gap: spacing.sm, paddingBottom: spacing.sm },
+  syncState: { ...typography.caption, color: colors.textMuted },
   summary: {
     flexDirection: "row",
     borderWidth: 1,
@@ -464,6 +545,27 @@ const styles = StyleSheet.create({
   eyebrow: { ...typography.eyebrow, color: colors.primaryBright },
   nextTitle: { ...typography.label, color: colors.text, marginTop: spacing.xs },
   nextMeta: { ...typography.caption, color: colors.textMuted, marginTop: 2 },
+  focusProject: { ...typography.caption, color: colors.primaryBright, marginTop: spacing.xs },
+  focusActions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.md },
+  focusButton: {
+    minHeight: 44,
+    justifyContent: "center",
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.primary,
+  },
+  focusButtonText: { ...typography.label, color: colors.text },
+  quietButton: { minHeight: 44, justifyContent: "center", paddingHorizontal: spacing.md },
+  quietButtonText: { ...typography.label, color: colors.primaryBright },
+  attention: {
+    gap: spacing.xs,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  attentionText: { ...typography.caption, color: colors.textMuted },
   error: { ...typography.label, color: colors.danger },
   filters: { gap: spacing.sm, paddingVertical: spacing.xs },
   filter: {
