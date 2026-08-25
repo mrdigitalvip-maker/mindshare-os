@@ -27,6 +27,7 @@ import {
   removeAssistantAttachment,
   resolveQuickAction,
 } from "@/lib/assistant-composer";
+import { reconcileAssistantMessages } from "@/lib/assistant-messages";
 import {
   formatFileSize,
   validateChatAttachment,
@@ -64,10 +65,10 @@ export default function Assistant() {
     uploadedAttachment?: ChatAttachment;
   } | null>(null);
   const [optimistic, setOptimistic] = useState<ChatMessage | null>(null);
-  const messages = useMemo(() => {
-    const persisted = history.data ?? [];
-    return optimistic ? [...persisted, optimistic] : persisted;
-  }, [history.data, optimistic]);
+  const messages = useMemo(
+    () => reconcileAssistantMessages(history.data, optimistic),
+    [history.data, optimistic],
+  );
 
   useEffect(
     () => () => {
@@ -155,6 +156,7 @@ export default function Assistant() {
       const content = value.trim();
       if ((!content && !attachment) || submitting.current || send.isPending || uploading) return;
       submitting.current = true;
+      Keyboard.dismiss();
       const id = retryId ?? createAssistantRequestId();
       setFailed(null);
       setUploading(Boolean(attachment && !retryAttachment));
