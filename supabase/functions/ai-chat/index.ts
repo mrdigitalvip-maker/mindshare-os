@@ -1,7 +1,8 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { jsonResponse, preflightResponse, rejectDisallowedOrigin } from "../_shared/http.ts";
-import { NEXORA_NAVIGATION_ACTIONS, parseNexoraModelResponse } from "../_shared/nexora-actions.js";
+import { parseNexoraModelResponse } from "../_shared/nexora-actions.js";
+import { NEXORA_RESPONSE_SCHEMA } from "../_shared/nexora-response-schema.js";
 import {
   boundWorkspaceContext,
   buildMultimodalUserContent,
@@ -812,28 +813,7 @@ Deno.serve(async (req) => {
         json_schema: {
           name: "nexora_response",
           strict: true,
-          schema: {
-            type: "object",
-            additionalProperties: false,
-            required: ["message", "action"],
-            properties: {
-              message: { type: "string" },
-              action: {
-                anyOf: [
-                  { type: "null" },
-                  {
-                    type: "object",
-                    additionalProperties: false,
-                    required: ["type", "name"],
-                    properties: {
-                      type: { const: "navigation" },
-                      name: { type: "string", enum: NEXORA_NAVIGATION_ACTIONS },
-                    },
-                  },
-                ],
-              },
-            },
-          },
+          schema: NEXORA_RESPONSE_SCHEMA,
         },
       },
     );
