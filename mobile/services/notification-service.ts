@@ -89,7 +89,7 @@ export async function scheduleTaskReminder(
   const identifier = await Notifications.scheduleNotificationAsync({
     content: {
       title: task.title,
-      body: `Você adiou “${task.title}” para este horário.`,
+      body: `Hora de avançar em “${task.title}”. Abra para revisar o próximo passo.`,
       data: { kind: "task", resourceId: task.id },
     },
     trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date },
