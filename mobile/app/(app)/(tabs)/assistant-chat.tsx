@@ -6,6 +6,8 @@ import {
   FlatList,
   Image,
   Keyboard,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -293,220 +295,233 @@ export default function Assistant() {
           <Text style={styles.newText}>Novo</Text>
         </Pressable>
       </View>
-      <FlatList
-        ref={list}
-        style={styles.conversation}
-        data={messages}
-        keyExtractor={(item) => item.id}
-        keyboardDismissMode="interactive"
-        keyboardShouldPersistTaps="handled"
-        onScroll={({ nativeEvent }) => {
-          const distance =
-            nativeEvent.contentSize.height -
-            nativeEvent.layoutMeasurement.height -
-            nativeEvent.contentOffset.y;
-          nearBottom.current = distance < 120;
-        }}
-        scrollEventThrottle={80}
-        contentContainerStyle={messages.length ? styles.list : styles.emptyList}
-        ListEmptyComponent={
-          <View style={styles.empty}>
-            <NexoraAgent state="quiet" size={76} />
-            <Text style={styles.emptyTitle}>Como posso ajudar agora?</Text>
-            <Text style={styles.emptyBody}>
-              Use seus dados reais da NEXORA ou envie uma imagem.
-            </Text>
-            <View style={styles.starters}>
-              {ASSISTANT_QUICK_ACTIONS.map((action) => (
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "android" ? "height" : "padding"}
+        keyboardVerticalOffset={0}
+        style={styles.keyboardArea}
+      >
+        <FlatList
+          ref={list}
+          style={styles.conversation}
+          data={messages}
+          keyExtractor={(item) => item.id}
+          keyboardDismissMode="interactive"
+          keyboardShouldPersistTaps="handled"
+          onScroll={({ nativeEvent }) => {
+            const distance =
+              nativeEvent.contentSize.height -
+              nativeEvent.layoutMeasurement.height -
+              nativeEvent.contentOffset.y;
+            nearBottom.current = distance < 120;
+          }}
+          scrollEventThrottle={80}
+          contentContainerStyle={messages.length ? styles.list : styles.emptyList}
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <NexoraAgent state="quiet" size={76} />
+              <Text style={styles.emptyTitle}>Como posso ajudar agora?</Text>
+              <Text style={styles.emptyBody}>
+                Use seus dados reais da NEXORA ou envie uma imagem.
+              </Text>
+              <View style={styles.starters}>
+                {ASSISTANT_QUICK_ACTIONS.map((action) => (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={action.label}
+                    key={action.label}
+                    onPress={() => {
+                      const resolved = resolveQuickAction(action);
+                      if (resolved.picker) runPicker(resolved.picker);
+                      else setDraft(resolved.draft);
+                    }}
+                    style={styles.starter}
+                  >
+                    <Text style={styles.starterText}>{action.label}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+          }
+          renderItem={({ item }) => (
+            <View style={styles.messageRow}>
+              {item.role === "assistant" && <Text style={styles.author}>NEXORA</Text>}
+              <View style={[styles.message, item.role === "user" ? styles.user : styles.assistant]}>
+                {item.attachments.map((file) =>
+                  file.kind === "image" && file.previewUri ? (
+                    <Image
+                      key={file.id}
+                      source={{ uri: file.previewUri }}
+                      style={styles.sentImage}
+                    />
+                  ) : (
+                    <View key={file.id} style={styles.fileChip}>
+                      <Text style={styles.fileName}>▤ {file.name}</Text>
+                      <Text style={styles.fileMeta}>
+                        {file.mimeType} · {formatFileSize(file.size)}
+                      </Text>
+                    </View>
+                  ),
+                )}
+                <Text selectable style={styles.messageText}>
+                  {item.content}
+                </Text>
+              </View>
+              {item.role === "assistant" && (
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel={action.label}
-                  key={action.label}
-                  onPress={() => {
-                    const resolved = resolveQuickAction(action);
-                    if (resolved.picker) runPicker(resolved.picker);
-                    else setDraft(resolved.draft);
-                  }}
-                  style={styles.starter}
+                  accessibilityLabel={`${speakingId === item.id ? "Parar" : "Ouvir"} resposta da NEXORA`}
+                  onPress={() => void toggleSpeech(item)}
+                  style={styles.listen}
                 >
-                  <Text style={styles.starterText}>{action.label}</Text>
+                  <Text style={styles.listenText}>
+                    {speakingId === item.id ? "Parar" : "Ouvir"}
+                  </Text>
                 </Pressable>
-              ))}
-            </View>
-          </View>
-        }
-        renderItem={({ item }) => (
-          <View style={styles.messageRow}>
-            {item.role === "assistant" && <Text style={styles.author}>NEXORA</Text>}
-            <View style={[styles.message, item.role === "user" ? styles.user : styles.assistant]}>
-              {item.attachments.map((file) =>
-                file.kind === "image" && file.previewUri ? (
-                  <Image key={file.id} source={{ uri: file.previewUri }} style={styles.sentImage} />
-                ) : (
-                  <View key={file.id} style={styles.fileChip}>
-                    <Text style={styles.fileName}>▤ {file.name}</Text>
-                    <Text style={styles.fileMeta}>
-                      {file.mimeType} · {formatFileSize(file.size)}
-                    </Text>
-                  </View>
-                ),
               )}
-              <Text selectable style={styles.messageText}>
-                {item.content}
+            </View>
+          )}
+          ListFooterComponent={
+            send.isPending ? <Text style={styles.thinking}>✦ NEXORA está pensando…</Text> : null
+          }
+        />
+        {errorCopy && (
+          <View accessibilityRole="alert" style={styles.error}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.errorTitle}>{errorCopy.title}</Text>
+              <Text style={styles.errorDetail}>{errorCopy.detail}</Text>
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Tentar enviar novamente"
+              disabled={busy}
+              onPress={() =>
+                void submit(failed!.content, failed!.requestId, failed!.uploadedAttachment)
+              }
+            >
+              <Text style={styles.retry}>Tentar novamente</Text>
+            </Pressable>
+          </View>
+        )}
+        {attachment && (
+          <View style={styles.preview}>
+            {attachment.kind === "image" ? (
+              <Image source={{ uri: attachment.uri }} style={styles.thumb} />
+            ) : (
+              <Text style={styles.docIcon}>▤</Text>
+            )}
+            <View style={{ flex: 1 }}>
+              <Text numberOfLines={1} style={styles.fileName}>
+                {attachment.name}
+              </Text>
+              <Text style={styles.fileMeta}>
+                {attachment.mimeType} · {formatFileSize(attachment.size)}
+                {uploading ? " · Enviando…" : " · Pronto"}
               </Text>
             </View>
-            {item.role === "assistant" && (
+            {uploading ? (
+              <ActivityIndicator color={colors.primaryBright} />
+            ) : (
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={`${speakingId === item.id ? "Parar" : "Ouvir"} resposta da NEXORA`}
-                onPress={() => void toggleSpeech(item)}
-                style={styles.listen}
+                accessibilityLabel={`Remover anexo ${attachment.name}`}
+                onPress={() => {
+                  setAttachment(removeAssistantAttachment());
+                  setFailed(null);
+                }}
               >
-                <Text style={styles.listenText}>{speakingId === item.id ? "Parar" : "Ouvir"}</Text>
+                <Text style={styles.remove}>×</Text>
               </Pressable>
             )}
           </View>
         )}
-        ListFooterComponent={
-          send.isPending ? <Text style={styles.thinking}>✦ NEXORA está pensando…</Text> : null
-        }
-      />
-      {errorCopy && (
-        <View accessibilityRole="alert" style={styles.error}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.errorTitle}>{errorCopy.title}</Text>
-            <Text style={styles.errorDetail}>{errorCopy.detail}</Text>
+        {attachmentMenuOpen && (
+          <View accessibilityRole="menu" style={styles.attachmentMenu}>
+            <View style={styles.menuHeading}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.menuTitle}>Adicionar ao chat</Text>
+                <Text style={styles.menuCaption}>Escolha uma origem compatível</Text>
+              </View>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Fechar opções de anexo"
+                onPress={() => setAttachmentMenuOpen(false)}
+                hitSlop={8}
+              >
+                <Text style={styles.menuClose}>×</Text>
+              </Pressable>
+            </View>
+            <View style={styles.menuActions}>
+              {(
+                [
+                  ["camera", "◎", "Câmera"],
+                  ["gallery", "▧", "Galeria"],
+                  ["document", "▤", "Arquivo .txt"],
+                ] as const
+              ).map(([value, icon, label]) => (
+                <Pressable
+                  accessibilityRole="menuitem"
+                  accessibilityLabel={label}
+                  key={value}
+                  onPress={() => runPicker(value)}
+                  style={({ pressed }) => [styles.menuAction, pressed && styles.pressed]}
+                >
+                  <Text style={styles.menuIcon}>{icon}</Text>
+                  <Text style={styles.menuActionText}>{label}</Text>
+                </Pressable>
+              ))}
+            </View>
           </View>
+        )}
+        <View style={styles.composer}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Tentar enviar novamente"
+            accessibilityLabel="Adicionar anexo"
+            accessibilityState={{ disabled: busy, expanded: attachmentMenuOpen }}
             disabled={busy}
-            onPress={() =>
-              void submit(failed!.content, failed!.requestId, failed!.uploadedAttachment)
-            }
+            onPress={openAttachmentMenu}
+            style={styles.attach}
           >
-            <Text style={styles.retry}>Tentar novamente</Text>
+            <Text style={styles.attachText}>＋</Text>
+          </Pressable>
+          <TextInput
+            accessibilityLabel="Mensagem para a NEXORA"
+            multiline
+            scrollEnabled
+            blurOnSubmit={false}
+            maxLength={12000}
+            placeholder="Mensagem para a NEXORA…"
+            placeholderTextColor={colors.textMuted}
+            value={draft}
+            onChangeText={(v) => {
+              setDraft(v);
+              if (failed && v !== failed.content) setFailed(null);
+            }}
+            style={styles.input}
+            textAlignVertical="top"
+          />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Enviar mensagem"
+            accessibilityState={{ disabled: !canSend, busy }}
+            disabled={!canSend}
+            onPress={() => void submit(draft)}
+            style={[styles.send, !canSend && styles.disabled]}
+          >
+            {uploading ? (
+              <ActivityIndicator color={colors.text} />
+            ) : (
+              <Text style={styles.sendText}>↑</Text>
+            )}
           </Pressable>
         </View>
-      )}
-      {attachment && (
-        <View style={styles.preview}>
-          {attachment.kind === "image" ? (
-            <Image source={{ uri: attachment.uri }} style={styles.thumb} />
-          ) : (
-            <Text style={styles.docIcon}>▤</Text>
-          )}
-          <View style={{ flex: 1 }}>
-            <Text numberOfLines={1} style={styles.fileName}>
-              {attachment.name}
-            </Text>
-            <Text style={styles.fileMeta}>
-              {attachment.mimeType} · {formatFileSize(attachment.size)}
-              {uploading ? " · Enviando…" : " · Pronto"}
-            </Text>
-          </View>
-          {uploading ? (
-            <ActivityIndicator color={colors.primaryBright} />
-          ) : (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`Remover anexo ${attachment.name}`}
-              onPress={() => {
-                setAttachment(removeAssistantAttachment());
-                setFailed(null);
-              }}
-            >
-              <Text style={styles.remove}>×</Text>
-            </Pressable>
-          )}
-        </View>
-      )}
-      {attachmentMenuOpen && (
-        <View accessibilityRole="menu" style={styles.attachmentMenu}>
-          <View style={styles.menuHeading}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.menuTitle}>Adicionar ao chat</Text>
-              <Text style={styles.menuCaption}>Escolha uma origem compatível</Text>
-            </View>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Fechar opções de anexo"
-              onPress={() => setAttachmentMenuOpen(false)}
-              hitSlop={8}
-            >
-              <Text style={styles.menuClose}>×</Text>
-            </Pressable>
-          </View>
-          <View style={styles.menuActions}>
-            {(
-              [
-                ["camera", "◎", "Câmera"],
-                ["gallery", "▧", "Galeria"],
-                ["document", "▤", "Arquivo .txt"],
-              ] as const
-            ).map(([value, icon, label]) => (
-              <Pressable
-                accessibilityRole="menuitem"
-                accessibilityLabel={label}
-                key={value}
-                onPress={() => runPicker(value)}
-                style={({ pressed }) => [styles.menuAction, pressed && styles.pressed]}
-              >
-                <Text style={styles.menuIcon}>{icon}</Text>
-                <Text style={styles.menuActionText}>{label}</Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
-      )}
-      <View style={styles.composer}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Adicionar anexo"
-          accessibilityState={{ disabled: busy, expanded: attachmentMenuOpen }}
-          disabled={busy}
-          onPress={openAttachmentMenu}
-          style={styles.attach}
-        >
-          <Text style={styles.attachText}>＋</Text>
-        </Pressable>
-        <TextInput
-          accessibilityLabel="Mensagem para a NEXORA"
-          multiline
-          scrollEnabled
-          blurOnSubmit={false}
-          maxLength={12000}
-          placeholder="Mensagem para a NEXORA…"
-          placeholderTextColor={colors.textMuted}
-          value={draft}
-          onChangeText={(v) => {
-            setDraft(v);
-            if (failed && v !== failed.content) setFailed(null);
-          }}
-          style={styles.input}
-          textAlignVertical="top"
-        />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Enviar mensagem"
-          accessibilityState={{ disabled: !canSend, busy }}
-          disabled={!canSend}
-          onPress={() => void submit(draft)}
-          style={[styles.send, !canSend && styles.disabled]}
-        >
-          {uploading ? (
-            <ActivityIndicator color={colors.text} />
-          ) : (
-            <Text style={styles.sendText}>↑</Text>
-          )}
-        </Pressable>
-      </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
+  keyboardArea: { flex: 1, minHeight: 0 },
   back: { minWidth: 44, minHeight: 44, alignItems: "center", justifyContent: "center" },
   backText: { color: colors.text, fontSize: 34, lineHeight: 36 },
   header: {
