@@ -7,6 +7,11 @@ import {
   validateAttachmentMetadata,
 } from "../../supabase/functions/_shared/assistant-context.ts";
 import { nextSpeechState } from "../lib/speech-state.ts";
+import {
+  NEXORA_NAVIGATION_ACTIONS,
+  parseNexoraModelResponse,
+} from "../../supabase/functions/_shared/nexora-actions.js";
+import { NEXORA_RESPONSE_SCHEMA } from "../../supabase/functions/_shared/nexora-response-schema.js";
 const user = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const image = {
   id: "x",
@@ -75,4 +80,48 @@ test("ai-chat uses the supported strict JSON schema subset and safe provider dia
   assert.match(source, /strict: true/);
   assert.match(source, /param: safeProviderErrorField\(fields\.param\)/);
   assert.match(source, /message: safeProviderErrorField\(fields\.message, 300\)/);
+});
+
+test("nexora_response is an explicitly typed strict OpenAI schema", () => {
+  assert.equal(NEXORA_RESPONSE_SCHEMA.type, "object");
+  assert.equal(NEXORA_RESPONSE_SCHEMA.additionalProperties, false);
+  assert.deepEqual(NEXORA_RESPONSE_SCHEMA.required, ["message", "action"]);
+  assert.equal(NEXORA_RESPONSE_SCHEMA.properties.message.type, "string");
+
+  const [nullable, action] = NEXORA_RESPONSE_SCHEMA.properties.action.anyOf;
+  assert.equal(nullable.type, "null");
+  assert.equal(action.type, "object");
+  assert.equal(action.additionalProperties, false);
+  assert.deepEqual(action.required, ["type", "name"]);
+  assert.deepEqual(action.properties.type, { type: "string", const: "navigation" });
+  assert.deepEqual(action.properties.name, {
+    type: "string",
+    enum: NEXORA_NAVIGATION_ACTIONS,
+  });
+});
+
+test("every nexora_response const declares its JSON type", () => {
+  const visit = (schema: unknown): void => {
+    if (!schema || typeof schema !== "object") return;
+    const node = schema as Record<string, unknown>;
+    if ("const" in node) assert.equal(typeof node.type, "string");
+    Object.values(node).forEach(visit);
+  };
+  visit(NEXORA_RESPONSE_SCHEMA);
+});
+
+test("model response parser accepts navigation and action null", () => {
+  assert.deepEqual(
+    parseNexoraModelResponse({
+      message: "Abrindo projetos.",
+      action: { type: "navigation", name: "navigate_projects" },
+    }),
+    {
+      message: "Abrindo projetos.",
+      action: { type: "navigation", name: "navigate_projects" },
+    },
+  );
+  assert.deepEqual(parseNexoraModelResponse({ message: "Olá!", action: null }), {
+    message: "Olá!",
+  });
 });
