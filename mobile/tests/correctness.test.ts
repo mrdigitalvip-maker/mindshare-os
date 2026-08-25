@@ -43,6 +43,7 @@ test("push token and notification routes reject malformed data", () => {
     notificationRoute({ kind: "project", resourceId: "project-1" }),
     "/projects/project-1",
   );
+  assert.equal(notificationRoute({ kind: "task", resourceId: "task-1" }), "/tasks/task-1");
   assert.equal(notificationRoute({ kind: "study", resourceId: "../bad" }), "/dashboard");
 });
 test("NEXORA visual inputs are guarded", () => {

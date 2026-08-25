@@ -72,3 +72,36 @@ export async function sendTestNotification(): Promise<{ accepted: number; failed
   if (error || data?.error) throw new Error("The test notification could not be sent.");
   return { accepted: data?.accepted ?? 0, failed: data?.failed ?? 0 };
 }
+
+/** One local reminder per task. Permission is requested only after an explicit user action. */
+export async function scheduleTaskReminder(
+  task: { id: string; title: string },
+  reminderAt: string,
+) {
+  const permission = await notificationPermission();
+  const granted =
+    permission === "granted" || (await Notifications.requestPermissionsAsync()).granted;
+  if (!granted) return { scheduled: false as const, permission: await notificationPermission() };
+  await cancelTaskReminder(task.id);
+  const date = new Date(reminderAt);
+  if (!Number.isFinite(date.getTime()) || date <= new Date())
+    throw new Error("Invalid reminder date.");
+  const identifier = await Notifications.scheduleNotificationAsync({
+    content: {
+      title: task.title,
+      body: `Você adiou “${task.title}” para este horário.`,
+      data: { kind: "task", resourceId: task.id },
+    },
+    trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date },
+  });
+  return { scheduled: true as const, permission: "granted" as const, identifier };
+}
+
+export async function cancelTaskReminder(taskId: string) {
+  const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+  await Promise.all(
+    scheduled
+      .filter(({ content }) => content.data?.kind === "task" && content.data.resourceId === taskId)
+      .map(({ identifier }) => Notifications.cancelScheduledNotificationAsync(identifier)),
+  );
+}
