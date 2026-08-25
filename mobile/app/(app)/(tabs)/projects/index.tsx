@@ -8,9 +8,11 @@ import { EmptyState, ErrorState, LoadingState } from "@/components/screen-state"
 import { useProjects, useTasks, useWorkspaceMutations } from "@/hooks/use-workspaces";
 import {
   getProjectAttention,
+  getProjectDeadlineState,
   getProjectNextAction,
   getProjectOverdueTasks,
   getProjectProgress,
+  getProjectsOverview,
   getProjectStatusLabel,
   groupTasksByProject,
   sortProjectsByAttention,
@@ -23,6 +25,7 @@ function ProjectCard({ project, tasks }: { project: Project; tasks: Task[] }) {
   const attention = getProjectAttention(project, tasks);
   const overdue = getProjectOverdueTasks(tasks).length;
   const next = getProjectNextAction(tasks);
+  const open = tasks.filter((task) => !task.completed).length;
   const subdued = ["completed", "archived"].includes(project.status.toLowerCase());
   return (
     <Pressable
@@ -47,6 +50,14 @@ function ProjectCard({ project, tasks }: { project: Project; tasks: Task[] }) {
           {project.description}
         </Text>
       ) : null}
+      {next ? (
+        <View style={styles.nextBlock}>
+          <Text style={styles.eyebrow}>PRÓXIMO PASSO</Text>
+          <Text numberOfLines={2} style={styles.nextTitle}>
+            {next.title}
+          </Text>
+        </View>
+      ) : null}
       {progress ? (
         <View
           accessible
@@ -68,15 +79,20 @@ function ProjectCard({ project, tasks }: { project: Project; tasks: Task[] }) {
               </Text>
             ) : null}
           </View>
-          {next ? (
-            <Text numberOfLines={1} style={styles.next}>
-              Próxima: {next.title}
-            </Text>
-          ) : null}
         </View>
       ) : (
         <Text style={styles.meta}>Sem tarefas vinculadas</Text>
       )}
+      <View style={styles.cardFooter}>
+        <Text
+          style={[styles.meta, getProjectDeadlineState(project) === "overdue" && styles.overdue]}
+        >
+          {project.dueDate
+            ? `Prazo ${new Date(`${project.dueDate.slice(0, 10)}T12:00:00Z`).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", timeZone: "UTC" })}`
+            : `${open} ${open === 1 ? "tarefa aberta" : "tarefas abertas"}`}
+        </Text>
+        <Text style={styles.continue}>Continuar →</Text>
+      </View>
     </Pressable>
   );
 }
@@ -88,6 +104,7 @@ export default function Projetos() {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [dueDate, setDueDate] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const grouped = useMemo(() => groupTasksByProject(tasksQuery.data ?? []), [tasksQuery.data]);
   const projects = useMemo(
@@ -96,10 +113,11 @@ export default function Projetos() {
   );
   async function save() {
     try {
-      const id = await createProject.mutateAsync({ title, description });
+      const id = await createProject.mutateAsync({ title, description, dueDate: dueDate || null });
       setOpen(false);
       setTitle("");
       setDescription("");
+      setDueDate("");
       router.push(`/projects/${id}`);
     } catch {
       /* The modal preserves input and presents a safe error. */
@@ -121,12 +139,7 @@ export default function Projetos() {
         onAction={() => void refresh()}
       />
     );
-  const openProjects = projects.filter(
-    (project) => !["completed", "archived"].includes(project.status.toLowerCase()),
-  ).length;
-  const attentionCount = projects.filter(
-    (project) => getProjectOverdueTasks(grouped.get(project.id) ?? []).length > 0,
-  ).length;
+  const overview = getProjectsOverview(projects, grouped);
   return (
     <AppScreen contentContainerStyle={styles.page}>
       <StandardHeader
@@ -139,13 +152,26 @@ export default function Projetos() {
       />
       {projects.length ? (
         <View style={styles.summary}>
-          <Text style={styles.summaryText}>
-            {openProjects} {openProjects === 1 ? "projeto em aberto" : "projetos em aberto"}
-          </Text>
-          {attentionCount ? (
+          <Text style={styles.summaryTitle}>Hoje nos seus projetos</Text>
+          {overview.attention ? (
             <Text style={styles.overdue}>
-              {attentionCount} {attentionCount === 1 ? "precisa" : "precisam"} de atenção
+              {overview.attention} {overview.attention === 1 ? "precisa" : "precisam"} de atenção
             </Text>
+          ) : null}
+          {overview.approaching ? (
+            <Text style={styles.summaryText}>
+              {overview.approaching}{" "}
+              {overview.approaching === 1 ? "prazo se aproxima" : "prazos se aproximam"}
+            </Text>
+          ) : null}
+          {overview.actionable ? (
+            <Text style={styles.summaryText}>
+              {overview.actionable} {overview.actionable === 1 ? "ação pode" : "ações podem"}{" "}
+              avançar agora
+            </Text>
+          ) : null}
+          {!overview.attention && !overview.approaching && !overview.actionable ? (
+            <Text style={styles.summaryText}>Tudo em dia por aqui.</Text>
           ) : null}
         </View>
       ) : null}
@@ -163,9 +189,9 @@ export default function Projetos() {
         contentContainerStyle={projects.length ? styles.list : styles.empty}
         ListEmptyComponent={
           <EmptyState
-            title="Nenhum projeto ainda."
-            message="Crie um projeto para reunir tarefas e acompanhar seu progresso."
-            actionLabel="Novo projeto"
+            title="Transforme objetivos em progresso."
+            message="Crie um projeto e organize o que precisa acontecer até a conclusão. A NEXORA acompanha tarefas, progresso e próximos passos."
+            actionLabel="Criar primeiro projeto"
             onAction={() => setOpen(true)}
           />
         }
@@ -174,12 +200,15 @@ export default function Projetos() {
       <NativeFormModal
         visible={open}
         title="Novo projeto"
-        placeholder="Nome do projeto"
+        placeholder="O que você quer realizar?"
         value={title}
         onChange={setTitle}
         secondaryValue={description}
-        secondaryPlaceholder="Descrição (opcional)"
+        secondaryPlaceholder="Como será o resultado quando estiver concluído?"
         onSecondaryChange={setDescription}
+        dateValue={dueDate}
+        datePlaceholder="Quando concluir? (AAAA-MM-DD, opcional)"
+        onDateChange={setDueDate}
         busy={createProject.isPending}
         error={createProject.error ? "Não foi possível salvar o projeto." : null}
         onClose={() => setOpen(false)}
@@ -200,12 +229,10 @@ const styles = StyleSheet.create({
   },
   addText: { ...typography.label, color: colors.text },
   summary: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
     gap: spacing.sm,
     paddingBottom: spacing.md,
   },
+  summaryTitle: { ...typography.heading, fontSize: 17, color: colors.text },
   summaryText: { ...typography.caption, color: colors.textMuted },
   list: { gap: spacing.sm, paddingBottom: spacing.xl },
   empty: { flexGrow: 1 },
@@ -253,4 +280,14 @@ const styles = StyleSheet.create({
   meta: { ...typography.caption, color: colors.textMuted },
   overdue: { ...typography.caption, color: colors.danger },
   next: { ...typography.caption, color: colors.text },
+  nextBlock: { gap: spacing.xs },
+  eyebrow: { ...typography.eyebrow, color: colors.primaryBright },
+  nextTitle: { ...typography.label, color: colors.text },
+  cardFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  continue: { ...typography.label, color: colors.primaryBright },
 });
