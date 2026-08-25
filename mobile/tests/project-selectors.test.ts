@@ -2,9 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   getProjectAttention,
+  getProjectDeadlineState,
+  getProjectHealthSummary,
   getProjectNextAction,
   getProjectOverdueTasks,
   getProjectProgress,
+  getProjectsOverview,
   getProjectStatusLabel,
   getProjectTodayTasks,
   groupTasksByProject,
@@ -12,7 +15,7 @@ import {
 } from "../lib/project-selectors";
 import type { Project, Task } from "../services/workspace-service";
 
-const now = new Date(2026, 7, 20, 12);
+const now = new Date("2026-08-20T12:00:00Z");
 const task = (id: string, projectId: string | null, dueDate: string | null, completed = false): Task => ({
   id, projectId, dueDate, completed, title: id, description: "", priority: "medium",
 });
@@ -46,12 +49,12 @@ test("next action prefers overdue, today, upcoming, then undated", () => {
   assert.equal(getProjectNextAction([undated], now)?.id, "undated");
 });
 
-test("sorts overdue, today, moving, no-next, then completed deterministically", () => {
+test("sorts overdue, today, no-next, moving, then completed deterministically", () => {
   const projects = [project("complete", "completed"), project("empty"), project("moving"), project("today"), project("late")];
   const grouped = groupTasksByProject([
     task("late-task", "late", "2026-08-19"), task("today-task", "today", "2026-08-20"), task("moving-task", "moving", "2026-08-21"),
   ]);
-  assert.deepEqual(sortProjectsByAttention(projects, grouped, now).map(({ id }) => id), ["late", "today", "moving", "empty", "complete"]);
+  assert.deepEqual(sortProjectsByAttention(projects, grouped, now).map(({ id }) => id), ["late", "today", "empty", "moving", "complete"]);
   assert.equal(getProjectAttention(project("done", "completed"), [], now), "Concluído");
 });
 
@@ -61,4 +64,39 @@ test("presents stored project statuses in PT-BR without changing unknown values"
   assert.equal(getProjectStatusLabel("completed"), "Concluído");
   assert.equal(getProjectStatusLabel("archived"), "Arquivado");
   assert.equal(getProjectStatusLabel("custom"), "custom");
+});
+
+test("reports due-soon deadlines only for active projects", () => {
+  assert.equal(getProjectDeadlineState({ ...project("soon"), dueDate: "2026-08-27" }, now), "approaching");
+  assert.equal(getProjectDeadlineState({ ...project("done", "completed"), dueDate: "2026-08-19" }, now), "none");
+  assert.equal(getProjectDeadlineState({ ...project("archived", "archived"), dueDate: "2026-08-19" }, now), "none");
+});
+
+test("builds truthful health and overview counts from task data", () => {
+  const projects = [project("empty"), project("healthy"), { ...project("soon"), dueDate: "2026-08-25" }];
+  const grouped = groupTasksByProject([
+    task("healthy-task", "healthy", "2026-09-01"),
+    task("soon-a", "soon", null),
+    task("soon-b", "soon", null),
+  ]);
+  assert.deepEqual(getProjectHealthSummary(projects[0], [], now), ["Este projeto não possui uma próxima tarefa definida."]);
+  assert.deepEqual(getProjectsOverview(projects, grouped, now), { attention: 2, approaching: 1, actionable: 2 });
+});
+
+test("counts multiple overdue tasks and ranks attention ahead of healthy work", () => {
+  const projects = [project("healthy"), project("late")];
+  const grouped = groupTasksByProject([
+    task("healthy-task", "healthy", "2026-09-01"),
+    task("late-a", "late", "2026-08-18"),
+    task("late-b", "late", "2026-08-19"),
+  ]);
+  assert.equal(getProjectOverdueTasks(grouped.get("late") ?? [], now).length, 2);
+  assert.deepEqual(sortProjectsByAttention(projects, grouped, now).map(({ id }) => id), ["late", "healthy"]);
+});
+
+test("removes duplicate project and task IDs from rendering data", () => {
+  const duplicate = task("same-task", "same-project", null);
+  const grouped = groupTasksByProject([duplicate, duplicate]);
+  assert.equal(grouped.get("same-project")?.length, 1);
+  assert.equal(sortProjectsByAttention([project("same-project"), project("same-project")], grouped, now).length, 1);
 });

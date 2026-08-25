@@ -6,11 +6,34 @@ import {
 import type { Project, Task } from "@/services/workspace-service";
 
 const completeStatuses = new Set(["completed", "archived"]);
+const DAY = 86_400_000;
+export const PROJECT_DUE_SOON_DAYS = 7;
+
+const dayValue = (value: string | null | undefined) => {
+  if (!value) return null;
+  const parsed = new Date(`${value.slice(0, 10)}T00:00:00Z`).getTime();
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+export function getProjectDeadlineState(project: Project, now = new Date()) {
+  if (completeStatuses.has(project.status.trim().toLowerCase())) return "none" as const;
+  const due = dayValue(project.dueDate);
+  if (due === null) return "none" as const;
+  const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  if (due < today) return "overdue" as const;
+  if (due <= today + PROJECT_DUE_SOON_DAYS * DAY) return "approaching" as const;
+  return "scheduled" as const;
+}
+
+export const getProjectOpenTaskCount = (tasks: Task[]) =>
+  tasks.filter((task) => !task.completed).length;
 
 export function groupTasksByProject(tasks: Task[]) {
   const grouped = new Map<string, Task[]>();
+  const seen = new Set<string>();
   for (const task of tasks) {
-    if (!task.projectId) continue;
+    if (!task.projectId || seen.has(task.id)) continue;
+    seen.add(task.id);
     grouped.set(task.projectId, [...(grouped.get(task.projectId) ?? []), task]);
   }
   return grouped;
@@ -56,6 +79,9 @@ export { getDisplayProjectStatus as getProjectStatusLabel } from "@/lib/presenta
 export function getProjectAttention(project: Project, tasks: Task[], now = new Date()) {
   if (completeStatuses.has(project.status.trim().toLowerCase())) return "Concluído";
   if (getOverdueTasks(tasks, now).length) return "Atrasado";
+  if (getProjectDeadlineState(project, now) === "overdue") return "Prazo vencido";
+  if (getProjectDeadlineState(project, now) === "approaching" && getProjectOpenTaskCount(tasks))
+    return "Prazo próximo";
   if (getTodayTasks(tasks, now).length) return "Hoje";
   if (!getProjectNextAction(tasks, now)) return "Sem próxima tarefa";
   return "Em andamento";
@@ -68,15 +94,40 @@ export function sortProjectsByAttention(
 ) {
   const rank: Record<string, number> = {
     Atrasado: 0,
-    Hoje: 1,
-    "Em andamento": 2,
-    "Sem próxima tarefa": 3,
-    Concluído: 4,
+    "Prazo vencido": 1,
+    "Prazo próximo": 2,
+    Hoje: 3,
+    "Sem próxima tarefa": 4,
+    "Em andamento": 5,
+    Concluído: 6,
   };
-  return [...projects].sort((a, b) => {
+  return [...new Map(projects.map((project) => [project.id, project])).values()].sort((a, b) => {
     const difference =
       rank[getProjectAttention(a, tasksByProject.get(a.id) ?? [], now)] -
       rank[getProjectAttention(b, tasksByProject.get(b.id) ?? [], now)];
     return difference || a.title.localeCompare(b.title) || a.id.localeCompare(b.id);
   });
+}
+
+export function getProjectHealthSummary(project: Project, tasks: Task[], now = new Date()) {
+  if (completeStatuses.has(project.status.trim().toLowerCase())) return [];
+  const messages: string[] = [];
+  const overdue = getProjectOverdueTasks(tasks, now).length;
+  const open = getProjectOpenTaskCount(tasks);
+  const deadline = getProjectDeadlineState(project, now);
+  if (overdue) messages.push(`${overdue} ${overdue === 1 ? "tarefa está atrasada" : "tarefas estão atrasadas"}.`);
+  if (deadline === "overdue") messages.push("O prazo do projeto venceu.");
+  else if (deadline === "approaching" && open)
+    messages.push(`O prazo está próximo e ${open === 1 ? "há 1 tarefa aberta" : `ainda há ${open} tarefas abertas`}.`);
+  if (!getProjectNextAction(tasks, now)) messages.push("Este projeto não possui uma próxima tarefa definida.");
+  return messages;
+}
+
+export function getProjectsOverview(projects: Project[], tasksByProject: Map<string, Task[]>, now = new Date()) {
+  const active = projects.filter((project) => !completeStatuses.has(project.status.toLowerCase()));
+  return {
+    attention: active.filter((project) => getProjectHealthSummary(project, tasksByProject.get(project.id) ?? [], now).length > 0).length,
+    approaching: active.filter((project) => getProjectDeadlineState(project, now) === "approaching").length,
+    actionable: active.filter((project) => Boolean(getProjectNextAction(tasksByProject.get(project.id) ?? [], now))).length,
+  };
 }

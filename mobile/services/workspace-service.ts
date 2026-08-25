@@ -5,6 +5,8 @@ export type Project = {
   title: string;
   description: string;
   status: string;
+  dueDate?: string | null;
+  updatedAt?: string | null;
 };
 export type Task = {
   id: string;
@@ -61,7 +63,7 @@ export async function listProjects(userId: string): Promise<Project[]> {
   const id = owner(userId);
   const { data, error } = await supabase
     .from("projects")
-    .select("id,title,description,status")
+    .select("id,title,description,status,due_date,updated_at")
     .eq("user_id", id)
     .order("updated_at", { ascending: false });
   if (error) throw error;
@@ -70,11 +72,13 @@ export async function listProjects(userId: string): Promise<Project[]> {
     title: row.title ?? "Projeto sem título",
     description: row.description ?? "",
     status: row.status ?? "active",
+    dueDate: row.due_date ?? null,
+    updatedAt: row.updated_at ?? null,
   }));
 }
 export async function createProject(
   userId: string,
-  input: { title: string; description?: string },
+  input: { title: string; description?: string; dueDate?: string | null },
 ): Promise<string> {
   const { data, error } = await supabase
     .from("projects")
@@ -82,6 +86,7 @@ export async function createProject(
       user_id: owner(userId),
       title: required(input.title, "Project name"),
       description: input.description?.trim() || null,
+      due_date: input.dueDate || null,
       status: "active",
     })
     .select("id")
@@ -103,10 +108,12 @@ export async function deleteProject(userId: string, projectId: string): Promise<
 export async function updateProject(
   userId: string,
   projectId: string,
-  patch: { title?: string; description?: string; status?: string },
+  patch: { title?: string; description?: string; status?: string; dueDate?: string | null },
 ): Promise<void> {
   const update = {
-    ...patch,
+    ...(patch.description !== undefined ? { description: patch.description.trim() || null } : {}),
+    ...(patch.status !== undefined ? { status: patch.status } : {}),
+    ...(patch.dueDate !== undefined ? { due_date: patch.dueDate || null } : {}),
     ...(patch.title !== undefined ? { title: required(patch.title, "Project name") } : {}),
     updated_at: new Date().toISOString(),
   };

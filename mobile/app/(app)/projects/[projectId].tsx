@@ -15,6 +15,7 @@ import { useProject, useWorkspaceMutations } from "@/hooks/use-workspaces";
 import { getDueLabel } from "@/lib/dashboard-selectors";
 import {
   getProjectNextAction,
+  getProjectHealthSummary,
   getProjectOverdueTasks,
   getProjectProgress,
   getProjectStatusLabel,
@@ -36,6 +37,7 @@ export default function ProjectWorkspace() {
   const [projectModal, setProjectModal] = useState(false);
   const [projectTitle, setProjectTitle] = useState("");
   const [projectDescription, setProjectDescription] = useState("");
+  const [projectDueDate, setProjectDueDate] = useState("");
   const [refreshing, setRefreshing] = useState(false);
 
   const tasks = useMemo(() => query.data?.tasks ?? [], [query.data?.tasks]);
@@ -73,6 +75,7 @@ export default function ProjectWorkspace() {
   const overdue = getProjectOverdueTasks(tasks).length;
   const today = getProjectTodayTasks(tasks).length;
   const open = tasks.filter((task) => !task.completed).length;
+  const health = getProjectHealthSummary(project, tasks);
 
   function openTask(task?: Task) {
     setEditingTask(task ?? null);
@@ -142,6 +145,7 @@ export default function ProjectWorkspace() {
           onPress={() => {
             setProjectTitle(project.title);
             setProjectDescription(project.description);
+            setProjectDueDate(project.dueDate?.slice(0, 10) ?? "");
             setProjectModal(true);
           }}
           style={styles.secondaryButton}
@@ -189,11 +193,20 @@ export default function ProjectWorkspace() {
         </View>
       ) : (
         <View style={styles.overview}>
-          <Text style={styles.meta}>Sem tarefas vinculadas</Text>
+          <Text style={styles.meta}>Adicione tarefas para acompanhar o progresso.</Text>
         </View>
       )}
+      {project.dueDate ? (
+        <Text style={styles.meta}>
+          Prazo do projeto:{" "}
+          {new Date(`${project.dueDate.slice(0, 10)}T12:00:00Z`).toLocaleDateString("pt-BR", {
+            dateStyle: "long",
+            timeZone: "UTC",
+          })}
+        </Text>
+      ) : null}
       <View style={styles.nextCard}>
-        <Text style={styles.eyebrow}>PRÓXIMA AÇÃO</Text>
+        <Text style={styles.eyebrow}>AGORA</Text>
         <Text style={styles.nextTitle}>
           {next?.title ??
             (tasks.length
@@ -215,6 +228,16 @@ export default function ProjectWorkspace() {
           </Text>
         </Pressable>
       </View>
+      {health.length ? (
+        <View style={styles.attentionCard}>
+          <Text style={styles.attentionTitle}>ATENÇÃO</Text>
+          {health.map((message) => (
+            <Text key={message} style={styles.attentionCopy}>
+              • {message}
+            </Text>
+          ))}
+        </View>
+      ) : null}
       <View style={styles.tasksHeading}>
         <Text style={styles.sectionTitle}>Tarefas</Text>
         <Pressable
@@ -336,6 +359,9 @@ export default function ProjectWorkspace() {
         secondaryValue={projectDescription}
         secondaryPlaceholder="Descrição (opcional)"
         onSecondaryChange={setProjectDescription}
+        dateValue={projectDueDate}
+        datePlaceholder="Prazo (AAAA-MM-DD, opcional)"
+        onDateChange={setProjectDueDate}
         busy={updateProject.isPending}
         error={updateProject.error ? "Não foi possível salvar o projeto." : null}
         onClose={() => setProjectModal(false)}
@@ -343,7 +369,11 @@ export default function ProjectWorkspace() {
           void updateProject
             .mutateAsync({
               projectId,
-              patch: { title: projectTitle, description: projectDescription },
+              patch: {
+                title: projectTitle,
+                description: projectDescription,
+                dueDate: projectDueDate || null,
+              },
             })
             .then(() => setProjectModal(false))
             .catch(() => undefined)
@@ -408,6 +438,16 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     backgroundColor: colors.surfaceRaised,
   },
+  attentionCard: {
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.accentMuted,
+    backgroundColor: colors.surface,
+  },
+  attentionTitle: { ...typography.eyebrow, color: colors.warning },
+  attentionCopy: { ...typography.body, color: colors.text },
   eyebrow: { ...typography.eyebrow, color: colors.primaryBright },
   nextTitle: { ...typography.heading, fontSize: 18, color: colors.text },
   primaryButton: {
