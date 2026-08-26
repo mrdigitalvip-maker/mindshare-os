@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
 import {
   canUseFeature,
   getFeatureLimit,
@@ -24,5 +25,12 @@ describe("canonical monetization", () => {
     expect(canUseFeature("free", "assistant.basic")).toBe(true);
     expect(canUseFeature("free", "studies.tutor")).toBe(false);
     expect(canUseFeature("premium", "studies.tutor")).toBe(true);
+  });
+  test("Play verification uses the unchanged Android application ID", () => {
+    const app = JSON.parse(readFileSync("app.json", "utf8"));
+    const billingSource = readFileSync("services/play-billing-service.ts", "utf8");
+    expect(app.expo.android.package).toBe("app.vercel.nexora_os_eosin.twa");
+    expect(billingSource).toContain(`packageName: "${app.expo.android.package}"`);
+    expect(billingSource).not.toContain("US$ 12/mês");
   });
 });
