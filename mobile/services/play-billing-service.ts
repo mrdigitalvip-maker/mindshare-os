@@ -5,7 +5,8 @@ import { supabase } from "@/lib/supabase";
 export const PLAY_BILLING_CONFIG = Object.freeze({
   productId: process.env.EXPO_PUBLIC_GOOGLE_PLAY_SUBSCRIPTION_ID ?? "",
   basePlanId: process.env.EXPO_PUBLIC_GOOGLE_PLAY_BASE_PLAN_ID ?? "",
-  packageName: "com.nexora.app",
+  // Must remain identical to expo.android.package and the Play Console app.
+  packageName: "app.vercel.nexora_os_eosin.twa",
 });
 export type PlayProduct = { productId: string; localizedPrice: string; offerToken?: string };
 const configured = () => {
@@ -35,9 +36,10 @@ export async function loadPlayProduct(): Promise<PlayProduct> {
     { pricingPhaseList?: Array<Record<string, unknown>> } | undefined;
   const price =
     phases?.pricingPhaseList?.at(-1)?.formattedPrice ?? raw.localizedPrice ?? raw.displayPrice;
+  if (typeof price !== "string" || !price.trim()) throw new Error("PLAY_PRICE_UNAVAILABLE");
   return {
     productId: PLAY_BILLING_CONFIG.productId,
-    localizedPrice: String(price ?? "US$ 12/mês"),
+    localizedPrice: String(price ?? ""),
     offerToken: typeof offer?.offerToken === "string" ? offer.offerToken : undefined,
   };
 }
