@@ -16,6 +16,11 @@ export const queryKeys = {
   conversations: ["conversations"] as const,
   conversation: (id: string) => ["conversations", validId(id)] as const,
   subscription: ["subscription"] as const,
+  journeys: ["journeys"] as const,
+  journey: (id: string) => ["journeys", validId(id)] as const,
+  dailyMission: ["journeys", "daily-mission"] as const,
+  momentum: ["journeys", "momentum"] as const,
+  journeyChallenge: ["journeys", "challenge"] as const,
 };
 
 export function taskMutationInvalidations(

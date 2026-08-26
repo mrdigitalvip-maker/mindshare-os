@@ -4,7 +4,8 @@ export type Feature =
   | "assistant.attachment"
   | "projects.intelligence"
   | "tasks.intelligence"
-  | "studies.tutor";
+  | "studies.tutor"
+  | "journeys.adaptive";
 export const PLAN_LIMITS = Object.freeze({
   free: {
     activeProjects: 3,
@@ -12,6 +13,8 @@ export const PLAN_LIMITS = Object.freeze({
     activeSubjects: 3,
     assistantDaily: 10,
     attachmentsDaily: 2,
+    activeJourneys: 1,
+    dailyMissions: 1,
   },
   premium: {
     activeProjects: null,
@@ -19,12 +22,15 @@ export const PLAN_LIMITS = Object.freeze({
     activeSubjects: null,
     assistantDaily: 100,
     attachmentsDaily: 20,
+    activeJourneys: null,
+    dailyMissions: null,
   },
 });
 const PREMIUM_FEATURES = new Set<Feature>([
   "projects.intelligence",
   "tasks.intelligence",
   "studies.tutor",
+  "journeys.adaptive",
 ]);
 export const canUseFeature = (entitlement: CanonicalEntitlement, feature: Feature) =>
   entitlement === "premium" || !PREMIUM_FEATURES.has(feature);
