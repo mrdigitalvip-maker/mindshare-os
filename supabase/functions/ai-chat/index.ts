@@ -113,13 +113,15 @@ function classifyOpenAIStatus(
 async function resolvePlan(supabase: DbClient, userId: string): Promise<Plan> {
   const { data, error } = await supabase
     .from("subscriptions")
-    .select("status, current_period_end")
+    .select("status, entitlement, current_period_end")
     .eq("user_id", userId)
     .order("updated_at", { ascending: false })
     .limit(1)
     .maybeSingle();
   if (error) throw new Error("subscription_lookup_failed");
-  const authorized = data?.status === "active" || data?.status === "trialing";
+  const authorized =
+    data?.entitlement === "premium" &&
+    ["active", "trialing", "canceled", "grace_period"].includes(data?.status ?? "");
   const expired = data?.current_period_end
     ? new Date(data.current_period_end).getTime() <= Date.now()
     : false;

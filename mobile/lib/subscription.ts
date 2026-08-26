@@ -5,3 +5,4 @@ export function normalizeEntitlement(status: unknown): Entitlement {
   if (status === "canceled" || status === "expired" || status === "past_due") return "expired";
   return "free";
 }
+export const isPremiumEntitlement = (entitlement: Entitlement) => entitlement === "active" || entitlement === "trialing";
