@@ -2,10 +2,10 @@ import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { NexoraAgent } from "@/components/nexora-agent";
 import { useSubscription } from "@/hooks/use-subscription";
 import { colors, radius, spacing, typography } from "@/lib/theme";
-import { getDisplayEntitlement } from "@/lib/presentation";
+import { subscriptionPlanLabel } from "@/lib/settings-state";
 export default function Premium() {
   const subscription = useSubscription();
-  const tier = getDisplayEntitlement(subscription.data?.entitlement);
+  const tier = subscriptionPlanLabel(subscription.data?.entitlement);
   return (
     <ScrollView contentContainerStyle={s.page}>
       <NexoraAgent size={92} state="attention" />

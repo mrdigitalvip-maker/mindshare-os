@@ -14,6 +14,30 @@ async function deviceId() {
   await SecureStore.setItemAsync(DEVICE_KEY, next);
   return next;
 }
+export async function isCurrentDeviceRegistered(userId: string): Promise<boolean> {
+  if (Platform.OS !== "android" && Platform.OS !== "ios") return false;
+  const { data, error } = await supabase
+    .from("push_devices")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("provider", "expo")
+    .eq("device_id", await deviceId())
+    .eq("enabled", true)
+    .maybeSingle();
+  if (error) throw error;
+  return Boolean(data);
+}
+
+export async function disableCurrentPushDevice(userId: string): Promise<void> {
+  if (Platform.OS !== "android" && Platform.OS !== "ios") return;
+  const { error } = await supabase
+    .from("push_devices")
+    .update({ enabled: false, updated_at: new Date().toISOString() })
+    .eq("user_id", userId)
+    .eq("provider", "expo")
+    .eq("device_id", await deviceId());
+  if (error) throw error;
+}
 export async function notificationPermission(): Promise<NativePermission> {
   if (Platform.OS !== "android" && Platform.OS !== "ios") return "unsupported";
   const value = await Notifications.getPermissionsAsync();
