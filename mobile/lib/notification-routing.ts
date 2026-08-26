@@ -1,7 +1,12 @@
 export type NotificationPlatform = "web" | "android" | "ios";
 export type NotificationProvider = "webpush" | "expo" | "fcm" | "apns";
 export type NativeNotificationRoute =
-  "/dashboard" | `/projects/${string}` | `/studies/${string}` | `/tasks/${string}`;
+  | "/dashboard"
+  | "/journeys"
+  | `/journeys/${string}`
+  | `/projects/${string}`
+  | `/studies/${string}`
+  | `/tasks/${string}`;
 
 export function normalizePushToken(value: unknown): string | null {
   if (typeof value !== "string") return null;
@@ -17,5 +22,8 @@ export function notificationRoute(data: unknown): NativeNotificationRoute {
   if (payload.kind === "project") return `/projects/${id}`;
   if (payload.kind === "study") return `/studies/${id}`;
   if (payload.kind === "task") return `/tasks/${id}`;
+  if (payload.kind === "journey" || payload.kind === "mission")
+    return payload.kind === "journey" ? `/journeys/${id}` : "/journeys";
+  if (payload.kind === "weekly_challenge") return "/journeys";
   return "/dashboard";
 }

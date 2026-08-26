@@ -35,6 +35,8 @@ export default function AppLayout() {
     >
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="tasks/[taskId]" options={{ headerShown: false }} />
+      <Stack.Screen name="journeys/index" options={{ headerShown: false }} />
+      <Stack.Screen name="journeys/[journeyId]" options={{ title: "Jornada" }} />
       <Stack.Screen
         name="projects/[projectId]"
         options={{

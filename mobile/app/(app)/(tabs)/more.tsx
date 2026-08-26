@@ -12,6 +12,12 @@ export default function More() {
       <Text style={styles.copy}>Acesse os módulos disponíveis no seu espaço.</Text>
       <View style={styles.grid}>
         <ModuleCard
+          icon="◈"
+          title="Jornadas"
+          description="Missões, desafios e objetivos."
+          href="/journeys"
+        />
+        <ModuleCard
           icon="◎"
           title="Estudos"
           description="Matérias, metas, sessões e notas."
