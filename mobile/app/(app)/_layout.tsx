@@ -49,6 +49,7 @@ export default function AppLayout() {
           contentStyle: { backgroundColor: colors.background, paddingBottom: insets.bottom },
         }}
       />
+      <Stack.Screen name="studies/[subjectId]/session" options={{ title: "Sessão de estudo" }} />
       <Stack.Screen
         name="studies/[subjectId]"
         options={{

@@ -30,6 +30,9 @@ export type Subject = {
   description: string;
   status: string;
   color: string;
+  objective?: string;
+  weeklyTargetMinutes?: number | null;
+  nextAction?: string;
 };
 export type StudyGoal = {
   id: string;
@@ -38,7 +41,17 @@ export type StudyGoal = {
   currentValue: number;
   targetValue: number;
 };
-export type StudySession = { id: string; activity: string; duration: number; createdAt: string };
+export type StudySession = {
+  id: string;
+  activity: string;
+  duration: number;
+  createdAt: string;
+  status: "active" | "completed" | "cancelled";
+  plannedMinutes: number | null;
+  startedAt: string | null;
+  endedAt: string | null;
+  reflection: "understood" | "review" | "difficult" | null;
+};
 export type StudyNote = { id: string; title: string; content: string; updatedAt: string };
 export type SubjectWorkspace = {
   subject: Subject;
@@ -254,7 +267,7 @@ export async function deleteTask(userId: string, taskId: string): Promise<void> 
 export async function listSubjects(userId: string): Promise<Subject[]> {
   const { data, error } = await supabase
     .from("study_subjects")
-    .select("id,name,description,status,color")
+    .select("id,name,description,status,color,objective,weekly_target_minutes,next_action")
     .eq("user_id", owner(userId))
     .order("updated_at", { ascending: false });
   if (error) throw error;
@@ -263,24 +276,64 @@ export async function listSubjects(userId: string): Promise<Subject[]> {
     name: row.name ?? "Matéria sem nome",
     description: row.description ?? "",
     status: row.status ?? "active",
-    color: row.color ?? "#8B7CFF",
+    color: row.color ?? "#B9854B",
+    objective: row.objective ?? "",
+    weeklyTargetMinutes: row.weekly_target_minutes ?? null,
+    nextAction: row.next_action ?? "",
   }));
 }
-export async function createSubject(userId: string, name: string): Promise<string> {
+export async function createSubject(
+  userId: string,
+  input: { name: string; objective?: string; weeklyTargetMinutes?: number | null },
+): Promise<string> {
+  const weekly = input.weeklyTargetMinutes;
+  if (weekly != null && (!Number.isInteger(weekly) || weekly < 1 || weekly > 10080))
+    throw new Error("Meta semanal inválida.");
   const { data, error } = await supabase
     .from("study_subjects")
-    .insert({ user_id: owner(userId), name: required(name, "Subject name") })
+    .insert({
+      user_id: owner(userId),
+      name: required(input.name, "Subject name"),
+      objective: input.objective?.trim() || null,
+      description: input.objective?.trim() || "",
+      weekly_target_minutes: weekly ?? null,
+    })
     .select("id")
     .single();
   if (error) throw error;
   return data.id;
 }
+export async function updateSubject(
+  userId: string,
+  subjectId: string,
+  patch: { objective?: string; nextAction?: string; weeklyTargetMinutes?: number | null },
+): Promise<void> {
+  const update = {
+    ...(patch.objective !== undefined
+      ? { objective: patch.objective.trim() || null, description: patch.objective.trim() }
+      : {}),
+    ...(patch.nextAction !== undefined ? { next_action: patch.nextAction.trim() || null } : {}),
+    ...(patch.weeklyTargetMinutes !== undefined
+      ? { weekly_target_minutes: patch.weeklyTargetMinutes }
+      : {}),
+    updated_at: new Date().toISOString(),
+  };
+  const { data, error } = await supabase
+    .from("study_subjects")
+    .update(update)
+    .eq("id", resource(subjectId))
+    .eq("user_id", owner(userId))
+    .select("id")
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) throw new Error("Subject not found.");
+}
 export async function getSubjectWorkspace(
   userId: string,
   subjectId: string,
 ): Promise<SubjectWorkspace | null> {
-  const id = resource(subjectId);
-  const user = owner(userId);
+  const id = resource(subjectId),
+    user = owner(userId);
   const [subjects, goals, sessions, notes] = await Promise.all([
     listSubjects(user),
     supabase
@@ -291,7 +344,9 @@ export async function getSubjectWorkspace(
       .order("updated_at", { ascending: false }),
     supabase
       .from("study_sessions")
-      .select("id,activity,duration,created_at")
+      .select(
+        "id,activity,duration,created_at,status,planned_minutes,started_at,ended_at,reflection",
+      )
       .eq("user_id", user)
       .eq("subject_id", id)
       .order("created_at", { ascending: false }),
@@ -308,37 +363,77 @@ export async function getSubjectWorkspace(
   if (!subject) return null;
   return {
     subject,
-    goals: (goals.data ?? []).map((row) => ({
-      id: row.id,
-      title: row.title,
-      completed: row.completed,
-      currentValue: row.current_value,
-      targetValue: row.target_value,
+    goals: (goals.data ?? []).map((r) => ({
+      id: r.id,
+      title: r.title,
+      completed: r.completed,
+      currentValue: r.current_value,
+      targetValue: r.target_value,
     })),
-    sessions: (sessions.data ?? []).map((row) => ({
-      id: row.id,
-      activity: row.activity,
-      duration: row.duration,
-      createdAt: row.created_at,
+    sessions: (sessions.data ?? []).map((r) => ({
+      id: r.id,
+      activity: r.activity,
+      duration: r.duration ?? 0,
+      createdAt: r.created_at,
+      status: r.status ?? "completed",
+      plannedMinutes: r.planned_minutes ?? null,
+      startedAt: r.started_at ?? null,
+      endedAt: r.ended_at ?? null,
+      reflection: r.reflection ?? null,
     })),
-    notes: (notes.data ?? []).map((row) => ({
-      id: row.id,
-      title: row.title,
-      content: row.content,
-      updatedAt: row.updated_at,
+    notes: (notes.data ?? []).map((r) => ({
+      id: r.id,
+      title: r.title,
+      content: r.content,
+      updatedAt: r.updated_at,
     })),
   };
+}
+export async function listStudyWorkspaces(userId: string): Promise<SubjectWorkspace[]> {
+  const subjects = await listSubjects(userId);
+  const workspaces = await Promise.all(subjects.map(({ id }) => getSubjectWorkspace(userId, id)));
+  return workspaces.filter((item): item is SubjectWorkspace => item !== null);
 }
 export async function createStudyGoal(
   userId: string,
   subjectId: string,
   title: string,
+  targetValue = 1,
 ): Promise<void> {
+  if (!Number.isInteger(targetValue) || targetValue < 1)
+    throw new Error("Meta precisa de um total válido.");
   const { error } = await supabase.from("study_goals").insert({
     user_id: owner(userId),
     subject_id: resource(subjectId),
     title: required(title, "Goal"),
+    target_value: targetValue,
   });
+  if (error) throw error;
+}
+export async function updateStudyGoal(
+  userId: string,
+  goalId: string,
+  currentValue: number,
+  targetValue: number,
+): Promise<void> {
+  if (
+    !Number.isInteger(currentValue) ||
+    !Number.isInteger(targetValue) ||
+    currentValue < 0 ||
+    targetValue < 1
+  )
+    throw new Error("Progresso inválido.");
+  const current = Math.min(currentValue, targetValue);
+  const { error } = await supabase
+    .from("study_goals")
+    .update({
+      current_value: current,
+      target_value: targetValue,
+      completed: current >= targetValue,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", resource(goalId))
+    .eq("user_id", owner(userId));
   if (error) throw error;
 }
 export async function setStudyGoalCompleted(
@@ -353,21 +448,65 @@ export async function setStudyGoalCompleted(
     .eq("user_id", owner(userId));
   if (error) throw error;
 }
-export async function createStudySession(
+export async function startStudySession(
   userId: string,
   subjectId: string,
   activity: string,
-  duration: number,
+  plannedMinutes: number,
+): Promise<string> {
+  if (!Number.isInteger(plannedMinutes) || plannedMinutes < 1 || plannedMinutes > 1440)
+    throw new Error("Duração planejada inválida.");
+  const { data, error } = await supabase
+    .from("study_sessions")
+    .insert({
+      user_id: owner(userId),
+      subject_id: resource(subjectId),
+      activity: required(activity, "Activity"),
+      duration: 0,
+      completed: false,
+      status: "active",
+      planned_minutes: plannedMinutes,
+      started_at: new Date().toISOString(),
+    })
+    .select("id")
+    .single();
+  if (error) throw error;
+  return data.id;
+}
+export async function finishStudySession(
+  userId: string,
+  sessionId: string,
+  input: { activity: string; reflection: "understood" | "review" | "difficult" },
 ): Promise<void> {
-  if (!Number.isFinite(duration) || duration < 1 || duration > 1440)
-    throw new Error("Duration must be between 1 and 1440 minutes.");
-  const { error } = await supabase.from("study_sessions").insert({
-    user_id: owner(userId),
-    subject_id: resource(subjectId),
-    activity: required(activity, "Activity"),
-    duration: Math.round(duration),
-    completed: true,
-  });
+  const user = owner(userId);
+  const { data, error: readError } = await supabase
+    .from("study_sessions")
+    .select("started_at")
+    .eq("id", resource(sessionId))
+    .eq("user_id", user)
+    .eq("status", "active")
+    .maybeSingle();
+  if (readError) throw readError;
+  if (!data?.started_at) throw new Error("Sessão ativa não encontrada.");
+  const ended = new Date();
+  const duration = Math.max(
+    1,
+    Math.round((ended.getTime() - new Date(data.started_at).getTime()) / 60000),
+  );
+  const { error } = await supabase
+    .from("study_sessions")
+    .update({
+      activity: required(input.activity, "Activity"),
+      reflection: input.reflection,
+      duration,
+      completed: true,
+      status: "completed",
+      ended_at: ended.toISOString(),
+      updated_at: ended.toISOString(),
+    })
+    .eq("id", resource(sessionId))
+    .eq("user_id", user)
+    .eq("status", "active");
   if (error) throw error;
 }
 export async function saveStudyNote(
