@@ -1,192 +1,317 @@
-import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useCallback, useState } from "react";
+import {
+  Alert,
+  Linking,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { router, useFocusEffect } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { NativeFormModal } from "@/components/native-form-modal";
 import { ProfileAvatar } from "@/components/profile-avatar";
-import { useProfile } from "@/hooks/use-profile";
 import { useLogout } from "@/hooks/use-logout";
+import { useProfile } from "@/hooks/use-profile";
 import { useSubscription } from "@/hooks/use-subscription";
+import { LEGAL_URLS } from "@/lib/legal";
 import { queryKeys } from "@/lib/query-keys";
+import {
+  notificationCopy,
+  notificationReadiness,
+  subscriptionPlanLabel,
+  testPushSucceeded,
+  validateProfileName,
+  type NotificationReadiness,
+} from "@/lib/settings-state";
 import { colors, radius, spacing, typography } from "@/lib/theme";
-import { getDisplayEntitlement, getDisplayPlan } from "@/lib/presentation";
 import { useAuth } from "@/providers/auth-provider";
 import {
+  isCurrentDeviceRegistered,
   notificationPermission,
   registerNativeNotifications,
   sendTestNotification,
 } from "@/services/notification-service";
 import { updateProfileName } from "@/services/profile-service";
+
 export default function Settings() {
   const { session } = useAuth();
   const profile = useProfile();
   const subscription = useSubscription();
+  const logout = useLogout();
   const client = useQueryClient();
-  const performLogout = useLogout();
-  const [message, setMessage] = useState<string>();
-  const [busy, setBusy] = useState(false);
-  const [profileOpen, setProfileOpen] = useState(false);
-  const [name, setName] = useState(profile.data?.fullName ?? "");
+  const [busy, setBusy] = useState(false),
+    [refreshing, setRefreshing] = useState(false),
+    [profileOpen, setProfileOpen] = useState(false);
+  const [name, setName] = useState(""),
+    [profileMessage, setProfileMessage] = useState<string>(),
+    [profileError, setProfileError] = useState<string>();
+  const [noticeState, setNoticeState] = useState<NotificationReadiness>(),
+    [noticeMessage, setNoticeMessage] = useState<string>(),
+    [noticeError, setNoticeError] = useState(false),
+    [sessionError, setSessionError] = useState<string>();
+  const refreshNotifications = useCallback(async () => {
+    if (!session?.user.id) return;
+    try {
+      const p = await notificationPermission();
+      const registered = p === "granted" && (await isCurrentDeviceRegistered(session.user.id));
+      setNoticeState(notificationReadiness(p, registered));
+      setNoticeError(false);
+    } catch {
+      setNoticeError(true);
+    }
+  }, [session?.user.id]);
+  const refetchProfile = profile.refetch;
+  const refetchSubscription = subscription.refetch;
+  useFocusEffect(
+    useCallback(() => {
+      void refreshNotifications();
+      void refetchProfile();
+      void refetchSubscription();
+    }, [refreshNotifications, refetchProfile, refetchSubscription]),
+  );
+  async function refresh() {
+    setRefreshing(true);
+    await Promise.allSettled([refreshNotifications(), profile.refetch(), subscription.refetch()]);
+    setRefreshing(false);
+  }
   async function saveName() {
-    const normalizedName = name.trim();
-    if (!session || !normalizedName || busy) return;
-    if (normalizedName === profile.data?.fullName?.trim()) {
+    if (!session || busy) return;
+    const error = validateProfileName(name);
+    if (error) {
+      setProfileError(error);
+      return;
+    }
+    if (name.trim() === profile.data?.fullName?.trim()) {
       setProfileOpen(false);
       return;
     }
     setBusy(true);
+    setProfileError(undefined);
     try {
-      await updateProfileName(session.user.id, normalizedName);
+      await updateProfileName(session.user.id, name.trim());
       await client.invalidateQueries({ queryKey: queryKeys.profile });
+      await profile.refetch();
       setProfileOpen(false);
-      setMessage("Perfil salvo.");
+      setProfileMessage("Nome atualizado.");
     } catch {
-      setMessage("Não foi possível salvar o perfil. Tente novamente.");
+      setProfileError("Não foi possível atualizar o nome. Tente novamente.");
     } finally {
       setBusy(false);
     }
   }
-  async function enableNotifications() {
+  async function enable() {
     if (!session || busy) return;
+    if (noticeState === "blocked") {
+      try {
+        await Linking.openSettings();
+      } catch {
+        setNoticeMessage("Não foi possível abrir as configurações do aparelho.");
+      }
+      return;
+    }
     setBusy(true);
     try {
-      const result = await registerNativeNotifications(session.user.id);
-      setMessage(
-        result.registered
+      const r = await registerNativeNotifications(session.user.id);
+      setNoticeState(notificationReadiness(r.permission, r.registered));
+      setNoticeMessage(
+        r.registered
           ? "Notificações ativadas neste dispositivo."
-          : "A permissão não foi concedida. Você pode tentar novamente nas configurações do aparelho.",
+          : "Não foi possível ativar as notificações.",
       );
     } catch {
-      setMessage("Não foi possível ativar as notificações.");
+      setNoticeMessage("Não foi possível ativar as notificações.");
     } finally {
       setBusy(false);
     }
   }
-  async function testNotification() {
-    if (busy) return;
+  async function testNotice() {
+    if (busy || noticeState !== "active") return;
     setBusy(true);
     try {
-      const result = await sendTestNotification();
-      setMessage(
-        result.accepted
-          ? "Notificação de teste enviada."
-          : "Nenhum dispositivo ativo. Ative as notificações primeiro.",
+      setNoticeMessage(
+        testPushSucceeded(await sendTestNotification())
+          ? "Notificação enviada para este dispositivo."
+          : "Não foi possível entregar uma notificação neste dispositivo.",
       );
     } catch {
-      setMessage("Falha ao enviar a notificação de teste.");
+      setNoticeMessage("Não foi possível entregar uma notificação neste dispositivo.");
     } finally {
       setBusy(false);
     }
   }
-  async function checkPermission() {
-    try {
-      const permission = await notificationPermission();
-      const labels: Record<string, string> = {
-        granted: "permitida",
-        denied: "negada",
-        undetermined: "ainda não solicitada",
-      };
-      setMessage(`Permissão de notificações: ${labels[permission] ?? "indisponível"}.`);
-    } catch {
-      setMessage("Não foi possível verificar a permissão de notificações.");
-    }
-  }
-  async function logout() {
-    if (busy) return;
+  async function signOut() {
     setBusy(true);
+    setSessionError(undefined);
     try {
-      await performLogout();
+      await logout();
     } catch {
-      setMessage("Não foi possível sair. Verifique sua conexão e tente novamente.");
+      setSessionError("Não foi possível sair. Verifique sua conexão e tente novamente.");
       setBusy(false);
     }
   }
+  const plan = subscriptionPlanLabel(subscription.data?.entitlement),
+    notice = noticeState ? notificationCopy[noticeState] : null;
   return (
-    <ScrollView contentContainerStyle={styles.page}>
-      <Text style={styles.title}>Configurações</Text>
-      <Section title="Conta">
-        <View style={styles.account}>
+    <ScrollView
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={() => void refresh()}
+          tintColor={colors.primaryBright}
+        />
+      }
+      contentContainerStyle={s.page}
+    >
+      <Text style={s.title}>Configurações</Text>
+      <Text style={s.help}>Sua conta, seu plano e os acessos deste dispositivo.</Text>
+      <Section title="CONTA">
+        <View
+          style={s.account}
+          accessible
+          accessibilityLabel={`${profile.data?.displayName ?? "Conta NEXORA"}, ${session?.user.email ?? "email indisponível"}, plano ${plan}`}
+        >
           <ProfileAvatar
             imageUrl={profile.data?.avatarUrl}
             name={profile.data?.displayName}
             email={session?.user.email}
-            size={52}
+            size={60}
           />
-          <View style={styles.accountCopy}>
-            <Text numberOfLines={1} style={styles.value}>
-              {profile.data?.fullName ?? "Nome não informado"}
+          <View style={s.accountCopy}>
+            <Text style={s.name}>
+              {profile.isPending
+                ? "Carregando perfil…"
+                : (profile.data?.fullName ?? "Nome não informado")}
             </Text>
-            <Text numberOfLines={1} style={styles.help}>
-              {session?.user.email ?? "Conta autenticada"}
-            </Text>
-            <Text style={styles.badge}>Plano: {getDisplayPlan(subscription.data?.plan)}</Text>
+            <Text style={s.email}>{session?.user.email ?? "Email indisponível"}</Text>
+            {subscription.isError ? (
+              <Text style={s.error}>Não foi possível verificar seu plano.</Text>
+            ) : (
+              <Text style={s.badge}>Plano {subscription.isPending ? "carregando…" : plan}</Text>
+            )}
           </View>
         </View>
+        {profile.isError ? (
+          <Retry
+            text="Não foi possível carregar os dados do perfil."
+            action={() => void profile.refetch()}
+          />
+        ) : null}
       </Section>
-      <Section title="Perfil">
-        <Text style={styles.value}>{profile.data?.fullName ?? "Nome não informado"}</Text>
+      <Section title="PERFIL">
+        <Text style={s.help}>Mantenha o nome usado na sua experiência NEXORA atualizado.</Text>
         <Action
-          label="Editar nome do perfil"
-          onPress={() => {
+          label="Editar nome"
+          disabled={busy || profile.isError}
+          action={() => {
             setName(profile.data?.fullName ?? "");
+            setProfileError(undefined);
             setProfileOpen(true);
           }}
         />
+        {profileMessage ? <Feedback text={profileMessage} /> : null}
       </Section>
-      <Section title="Notificações">
+      <Section title="NOTIFICAÇÕES">
+        {noticeError ? (
+          <Retry
+            text="Não foi possível verificar as notificações."
+            action={() => void refreshNotifications()}
+          />
+        ) : notice ? (
+          <>
+            <Text
+              accessibilityLiveRegion="polite"
+              style={noticeState === "active" ? s.success : s.value}
+            >
+              {notice.title}
+            </Text>
+            <Text style={s.help}>{notice.description}</Text>
+            {notice.action ? (
+              <Action label={notice.action} disabled={busy} action={() => void enable()} />
+            ) : null}
+            {noticeState === "active" ? (
+              <Action
+                secondary
+                label="Testar notificações"
+                disabled={busy}
+                action={() => void testNotice()}
+              />
+            ) : null}
+          </>
+        ) : (
+          <Text style={s.help}>Verificando acesso deste dispositivo…</Text>
+        )}
+        {noticeMessage ? <Feedback text={noticeMessage} /> : null}
+      </Section>
+      <Section title="ASSINATURA">
+        {subscription.isPending ? (
+          <Text style={s.help}>Verificando seu plano…</Text>
+        ) : subscription.isError ? (
+          <Retry
+            text="Não foi possível verificar seu plano."
+            action={() => void subscription.refetch()}
+          />
+        ) : (
+          <>
+            <Text style={s.value}>Plano atual: {plan}</Text>
+            <Action
+              label={plan === "Premium" ? "Gerenciar assinatura" : "Conhecer Premium"}
+              action={() => router.push("/premium")}
+            />
+          </>
+        )}
+      </Section>
+      <Section title="PRIVACIDADE E SEGURANÇA">
         <Action
-          label="Ativar notificações"
+          secondary
+          label="Política de Privacidade"
+          action={() =>
+            void Linking.openURL(LEGAL_URLS.privacyPolicy).catch(() =>
+              setSessionError("Não foi possível abrir este documento agora."),
+            )
+          }
+        />
+        <Action
+          secondary
+          label="Termos de Serviço"
+          action={() =>
+            void Linking.openURL(LEGAL_URLS.termsOfService).catch(() =>
+              setSessionError("Não foi possível abrir este documento agora."),
+            )
+          }
+        />
+      </Section>
+      <Section title="SESSÃO">
+        <Text style={s.help}>Encerre com segurança o acesso desta conta neste aparelho.</Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ disabled: busy }}
           disabled={busy}
-          onPress={() => void enableNotifications()}
-        />
-        <Action
-          label="Enviar notificação de teste"
-          disabled={busy}
-          onPress={() => void testNotification()}
-        />
+          onPress={() =>
+            Alert.alert("Sair da conta", "Deseja sair desta conta?", [
+              { text: "Cancelar", style: "cancel" },
+              { text: "Sair", style: "destructive", onPress: () => void signOut() },
+            ])
+          }
+          style={s.logout}
+        >
+          <Text style={s.logoutText}>Sair</Text>
+        </Pressable>
+        {sessionError ? <Feedback error text={sessionError} /> : null}
       </Section>
-      <Section title="Permissões">
-        <Action
-          label="Verificar permissão de notificações"
-          onPress={() => void checkPermission()}
-        />
-      </Section>
-      <Section title="Assinatura">
-        <Text style={styles.value}>
-          {subscription.isPending
-            ? "Carregando…"
-            : `Plano atual: ${getDisplayEntitlement(subscription.data?.entitlement)}`}
-        </Text>
-        <Text style={styles.help}>
-          Compras estarão disponíveis quando a cobrança nativa do Google Play for implementada.
-        </Text>
-      </Section>
-      <Section title="Privacidade e termos">
-        <Text style={styles.help}>
-          Privacidade · Termos de Serviço. Nenhum checkout externo é aberto.
-        </Text>
-      </Section>
-      {message ? (
-        <Text accessibilityLiveRegion="polite" style={styles.message}>
-          {message}
-        </Text>
-      ) : null}
-      <Pressable
-        accessibilityRole="button"
-        accessibilityState={{ disabled: busy }}
-        disabled={busy}
-        onPress={() => void logout()}
-        style={styles.logout}
-      >
-        <Text style={styles.logoutText}>Sair</Text>
-      </Pressable>
       <NativeFormModal
         visible={profileOpen}
-        title="Editar nome do perfil"
-        placeholder="Seu nome"
+        title="Editar nome"
+        placeholder="Seu nome completo"
         value={name}
-        onChange={setName}
+        onChange={(v) => {
+          setName(v);
+          setProfileError(undefined);
+        }}
         busy={busy}
-        error={message?.includes("Não foi possível") ? message : null}
+        error={profileError}
         onClose={() => setProfileOpen(false)}
         onSave={() => void saveName()}
       />
@@ -195,64 +320,97 @@ export default function Settings() {
 }
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <View style={styles.section}>
-      <Text style={styles.heading}>{title}</Text>
+    <View style={s.section}>
+      <Text style={s.heading}>{title}</Text>
       {children}
+    </View>
+  );
+}
+function Feedback({ text, error }: { text: string; error?: boolean }) {
+  return (
+    <Text accessibilityLiveRegion="polite" style={error ? s.error : s.success}>
+      {text}
+    </Text>
+  );
+}
+function Retry({ text, action }: { text: string; action(): void }) {
+  return (
+    <View style={s.inline}>
+      <Text style={s.error}>{text}</Text>
+      <Action secondary label="Tentar novamente" action={action} />
     </View>
   );
 }
 function Action({
   label,
-  onPress,
+  action,
   disabled,
+  secondary,
 }: {
   label: string;
-  onPress(): void;
+  action(): void;
   disabled?: boolean;
+  secondary?: boolean;
 }) {
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityState={{ disabled: !!disabled }}
       disabled={disabled}
-      onPress={onPress}
-      style={styles.action}
+      onPress={action}
+      style={[s.action, secondary && s.secondary, disabled && s.disabled]}
     >
-      <Text style={styles.actionText}>{label}</Text>
+      <Text style={s.actionText}>{label}</Text>
     </Pressable>
   );
 }
-const styles = StyleSheet.create({
+const s = StyleSheet.create({
   page: {
     gap: spacing.md,
     padding: spacing.md,
-    paddingBottom: spacing.xl,
+    paddingBottom: spacing.xxl,
     backgroundColor: colors.background,
   },
   title: { ...typography.title, color: colors.text },
   section: {
     gap: spacing.sm,
     padding: spacing.md,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
   },
-  heading: { ...typography.label, color: colors.primaryBright },
+  heading: { ...typography.eyebrow, color: colors.primaryBright },
   account: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   accountCopy: { flex: 1, minWidth: 0, gap: spacing.xs },
-  badge: { ...typography.caption, alignSelf: "flex-start", color: colors.primaryBright },
+  name: { ...typography.heading, color: colors.text, flexShrink: 1 },
+  email: { ...typography.body, color: colors.textMuted, flexShrink: 1 },
+  badge: {
+    ...typography.caption,
+    alignSelf: "flex-start",
+    color: colors.primaryBright,
+    borderWidth: 1,
+    borderColor: colors.accentMuted,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
   value: { ...typography.body, color: colors.text },
   help: { ...typography.body, color: colors.textMuted },
+  success: { ...typography.body, color: colors.success },
+  error: { ...typography.body, color: colors.danger },
+  inline: { gap: spacing.sm },
   action: {
-    minHeight: 44,
+    minHeight: 48,
     justifyContent: "center",
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    alignItems: "center",
+    padding: spacing.sm,
     borderRadius: radius.md,
-    backgroundColor: colors.surfaceRaised,
+    backgroundColor: colors.primary,
   },
-  actionText: { ...typography.label, color: colors.primaryBright },
-  message: { ...typography.body, color: colors.textMuted },
+  secondary: { backgroundColor: colors.surfaceRaised, borderWidth: 1, borderColor: colors.border },
+  disabled: { opacity: 0.55 },
+  actionText: { ...typography.label, color: colors.text, textAlign: "center" },
   logout: {
     minHeight: 48,
     justifyContent: "center",
