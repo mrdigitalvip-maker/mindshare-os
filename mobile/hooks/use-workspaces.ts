@@ -40,6 +40,14 @@ export function useSubjects() {
     enabled: Boolean(userId),
   });
 }
+export function useStudyOverview() {
+  const userId = useUserId();
+  return useQuery({
+    queryKey: queryKeys.studyOverview,
+    queryFn: () => service.listStudyWorkspaces(userId),
+    enabled: Boolean(userId),
+  });
+}
 export function useSubject(subjectId: string) {
   const userId = useUserId();
   return useQuery({
@@ -128,29 +136,61 @@ export function useWorkspaceMutations() {
       ),
   });
   const createSubject = useMutation({
-    mutationFn: (name: string) => service.createSubject(userId, name),
-    onSuccess: () => client.invalidateQueries({ queryKey: queryKeys.studySubjects }),
+    mutationFn: (input: Parameters<typeof service.createSubject>[1]) =>
+      service.createSubject(userId, input),
+    onSuccess: () => invalidate(client, [queryKeys.studySubjects, queryKeys.studyOverview]),
   });
   const study = useMutation({
     mutationFn: (
       input:
-        | { action: "goal"; subjectId: string; title: string }
+        | {
+            action: "subject";
+            subjectId: string;
+            patch: Parameters<typeof service.updateSubject>[2];
+          }
+        | { action: "goal"; subjectId: string; title: string; targetValue?: number }
+        | {
+            action: "goal-progress";
+            subjectId: string;
+            goalId: string;
+            currentValue: number;
+            targetValue: number;
+          }
         | { action: "goal-complete"; subjectId: string; goalId: string; completed: boolean }
-        | { action: "session"; subjectId: string; activity: string; duration: number }
+        | { action: "session-start"; subjectId: string; activity: string; plannedMinutes: number }
+        | {
+            action: "session-finish";
+            subjectId: string;
+            sessionId: string;
+            activity: string;
+            reflection: "understood" | "review" | "difficult";
+          }
         | { action: "note"; subjectId: string; id?: string; title: string; content: string }
         | { action: "delete-note"; subjectId: string; noteId: string },
     ) => {
+      if (input.action === "subject")
+        return service.updateSubject(userId, input.subjectId, input.patch);
       if (input.action === "goal")
-        return service.createStudyGoal(userId, input.subjectId, input.title);
+        return service.createStudyGoal(userId, input.subjectId, input.title, input.targetValue);
+      if (input.action === "goal-progress")
+        return service.updateStudyGoal(userId, input.goalId, input.currentValue, input.targetValue);
       if (input.action === "goal-complete")
         return service.setStudyGoalCompleted(userId, input.goalId, input.completed);
-      if (input.action === "session")
-        return service.createStudySession(userId, input.subjectId, input.activity, input.duration);
+      if (input.action === "session-start")
+        return service
+          .startStudySession(userId, input.subjectId, input.activity, input.plannedMinutes)
+          .then(() => undefined);
+      if (input.action === "session-finish")
+        return service.finishStudySession(userId, input.sessionId, input);
       if (input.action === "note") return service.saveStudyNote(userId, input.subjectId, input);
       return service.deleteStudyNote(userId, input.noteId);
     },
     onSuccess: (_data, input) =>
-      invalidate(client, [queryKeys.studySubjects, queryKeys.studySubject(input.subjectId)]),
+      invalidate(client, [
+        queryKeys.studySubjects,
+        queryKeys.studyOverview,
+        queryKeys.studySubject(input.subjectId),
+      ]),
   });
   return { createProject, updateProject, deleteProject, mutateTask, createSubject, study };
 }

@@ -11,6 +11,7 @@ export const queryKeys = {
   tasks: ["tasks"] as const,
   projectTasks: (id: string) => ["tasks", "project", validId(id)] as const,
   studySubjects: ["study-subjects"] as const,
+  studyOverview: ["study-overview"] as const,
   studySubject: (id: string) => ["study-subjects", validId(id)] as const,
   conversations: ["conversations"] as const,
   conversation: (id: string) => ["conversations", validId(id)] as const,
