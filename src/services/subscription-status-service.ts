@@ -9,6 +9,7 @@ export type SubscriptionStatus = {
   currentPeriodEnd: string | null;
   cancelAtPeriodEnd: boolean;
   source: "subscriptions" | "demo";
+  provider: "stripe" | "google_play" | "manual" | null;
 };
 export const FREE_SUBSCRIPTION: SubscriptionStatus = {
   isPremium: false,
@@ -17,12 +18,13 @@ export const FREE_SUBSCRIPTION: SubscriptionStatus = {
   currentPeriodEnd: null,
   cancelAtPeriodEnd: false,
   source: "demo",
+  provider: null,
 };
 const PREMIUM_STATUSES = new Set(["active", "trialing"]);
 
 export const SubscriptionStatusService = {
   async get(userId?: string): Promise<SubscriptionStatus> {
-    return withDemoFallback(
+    return withDemoFallback<SubscriptionStatus>(
       async () => {
         const authenticatedUserId = await getRequiredUserId();
         if (userId && userId !== authenticatedUserId) {
@@ -30,7 +32,9 @@ export const SubscriptionStatusService = {
         }
         const { data: subscription, error } = await supabase
           .from("subscriptions")
-          .select("status, current_period_end, cancel_at_period_end, updated_at")
+          .select(
+            "status, entitlement, provider, current_period_end, cancel_at_period_end, updated_at",
+          )
           .eq("user_id", authenticatedUserId)
           .order("updated_at", { ascending: false })
           .limit(1)
@@ -40,7 +44,11 @@ export const SubscriptionStatusService = {
           const status = String(subscription.status);
           const periodEnd = subscription.current_period_end;
           const hasExpired = periodEnd ? new Date(periodEnd).getTime() <= Date.now() : false;
-          const isPremium = PREMIUM_STATUSES.has(status) && !hasExpired;
+          const isPremium =
+            (subscription.entitlement === "premium" ||
+              PREMIUM_STATUSES.has(status) ||
+              status === "canceled") &&
+            !hasExpired;
           return {
             isPremium,
             status,
@@ -48,6 +56,9 @@ export const SubscriptionStatusService = {
             currentPeriodEnd: periodEnd ?? null,
             cancelAtPeriodEnd: subscription.cancel_at_period_end ?? false,
             source: "subscriptions",
+            provider: ["stripe", "google_play", "manual"].includes(subscription.provider)
+              ? (subscription.provider as SubscriptionStatus["provider"])
+              : null,
           };
         }
         return {
@@ -57,6 +68,7 @@ export const SubscriptionStatusService = {
           currentPeriodEnd: null,
           cancelAtPeriodEnd: false,
           source: "subscriptions",
+          provider: null,
         };
       },
       FREE_SUBSCRIPTION,

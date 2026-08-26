@@ -819,6 +819,10 @@ export type Database = {
           cancel_at_period_end: boolean | null;
           created_at: string | null;
           current_period_end: string | null;
+          entitlement: string;
+          provider: string;
+          provider_product_id: string | null;
+          provider_purchase_token: string | null;
           id: string;
           plan: string | null;
           status: string | null;
@@ -831,6 +835,10 @@ export type Database = {
           cancel_at_period_end?: boolean | null;
           created_at?: string | null;
           current_period_end?: string | null;
+          entitlement?: string;
+          provider?: string;
+          provider_product_id?: string | null;
+          provider_purchase_token?: string | null;
           id?: string;
           plan?: string | null;
           status?: string | null;
@@ -843,6 +851,10 @@ export type Database = {
           cancel_at_period_end?: boolean | null;
           created_at?: string | null;
           current_period_end?: string | null;
+          entitlement?: string;
+          provider?: string;
+          provider_product_id?: string | null;
+          provider_purchase_token?: string | null;
           id?: string;
           plan?: string | null;
           status?: string | null;

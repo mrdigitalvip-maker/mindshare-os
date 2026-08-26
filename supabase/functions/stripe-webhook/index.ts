@@ -33,6 +33,13 @@ async function persist(admin: Admin, subscription: Stripe.Subscription, fallback
       user_id: userId,
       stripe_customer_id: customerId,
       stripe_subscription_id: subscription.id,
+      provider: "stripe",
+      entitlement:
+        ["active", "trialing"].includes(subscription.status) &&
+        (!periodEnd || periodEnd * 1000 > Date.now())
+          ? "premium"
+          : "free",
+      provider_product_id: subscription.items.data[0]?.price?.id ?? null,
       plan: ["active", "trialing"].includes(subscription.status) ? "pro" : "free",
       status: subscription.status,
       current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
