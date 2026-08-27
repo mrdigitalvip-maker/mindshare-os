@@ -9,6 +9,7 @@ import {
   useMomentum,
 } from "@/hooks/use-journeys";
 import { colors, radius, spacing, typography } from "@/lib/theme";
+import { getMissionExecutionTarget, getMissionSourceLabel } from "@/lib/journeys";
 export default function JourneyDetail() {
   const { journeyId } = useLocalSearchParams<{ journeyId: string }>(),
     journey = useJourney(journeyId ?? ""),
@@ -27,10 +28,15 @@ export default function JourneyDetail() {
     );
   const j = journey.data,
     current = mission.data?.journeyId === j.id ? mission.data : null;
+  const target = current ? getMissionExecutionTarget(current) : null;
+  const recent = (momentum.data?.recentEvents ?? []).filter((event) => event.journeyId === j.id);
   return (
     <AppScreen scroll contentContainerStyle={s.page}>
       <Text style={s.eyebrow}>{j.category.toUpperCase()}</Text>
       <Text style={s.title}>{j.title}</Text>
+      <Text style={s.muted}>
+        {j.status === "active" ? "Em andamento" : j.status === "paused" ? "Pausada" : "Concluída"}
+      </Text>
       <Block title="OBJETIVO">
         <Text style={s.body}>{j.objective}</Text>
         {j.targetDate ? (
@@ -39,35 +45,70 @@ export default function JourneyDetail() {
           </Text>
         ) : null}
       </Block>
-      <Block title="MISSÃO ATUAL">
-        <Text style={s.body}>{current?.title ?? "Nenhuma missão vinculada hoje."}</Text>
+      <Block title="AGORA">
+        <Text style={s.body}>
+          {current?.title ?? "Defina uma próxima ação real para continuar."}
+        </Text>
+        {current ? (
+          <Text style={s.muted}>
+            {getMissionSourceLabel(current)}
+            {current.description ? ` · ${current.description}` : ""}
+          </Text>
+        ) : null}
+        {current && target ? (
+          <Pressable
+            style={s.button}
+            accessibilityRole="button"
+            onPress={() => router.push(target.href as never)}
+          >
+            <Text style={s.buttonText}>{target.label}</Text>
+          </Pressable>
+        ) : null}
+        {current?.sourceType === "journey_action" ? (
+          <Pressable
+            disabled={mutations.completeMission.isPending}
+            accessibilityRole="button"
+            onPress={() => mutations.completeMission.mutate(current.id)}
+          >
+            <Text style={s.link}>Confirmar ação concluída</Text>
+          </Pressable>
+        ) : null}
       </Block>
       <Block title="PROGRESSO RECENTE">
         <Text style={s.metric}>{momentum.data?.weekPoints ?? 0}</Text>
         <Text style={s.muted}>
-          Momentum nesta semana. O progresso percentual só aparece quando houver ações com
-          denominador real.
+          Momentum verificado nesta semana · {momentum.data?.completedMissions ?? 0} missões
+          concluídas.
         </Text>
       </Block>
-      <Block title="RELATED WORK">
+      <Block title="PLANO">
         <Text style={s.muted}>
           {current
             ? `${current.sourceType}: ${current.title}`
             : "Nenhum trabalho relacionado hoje."}
         </Text>
       </Block>
+      {recent.length ? (
+        <Block title="ATIVIDADE RECENTE">
+          {recent.map((event) => (
+            <Text key={event.id} style={s.muted}>
+              +{event.points} Momentum · {new Date(event.createdAt).toLocaleDateString("pt-BR")}
+            </Text>
+          ))}
+        </Block>
+      ) : null}
       <Pressable
         style={s.button}
         onPress={() =>
           router.push({
             pathname: "/assistant",
             params: {
-              context: `Jornada: ${j.title}\nObjetivo: ${j.objective}\nMissão atual: ${current?.title ?? "nenhuma"}`,
+              context: `Ajude com esta Jornada.\nTítulo: ${j.title.slice(0, 160)}\nObjetivo: ${j.objective.slice(0, 500)}\nCategoria: ${j.category}\nPróxima missão: ${(current?.title ?? "nenhuma").slice(0, 240)}\nNão altere dados sem apresentar uma prévia e pedir confirmação.`,
             },
           })
         }
       >
-        <Text style={s.buttonText}>Pedir ajuda à NEXORA</Text>
+        <Text style={s.buttonText}>Ajudar com esta Jornada</Text>
       </Pressable>
       {j.status === "active" ? (
         <Pressable

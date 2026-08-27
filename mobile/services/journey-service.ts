@@ -4,6 +4,8 @@ import {
   type JourneyCategory,
   type JourneyMission,
   type MomentumSummary,
+  type MomentumEvent,
+  summarizeMomentum,
   type WeeklyChallenge,
 } from "@/lib/journeys";
 import { supabase } from "@/lib/supabase";
@@ -108,30 +110,28 @@ export async function completeJourneyAction(userId: string, missionId: string) {
 }
 export async function getMomentum(userId: string, date = new Date()): Promise<MomentumSummary> {
   const uid = user(userId);
-  const start = new Date(date);
-  start.setDate(start.getDate() - 6);
-  start.setHours(0, 0, 0, 0);
   const { data, error } = await supabase
     .from("momentum_events")
-    .select("points,created_at,event_type")
+    .select("id,journey_id,source_type,source_id,points,created_at,event_type")
     .eq("user_id", uid)
-    .gte("created_at", start.toISOString())
     .order("created_at", { ascending: false });
   if (error) throw workspaceMutationError(error);
-  const rows = data ?? [];
-  const dates = rows.map((r) => String(r.created_at).slice(0, 10));
-  const { calculateStreak } = await import("@/lib/journeys");
-  return {
-    weekPoints: rows.reduce((n, r) => n + Number(r.points), 0),
-    completedMissions: rows.filter((r) => r.event_type === "mission_completed").length,
-    streak: calculateStreak(dates, date),
-  };
+  const events: MomentumEvent[] = (data ?? []).map((row) => ({
+    id: String(row.id),
+    journeyId: typeof row.journey_id === "string" ? row.journey_id : null,
+    sourceType: String(row.source_type),
+    sourceId: String(row.source_id),
+    eventType: String(row.event_type),
+    points: Number(row.points),
+    createdAt: String(row.created_at),
+  }));
+  return summarizeMomentum(events, date);
 }
 export async function getWeeklyChallenge(userId: string): Promise<WeeklyChallenge | null> {
   const { data, error } = await supabase
     .from("challenges")
     .select(
-      "id,title,description,target_value,reward_points,ends_at,user_challenges(progress,completed_at)",
+      "id,title,description,target_value,reward_points,starts_at,ends_at,user_challenges(progress,completed_at)",
     )
     .eq("active", true)
     .lte("starts_at", new Date().toISOString())
@@ -151,6 +151,7 @@ export async function getWeeklyChallenge(userId: string): Promise<WeeklyChalleng
     rewardPoints: data.reward_points,
     progress: participation?.progress ?? 0,
     completedAt: participation?.completed_at ?? null,
+    startsAt: data.starts_at,
     endsAt: data.ends_at,
   };
 }

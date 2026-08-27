@@ -79,8 +79,8 @@ export default function Premium() {
         )}
       </View>
       <Text style={s.note}>
-        As cotas diárias renovam à meia-noite UTC. Seu plano é definido com segurança pela sua
-        conta NEXORA.
+        As cotas diárias renovam à meia-noite UTC. Seu plano é definido com segurança pela sua conta
+        NEXORA.
       </Text>
     </ScrollView>
   );
