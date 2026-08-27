@@ -65,5 +65,9 @@ export function useJourneyMutations() {
       service.setJourneyStatus(id, input.id, input.status),
     onSuccess: refresh,
   });
-  return { create, status };
+  const completeMission = useMutation({
+    mutationFn: (missionId: string) => service.completeJourneyAction(id, missionId),
+    onSuccess: refresh,
+  });
+  return { create, status, completeMission };
 }
