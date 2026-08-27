@@ -130,7 +130,14 @@ export function classifyAssistantError(code?: string): AssistantErrorCategory {
   if (code === "camera") return "CAMERA";
   if (code === "tts") return "TTS";
   if (["unauthorized", "forbidden"].includes(code ?? "")) return "AUTH";
-  if (["free_limit_reached", "premium_limit_reached", "provider_rate_limited"].includes(code ?? ""))
+  if (
+    [
+      "free_limit_reached",
+      "premium_limit_reached",
+      "attachment_limit_reached",
+      "provider_rate_limited",
+    ].includes(code ?? "")
+  )
     return "RATE_LIMIT";
   if (
     ["invalid_request", "invalid_request_id", "input_too_large", "invalid_response"].includes(

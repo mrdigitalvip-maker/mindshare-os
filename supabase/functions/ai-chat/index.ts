@@ -9,6 +9,10 @@ import {
   validateAttachmentMetadata,
   type SafeAttachment,
 } from "../_shared/assistant-context.ts";
+import {
+  assistantRequestFingerprint,
+  parseAssistantQuotaClaim,
+} from "../_shared/assistant-quota.ts";
 
 type ErrorCode =
   | "unauthorized"
@@ -16,6 +20,7 @@ type ErrorCode =
   | "invalid_request"
   | "free_limit_reached"
   | "premium_limit_reached"
+  | "attachment_limit_reached"
   | "action_limit_reached"
   | "input_too_large"
   | "resource_not_found"
@@ -33,7 +38,6 @@ type Plan = "free" | "premium";
 type DbClient = ReturnType<typeof createClient>;
 
 interface PlanPolicy {
-  dailyMessages: number;
   maxInputChars: number;
   maxOutputTokens: number;
   contextMessages: number;
@@ -51,7 +55,6 @@ function envInt(name: string, fallback: number, minimum = 1): number {
 function policyFor(plan: Plan): PlanPolicy {
   if (plan === "premium") {
     return {
-      dailyMessages: envInt("PREMIUM_DAILY_MESSAGE_LIMIT", 100),
       maxInputChars: envInt("PREMIUM_MAX_INPUT_CHARS", 12000),
       maxOutputTokens: envInt("PREMIUM_MAX_OUTPUT_TOKENS", 1600),
       contextMessages: envInt("PREMIUM_CONTEXT_MESSAGES", 30),
@@ -60,7 +63,6 @@ function policyFor(plan: Plan): PlanPolicy {
     };
   }
   return {
-    dailyMessages: envInt("FREE_DAILY_MESSAGE_LIMIT", 10),
     maxInputChars: envInt("FREE_MAX_INPUT_CHARS", 2000),
     maxOutputTokens: envInt("FREE_MAX_OUTPUT_TOKENS", 400),
     contextMessages: envInt("FREE_CONTEXT_MESSAGES", 8),
@@ -241,26 +243,6 @@ async function loadOwnedAttachment(supabase: DbClient, attachment: SafeAttachmen
     mimeType: attachment.mimeType,
     dataUrl: `data:${attachment.mimeType};base64,${btoa(binary)}`,
   };
-}
-
-async function dailyUsage(supabase: DbClient, userId: string): Promise<number> {
-  const { data: conversations, error } = await supabase
-    .from("ai_conversations")
-    .select("id")
-    .eq("user_id", userId);
-  if (error) throw new Error("usage_conversations_failed");
-  const ids = (conversations ?? []).map((row) => row.id);
-  if (!ids.length) return 0;
-  const todayUtc = new Date();
-  todayUtc.setUTCHours(0, 0, 0, 0);
-  const { count, error: countError } = await supabase
-    .from("ai_messages")
-    .select("id", { count: "exact", head: true })
-    .in("conversation_id", ids)
-    .eq("role", "user")
-    .gte("created_at", todayUtc.toISOString());
-  if (countError) throw new Error("usage_messages_failed");
-  return count ?? 0;
 }
 
 function trimContext(
@@ -674,11 +656,18 @@ Deno.serve(async (req) => {
     )
       return failure("invalid_request", "Request ID must be a UUID.", 400, requestId);
 
-    const plan = await resolvePlan(supabase, user.id);
     const attachments = validateAttachmentMetadata(body.attachments, user.id);
+    const requestedConversationId =
+      typeof body.conversationId === "string" ? body.conversationId : null;
+    const requestFingerprint = await assistantRequestFingerprint({
+      message,
+      conversationId: requestedConversationId,
+      attachments,
+    });
     const loadedAttachment = attachments[0]
       ? await loadOwnedAttachment(supabase, attachments[0])
       : undefined;
+    const plan = await resolvePlan(supabase, user.id);
     const policy = policyFor(plan);
     if (message.length > policy.maxInputChars) {
       return failure(
@@ -697,7 +686,7 @@ Deno.serve(async (req) => {
         requestId,
       );
 
-    let conversationId = typeof body.conversationId === "string" ? body.conversationId : null;
+    let conversationId = requestedConversationId;
     // Resolve retries by their globally unique message ID first. The first attempt may
     // have created a conversation before a provider/network failure reached the client.
     const { data: priorRequest, error: priorRequestError } = await supabase
@@ -726,16 +715,44 @@ Deno.serve(async (req) => {
     if (conversationId && !(await ownedConversation(supabase, user.id, conversationId))) {
       return failure("invalid_request", "Conversation was not found.", 404, requestId);
     }
-    if (!conversationId) {
-      if ((await dailyUsage(supabase, user.id)) >= policy.dailyMessages) {
-        const code = plan === "premium" ? "premium_limit_reached" : "free_limit_reached";
+    const { data: rawQuotaClaim, error: quotaClaimError } = await supabase.rpc(
+      "claim_assistant_usage",
+      {
+        p_request_id: body.requestId,
+        p_request_fingerprint: requestFingerprint,
+        p_has_attachment: attachments.length > 0,
+      },
+    );
+    if (quotaClaimError) {
+      if (quotaClaimError.code === "P0001")
         return failure(
-          code,
-          "Your daily assistant limit has been reached. Please try again tomorrow.",
+          "invalid_request",
+          "This request ID belongs to another request.",
+          409,
+          requestId,
+        );
+      throw new Error("quota_claim_failed");
+    }
+    const quotaClaim = parseAssistantQuotaClaim(rawQuotaClaim);
+    if (!quotaClaim) throw new Error("quota_claim_failed");
+    if (!quotaClaim.allowed) {
+      if (quotaClaim.deniedFeature === "assistant_attachment")
+        return failure(
+          "attachment_limit_reached",
+          "Your daily attachment analysis limit has been reached.",
           429,
           requestId,
         );
-      }
+      const code =
+        quotaClaim.entitlement === "premium" ? "premium_limit_reached" : "free_limit_reached";
+      return failure(
+        code,
+        "Your daily assistant limit has been reached. Please try again tomorrow.",
+        429,
+        requestId,
+      );
+    }
+    if (!conversationId) {
       const { data, error } = await supabase
         .from("ai_conversations")
         .insert({ user_id: user.id, title: conversationTitle(message) })
@@ -746,15 +763,6 @@ Deno.serve(async (req) => {
     }
 
     const duplicate = priorRequest;
-    if (!duplicate && (await dailyUsage(supabase, user.id)) >= policy.dailyMessages) {
-      const code = plan === "premium" ? "premium_limit_reached" : "free_limit_reached";
-      return failure(
-        code,
-        "Your daily assistant limit has been reached. Please try again tomorrow.",
-        429,
-        requestId,
-      );
-    }
     if (duplicate) {
       const { data: completedReply, error: completedReplyError } = await supabase
         .from("ai_messages")
@@ -826,23 +834,6 @@ Deno.serve(async (req) => {
       /* untrusted malformed output */
     }
     if (!parsedModelResponse) throw new Error("provider_error");
-    const { data: existingUsage, error: existingUsageError } = await supabase
-      .from("ai_usage")
-      .select("request_id")
-      .eq("user_id", user.id)
-      .eq("request_id", body.requestId)
-      .maybeSingle();
-    if (existingUsageError) throw new Error("persistence_error");
-    if (!existingUsage) {
-      const { error: usageError } = await supabase.from("ai_usage").insert({
-        user_id: user.id,
-        action: "assistant",
-        request_id: body.requestId,
-        input_units: result.inputTokens,
-        output_units: result.tokens,
-      });
-      if (usageError) throw new Error("duplicate_request");
-    }
     const { data: assistantMessage, error: assistantError } = await supabase
       .from("ai_messages")
       .insert({
@@ -902,6 +893,8 @@ Deno.serve(async (req) => {
       return failure(code, "This action requires an active Premium subscription.", 403, requestId);
     if (code === "action_limit_reached")
       return failure(code, "The daily limit for this action has been reached.", 429, requestId);
+    if (code === "attachment_limit_reached")
+      return failure(code, "The daily attachment analysis limit has been reached.", 429, requestId);
     if (code === "duplicate_request")
       return failure(code, "This request was already submitted.", 409, requestId);
     if (code === "resource_not_found")
