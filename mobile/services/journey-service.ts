@@ -97,6 +97,15 @@ export async function ensureDailyMission(userId: string, date = new Date()) {
   if (error) throw workspaceMutationError(error);
   return data ? missionFrom(data) : null;
 }
+export async function completeJourneyAction(userId: string, missionId: string) {
+  user(userId);
+  if (!missionId.trim()) throw new Error("Mission required.");
+  const { data, error } = await supabase.rpc("complete_journey_action", {
+    p_mission: missionId.trim(),
+  });
+  if (error) throw workspaceMutationError(error);
+  return missionFrom(data);
+}
 export async function getMomentum(userId: string, date = new Date()): Promise<MomentumSummary> {
   const uid = user(userId);
   const start = new Date(date);
