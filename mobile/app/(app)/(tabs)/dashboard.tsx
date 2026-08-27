@@ -5,6 +5,7 @@ import { AppScreen } from "@/components/app-screen";
 import { NexoraAgent } from "@/components/nexora-agent";
 import { AppHeader, DrawerMenu } from "@/components/product-ui";
 import { useProfile } from "@/hooks/use-profile";
+import { useDailyMission } from "@/hooks/use-journeys";
 import { useSubscription } from "@/hooks/use-subscription";
 import { useProjects, useSubjects, useTasks } from "@/hooks/use-workspaces";
 import { useAuth } from "@/providers/auth-provider";
@@ -20,6 +21,7 @@ import {
 } from "@/lib/dashboard-selectors";
 import { getDisplayProjectStatus } from "@/lib/presentation";
 import { colors, radius, spacing, typography } from "@/lib/theme";
+import { getMissionExecutionTarget } from "@/lib/journeys";
 import type { Project, Subject, Task } from "@/services/workspace-service";
 
 function SectionHeader({
@@ -171,6 +173,8 @@ export default function Dashboard() {
   const tasksQuery = useTasks();
   const projectsQuery = useProjects();
   const subjectsQuery = useSubjects();
+  const dailyMission = useDailyMission();
+  const missionTarget = dailyMission.data ? getMissionExecutionTarget(dailyMission.data) : null;
   const tasks = useMemo(() => tasksQuery.data ?? [], [tasksQuery.data]);
   const projects = useMemo(() => projectsQuery.data ?? [], [projectsQuery.data]);
   const nextAction = useMemo(() => getNextAction(tasks), [tasks]);
@@ -223,6 +227,7 @@ export default function Dashboard() {
       tasksQuery.refetch(),
       projectsQuery.refetch(),
       subjectsQuery.refetch(),
+      dailyMission.refetch(),
     ]);
     setRefreshing(false);
   }
@@ -255,6 +260,31 @@ export default function Dashboard() {
           <Text style={styles.spark}>✦</Text>
           <Text style={styles.title}>O que vamos mover hoje?</Text>
         </View>
+
+        {dailyMission.data && missionTarget ? (
+          <View style={styles.section}>
+            <SectionHeader
+              title="MISSÃO DE HOJE"
+              action="Ver Jornada"
+              onAction={() => router.push("/journeys")}
+            />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`${missionTarget.label}: ${dailyMission.data.title}`}
+              onPress={() => router.push(missionTarget.href as never)}
+              style={styles.nextCard}
+            >
+              <Text style={styles.nextLabel}>EXECUÇÃO VERIFICÁVEL</Text>
+              <Text style={styles.nextTitle}>{dailyMission.data.title}</Text>
+              {dailyMission.data.description ? (
+                <Text numberOfLines={2} style={styles.meta}>
+                  {dailyMission.data.description}
+                </Text>
+              ) : null}
+              <Text style={styles.link}>{missionTarget.label} ›</Text>
+            </Pressable>
+          </View>
+        ) : null}
 
         {!tasksQuery.isPending && !tasksQuery.isError ? (
           <View style={styles.section}>

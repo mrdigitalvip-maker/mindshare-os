@@ -53,6 +53,8 @@ export function useJourneyMutations() {
         queryKeys.dailyMission,
         queryKeys.momentum,
         queryKeys.journeyChallenge,
+        queryKeys.tasks,
+        queryKeys.studyOverview,
       ].map((queryKey) => client.invalidateQueries({ queryKey })),
     );
   const create = useMutation({
@@ -63,7 +65,10 @@ export function useJourneyMutations() {
   const status = useMutation({
     mutationFn: (input: { id: string; status: Parameters<typeof service.setJourneyStatus>[2] }) =>
       service.setJourneyStatus(id, input.id, input.status),
-    onSuccess: refresh,
+    onSuccess: async (_, input) => {
+      await client.invalidateQueries({ queryKey: queryKeys.journey(input.id) });
+      await refresh();
+    },
   });
   const completeMission = useMutation({
     mutationFn: (missionId: string) => service.completeJourneyAction(id, missionId),

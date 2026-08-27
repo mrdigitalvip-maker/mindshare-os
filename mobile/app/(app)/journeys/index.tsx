@@ -14,7 +14,15 @@ import {
 } from "@/hooks/use-journeys";
 import { useSubscription } from "@/hooks/use-subscription";
 import { PLAN_LIMITS } from "@/lib/entitlements";
-import { JOURNEY_TEMPLATES, sourceHref, type JourneyCategory } from "@/lib/journeys";
+import {
+  getActiveJourney,
+  getChallengeProgress,
+  getMissionExecutionTarget,
+  getMissionSourceLabel,
+  JOURNEY_TEMPLATES,
+  missionReason,
+  type JourneyCategory,
+} from "@/lib/journeys";
 import { isPremiumEntitlement } from "@/lib/subscription";
 import { colors, radius, spacing, typography } from "@/lib/theme";
 export default function Journeys() {
@@ -34,6 +42,9 @@ export default function Journeys() {
     () => journeys.data?.filter((j) => j.status === "active") ?? [],
     [journeys.data],
   );
+  const primaryJourney = getActiveJourney(journeys.data ?? []);
+  const otherJourneys = (journeys.data ?? []).filter((item) => item.id !== primaryJourney?.id);
+  const missionTarget = mission.data ? getMissionExecutionTarget(mission.data) : null;
   const premium = isPremiumEntitlement(subscription.data?.entitlement ?? "free"),
     limit = PLAN_LIMITS[premium ? "premium" : "free"].activeJourneys;
   async function refresh() {
@@ -48,6 +59,7 @@ export default function Journeys() {
     setRefreshing(false);
   }
   async function create() {
+    if (!title.trim() || !objective.trim()) return;
     await mutations.create.mutateAsync({
       title,
       objective: objective || title,
@@ -83,16 +95,13 @@ export default function Journeys() {
             </Pressable>
           }
         />
-        <Text style={s.promise}>NEXORA transforma objetivos em execução diária.</Text>
-        <View style={s.tabs}>
-          <Text style={s.tabActive}>Hoje</Text>
-          <Text style={s.tab}>Jornadas</Text>
-          <Text style={s.tab}>Desafio</Text>
-        </View>
-        <Section title="SUA MISSÃO">
+        <Text style={s.promise}>Seu objetivo, uma próxima ação real e progresso verificável.</Text>
+        <Section title="MISSÃO DE HOJE">
           {mission.data ? (
             <View style={s.hero}>
-              <Text style={s.eyebrow}>MISSÃO DE HOJE</Text>
+              <Text style={s.meta}>
+                {getMissionSourceLabel(mission.data)} · {missionReason(mission.data)}
+              </Text>
               <Text style={s.heroTitle}>{mission.data.title}</Text>
               {mission.data.description ? (
                 <>
@@ -100,98 +109,127 @@ export default function Journeys() {
                   <Text style={s.body}>{mission.data.description}</Text>
                 </>
               ) : null}
-              <Text style={s.reward}>+{mission.data.momentumValue} Momentum</Text>
-              <Pressable
-                style={s.button}
-                onPress={() => router.push(sourceHref(mission.data!) as never)}
-              >
-                <Text style={s.buttonText}>Começar missão</Text>
-              </Pressable>
-            </View>
-          ) : (
-            <View style={s.card}>
-              <Text style={s.cardTitle}>Nenhuma ação elegível agora.</Text>
-              <Text style={s.muted}>
-                Crie uma tarefa acionável ou defina a próxima ação de um estudo.
-              </Text>
-            </View>
-          )}
-        </Section>
-        <Section title="JORNADA ATIVA">
-          {active.length ? (
-            active.map((j) => (
-              <Pressable key={j.id} style={s.card} onPress={() => router.push(`/journeys/${j.id}`)}>
-                <Text style={s.cardTitle}>{j.title}</Text>
-                <Text numberOfLines={2} style={s.muted}>
-                  {j.objective}
+              {mission.data.momentumValue > 0 ? (
+                <Text style={s.reward}>
+                  +{mission.data.momentumValue} Momentum após conclusão verificada
                 </Text>
-                <Text style={s.link}>Continuar ›</Text>
-              </Pressable>
-            ))
+              ) : null}
+              {missionTarget ? (
+                <Pressable
+                  style={s.button}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${missionTarget.label}: ${mission.data.title}`}
+                  onPress={() => router.push(missionTarget.href as never)}
+                >
+                  <Text style={s.buttonText}>{missionTarget.label}</Text>
+                </Pressable>
+              ) : (
+                <Text style={s.muted}>A fonte desta ação não está mais disponível.</Text>
+              )}
+            </View>
           ) : (
             <View style={s.card}>
-              <Text style={s.cardTitle}>Transforme uma ideia em movimento.</Text>
-              <Text style={s.muted}>
-                Crie uma Jornada e deixe a NEXORA transformar seu objetivo em ações que você pode
-                executar todos os dias.
+              <Text style={s.cardTitle}>
+                {active.length
+                  ? "Defina uma próxima ação para continuar."
+                  : "Sua primeira missão começa com um objetivo."}
               </Text>
-              <Pressable onPress={() => setModal(true)}>
-                <Text style={s.link}>Criar primeira Jornada</Text>
+              <Text style={s.muted}>
+                {active.length
+                  ? "Adicione uma ação real a uma tarefa ou estudo ativo. A NEXORA não inventa trabalho para preencher esta tela."
+                  : "Crie sua primeira Jornada para organizar o que você quer alcançar."}
+              </Text>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => (active.length ? router.push("/productivity") : setModal(true))}
+              >
+                <Text style={s.link}>
+                  {active.length ? "Definir próxima ação" : "Criar minha primeira Jornada"}
+                </Text>
               </Pressable>
-              <Text style={s.meta}>Explorar modelos</Text>
-              <View style={s.chips}>
-                {JOURNEY_TEMPLATES.map((t) => (
-                  <Pressable
-                    key={t.category}
-                    style={s.chip}
-                    onPress={() => {
-                      setCategory(t.category);
-                      setTitle(t.title);
-                      setModal(true);
-                    }}
-                  >
-                    <Text style={s.chipText}>{t.label}</Text>
-                  </Pressable>
-                ))}
-              </View>
             </View>
           )}
         </Section>
-        <Section title="MOMENTUM">
+        <Section title="SEU RITMO">
           <View style={s.card}>
             <Text style={s.metric}>
-              {momentum.data?.weekPoints ?? 0} <Text style={s.metricLabel}>esta semana</Text>
+              {momentum.data?.weekPoints ?? 0}{" "}
+              <Text style={s.metricLabel}>Momentum esta semana</Text>
             </Text>
-            <Text style={s.muted}>{momentum.data?.completedMissions ?? 0} missões concluídas</Text>
-            {(momentum.data?.streak ?? 0) > 0 ? (
-              <Text style={s.reward}>🔥 {momentum.data!.streak} dias ativos</Text>
+            <Text style={s.muted}>
+              {momentum.data?.completedMissions ?? 0} missões verificadas ·{" "}
+              {momentum.data?.streak ?? 0} dias de ritmo
+            </Text>
+            {(momentum.data?.streak ?? 0) === 0 ? (
+              <Text style={s.meta}>Conclua uma missão hoje para iniciar seu ritmo.</Text>
             ) : null}
           </View>
         </Section>
-        <Section title="DESAFIO DA SEMANA">
-          {challenge.data ? (
+        <Section title="JORNADA ATIVA">
+          {primaryJourney ? (
+            <Pressable
+              accessibilityRole="button"
+              key={primaryJourney.id}
+              style={s.card}
+              onPress={() => router.push(`/journeys/${primaryJourney.id}`)}
+            >
+              <Text style={s.meta}>{primaryJourney.category.toUpperCase()} · EM ANDAMENTO</Text>
+              <Text style={s.cardTitle}>{primaryJourney.title}</Text>
+              <Text numberOfLines={3} style={s.muted}>
+                {primaryJourney.objective}
+              </Text>
+              <Text style={s.link}>Continuar ›</Text>
+            </Pressable>
+          ) : (
+            <View style={s.card}>
+              <Text style={s.cardTitle}>
+                Transforme uma meta em um plano que avança todos os dias.
+              </Text>
+              <Pressable accessibilityRole="button" onPress={() => setModal(true)}>
+                <Text style={s.link}>Criar minha primeira Jornada</Text>
+              </Pressable>
+            </View>
+          )}
+        </Section>
+        {challenge.data ? (
+          <Section title="DESAFIO ATUAL">
             <View style={s.card}>
               <Text style={s.cardTitle}>{challenge.data.title}</Text>
               <Text style={s.muted}>
-                {challenge.data.progress} / {challenge.data.targetValue} · termina{" "}
-                {new Date(challenge.data.endsAt).toLocaleDateString("pt-BR", { weekday: "long" })}
+                {getChallengeProgress(challenge.data).progress} /{" "}
+                {getChallengeProgress(challenge.data).target} ·{" "}
+                {new Date(challenge.data.startsAt).toLocaleDateString("pt-BR")}–
+                {new Date(challenge.data.endsAt).toLocaleDateString("pt-BR")}
               </Text>
               <View style={s.track}>
                 <View
                   style={[
                     s.fill,
                     {
-                      width: `${Math.min(100, (challenge.data.progress / challenge.data.targetValue) * 100)}%`,
+                      width: `${getChallengeProgress(challenge.data).percentage}%`,
                     },
                   ]}
                 />
               </View>
               <Text style={s.reward}>+{challenge.data.rewardPoints} Momentum</Text>
             </View>
-          ) : (
-            <Text style={s.muted}>Nenhum desafio ativo nesta semana.</Text>
-          )}
-        </Section>
+          </Section>
+        ) : null}
+        {otherJourneys.length ? (
+          <Section title="OUTRAS JORNADAS">
+            {otherJourneys.map((j) => (
+              <Pressable
+                accessibilityRole="button"
+                key={j.id}
+                style={s.card}
+                onPress={() => router.push(`/journeys/${j.id}`)}
+              >
+                <Text style={s.cardTitle}>{j.title}</Text>
+                <Text style={s.meta}>{j.status.toUpperCase()}</Text>
+              </Pressable>
+            ))}
+          </Section>
+        ) : null}
         <Text style={s.privacy}>
           As Jornadas podem usar apenas os dados do seu espaço NEXORA para recomendar execução. Nada
           é publicado.
@@ -203,7 +241,7 @@ export default function Journeys() {
         value={title}
         placeholder="O que você quer alcançar?"
         secondaryValue={objective}
-        secondaryPlaceholder="Contexto e objetivo (opcional)"
+        secondaryPlaceholder="Qual resultado você quer alcançar?"
         dateValue={date}
         datePlaceholder="Data-alvo: AAAA-MM-DD (opcional)"
         busy={mutations.create.isPending}
