@@ -48,7 +48,7 @@ describe("canonical monetization", () => {
     await expect(loadPlayProduct()).rejects.toBeInstanceOf(PlayBillingUnavailableError);
     const adapter = readFileSync("services/play-billing-service.ts", "utf8");
     expect(adapter).not.toContain('from "react-native-iap"');
-    expect(adapter).not.toContain("require(\"react-native-iap\")");
+    expect(adapter).not.toContain('require("react-native-iap")');
   });
   test("tester Premium UX has no purchase CTA or fabricated price", () => {
     const premium = readFileSync("app/(app)/premium.tsx", "utf8");
@@ -70,9 +70,11 @@ describe("canonical monetization", () => {
   });
   test("server remains authoritative for Assistant usage and downgrade preserves rows", () => {
     const ai = readFileSync("../supabase/functions/ai-chat/index.ts", "utf8");
-    const monetization = readFileSync("../supabase/migrations/202608260002_monetization.sql", "utf8");
-    expect(ai).toContain('from("ai_usage")');
-    expect(ai).toContain("dailyUsage(supabase, user.id)");
+    const monetization = readFileSync(
+      "../supabase/migrations/202608260002_monetization.sql",
+      "utf8",
+    );
+    expect(ai).toContain('"claim_assistant_usage"');
     expect(monetization).toContain("enforce_free_creation_limits");
     expect(monetization).not.toMatch(/delete\s+from\s+(projects|tasks|study_subjects)/i);
   });
