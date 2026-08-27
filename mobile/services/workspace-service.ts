@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { workspaceMutationError } from "@/lib/mutation-errors";
 
 export type Project = {
   id: string;
@@ -96,7 +97,7 @@ export async function listProjects(userId: string): Promise<Project[]> {
     .select("id,title,description,status,due_date,updated_at")
     .eq("user_id", id)
     .order("updated_at", { ascending: false });
-  if (error) throw error;
+  if (error) throw workspaceMutationError(error);
   return (data ?? []).map((row) => ({
     id: row.id,
     title: row.title ?? "Projeto sem título",
@@ -121,7 +122,7 @@ export async function createProject(
     })
     .select("id")
     .single();
-  if (error) throw error;
+  if (error) throw workspaceMutationError(error);
   return data.id;
 }
 export async function deleteProject(userId: string, projectId: string): Promise<void> {
@@ -132,7 +133,7 @@ export async function deleteProject(userId: string, projectId: string): Promise<
     .eq("user_id", owner(userId))
     .select("id")
     .maybeSingle();
-  if (error) throw error;
+  if (error) throw workspaceMutationError(error);
   if (!data) throw new Error("Project not found.");
 }
 export async function updateProject(
@@ -154,7 +155,7 @@ export async function updateProject(
     .eq("user_id", owner(userId))
     .select("id")
     .maybeSingle();
-  if (error) throw error;
+  if (error) throw workspaceMutationError(error);
   if (!data) throw new Error("Project not found.");
 }
 export async function getProject(
@@ -178,7 +179,7 @@ export async function listTasks(userId: string, projectId?: string): Promise<Tas
     .order("updated_at", { ascending: false });
   if (projectId) query = query.eq("project_id", resource(projectId));
   const { data, error } = await query;
-  if (error) throw error;
+  if (error) throw workspaceMutationError(error);
   return (data ?? []).map(taskFrom);
 }
 export async function createTask(
@@ -206,7 +207,7 @@ export async function createTask(
     })
     .select("id")
     .single();
-  if (error) throw error;
+  if (error) throw workspaceMutationError(error);
   return data.id;
 }
 export async function updateTask(
@@ -252,7 +253,7 @@ export async function updateTask(
     .eq("user_id", owner(userId))
     .select("id")
     .maybeSingle();
-  if (error) throw error;
+  if (error) throw workspaceMutationError(error);
   if (!data) throw new Error("Task not found.");
 }
 export async function deleteTask(userId: string, taskId: string): Promise<void> {
@@ -261,7 +262,7 @@ export async function deleteTask(userId: string, taskId: string): Promise<void> 
     .delete()
     .eq("id", resource(taskId))
     .eq("user_id", owner(userId));
-  if (error) throw error;
+  if (error) throw workspaceMutationError(error);
 }
 
 export async function listSubjects(userId: string): Promise<Subject[]> {
@@ -270,7 +271,7 @@ export async function listSubjects(userId: string): Promise<Subject[]> {
     .select("id,name,description,status,color,objective,weekly_target_minutes,next_action")
     .eq("user_id", owner(userId))
     .order("updated_at", { ascending: false });
-  if (error) throw error;
+  if (error) throw workspaceMutationError(error);
   return (data ?? []).map((row) => ({
     id: row.id,
     name: row.name ?? "Matéria sem nome",
@@ -300,7 +301,7 @@ export async function createSubject(
     })
     .select("id")
     .single();
-  if (error) throw error;
+  if (error) throw workspaceMutationError(error);
   return data.id;
 }
 export async function updateSubject(
@@ -325,7 +326,7 @@ export async function updateSubject(
     .eq("user_id", owner(userId))
     .select("id")
     .maybeSingle();
-  if (error) throw error;
+  if (error) throw workspaceMutationError(error);
   if (!data) throw new Error("Subject not found.");
 }
 export async function getSubjectWorkspace(
@@ -408,7 +409,7 @@ export async function createStudyGoal(
     title: required(title, "Goal"),
     target_value: targetValue,
   });
-  if (error) throw error;
+  if (error) throw workspaceMutationError(error);
 }
 export async function updateStudyGoal(
   userId: string,
@@ -434,7 +435,7 @@ export async function updateStudyGoal(
     })
     .eq("id", resource(goalId))
     .eq("user_id", owner(userId));
-  if (error) throw error;
+  if (error) throw workspaceMutationError(error);
 }
 export async function setStudyGoalCompleted(
   userId: string,
@@ -446,7 +447,7 @@ export async function setStudyGoalCompleted(
     .update({ completed, updated_at: new Date().toISOString() })
     .eq("id", resource(goalId))
     .eq("user_id", owner(userId));
-  if (error) throw error;
+  if (error) throw workspaceMutationError(error);
 }
 export async function startStudySession(
   userId: string,
@@ -470,7 +471,7 @@ export async function startStudySession(
     })
     .select("id")
     .single();
-  if (error) throw error;
+  if (error) throw workspaceMutationError(error);
   return data.id;
 }
 export async function finishStudySession(
@@ -507,7 +508,7 @@ export async function finishStudySession(
     .eq("id", resource(sessionId))
     .eq("user_id", user)
     .eq("status", "active");
-  if (error) throw error;
+  if (error) throw workspaceMutationError(error);
 }
 export async function saveStudyNote(
   userId: string,
@@ -536,5 +537,5 @@ export async function deleteStudyNote(userId: string, noteId: string): Promise<v
     .delete()
     .eq("id", resource(noteId))
     .eq("user_id", owner(userId));
-  if (error) throw error;
+  if (error) throw workspaceMutationError(error);
 }

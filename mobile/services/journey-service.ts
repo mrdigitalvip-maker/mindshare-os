@@ -7,6 +7,7 @@ import {
   type WeeklyChallenge,
 } from "@/lib/journeys";
 import { supabase } from "@/lib/supabase";
+import { workspaceMutationError } from "@/lib/mutation-errors";
 const user = (id: string) => {
   if (!id.trim()) throw new Error("Authenticated user required.");
   return id.trim();
@@ -42,7 +43,7 @@ export async function listJourneys(userId: string) {
     .select("*")
     .eq("user_id", user(userId))
     .order("updated_at", { ascending: false });
-  if (error) throw error;
+  if (error) throw workspaceMutationError(error);
   return (data ?? []).map(journeyFrom);
 }
 export async function getJourney(userId: string, id: string) {
@@ -52,7 +53,7 @@ export async function getJourney(userId: string, id: string) {
     .eq("user_id", user(userId))
     .eq("id", id)
     .maybeSingle();
-  if (error) throw error;
+  if (error) throw workspaceMutationError(error);
   return data ? journeyFrom(data) : null;
 }
 export async function createJourney(
@@ -77,7 +78,7 @@ export async function createJourney(
     })
     .select("id")
     .single();
-  if (error) throw error;
+  if (error) throw workspaceMutationError(error);
   return data.id as string;
 }
 export async function setJourneyStatus(userId: string, id: string, status: Journey["status"]) {
@@ -86,14 +87,14 @@ export async function setJourneyStatus(userId: string, id: string, status: Journ
     .update({ status, updated_at: new Date().toISOString() })
     .eq("user_id", user(userId))
     .eq("id", id);
-  if (error) throw error;
+  if (error) throw workspaceMutationError(error);
 }
 export async function ensureDailyMission(userId: string, date = new Date()) {
   user(userId);
   const { data, error } = await supabase.rpc("ensure_daily_journey_mission", {
     p_local_date: localDateKey(date),
   });
-  if (error) throw error;
+  if (error) throw workspaceMutationError(error);
   return data ? missionFrom(data) : null;
 }
 export async function getMomentum(userId: string, date = new Date()): Promise<MomentumSummary> {
@@ -107,7 +108,7 @@ export async function getMomentum(userId: string, date = new Date()): Promise<Mo
     .eq("user_id", uid)
     .gte("created_at", start.toISOString())
     .order("created_at", { ascending: false });
-  if (error) throw error;
+  if (error) throw workspaceMutationError(error);
   const rows = data ?? [];
   const dates = rows.map((r) => String(r.created_at).slice(0, 10));
   const { calculateStreak } = await import("@/lib/journeys");
@@ -130,7 +131,7 @@ export async function getWeeklyChallenge(userId: string): Promise<WeeklyChalleng
     .order("ends_at")
     .limit(1)
     .maybeSingle();
-  if (error) throw error;
+  if (error) throw workspaceMutationError(error);
   if (!data) return null;
   const participation = Array.isArray(data.user_challenges) ? data.user_challenges[0] : null;
   return {
