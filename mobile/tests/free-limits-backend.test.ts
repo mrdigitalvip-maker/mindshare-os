@@ -1,7 +1,16 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
+import { fileURLToPath, URL } from "node:url";
 import { workspaceMutationError } from "../lib/mutation-errors";
-const sql = readFileSync(new URL("../../supabase/migrations/202608270002_free_limits_and_task_invariants.sql", import.meta.url), "utf8");
+const sql = readFileSync(
+  fileURLToPath(
+    new URL(
+      "../../supabase/migrations/202608270002_free_limits_and_task_invariants.sql",
+      import.meta.url,
+    ),
+  ),
+  "utf8",
+);
 describe("atomic Free limits", () => {
   test.each([["projects",3],["study_subjects",3],["journeys",1]])("protects %s at %i", (resource, cap) => {
     expect(sql).toContain(`resource := '${resource}'; cap := ${cap}`);

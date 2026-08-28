@@ -1,16 +1,21 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
+import { fileURLToPath, URL } from "node:url";
 import { calculateStreak } from "../lib/journeys";
 
 const sql = readFileSync(
-  new URL(
-    "../../supabase/migrations/202608270003_journeys_momentum_challenges_hardening.sql",
-    import.meta.url,
+  fileURLToPath(
+    new URL(
+      "../../supabase/migrations/202608270003_journeys_momentum_challenges_hardening.sql",
+      import.meta.url,
+    ),
   ),
   "utf8",
 );
 const docs = readFileSync(
-  new URL("../../docs/journeys-momentum-challenges-hardening.md", import.meta.url),
+  fileURLToPath(
+    new URL("../../docs/journeys-momentum-challenges-hardening.md", import.meta.url),
+  ),
   "utf8",
 );
 
