@@ -162,7 +162,14 @@ export default function Productivity() {
         action: "update",
         taskId: task.id,
         projectId: task.projectId,
-        patch: { completed: !task.completed },
+        patch: task.completed
+          ? { completed: false, executionStatus: "in_progress", reminderAt: null }
+          : {
+              completed: true,
+              executionStatus: "completed",
+              lastProgressAt: new Date().toISOString(),
+              reminderAt: null,
+            },
       });
       if (!task.completed) await cancelTaskReminder(task.id);
     } catch {
