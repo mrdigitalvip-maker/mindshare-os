@@ -30,25 +30,29 @@ function Arena() {
         onRetry={() => void q.refetch()}
       >
         <div className="grid gap-4 lg:grid-cols-2">
-          {q.data?.map((c) => (
-            <article key={c.id} className="rounded-xl border p-5">
-              <h2 className="text-lg font-semibold">{c.title}</h2>
-              <p className="mt-1 text-sm text-muted-foreground">{c.description}</p>
-              <p className="mt-4 text-sm">
-                Verified progress: {c.progress} / {c.target_value}
-              </p>
-              <p className="text-sm">Reward: {c.reward_points} Momentum</p>
-              {!c.joined_at && (
-                <Button
-                  className="mt-4"
-                  disabled={join.isPending}
-                  onClick={() => join.mutate(c.id)}
-                >
-                  Join challenge
-                </Button>
-              )}
-            </article>
-          ))}
+          {q.data?.map((c) => {
+            const expired = Date.now() >= new Date(c.ends_at).getTime();
+            return (
+              <article key={c.id} className="rounded-xl border p-5">
+                <h2 className="text-lg font-semibold">{c.title}</h2>
+                <p className="mt-1 text-sm text-muted-foreground">{c.description}</p>
+                <p className="mt-4 text-sm">
+                  Verified progress: {Math.min(c.progress, c.target_value)} / {c.target_value}
+                </p>
+                <p className="text-sm">Reward: {c.reward_points} Momentum</p>
+                {!c.joined_at && !expired && (
+                  <Button
+                    className="mt-4"
+                    disabled={join.isPending}
+                    onClick={() => join.mutate(c.id)}
+                  >
+                    Join challenge
+                  </Button>
+                )}
+                {expired && <p className="mt-4 text-sm text-muted-foreground">Challenge ended.</p>}
+              </article>
+            );
+          })}
         </div>
       </RouteState>
     </PageShell>

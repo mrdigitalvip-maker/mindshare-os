@@ -6,6 +6,7 @@
  */
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
+import type { QueryClient } from "@tanstack/react-query";
 import { supabase } from "./supabase";
 import { DEMO_MODE } from "@/lib/demo/config";
 
@@ -69,10 +70,17 @@ function mapUser(user: User | null): NexoraUser | null {
   };
 }
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+export function AuthProvider({
+  children,
+  queryClient,
+}: {
+  children: ReactNode;
+  queryClient?: QueryClient;
+}) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<NexoraUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const identityRef = useState<{ current: string | null }>(() => ({ current: null }))[0];
 
   useEffect(() => {
     if (DEMO_MODE) {
@@ -87,9 +95,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let active = true;
     const { data: sub } = supabase.auth.onAuthStateChange((event, nextSession) => {
       if (!active) return;
+      const nextIdentity = nextSession?.user.id ?? null;
+      if (identityRef.current !== nextIdentity) {
+        // Cancel in-flight reads before removing user-scoped cache. Supabase
+        // broadcasts these events across tabs, so A→B and remote logout do not
+        // flash protected data from the previous identity.
+        void queryClient?.cancelQueries().then(() => queryClient.clear());
+        identityRef.current = nextIdentity;
+      }
       setSession(nextSession);
       setUser(mapUser(nextSession?.user ?? null));
-      if (event === "INITIAL_SESSION" || event === "SIGNED_IN") setLoading(false);
+      if (
+        event === "INITIAL_SESSION" ||
+        event === "SIGNED_IN" ||
+        event === "SIGNED_OUT" ||
+        event === "PASSWORD_RECOVERY"
+      )
+        setLoading(false);
     });
 
     async function resolveInitialSession() {
@@ -112,7 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       active = false;
       sub.subscription.unsubscribe();
     };
-  }, []);
+  }, [identityRef, queryClient]);
 
   const value = useMemo<AuthContextValue>(() => {
     const signIn: AuthContextValue["signIn"] = async (email, password) => {

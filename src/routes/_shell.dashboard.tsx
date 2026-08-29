@@ -48,6 +48,7 @@ import {
   FallbackVoiceProvider,
 } from "@/services/voice-provider";
 import { AIService, AIServiceError, type AiConversation } from "@/services/ai-service";
+import { DailyMissionCard } from "@/components/daily-mission-card";
 
 export const Route = createFileRoute("/_shell/dashboard")({
   head: () => ({ meta: [{ title: "Command Center — NEXORA" }] }),
@@ -461,6 +462,7 @@ function CommandCenter({ preferredName }: { preferredName: string }) {
   const capabilities = resolveNexoraCapabilities(subscription.data);
   return (
     <div className="command-center">
+      <DailyMissionCard />
       <header className="command-center__presence">
         <div className="flex items-center gap-3">
           <NexoraAvatar state={avatarState} compact />
