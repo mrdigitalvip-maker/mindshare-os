@@ -6,7 +6,7 @@
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "node scripts/generate-typed-routes.cjs && tsc --noEmit",
     "lint": "expo lint",
     "doctor": "expo-doctor",
     "export": "expo export --platform android",

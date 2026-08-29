@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
+import { fileURLToPath, URL } from "node:url";
 import {
   arenaProgressLabel,
   isCurrentArenaChallenge,
@@ -22,14 +23,16 @@ const base: ArenaChallenge = {
   completedAt: null,
 };
 const sql = readFileSync(
-  new URL("../../supabase/migrations/202608290001_arena_v1.sql", import.meta.url).pathname,
+  fileURLToPath(new URL("../../supabase/migrations/202608290001_arena_v1.sql", import.meta.url)),
   "utf8",
 ).toLowerCase();
 const hardened = readFileSync(
-  new URL(
-    "../../supabase/migrations/202608270003_journeys_momentum_challenges_hardening.sql",
-    import.meta.url,
-  ).pathname,
+  fileURLToPath(
+    new URL(
+      "../../supabase/migrations/202608270003_journeys_momentum_challenges_hardening.sql",
+      import.meta.url,
+    ),
+  ),
   "utf8",
 ).toLowerCase();
 describe("Arena truthful domain", () => {
