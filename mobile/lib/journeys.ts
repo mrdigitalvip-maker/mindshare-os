@@ -14,6 +14,8 @@ export type Journey = {
   targetDate: string | null;
   createdAt: string;
   updatedAt: string;
+  sourcePackId: string | null;
+  sourcePackVersion: number | null;
 };
 export type JourneyMission = {
   id: string;
