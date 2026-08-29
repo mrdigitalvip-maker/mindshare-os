@@ -37,11 +37,14 @@ import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as ShellAgentsAgentIdRouteImport } from './routes/_shell.agents.$agentId'
 import { Route as ShellContentContentIdRouteImport } from './routes/_shell.content.$contentId'
 import { Route as ShellDocumentsDocumentIdRouteImport } from './routes/_shell.documents.$documentId'
+import { Route as ShellJourneysJourneyIdRouteImport } from './routes/_shell.journeys.$journeyId'
+import { Route as ShellPacksSlugRouteImport } from './routes/_shell.packs.$slug'
 import { Route as ShellProjectsProjectIdRouteImport } from './routes/_shell.projects.$projectId'
 import { Route as ShellStudiesSubjectIdRouteImport } from './routes/_shell.studies.$subjectId'
 import { Route as ShellStudioAiAcademyRouteImport } from './routes/_shell.studio.ai-academy'
 import { Route as ShellStudioCreatorGrowthRouteImport } from './routes/_shell.studio.creator-growth'
 import { Route as ShellStudioLanguagesRouteImport } from './routes/_shell.studio.languages'
+import { Route as ShellCommunitySquadsSquadIdRouteImport } from './routes/_shell.community.squads.$squadId'
 import { Route as ShellFinanceAccountsAccountIdRouteImport } from './routes/_shell.finance.accounts.$accountId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -184,6 +187,16 @@ const ShellDocumentsDocumentIdRoute =
     path: '/$documentId',
     getParentRoute: () => ShellDocumentsRoute,
   } as any)
+const ShellJourneysJourneyIdRoute = ShellJourneysJourneyIdRouteImport.update({
+  id: '/$journeyId',
+  path: '/$journeyId',
+  getParentRoute: () => ShellJourneysRoute,
+} as any)
+const ShellPacksSlugRoute = ShellPacksSlugRouteImport.update({
+  id: '/$slug',
+  path: '/$slug',
+  getParentRoute: () => ShellPacksRoute,
+} as any)
 const ShellProjectsProjectIdRoute = ShellProjectsProjectIdRouteImport.update({
   id: '/$projectId',
   path: '/$projectId',
@@ -210,6 +223,12 @@ const ShellStudioLanguagesRoute = ShellStudioLanguagesRouteImport.update({
   path: '/languages',
   getParentRoute: () => ShellStudioRoute,
 } as any)
+const ShellCommunitySquadsSquadIdRoute =
+  ShellCommunitySquadsSquadIdRouteImport.update({
+    id: '/squads/$squadId',
+    path: '/squads/$squadId',
+    getParentRoute: () => ShellCommunityRoute,
+  } as any)
 const ShellFinanceAccountsAccountIdRoute =
   ShellFinanceAccountsAccountIdRouteImport.update({
     id: '/accounts/$accountId',
@@ -227,13 +246,13 @@ export interface FileRoutesByFullPath {
   '/agents': typeof ShellAgentsRouteWithChildren
   '/arena': typeof ShellArenaRoute
   '/assistant': typeof ShellAssistantRoute
-  '/community': typeof ShellCommunityRoute
+  '/community': typeof ShellCommunityRouteWithChildren
   '/content': typeof ShellContentRouteWithChildren
   '/dashboard': typeof ShellDashboardRoute
   '/documents': typeof ShellDocumentsRouteWithChildren
   '/finance': typeof ShellFinanceRouteWithChildren
-  '/journeys': typeof ShellJourneysRoute
-  '/packs': typeof ShellPacksRoute
+  '/journeys': typeof ShellJourneysRouteWithChildren
+  '/packs': typeof ShellPacksRouteWithChildren
   '/premium': typeof ShellPremiumRoute
   '/productivity': typeof ShellProductivityRoute
   '/projects': typeof ShellProjectsRouteWithChildren
@@ -245,11 +264,14 @@ export interface FileRoutesByFullPath {
   '/agents/$agentId': typeof ShellAgentsAgentIdRoute
   '/content/$contentId': typeof ShellContentContentIdRoute
   '/documents/$documentId': typeof ShellDocumentsDocumentIdRoute
+  '/journeys/$journeyId': typeof ShellJourneysJourneyIdRoute
+  '/packs/$slug': typeof ShellPacksSlugRoute
   '/projects/$projectId': typeof ShellProjectsProjectIdRoute
   '/studies/$subjectId': typeof ShellStudiesSubjectIdRoute
   '/studio/ai-academy': typeof ShellStudioAiAcademyRoute
   '/studio/creator-growth': typeof ShellStudioCreatorGrowthRoute
   '/studio/languages': typeof ShellStudioLanguagesRoute
+  '/community/squads/$squadId': typeof ShellCommunitySquadsSquadIdRoute
   '/finance/accounts/$accountId': typeof ShellFinanceAccountsAccountIdRoute
 }
 export interface FileRoutesByTo {
@@ -262,13 +284,13 @@ export interface FileRoutesByTo {
   '/agents': typeof ShellAgentsRouteWithChildren
   '/arena': typeof ShellArenaRoute
   '/assistant': typeof ShellAssistantRoute
-  '/community': typeof ShellCommunityRoute
+  '/community': typeof ShellCommunityRouteWithChildren
   '/content': typeof ShellContentRouteWithChildren
   '/dashboard': typeof ShellDashboardRoute
   '/documents': typeof ShellDocumentsRouteWithChildren
   '/finance': typeof ShellFinanceRouteWithChildren
-  '/journeys': typeof ShellJourneysRoute
-  '/packs': typeof ShellPacksRoute
+  '/journeys': typeof ShellJourneysRouteWithChildren
+  '/packs': typeof ShellPacksRouteWithChildren
   '/premium': typeof ShellPremiumRoute
   '/productivity': typeof ShellProductivityRoute
   '/projects': typeof ShellProjectsRouteWithChildren
@@ -280,11 +302,14 @@ export interface FileRoutesByTo {
   '/agents/$agentId': typeof ShellAgentsAgentIdRoute
   '/content/$contentId': typeof ShellContentContentIdRoute
   '/documents/$documentId': typeof ShellDocumentsDocumentIdRoute
+  '/journeys/$journeyId': typeof ShellJourneysJourneyIdRoute
+  '/packs/$slug': typeof ShellPacksSlugRoute
   '/projects/$projectId': typeof ShellProjectsProjectIdRoute
   '/studies/$subjectId': typeof ShellStudiesSubjectIdRoute
   '/studio/ai-academy': typeof ShellStudioAiAcademyRoute
   '/studio/creator-growth': typeof ShellStudioCreatorGrowthRoute
   '/studio/languages': typeof ShellStudioLanguagesRoute
+  '/community/squads/$squadId': typeof ShellCommunitySquadsSquadIdRoute
   '/finance/accounts/$accountId': typeof ShellFinanceAccountsAccountIdRoute
 }
 export interface FileRoutesById {
@@ -299,13 +324,13 @@ export interface FileRoutesById {
   '/_shell/agents': typeof ShellAgentsRouteWithChildren
   '/_shell/arena': typeof ShellArenaRoute
   '/_shell/assistant': typeof ShellAssistantRoute
-  '/_shell/community': typeof ShellCommunityRoute
+  '/_shell/community': typeof ShellCommunityRouteWithChildren
   '/_shell/content': typeof ShellContentRouteWithChildren
   '/_shell/dashboard': typeof ShellDashboardRoute
   '/_shell/documents': typeof ShellDocumentsRouteWithChildren
   '/_shell/finance': typeof ShellFinanceRouteWithChildren
-  '/_shell/journeys': typeof ShellJourneysRoute
-  '/_shell/packs': typeof ShellPacksRoute
+  '/_shell/journeys': typeof ShellJourneysRouteWithChildren
+  '/_shell/packs': typeof ShellPacksRouteWithChildren
   '/_shell/premium': typeof ShellPremiumRoute
   '/_shell/productivity': typeof ShellProductivityRoute
   '/_shell/projects': typeof ShellProjectsRouteWithChildren
@@ -317,11 +342,14 @@ export interface FileRoutesById {
   '/_shell/agents/$agentId': typeof ShellAgentsAgentIdRoute
   '/_shell/content/$contentId': typeof ShellContentContentIdRoute
   '/_shell/documents/$documentId': typeof ShellDocumentsDocumentIdRoute
+  '/_shell/journeys/$journeyId': typeof ShellJourneysJourneyIdRoute
+  '/_shell/packs/$slug': typeof ShellPacksSlugRoute
   '/_shell/projects/$projectId': typeof ShellProjectsProjectIdRoute
   '/_shell/studies/$subjectId': typeof ShellStudiesSubjectIdRoute
   '/_shell/studio/ai-academy': typeof ShellStudioAiAcademyRoute
   '/_shell/studio/creator-growth': typeof ShellStudioCreatorGrowthRoute
   '/_shell/studio/languages': typeof ShellStudioLanguagesRoute
+  '/_shell/community/squads/$squadId': typeof ShellCommunitySquadsSquadIdRoute
   '/_shell/finance/accounts/$accountId': typeof ShellFinanceAccountsAccountIdRoute
 }
 export interface FileRouteTypes {
@@ -354,11 +382,14 @@ export interface FileRouteTypes {
     | '/agents/$agentId'
     | '/content/$contentId'
     | '/documents/$documentId'
+    | '/journeys/$journeyId'
+    | '/packs/$slug'
     | '/projects/$projectId'
     | '/studies/$subjectId'
     | '/studio/ai-academy'
     | '/studio/creator-growth'
     | '/studio/languages'
+    | '/community/squads/$squadId'
     | '/finance/accounts/$accountId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -389,11 +420,14 @@ export interface FileRouteTypes {
     | '/agents/$agentId'
     | '/content/$contentId'
     | '/documents/$documentId'
+    | '/journeys/$journeyId'
+    | '/packs/$slug'
     | '/projects/$projectId'
     | '/studies/$subjectId'
     | '/studio/ai-academy'
     | '/studio/creator-growth'
     | '/studio/languages'
+    | '/community/squads/$squadId'
     | '/finance/accounts/$accountId'
   id:
     | '__root__'
@@ -425,11 +459,14 @@ export interface FileRouteTypes {
     | '/_shell/agents/$agentId'
     | '/_shell/content/$contentId'
     | '/_shell/documents/$documentId'
+    | '/_shell/journeys/$journeyId'
+    | '/_shell/packs/$slug'
     | '/_shell/projects/$projectId'
     | '/_shell/studies/$subjectId'
     | '/_shell/studio/ai-academy'
     | '/_shell/studio/creator-growth'
     | '/_shell/studio/languages'
+    | '/_shell/community/squads/$squadId'
     | '/_shell/finance/accounts/$accountId'
   fileRoutesById: FileRoutesById
 }
@@ -641,6 +678,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShellDocumentsDocumentIdRouteImport
       parentRoute: typeof ShellDocumentsRoute
     }
+    '/_shell/journeys/$journeyId': {
+      id: '/_shell/journeys/$journeyId'
+      path: '/$journeyId'
+      fullPath: '/journeys/$journeyId'
+      preLoaderRoute: typeof ShellJourneysJourneyIdRouteImport
+      parentRoute: typeof ShellJourneysRoute
+    }
+    '/_shell/packs/$slug': {
+      id: '/_shell/packs/$slug'
+      path: '/$slug'
+      fullPath: '/packs/$slug'
+      preLoaderRoute: typeof ShellPacksSlugRouteImport
+      parentRoute: typeof ShellPacksRoute
+    }
     '/_shell/projects/$projectId': {
       id: '/_shell/projects/$projectId'
       path: '/$projectId'
@@ -676,6 +727,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShellStudioLanguagesRouteImport
       parentRoute: typeof ShellStudioRoute
     }
+    '/_shell/community/squads/$squadId': {
+      id: '/_shell/community/squads/$squadId'
+      path: '/squads/$squadId'
+      fullPath: '/community/squads/$squadId'
+      preLoaderRoute: typeof ShellCommunitySquadsSquadIdRouteImport
+      parentRoute: typeof ShellCommunityRoute
+    }
     '/_shell/finance/accounts/$accountId': {
       id: '/_shell/finance/accounts/$accountId'
       path: '/accounts/$accountId'
@@ -696,6 +754,18 @@ const ShellAgentsRouteChildren: ShellAgentsRouteChildren = {
 
 const ShellAgentsRouteWithChildren = ShellAgentsRoute._addFileChildren(
   ShellAgentsRouteChildren,
+)
+
+interface ShellCommunityRouteChildren {
+  ShellCommunitySquadsSquadIdRoute: typeof ShellCommunitySquadsSquadIdRoute
+}
+
+const ShellCommunityRouteChildren: ShellCommunityRouteChildren = {
+  ShellCommunitySquadsSquadIdRoute: ShellCommunitySquadsSquadIdRoute,
+}
+
+const ShellCommunityRouteWithChildren = ShellCommunityRoute._addFileChildren(
+  ShellCommunityRouteChildren,
 )
 
 interface ShellContentRouteChildren {
@@ -732,6 +802,30 @@ const ShellFinanceRouteChildren: ShellFinanceRouteChildren = {
 
 const ShellFinanceRouteWithChildren = ShellFinanceRoute._addFileChildren(
   ShellFinanceRouteChildren,
+)
+
+interface ShellJourneysRouteChildren {
+  ShellJourneysJourneyIdRoute: typeof ShellJourneysJourneyIdRoute
+}
+
+const ShellJourneysRouteChildren: ShellJourneysRouteChildren = {
+  ShellJourneysJourneyIdRoute: ShellJourneysJourneyIdRoute,
+}
+
+const ShellJourneysRouteWithChildren = ShellJourneysRoute._addFileChildren(
+  ShellJourneysRouteChildren,
+)
+
+interface ShellPacksRouteChildren {
+  ShellPacksSlugRoute: typeof ShellPacksSlugRoute
+}
+
+const ShellPacksRouteChildren: ShellPacksRouteChildren = {
+  ShellPacksSlugRoute: ShellPacksSlugRoute,
+}
+
+const ShellPacksRouteWithChildren = ShellPacksRoute._addFileChildren(
+  ShellPacksRouteChildren,
 )
 
 interface ShellProjectsRouteChildren {
@@ -778,13 +872,13 @@ interface ShellRouteChildren {
   ShellAgentsRoute: typeof ShellAgentsRouteWithChildren
   ShellArenaRoute: typeof ShellArenaRoute
   ShellAssistantRoute: typeof ShellAssistantRoute
-  ShellCommunityRoute: typeof ShellCommunityRoute
+  ShellCommunityRoute: typeof ShellCommunityRouteWithChildren
   ShellContentRoute: typeof ShellContentRouteWithChildren
   ShellDashboardRoute: typeof ShellDashboardRoute
   ShellDocumentsRoute: typeof ShellDocumentsRouteWithChildren
   ShellFinanceRoute: typeof ShellFinanceRouteWithChildren
-  ShellJourneysRoute: typeof ShellJourneysRoute
-  ShellPacksRoute: typeof ShellPacksRoute
+  ShellJourneysRoute: typeof ShellJourneysRouteWithChildren
+  ShellPacksRoute: typeof ShellPacksRouteWithChildren
   ShellPremiumRoute: typeof ShellPremiumRoute
   ShellProductivityRoute: typeof ShellProductivityRoute
   ShellProjectsRoute: typeof ShellProjectsRouteWithChildren
@@ -798,13 +892,13 @@ const ShellRouteChildren: ShellRouteChildren = {
   ShellAgentsRoute: ShellAgentsRouteWithChildren,
   ShellArenaRoute: ShellArenaRoute,
   ShellAssistantRoute: ShellAssistantRoute,
-  ShellCommunityRoute: ShellCommunityRoute,
+  ShellCommunityRoute: ShellCommunityRouteWithChildren,
   ShellContentRoute: ShellContentRouteWithChildren,
   ShellDashboardRoute: ShellDashboardRoute,
   ShellDocumentsRoute: ShellDocumentsRouteWithChildren,
   ShellFinanceRoute: ShellFinanceRouteWithChildren,
-  ShellJourneysRoute: ShellJourneysRoute,
-  ShellPacksRoute: ShellPacksRoute,
+  ShellJourneysRoute: ShellJourneysRouteWithChildren,
+  ShellPacksRoute: ShellPacksRouteWithChildren,
   ShellPremiumRoute: ShellPremiumRoute,
   ShellProductivityRoute: ShellProductivityRoute,
   ShellProjectsRoute: ShellProjectsRouteWithChildren,
