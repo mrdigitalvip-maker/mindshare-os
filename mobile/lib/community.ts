@@ -1,5 +1,34 @@
 export type CommunityVisibility = "private" | "community";
 export type CommunityReaction = "support" | "celebrate" | "respect";
+export type ChatReaction = "clap" | "fire" | "strong" | "heart";
+export type NotificationMode = "highlights" | "all" | "muted";
+export type OfficialChannel = {
+  id: string;
+  slug: "nexora-community" | "nexora-community-plus";
+  name: string;
+  premium: boolean;
+  joined: boolean;
+  eligible: boolean;
+  membershipStatus: string | null;
+  notificationMode: NotificationMode;
+  recentBody: string | null;
+  recentAt: string | null;
+};
+export type CommunityMessage = {
+  id: string;
+  clientRequestId: string | null;
+  body: string;
+  createdAt: string;
+  actorType: "user" | "system";
+  senderPublicId: string | null;
+  displayName: string;
+  avatarUrl: string | null;
+  isSelf: boolean;
+  removed: boolean;
+  replyToId: string | null;
+  reactions: Partial<Record<ChatReaction, number>>;
+  myReaction: ChatReaction | null;
+};
 
 export type CommunityProfile = {
   displayName: string | null;
@@ -58,6 +87,10 @@ export const communityErrorMessage = (error: unknown) => {
     owner_cannot_leave:
       "O responsável deve excluir o Squad; a propriedade não pode ficar sem dono.",
     activity_not_visible: "Esta atividade não está mais disponível.",
+    premium_required: "Community+ está disponível para assinantes Premium.",
+    membership_required: "Entre na comunidade para participar.",
+    membership_restricted: "Sua participação está restrita. Consulte a moderação.",
+    duplicate_message: "Esta mensagem já foi enviada.",
   }).find(([code]) => message.includes(code));
   return match?.[1] ?? "Não foi possível concluir. Verifique sua conexão e tente novamente.";
 };

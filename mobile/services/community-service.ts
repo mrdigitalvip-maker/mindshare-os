@@ -3,6 +3,10 @@ import type {
   CommunityHome,
   CommunityProfile,
   CommunityReaction,
+  OfficialChannel,
+  CommunityMessage,
+  ChatReaction,
+  NotificationMode,
   SquadDetail,
 } from "@/lib/community";
 
@@ -137,4 +141,126 @@ export async function reportTarget(
     p_reason: reason,
     p_details: null,
   });
+}
+
+export async function getOfficialChannels(userId: string): Promise<OfficialChannel[]> {
+  requireUser(userId);
+  const rows = await rpc<Record<string, unknown>[]>("get_official_communities");
+  return rows.map((r) => ({
+    id: String(r.id),
+    slug: r.slug as OfficialChannel["slug"],
+    name: String(r.name),
+    premium: Boolean(r.premium),
+    joined: Boolean(r.joined),
+    eligible: Boolean(r.eligible),
+    membershipStatus: r.membership_status as string | null,
+    notificationMode: r.notification_mode as NotificationMode,
+    recentBody: r.recent_body as string | null,
+    recentAt: r.recent_at as string | null,
+  }));
+}
+export async function joinOfficialChannel(userId: string, channelId: string) {
+  requireUser(userId);
+  await rpc("join_official_community", { p_channel: channelId });
+}
+export async function leaveOfficialChannel(userId: string, channelId: string) {
+  requireUser(userId);
+  await rpc("leave_official_community", { p_channel: channelId });
+}
+export async function setNotificationMode(
+  userId: string,
+  channelId: string,
+  mode: NotificationMode,
+) {
+  requireUser(userId);
+  await rpc("set_community_notifications", { p_channel: channelId, p_mode: mode });
+}
+const mapMessage = (r: Record<string, unknown>): CommunityMessage => ({
+  id: String(r.id),
+  clientRequestId: r.client_request_id as string | null,
+  body: String(r.body),
+  createdAt: String(r.created_at),
+  actorType: r.actor_type as CommunityMessage["actorType"],
+  senderPublicId: r.sender_public_id as string | null,
+  displayName: String(r.display_name),
+  avatarUrl: r.avatar_url as string | null,
+  isSelf: Boolean(r.is_self),
+  removed: Boolean(r.removed),
+  replyToId: r.reply_to_id as string | null,
+  reactions: (r.reactions ?? {}) as CommunityMessage["reactions"],
+  myReaction: r.my_reaction as ChatReaction | null,
+});
+export async function getMessages(userId: string, channelId: string, before?: string) {
+  requireUser(userId);
+  const rows = await rpc<Record<string, unknown>[]>("get_community_messages", {
+    p_channel: channelId,
+    p_before: before ?? null,
+    p_limit: 30,
+  });
+  return rows.map(mapMessage);
+}
+export async function sendMessage(
+  userId: string,
+  channelId: string,
+  body: string,
+  requestId: string,
+) {
+  requireUser(userId);
+  return rpc<string>("send_community_message", {
+    p_channel: channelId,
+    p_body: body,
+    p_client_request_id: requestId,
+    p_reply_to: null,
+  });
+}
+export async function reactToMessage(
+  userId: string,
+  messageId: string,
+  reaction: ChatReaction | null,
+) {
+  requireUser(userId);
+  await rpc("set_message_reaction", { p_message: messageId, p_reaction: reaction });
+}
+export async function reportMessage(userId: string, messageId: string) {
+  requireUser(userId);
+  await rpc("report_community_message", {
+    p_message: messageId,
+    p_reason: "other",
+    p_details: null,
+  });
+}
+export async function blockMessageSender(userId: string, messageId: string) {
+  requireUser(userId);
+  await rpc("block_community_message_sender", { p_message: messageId });
+}
+export function subscribeToChannel(channelId: string, onChange: () => void) {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const reconcile = () => {
+    clearTimeout(timer);
+    timer = setTimeout(onChange, 120);
+  };
+  const channel = supabase
+    .channel(`community:${channelId}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "community_messages",
+        filter: `channel_id=eq.${channelId}`,
+      },
+      reconcile,
+    )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "community_message_reactions" },
+      reconcile,
+    )
+    .subscribe((status) => {
+      if (status === "SUBSCRIBED") reconcile();
+    });
+  return () => {
+    clearTimeout(timer);
+    void supabase.removeChannel(channel);
+  };
 }

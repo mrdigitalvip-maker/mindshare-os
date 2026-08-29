@@ -1,4 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/providers/auth-provider";
 import { queryKeys } from "@/lib/query-keys";
 import * as service from "@/services/community-service";
@@ -10,6 +11,77 @@ export function useCommunity() {
     queryFn: () => service.getCommunityHome(id),
     enabled: Boolean(id),
   });
+}
+export function useOfficialChannels() {
+  const id = useUserId();
+  return useQuery({
+    queryKey: queryKeys.communityChannels,
+    queryFn: () => service.getOfficialChannels(id),
+    enabled: Boolean(id),
+  });
+}
+export function useOfficialChannelActions() {
+  const id = useUserId(),
+    c = useQueryClient(),
+    done = () => c.invalidateQueries({ queryKey: queryKeys.communityChannels });
+  return {
+    join: useMutation({
+      mutationFn: (channel: string) => service.joinOfficialChannel(id, channel),
+      onSuccess: done,
+    }),
+    leave: useMutation({
+      mutationFn: (channel: string) => service.leaveOfficialChannel(id, channel),
+      onSuccess: done,
+    }),
+    notifications: useMutation({
+      mutationFn: (p: {
+        channel: string;
+        mode: Parameters<typeof service.setNotificationMode>[2];
+      }) => service.setNotificationMode(id, p.channel, p.mode),
+      onSuccess: done,
+    }),
+  };
+}
+export function useCommunityMessages(channelId: string) {
+  const id = useUserId(),
+    client = useQueryClient();
+  const query = useInfiniteQuery({
+    queryKey: queryKeys.communityMessages(channelId),
+    queryFn: ({ pageParam }) => service.getMessages(id, channelId, pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (page) => (page.length === 30 ? page[0]?.createdAt : undefined),
+    enabled: Boolean(id && channelId),
+  });
+  useEffect(() => {
+    if (!id || !channelId) return;
+    return service.subscribeToChannel(
+      channelId,
+      () => void client.invalidateQueries({ queryKey: queryKeys.communityMessages(channelId) }),
+    );
+  }, [channelId, client, id]);
+  return query;
+}
+export function useMessageActions(channelId: string) {
+  const id = useUserId(),
+    c = useQueryClient(),
+    done = () => c.invalidateQueries({ queryKey: queryKeys.communityMessages(channelId) });
+  return {
+    send: useMutation({
+      mutationFn: (p: { body: string; requestId: string }) =>
+        service.sendMessage(id, channelId, p.body, p.requestId),
+      onSuccess: done,
+    }),
+    react: useMutation({
+      mutationFn: (p: { id: string; reaction: Parameters<typeof service.reactToMessage>[2] }) =>
+        service.reactToMessage(id, p.id, p.reaction),
+      onSuccess: done,
+    }),
+    report: useMutation({ mutationFn: (message: string) => service.reportMessage(id, message) }),
+    block: useMutation({
+      mutationFn: (message: string) => service.blockMessageSender(id, message),
+      onSuccess: done,
+    }),
+  };
 }
 export function useSquad(id: string) {
   const uid = useUserId();

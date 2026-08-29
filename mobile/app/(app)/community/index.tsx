@@ -10,6 +10,8 @@ import {
   useCreateSquad,
   useReact,
   useSaveCommunityProfile,
+  useOfficialChannels,
+  useOfficialChannelActions,
 } from "@/hooks/use-community";
 import {
   communityErrorMessage,
@@ -48,6 +50,8 @@ const Button = ({
 );
 export default function Community() {
   const community = useCommunity(),
+    channels = useOfficialChannels(),
+    channelActions = useOfficialChannelActions(),
     save = useSaveCommunityProfile(),
     create = useCreateSquad(),
     accept = useAcceptInvite(),
@@ -73,8 +77,55 @@ export default function Community() {
     <AppScreen scroll contentContainerStyle={styles.page}>
       <StandardHeader title="Community" />
       <Text style={styles.subtitle}>
-        Accountability em pequenos grupos, baseado apenas em execução verificada.
+        Conversas reais para avançar objetivos — sem contagens ou atividade simuladas.
       </Text>
+      <Text style={styles.heading}>Comunidades oficiais</Text>
+      {channels.isError ? (
+        <Text style={styles.muted}>
+          Não foi possível carregar as conversas. Toque em tentar novamente.
+        </Text>
+      ) : null}
+      {channels.data?.map((channel) => (
+        <View key={channel.id} style={styles.card}>
+          <Text style={styles.heading}>{channel.name}</Text>
+          <Text style={styles.muted}>
+            {channel.premium
+              ? "Espaço Premium, validado pelo servidor."
+              : "Aberta para contas Free e Premium."}
+          </Text>
+          {channel.recentBody && channel.joined ? (
+            <Text style={styles.body} numberOfLines={2}>
+              {channel.recentBody}
+            </Text>
+          ) : (
+            <Text style={styles.muted}>
+              {channel.joined
+                ? "Ainda não há mensagens. Comece uma conversa útil."
+                : channel.eligible
+                  ? "Participe quando quiser — sua entrada é explícita."
+                  : "Indisponível no seu plano atual."}
+            </Text>
+          )}
+          <Button
+            label={
+              channel.joined
+                ? "Abrir conversa"
+                : channel.eligible
+                  ? "Entrar"
+                  : "Community+ bloqueada"
+            }
+            disabled={!channel.eligible || channelActions.join.isPending}
+            onPress={() =>
+              channel.joined
+                ? router.push({
+                    pathname: "/community/[channelId]",
+                    params: { channelId: channel.id, name: channel.name },
+                  })
+                : channelActions.join.mutate(channel.id, { onError: fail })
+            }
+          />
+        </View>
+      ))}
       <View style={styles.card}>
         <Text style={styles.heading}>Seu perfil comunitário</Text>
         <Text style={styles.muted}>

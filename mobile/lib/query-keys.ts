@@ -26,6 +26,8 @@ export const queryKeys = {
   journeyPack: (slug: string) => ["journey-packs", validId(slug)] as const,
   arena: ["arena"] as const,
   community: ["community"] as const,
+  communityChannels: ["community", "channels"] as const,
+  communityMessages: (id: string) => ["community", "channel", validId(id), "messages"] as const,
   squad: (id: string) => ["community", "squad", validId(id)] as const,
 };
 
