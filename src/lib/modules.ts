@@ -12,6 +12,10 @@ import {
   Settings,
   LayoutDashboard,
   Crown,
+  Route,
+  Swords,
+  Users,
+  PackageOpen,
   Search,
   type LucideIcon,
 } from "lucide-react";
@@ -30,6 +34,46 @@ export type NexoraModule = {
 };
 
 export const MODULES: NexoraModule[] = [
+  {
+    id: "journeys",
+    releaseReady: true,
+    label: "Journeys",
+    path: "/journeys",
+    icon: Route,
+    description: "Daily missions and Momentum",
+    group: "modules",
+    category: "growth",
+  },
+  {
+    id: "arena",
+    releaseReady: true,
+    label: "Arena",
+    path: "/arena",
+    icon: Swords,
+    description: "Verified challenges",
+    group: "modules",
+    category: "growth",
+  },
+  {
+    id: "community",
+    releaseReady: true,
+    label: "Community",
+    path: "/community",
+    icon: Users,
+    description: "Private squads and verified activity",
+    group: "modules",
+    category: "growth",
+  },
+  {
+    id: "packs",
+    releaseReady: true,
+    label: "Journey Packs",
+    path: "/packs",
+    icon: PackageOpen,
+    description: "Server-built journey templates",
+    group: "modules",
+    category: "growth",
+  },
   {
     id: "dashboard",
     releaseReady: true,

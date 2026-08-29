@@ -1,6 +1,7 @@
 import { createFileRoute, Outlet, Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import { Home, LogOut, Menu, MoreHorizontal, Search, User } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { useAuth } from "@/lib/auth-context";
@@ -40,6 +41,7 @@ function ShellLayout() {
     refetch: retryProfile,
   } = useProfile();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -97,6 +99,7 @@ function ShellLayout() {
   async function handleSignOut() {
     try {
       await signOut();
+      queryClient.clear();
       navigate({ to: "/auth", search: { mode: "signin" }, replace: true });
     } catch {
       toast.error("Não foi possível sair. Verifique sua conexão e tente novamente.");

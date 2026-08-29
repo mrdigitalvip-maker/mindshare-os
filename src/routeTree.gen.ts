@@ -17,11 +17,15 @@ import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as ShellAgentsRouteImport } from './routes/_shell.agents'
+import { Route as ShellArenaRouteImport } from './routes/_shell.arena'
 import { Route as ShellAssistantRouteImport } from './routes/_shell.assistant'
+import { Route as ShellCommunityRouteImport } from './routes/_shell.community'
 import { Route as ShellContentRouteImport } from './routes/_shell.content'
 import { Route as ShellDashboardRouteImport } from './routes/_shell.dashboard'
 import { Route as ShellDocumentsRouteImport } from './routes/_shell.documents'
 import { Route as ShellFinanceRouteImport } from './routes/_shell.finance'
+import { Route as ShellJourneysRouteImport } from './routes/_shell.journeys'
+import { Route as ShellPacksRouteImport } from './routes/_shell.packs'
 import { Route as ShellPremiumRouteImport } from './routes/_shell.premium'
 import { Route as ShellProductivityRouteImport } from './routes/_shell.productivity'
 import { Route as ShellProjectsRouteImport } from './routes/_shell.projects'
@@ -79,9 +83,19 @@ const ShellAgentsRoute = ShellAgentsRouteImport.update({
   path: '/agents',
   getParentRoute: () => ShellRoute,
 } as any)
+const ShellArenaRoute = ShellArenaRouteImport.update({
+  id: '/arena',
+  path: '/arena',
+  getParentRoute: () => ShellRoute,
+} as any)
 const ShellAssistantRoute = ShellAssistantRouteImport.update({
   id: '/assistant',
   path: '/assistant',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellCommunityRoute = ShellCommunityRouteImport.update({
+  id: '/community',
+  path: '/community',
   getParentRoute: () => ShellRoute,
 } as any)
 const ShellContentRoute = ShellContentRouteImport.update({
@@ -102,6 +116,16 @@ const ShellDocumentsRoute = ShellDocumentsRouteImport.update({
 const ShellFinanceRoute = ShellFinanceRouteImport.update({
   id: '/finance',
   path: '/finance',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellJourneysRoute = ShellJourneysRouteImport.update({
+  id: '/journeys',
+  path: '/journeys',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellPacksRoute = ShellPacksRouteImport.update({
+  id: '/packs',
+  path: '/packs',
   getParentRoute: () => ShellRoute,
 } as any)
 const ShellPremiumRoute = ShellPremiumRouteImport.update({
@@ -201,11 +225,15 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/agents': typeof ShellAgentsRouteWithChildren
+  '/arena': typeof ShellArenaRoute
   '/assistant': typeof ShellAssistantRoute
+  '/community': typeof ShellCommunityRoute
   '/content': typeof ShellContentRouteWithChildren
   '/dashboard': typeof ShellDashboardRoute
   '/documents': typeof ShellDocumentsRouteWithChildren
   '/finance': typeof ShellFinanceRouteWithChildren
+  '/journeys': typeof ShellJourneysRoute
+  '/packs': typeof ShellPacksRoute
   '/premium': typeof ShellPremiumRoute
   '/productivity': typeof ShellProductivityRoute
   '/projects': typeof ShellProjectsRouteWithChildren
@@ -232,11 +260,15 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/agents': typeof ShellAgentsRouteWithChildren
+  '/arena': typeof ShellArenaRoute
   '/assistant': typeof ShellAssistantRoute
+  '/community': typeof ShellCommunityRoute
   '/content': typeof ShellContentRouteWithChildren
   '/dashboard': typeof ShellDashboardRoute
   '/documents': typeof ShellDocumentsRouteWithChildren
   '/finance': typeof ShellFinanceRouteWithChildren
+  '/journeys': typeof ShellJourneysRoute
+  '/packs': typeof ShellPacksRoute
   '/premium': typeof ShellPremiumRoute
   '/productivity': typeof ShellProductivityRoute
   '/projects': typeof ShellProjectsRouteWithChildren
@@ -265,11 +297,15 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/_shell/agents': typeof ShellAgentsRouteWithChildren
+  '/_shell/arena': typeof ShellArenaRoute
   '/_shell/assistant': typeof ShellAssistantRoute
+  '/_shell/community': typeof ShellCommunityRoute
   '/_shell/content': typeof ShellContentRouteWithChildren
   '/_shell/dashboard': typeof ShellDashboardRoute
   '/_shell/documents': typeof ShellDocumentsRouteWithChildren
   '/_shell/finance': typeof ShellFinanceRouteWithChildren
+  '/_shell/journeys': typeof ShellJourneysRoute
+  '/_shell/packs': typeof ShellPacksRoute
   '/_shell/premium': typeof ShellPremiumRoute
   '/_shell/productivity': typeof ShellProductivityRoute
   '/_shell/projects': typeof ShellProjectsRouteWithChildren
@@ -298,11 +334,15 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/sitemap.xml'
     | '/agents'
+    | '/arena'
     | '/assistant'
+    | '/community'
     | '/content'
     | '/dashboard'
     | '/documents'
     | '/finance'
+    | '/journeys'
+    | '/packs'
     | '/premium'
     | '/productivity'
     | '/projects'
@@ -329,11 +369,15 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/sitemap.xml'
     | '/agents'
+    | '/arena'
     | '/assistant'
+    | '/community'
     | '/content'
     | '/dashboard'
     | '/documents'
     | '/finance'
+    | '/journeys'
+    | '/packs'
     | '/premium'
     | '/productivity'
     | '/projects'
@@ -361,11 +405,15 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/sitemap.xml'
     | '/_shell/agents'
+    | '/_shell/arena'
     | '/_shell/assistant'
+    | '/_shell/community'
     | '/_shell/content'
     | '/_shell/dashboard'
     | '/_shell/documents'
     | '/_shell/finance'
+    | '/_shell/journeys'
+    | '/_shell/packs'
     | '/_shell/premium'
     | '/_shell/productivity'
     | '/_shell/projects'
@@ -453,11 +501,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShellAgentsRouteImport
       parentRoute: typeof ShellRoute
     }
+    '/_shell/arena': {
+      id: '/_shell/arena'
+      path: '/arena'
+      fullPath: '/arena'
+      preLoaderRoute: typeof ShellArenaRouteImport
+      parentRoute: typeof ShellRoute
+    }
     '/_shell/assistant': {
       id: '/_shell/assistant'
       path: '/assistant'
       fullPath: '/assistant'
       preLoaderRoute: typeof ShellAssistantRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/community': {
+      id: '/_shell/community'
+      path: '/community'
+      fullPath: '/community'
+      preLoaderRoute: typeof ShellCommunityRouteImport
       parentRoute: typeof ShellRoute
     }
     '/_shell/content': {
@@ -486,6 +548,20 @@ declare module '@tanstack/react-router' {
       path: '/finance'
       fullPath: '/finance'
       preLoaderRoute: typeof ShellFinanceRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/journeys': {
+      id: '/_shell/journeys'
+      path: '/journeys'
+      fullPath: '/journeys'
+      preLoaderRoute: typeof ShellJourneysRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/packs': {
+      id: '/_shell/packs'
+      path: '/packs'
+      fullPath: '/packs'
+      preLoaderRoute: typeof ShellPacksRouteImport
       parentRoute: typeof ShellRoute
     }
     '/_shell/premium': {
@@ -700,11 +776,15 @@ const ShellStudioRouteWithChildren = ShellStudioRoute._addFileChildren(
 
 interface ShellRouteChildren {
   ShellAgentsRoute: typeof ShellAgentsRouteWithChildren
+  ShellArenaRoute: typeof ShellArenaRoute
   ShellAssistantRoute: typeof ShellAssistantRoute
+  ShellCommunityRoute: typeof ShellCommunityRoute
   ShellContentRoute: typeof ShellContentRouteWithChildren
   ShellDashboardRoute: typeof ShellDashboardRoute
   ShellDocumentsRoute: typeof ShellDocumentsRouteWithChildren
   ShellFinanceRoute: typeof ShellFinanceRouteWithChildren
+  ShellJourneysRoute: typeof ShellJourneysRoute
+  ShellPacksRoute: typeof ShellPacksRoute
   ShellPremiumRoute: typeof ShellPremiumRoute
   ShellProductivityRoute: typeof ShellProductivityRoute
   ShellProjectsRoute: typeof ShellProjectsRouteWithChildren
@@ -716,11 +796,15 @@ interface ShellRouteChildren {
 
 const ShellRouteChildren: ShellRouteChildren = {
   ShellAgentsRoute: ShellAgentsRouteWithChildren,
+  ShellArenaRoute: ShellArenaRoute,
   ShellAssistantRoute: ShellAssistantRoute,
+  ShellCommunityRoute: ShellCommunityRoute,
   ShellContentRoute: ShellContentRouteWithChildren,
   ShellDashboardRoute: ShellDashboardRoute,
   ShellDocumentsRoute: ShellDocumentsRouteWithChildren,
   ShellFinanceRoute: ShellFinanceRouteWithChildren,
+  ShellJourneysRoute: ShellJourneysRoute,
+  ShellPacksRoute: ShellPacksRoute,
   ShellPremiumRoute: ShellPremiumRoute,
   ShellProductivityRoute: ShellProductivityRoute,
   ShellProjectsRoute: ShellProjectsRouteWithChildren,
