@@ -1,15 +1,10 @@
-import { NEXORA_NAVIGATION_ACTIONS } from "./nexora-actions.js";
+import { NEXORA_MUTATION_ACTIONS, NEXORA_NAVIGATION_ACTIONS } from "./nexora-actions.js";
 
-/**
- * OpenAI strict structured-output schema for an Assistant reply.
- *
- * Keep this exported object as the single schema used by the provider request so
- * tests validate the production contract rather than a copy of it.
- */
+const nullableString = { anyOf: [{ type: "null" }, { type: "string" }] };
 export const NEXORA_RESPONSE_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["message", "action"],
+  required: ["message", "action", "proposed_actions"],
   properties: {
     message: { type: "string" },
     action: {
@@ -25,6 +20,40 @@ export const NEXORA_RESPONSE_SCHEMA = {
           },
         },
       ],
+    },
+    proposed_actions: {
+      type: "array",
+      maxItems: 5,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: [
+          "action_type",
+          "title",
+          "resource_id",
+          "project_id",
+          "subject_id",
+          "due_date",
+          "priority",
+          "objective",
+          "value",
+          "expected_updated_at",
+          "target_value",
+        ],
+        properties: {
+          action_type: { type: "string", enum: NEXORA_MUTATION_ACTIONS },
+          title: nullableString,
+          resource_id: nullableString,
+          project_id: nullableString,
+          subject_id: nullableString,
+          due_date: nullableString,
+          priority: nullableString,
+          objective: nullableString,
+          value: nullableString,
+          expected_updated_at: nullableString,
+          target_value: { anyOf: [{ type: "null" }, { type: "integer" }] },
+        },
+      },
     },
   },
 };

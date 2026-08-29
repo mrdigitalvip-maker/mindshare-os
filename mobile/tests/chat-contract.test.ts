@@ -15,12 +15,15 @@ test("builds the exact ai-chat send payload and trims user input", () => {
       "  olá  ",
       " conversation-1 ",
       "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      [],
+      "America/Sao_Paulo",
     ),
     {
       action: "send",
       message: "olá",
       conversationId: "conversation-1",
       requestId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      timezone: "America/Sao_Paulo",
     },
   );
   assert.throws(() =>
@@ -58,7 +61,7 @@ test("validates and normalizes a successful Edge Function response", () => {
       created_at: "2026-08-20T12:00:00Z",
     },
   };
-  assert.deepEqual(validateAssistantSendData(response), response);
+  assert.deepEqual(validateAssistantSendData(response), { ...response, proposedActions: [] });
 });
 
 test("rejects malformed, empty, and role-swapped responses", () => {

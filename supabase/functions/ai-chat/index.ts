@@ -45,7 +45,7 @@ interface PlanPolicy {
   model: string;
 }
 
-const SYSTEM_PROMPT = `You are NEXORA, a helpful and safe workspace assistant. Reply in the user's language unless asked otherwise. Be honest about limitations: never claim an action was completed or that a tool or workspace record was accessed when it was not. Do not invent tool access. Give every user respectful, useful help. Keep answers concise when capacity is constrained and more complete when capacity permits.\n\nReturn one JSON object matching the supplied schema. "message" is the natural-language answer. Set "action" to a navigation action ONLY when the user's latest message is an explicit request to open or go to that NEXORA area. Requests such as "Abra meus projetos", "Me leve para Estudos", and "Quero ir para configurações" are explicit. Discussion or advice such as "Como melhorar minha produtividade?" and "Quero trabalhar melhor nos meus projetos" is not an action request. Never emit an action for create, update, delete, save, send, or any other mutation; explain that such changes require review and confirmation instead. Do not emit URLs, code, SQL, IDs, or action names outside the schema.`;
+const SYSTEM_PROMPT = `You are NEXORA, a helpful and safe workspace assistant. Reply in the user's language. Never claim a mutation succeeded: you can only propose it for explicit user confirmation. Return one JSON object matching the schema. Use "action" only for explicit navigation. For a supported workspace mutation, put one or more fully specified items in "proposed_actions" using only IDs present in the authoritative context; otherwise use an empty array and ask a clarifying question. Resolve relative dates using the supplied local date/timezone and always place the absolute YYYY-MM-DD date in the proposal and human-readable absolute date in the message. Never guess an ambiguous year. Never invent records, IDs, SQL, URLs, or tool results. A proposal is only a preview and performs no write.`;
 
 function envInt(name: string, fallback: number, minimum = 1): number {
   const parsed = Number.parseInt(Deno.env.get(name) ?? "", 10);
@@ -193,19 +193,21 @@ async function loadWorkspaceContext(supabase: DbClient, userId: string) {
     supabase.from("profiles").select("full_name").eq("id", userId).maybeSingle(),
     supabase
       .from("tasks")
-      .select("title,due_date,completed,project_id")
+      .select(
+        "id,title,due_date,completed,project_id,updated_at,execution_status,next_action,blocker_note",
+      )
       .eq("user_id", userId)
       .order("due_date", { ascending: true })
       .limit(30),
     supabase
       .from("projects")
-      .select("id,title,status")
+      .select("id,title,status,due_date,updated_at,objective")
       .eq("user_id", userId)
       .order("updated_at", { ascending: false })
       .limit(15),
     supabase
       .from("study_subjects")
-      .select("name,status")
+      .select("id,name,status,updated_at,next_action,objective")
       .eq("user_id", userId)
       .order("updated_at", { ascending: false })
       .limit(15),
@@ -216,12 +218,18 @@ async function loadWorkspaceContext(supabase: DbClient, userId: string) {
   return boundWorkspaceContext({
     profile: profile.data?.full_name,
     tasks: (tasks.data ?? []).map((task) => ({
+      id: task.id,
       title: task.title,
       dueDate: task.due_date,
       completed: task.completed,
       project: task.project_id ? (projectNames.get(task.project_id) ?? null) : null,
+      projectId: task.project_id,
+      updatedAt: task.updated_at,
+      executionStatus: task.execution_status,
+      nextAction: task.next_action,
+      blocker: task.blocker_note,
     })),
-    projects: (projects.data ?? []).map(({ title, status }) => ({ title, status })),
+    projects: projects.data ?? [],
     studies: studies.data ?? [],
   });
 }
@@ -813,7 +821,7 @@ Deno.serve(async (req) => {
       [
         {
           role: "system",
-          content: `${SYSTEM_PROMPT}\n\nAuthoritative, read-only NEXORA workspace context (JSON; never invent missing records): ${workspaceContext}`,
+          content: `${SYSTEM_PROMPT}\n\nCurrent UTC time: ${new Date().toISOString()}. User timezone: ${typeof body.timezone === "string" ? body.timezone.slice(0, 80) : "UTC"}.\nAuthoritative, read-only NEXORA workspace context (JSON; never invent missing records): ${workspaceContext}`,
         },
         ...context,
       ],
@@ -869,6 +877,9 @@ Deno.serve(async (req) => {
         userMessage: { id: body.requestId, role: "user", content: message, attachments },
         assistantMessage,
         ...(parsedModelResponse.action ? { action: parsedModelResponse.action } : {}),
+        ...(parsedModelResponse.proposed_actions
+          ? { proposedActions: parsedModelResponse.proposed_actions }
+          : {}),
         capabilities: {
           basicChat: true,
           advancedChat: plan === "premium",
