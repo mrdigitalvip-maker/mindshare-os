@@ -3,10 +3,12 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type PropsWithChildren,
 } from "react";
 import type { Session } from "@supabase/supabase-js";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { resolveAuthStatus, type AuthStatus } from "@/lib/auth-state";
 import { installAuthRefreshLifecycle, supabase } from "@/lib/supabase";
@@ -15,8 +17,10 @@ type AuthState = { session: Session | null; status: AuthStatus };
 const AuthContext = createContext<AuthState | null>(null);
 
 export function AuthProvider({ children }: PropsWithChildren) {
+  const queryClient = useQueryClient();
   const [session, setSession] = useState<Session | null>(null);
   const [initialized, setInitialized] = useState(false);
+  const activeUserId = useRef<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -29,7 +33,15 @@ export function AuthProvider({ children }: PropsWithChildren) {
           const refreshed = await supabase.auth.refreshSession(restored);
           restored = refreshed.data.session;
         }
-        if (mounted) setSession(restored);
+        if (mounted) {
+          const restoredUserId = restored?.user.id ?? null;
+          if (activeUserId.current !== restoredUserId) {
+            void queryClient.cancelQueries();
+            queryClient.clear();
+          }
+          activeUserId.current = restoredUserId;
+          setSession(restored);
+        }
       })
       .catch(() => {
         if (mounted) setSession(null);
@@ -38,6 +50,14 @@ export function AuthProvider({ children }: PropsWithChildren) {
         if (mounted) setInitialized(true);
       });
     const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      // Clear before exposing a different identity to descendants. A token refresh for the
+      // same identity is deliberately neutral.
+      const nextUserId = nextSession?.user.id ?? null;
+      if (activeUserId.current !== nextUserId) {
+        void queryClient.cancelQueries();
+        queryClient.clear();
+      }
+      activeUserId.current = nextUserId;
       setSession(nextSession);
       setInitialized(true);
     });
@@ -46,7 +66,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       data.subscription.unsubscribe();
       removeLifecycle();
     };
-  }, []);
+  }, [queryClient]);
 
   const status = resolveAuthStatus(initialized, Boolean(session));
   const value = useMemo(() => ({ session, status }), [session, status]);

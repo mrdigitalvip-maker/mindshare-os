@@ -6,22 +6,9 @@ import {
   getMissionExecutionTarget,
   getTodayMission,
   localDateKey,
-  selectDailyMission,
-  stableMission,
   summarizeMomentum,
   type JourneyMission,
 } from "../lib/journeys";
-const project = { id: "p", title: "P", description: "", status: "active" };
-const task = (patch: Record<string, unknown> = {}) => ({
-  id: "t",
-  title: "Task",
-  description: "",
-  priority: "medium",
-  dueDate: null,
-  projectId: null,
-  completed: false,
-  ...patch,
-});
 describe("Journeys domain", () => {
   test("enforces Free active limit and permits Premium", () => {
     expect(canActivateJourney(0, 1)).toBe(true);
@@ -30,65 +17,6 @@ describe("Journeys domain", () => {
   });
   test("preserves downgrade data by only gating activation", () =>
     expect(canActivateJourney(2, 1)).toBe(false));
-  test("prioritizes overdue and excludes completed", () =>
-    expect(
-      selectDailyMission(
-        [
-          task({ id: "today", dueDate: "2026-08-26" }),
-          task({ id: "old", dueDate: "2026-08-25" }),
-          task({ id: "done", dueDate: "2026-08-20", completed: true }),
-        ],
-        [project],
-        [],
-        new Date(2026, 7, 26),
-      )?.sourceId,
-    ).toBe("old"));
-  test("prioritizes today and supports Study", () => {
-    expect(
-      selectDailyMission(
-        [task({ id: "next", nextAction: "go" }), task({ id: "today", dueDate: "2026-08-26" })],
-        [project],
-        [],
-        new Date(2026, 7, 26),
-      )?.sourceId,
-    ).toBe("today");
-    expect(
-      selectDailyMission(
-        [],
-        [],
-        [
-          {
-            id: "s",
-            name: "English",
-            description: "",
-            status: "active",
-            color: "#fff",
-            nextAction: "25 min",
-          },
-        ],
-        new Date(),
-      )?.sourceType,
-    ).toBe("study_session");
-  });
-  test("excludes paused project work", () =>
-    expect(
-      selectDailyMission(
-        [task({ projectId: "p" })],
-        [{ ...project, status: "paused" }],
-        [],
-        new Date(),
-      ),
-    ).toBeNull());
-  test("keeps the same daily mission", () => {
-    const existing = { id: "m", scheduledDate: "2026-08-26", status: "active" } as JourneyMission;
-    expect(
-      stableMission(
-        existing,
-        { sourceType: "task", sourceId: "other", title: "Other", description: null, rank: 0 },
-        "2026-08-26",
-      ),
-    ).toBe(existing);
-  });
   test("uses local boundaries", () =>
     expect(localDateKey(new Date(2026, 0, 2, 0, 1))).toBe("2026-01-02"));
   test("derives execution streaks", () => {
@@ -99,29 +27,7 @@ describe("Journeys domain", () => {
   });
   test("a completed mission is not returned as today's active mission", () => {
     expect(getTodayMission({ status: "completed" } as JourneyMission)).toBeNull();
-    expect(
-      stableMission(
-        { scheduledDate: "2026-08-26", status: "completed" } as JourneyMission,
-        null,
-        "2026-08-26",
-      ),
-    ).toBeNull();
   });
-  test("high-impact overdue work wins deterministically and duplicates do not duplicate candidates", () => {
-    const result = selectDailyMission(
-      [
-        task({ id: "low", dueDate: "2026-08-25", priority: "low" }),
-        task({ id: "high", dueDate: "2026-08-25", priority: "high" }),
-        task({ id: "high", dueDate: "2026-08-25", priority: "high" }),
-      ],
-      [project],
-      [],
-      new Date(2026, 7, 26),
-    );
-    expect(result?.sourceId).toBe("high");
-  });
-  test("returns no fabricated mission without actionable workspace data", () =>
-    expect(selectDailyMission([], [], [], new Date())).toBeNull());
   test("derives total, Monday-based weekly Momentum and streak only from verified missions", () => {
     const events = [
       {

@@ -26,6 +26,18 @@ export const queryKeys = {
   squad: (id: string) => ["community", "squad", validId(id)] as const,
 };
 
+/** Queries backed by a newly verified execution event. Keep this list centralized. */
+export const verifiedExecutionInvalidations = [
+  queryKeys.tasks,
+  queryKeys.studySubjects,
+  queryKeys.studyOverview,
+  queryKeys.journeys,
+  queryKeys.momentum,
+  queryKeys.journeyChallenge,
+  queryKeys.arena,
+  queryKeys.community,
+] as const;
+
 export function taskMutationInvalidations(
   projectId?: string | null,
   previousProjectId?: string | null,

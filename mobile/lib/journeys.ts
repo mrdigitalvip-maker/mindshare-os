@@ -1,5 +1,3 @@
-import type { Project, Subject, Task } from "@/services/workspace-service";
-
 export type JourneyCategory =
   "creator" | "business" | "fitness" | "study" | "travel" | "personal" | "custom";
 export type JourneyStatus = "active" | "paused" | "completed" | "archived";
@@ -57,14 +55,6 @@ export type WeeklyChallenge = {
   startsAt: string;
   endsAt: string;
 };
-export type MissionCandidate = {
-  sourceType: MissionSourceType;
-  sourceId: string;
-  title: string;
-  description: string | null;
-  rank: number;
-};
-
 export type MissionExecutionTarget = {
   href: `/tasks/${string}` | `/studies/${string}` | `/projects/${string}` | `/journeys/${string}`;
   label: "Começar" | "Continuar" | "Ver ação" | "Concluída";
@@ -85,76 +75,6 @@ export function localDateKey(date: Date): string {
   const m = String(date.getMonth() + 1).padStart(2, "0");
   const d = String(date.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
-}
-export function selectDailyMission(
-  tasks: Task[],
-  projects: Project[],
-  subjects: Subject[],
-  now: Date,
-): MissionCandidate | null {
-  const today = localDateKey(now);
-  const activeProjects = new Set(
-    projects.filter((p) => p.status.toLowerCase() === "active").map((p) => p.id),
-  );
-  const candidates: MissionCandidate[] = tasks
-    .filter((t) => !t.completed && (!t.projectId || activeProjects.has(t.projectId)))
-    .map((task) => {
-      const due = task.dueDate?.slice(0, 10) ?? null;
-      const impact =
-        task.priority.toLowerCase() === "high"
-          ? 0
-          : task.priority.toLowerCase() === "medium"
-            ? 2
-            : 4;
-      const rank =
-        due && due < today
-          ? impact
-          : due === today
-            ? 10 + impact
-            : task.executionStatus === "in_progress"
-              ? 30 + impact
-              : due
-                ? 50 + impact
-                : task.nextAction
-                  ? 70 + impact
-                  : 90 + impact;
-      return {
-        sourceType: "task" as const,
-        sourceId: task.id,
-        title: task.title,
-        description: task.nextAction || task.description || null,
-        rank,
-      };
-    });
-  subjects
-    .filter((s) => s.status.toLowerCase() === "active" && s.nextAction)
-    .forEach((subject) =>
-      candidates.push({
-        sourceType: "study_session",
-        sourceId: subject.id,
-        title: `Estudar ${subject.name}`,
-        description: subject.nextAction || null,
-        rank: 40,
-      }),
-    );
-  candidates.sort(
-    (a, b) =>
-      a.rank - b.rank || a.title.localeCompare(b.title) || a.sourceId.localeCompare(b.sourceId),
-  );
-  return candidates[0] ?? null;
-}
-export function stableMission(
-  existing: JourneyMission | null,
-  candidate: MissionCandidate | null,
-  day: string,
-) {
-  if (
-    existing &&
-    existing.scheduledDate === day &&
-    !["skipped", "completed"].includes(existing.status)
-  )
-    return existing;
-  return candidate;
 }
 export function calculateStreak(eventDates: string[], today: Date): number {
   const days = new Set(eventDates.map((value) => value.slice(0, 10)));

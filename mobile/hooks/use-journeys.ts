@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { queryKeys } from "@/lib/query-keys";
+import { queryKeys, verifiedExecutionInvalidations } from "@/lib/query-keys";
 import { useAuth } from "@/providers/auth-provider";
 import * as service from "@/services/journey-service";
 const useUid = () => useAuth().session?.user.id ?? "";
@@ -48,15 +48,9 @@ export function useJourneyMutations() {
     client = useQueryClient();
   const refresh = () =>
     Promise.all(
-      [
-        queryKeys.journeys,
-        queryKeys.dailyMission,
-        queryKeys.momentum,
-        queryKeys.journeyChallenge,
-        queryKeys.arena,
-        queryKeys.tasks,
-        queryKeys.studyOverview,
-      ].map((queryKey) => client.invalidateQueries({ queryKey })),
+      verifiedExecutionInvalidations.map((queryKey) =>
+        client.invalidateQueries({ queryKey }),
+      ),
     );
   const create = useMutation({
     mutationFn: (input: Parameters<typeof service.createJourney>[1]) =>

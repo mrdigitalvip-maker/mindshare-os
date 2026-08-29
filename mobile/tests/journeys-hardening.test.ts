@@ -20,6 +20,16 @@ const docs = readFileSync(
 );
 
 describe("Journeys 2D structural security contract", () => {
+  test("daily mission selection has one server-authoritative path", () => {
+    const service = readFileSync(
+      fileURLToPath(new URL("../services/journey-service.ts", import.meta.url)),
+      "utf8",
+    );
+    const domain = readFileSync(fileURLToPath(new URL("../lib/journeys.ts", import.meta.url)), "utf8");
+    expect(service).toContain('supabase.rpc("ensure_daily_journey_mission"');
+    expect(domain).not.toContain("selectDailyMission");
+    expect(domain).not.toContain("stableMission");
+  });
   test("missions can only be completed for a verified owner/source", () => {
     expect(sql).toContain("where user_id = new.user_id");
     expect(sql).toContain("and source_id = verified_source_id");

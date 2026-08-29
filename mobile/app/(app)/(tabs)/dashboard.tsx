@@ -271,7 +271,7 @@ export default function Dashboard() {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`${missionTarget.label}: ${dailyMission.data.title}`}
-              onPress={() => router.push(missionTarget.href as never)}
+              onPress={() => router.push(missionTarget.href)}
               style={styles.nextCard}
             >
               <Text style={styles.nextLabel}>EXECUÇÃO VERIFICÁVEL</Text>
