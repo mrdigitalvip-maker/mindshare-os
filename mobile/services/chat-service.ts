@@ -7,6 +7,7 @@ import {
   type AssistantErrorCategory,
 } from "@/lib/chat-contract";
 import type { ChatAttachment } from "@/lib/chat-attachments";
+import type { NexoraAction } from "@/lib/nexora-actions";
 import { mapConversationRows, type AssistantConversation } from "@/lib/assistant-conversations";
 
 export type ChatMessage = {
@@ -20,6 +21,7 @@ export type ChatResult = {
   conversationId: string;
   userMessage: ChatMessage;
   assistantMessage: ChatMessage;
+  proposedActions: NexoraAction[];
 };
 type EdgeResult =
   | {
@@ -28,6 +30,7 @@ type EdgeResult =
         conversationId: string | null;
         userMessage: import("@/lib/chat-contract").AssistantWireMessage;
         assistantMessage: import("@/lib/chat-contract").AssistantWireMessage;
+        proposedActions?: unknown;
       };
     }
   | { ok: false; error: { code?: string; message?: string; requestId?: string } };
@@ -231,6 +234,7 @@ export async function sendChat(
       conversationId: normalized.conversationId,
       userMessage: mapMessage(normalized.userMessage),
       assistantMessage: mapMessage(normalized.assistantMessage),
+      proposedActions: normalized.proposedActions,
     };
   } catch (error) {
     if (error instanceof ChatServiceError) throw error;

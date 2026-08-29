@@ -1,3 +1,5 @@
+import { parseNexoraActions, type NexoraAction } from "@/lib/nexora-actions";
+
 export type AssistantErrorCategory =
   | "AUTH"
   | "NETWORK"
@@ -35,6 +37,7 @@ export type AssistantSendPayload = {
   message: string;
   conversationId: string | null;
   requestId: string;
+  timezone: string;
   attachments?: AssistantWireMessage["attachments"];
 };
 
@@ -55,6 +58,7 @@ export function buildAssistantSendPayload(
   conversationId: string | null,
   requestId: string,
   attachments: AssistantWireMessage["attachments"] = [],
+  timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
 ): AssistantSendPayload {
   const content = message.trim();
   if (!content) throw new Error("invalid_request");
@@ -64,6 +68,7 @@ export function buildAssistantSendPayload(
     message: content,
     conversationId: conversationId?.trim() || null,
     requestId,
+    timezone,
     ...(attachments.length ? { attachments } : {}),
   };
 }
@@ -103,6 +108,7 @@ export function validateAssistantSendData(value: unknown): {
   conversationId: string;
   userMessage: AssistantWireMessage;
   assistantMessage: AssistantWireMessage;
+  proposedActions: NexoraAction[];
 } {
   if (!value || typeof value !== "object") throw new Error("invalid_response");
   const data = value as Record<string, unknown>;
@@ -118,6 +124,7 @@ export function validateAssistantSendData(value: unknown): {
     conversationId: data.conversationId,
     userMessage: data.userMessage,
     assistantMessage: data.assistantMessage,
+    proposedActions: parseNexoraActions(data.proposedActions),
   };
 }
 

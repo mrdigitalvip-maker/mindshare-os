@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
 import {
   ActivityIndicator,
@@ -39,6 +40,8 @@ import {
 import { colors, radius, spacing, typography } from "@/lib/theme";
 import { uploadChatAttachment } from "@/services/chat-attachment-service";
 import { ChatServiceError, type ChatMessage } from "@/services/chat-service";
+import { actionInvalidationRoots, actionPreview, type NexoraAction } from "@/lib/nexora-actions";
+import { applyNexoraAction } from "@/services/nexora-action-service";
 
 const uuid = () => createAssistantRequestId();
 
@@ -55,6 +58,7 @@ export default function Assistant() {
   const handledPrompt = useRef<string | undefined>(undefined);
   const history = useConversation(conversationId);
   const send = useSendChat();
+  const queryClient = useQueryClient();
   const [draft, setDraft] = useState("");
   const [attachment, setAttachment] = useState<LocalChatAttachment | null>(null);
   const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
@@ -67,6 +71,11 @@ export default function Assistant() {
     uploadedAttachment?: ChatAttachment;
   } | null>(null);
   const [optimistic, setOptimistic] = useState<ChatMessage | null>(null);
+  const [proposal, setProposal] = useState<{ actions: NexoraAction[]; actionIds: string[] } | null>(
+    null,
+  );
+  const [applying, setApplying] = useState(false);
+  const [applyMessage, setApplyMessage] = useState<string | null>(null);
   const messages = useMemo(
     () => reconcileAssistantMessages(history.data, optimistic),
     [history.data, optimistic],
@@ -158,8 +167,9 @@ export default function Assistant() {
       const content = value.trim();
       if ((!content && !attachment) || submitting.current || send.isPending || uploading) return;
       submitting.current = true;
-      Keyboard.dismiss();
       const id = retryId ?? createAssistantRequestId();
+      const preservedDraft = content;
+      if (!retryId) setDraft("");
       setFailed(null);
       setUploading(Boolean(attachment && !retryAttachment));
       let uploaded = retryAttachment;
@@ -181,7 +191,11 @@ export default function Assistant() {
           requestId: id,
           attachments: uploaded ? [uploaded] : [],
         });
-        setDraft("");
+        if (result.proposedActions.length)
+          setProposal({
+            actions: result.proposedActions,
+            actionIds: result.proposedActions.map(() => createAssistantRequestId()),
+          });
         setAttachment(null);
         if (!conversationId) router.setParams({ conversationId: result.conversationId });
         setOptimistic(null);
@@ -202,6 +216,7 @@ export default function Assistant() {
         }
         setOptimistic(null);
         setFailed({ content, requestId: id, code, uploadedAttachment: uploaded });
+        if (!retryId) setDraft(preservedDraft);
       } finally {
         submitting.current = false;
         setUploading(false);
@@ -381,7 +396,92 @@ export default function Assistant() {
             </View>
           )}
           ListFooterComponent={
-            send.isPending ? <Text style={styles.thinking}>✦ NEXORA está pensando…</Text> : null
+            <>
+              {send.isPending && <Text style={styles.thinking}>✦ NEXORA está pensando…</Text>}
+              {proposal && (
+                <View style={styles.actionCard}>
+                  <Text style={styles.actionEyebrow}>ALTERAÇÕES PROPOSTAS</Text>
+                  {proposal.actions.map((action, index) => {
+                    const preview = actionPreview(action);
+                    return (
+                      <View key={`${action.action_type}-${index}`} style={styles.actionItem}>
+                        <Text style={styles.actionTitle}>{preview.label}</Text>
+                        {preview.details.map((detail) => (
+                          <Text key={detail} style={styles.actionDetail}>
+                            • {detail}
+                          </Text>
+                        ))}
+                      </View>
+                    );
+                  })}
+                  <View style={styles.actionButtons}>
+                    <Pressable
+                      disabled={applying}
+                      onPress={() => {
+                        setProposal(null);
+                        setApplyMessage("Alterações canceladas. Nada foi modificado.");
+                      }}
+                      style={styles.cancelAction}
+                    >
+                      <Text style={styles.actionButtonText}>Cancelar</Text>
+                    </Pressable>
+                    <Pressable
+                      disabled={applying}
+                      onPress={() =>
+                        void (async () => {
+                          const current = proposal;
+                          if (!current || applying) return;
+                          setApplying(true);
+                          setApplyMessage(null);
+                          let applied = 0;
+                          try {
+                            for (let i = 0; i < current.actions.length; i++) {
+                              await applyNexoraAction({
+                                actionId: current.actionIds[i],
+                                requestId: current.actionIds[i],
+                                conversationId,
+                                confirmed: true,
+                                action: current.actions[i],
+                              });
+                              applied++;
+                            }
+                            await Promise.all(
+                              actionInvalidationRoots(current.actions).map((root) =>
+                                queryClient.invalidateQueries({ queryKey: [root] }),
+                              ),
+                            );
+                            setProposal(null);
+                            setApplyMessage(
+                              `Pronto. ${current.actions.length === 1 ? "A alteração foi aplicada" : `As ${current.actions.length} alterações foram aplicadas`} e confirmada pelo servidor.`,
+                            );
+                          } catch {
+                            setApplyMessage(
+                              applied
+                                ? `${applied} alteração(ões) foram confirmadas pelo servidor; ${current.actions.length - applied} não foram aplicadas. Revise os dados antes de tentar novamente.`
+                                : "Nenhuma alteração foi aplicada. Os dados podem ter mudado; revise e tente novamente.",
+                            );
+                          } finally {
+                            setApplying(false);
+                          }
+                        })()
+                      }
+                      style={styles.confirmAction}
+                    >
+                      {applying ? (
+                        <ActivityIndicator color={colors.text} />
+                      ) : (
+                        <Text style={styles.actionButtonText}>Confirmar</Text>
+                      )}
+                    </Pressable>
+                  </View>
+                </View>
+              )}
+              {applyMessage && (
+                <Text accessibilityRole="alert" style={styles.applyMessage}>
+                  {applyMessage}
+                </Text>
+              )}
+            </>
           }
         />
         {errorCopy && (
@@ -578,6 +678,44 @@ const styles = StyleSheet.create({
   listen: { alignSelf: "flex-start", paddingHorizontal: 6, paddingVertical: 7 },
   listenText: { ...typography.caption, color: colors.primaryBright },
   thinking: { ...typography.label, color: colors.textMuted, paddingVertical: spacing.md },
+  actionCard: {
+    marginTop: spacing.md,
+    padding: spacing.md,
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.primaryBright,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surfaceRaised,
+  },
+  actionEyebrow: { ...typography.eyebrow, color: colors.primaryBright },
+  actionItem: { gap: spacing.xs },
+  actionTitle: { ...typography.label, color: colors.text },
+  actionDetail: { ...typography.body, color: colors.textMuted },
+  actionButtons: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  cancelAction: {
+    minHeight: 44,
+    justifyContent: "center",
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  confirmAction: {
+    minHeight: 44,
+    minWidth: 112,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.primary,
+  },
+  actionButtonText: { ...typography.label, color: colors.text },
+  applyMessage: { ...typography.label, color: colors.text, padding: spacing.md },
   sentImage: { width: 220, height: 150, borderRadius: radius.md, marginBottom: spacing.sm },
   fileChip: {
     marginBottom: spacing.sm,

@@ -85,7 +85,7 @@ test("ai-chat uses the supported strict JSON schema subset and safe provider dia
 test("nexora_response is an explicitly typed strict OpenAI schema", () => {
   assert.equal(NEXORA_RESPONSE_SCHEMA.type, "object");
   assert.equal(NEXORA_RESPONSE_SCHEMA.additionalProperties, false);
-  assert.deepEqual(NEXORA_RESPONSE_SCHEMA.required, ["message", "action"]);
+  assert.deepEqual(NEXORA_RESPONSE_SCHEMA.required, ["message", "action", "proposed_actions"]);
   assert.equal(NEXORA_RESPONSE_SCHEMA.properties.message.type, "string");
 
   const [nullable, action] = NEXORA_RESPONSE_SCHEMA.properties.action.anyOf;
