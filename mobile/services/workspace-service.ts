@@ -9,6 +9,14 @@ export type Project = {
   dueDate?: string | null;
   updatedAt?: string | null;
 };
+export type ProjectCheckInState = "progressed" | "unchanged" | "blocked" | "reorganize";
+export type ProjectCheckIn = {
+  id: string;
+  projectId: string;
+  state: ProjectCheckInState;
+  note: string;
+  createdAt: string;
+};
 export type Task = {
   id: string;
   title: string;
@@ -161,12 +169,56 @@ export async function updateProject(
 export async function getProject(
   userId: string,
   projectId: string,
-): Promise<{ project: Project; tasks: Task[] } | null> {
+): Promise<{ project: Project; tasks: Task[]; checkIns: ProjectCheckIn[] } | null> {
   const id = resource(projectId);
   const projects = await listProjects(userId);
   const project = projects.find((item) => item.id === id);
   if (!project) return null;
-  return { project, tasks: await listTasks(userId, id) };
+  const [tasks, checkIns] = await Promise.all([
+    listTasks(userId, id),
+    listProjectCheckIns(userId, id),
+  ]);
+  return { project, tasks, checkIns };
+}
+
+export async function listProjectCheckIns(
+  userId: string,
+  projectId: string,
+): Promise<ProjectCheckIn[]> {
+  const { data, error } = await supabase
+    .from("project_check_ins")
+    .select("id,project_id,state,note,created_at")
+    .eq("user_id", owner(userId))
+    .eq("project_id", resource(projectId))
+    .order("created_at", { ascending: false })
+    .limit(20);
+  if (error) throw workspaceMutationError(error);
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    projectId: row.project_id,
+    state: row.state as ProjectCheckInState,
+    note: row.note ?? "",
+    createdAt: row.created_at,
+  }));
+}
+
+export async function createProjectCheckIn(
+  userId: string,
+  projectId: string,
+  input: { state: ProjectCheckInState; note?: string },
+): Promise<string> {
+  const { data, error } = await supabase
+    .from("project_check_ins")
+    .insert({
+      user_id: owner(userId),
+      project_id: resource(projectId),
+      state: input.state,
+      note: input.note?.trim() || null,
+    })
+    .select("id")
+    .single();
+  if (error) throw workspaceMutationError(error);
+  return data.id;
 }
 
 export async function listTasks(userId: string, projectId?: string): Promise<Task[]> {

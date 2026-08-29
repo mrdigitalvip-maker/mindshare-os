@@ -15,21 +15,28 @@ import { useProject, useWorkspaceMutations } from "@/hooks/use-workspaces";
 import { getDueLabel } from "@/lib/dashboard-selectors";
 import {
   getProjectNextAction,
+  buildProjectAssistantContext,
+  getLatestProjectCheckIn,
+  getProjectActivityState,
+  getProjectBlockedTasks,
+  getProjectDeadlineSummary,
+  getProjectHealthState,
   getProjectHealthSummary,
   getProjectOverdueTasks,
   getProjectProgress,
   getProjectStatusLabel,
+  getProjectStudioNextAction,
   getProjectTaskSections,
   getProjectTodayTasks,
 } from "@/lib/project-selectors";
 import { colors, radius, spacing, typography } from "@/lib/theme";
-import type { Task } from "@/services/workspace-service";
+import type { ProjectCheckInState, Task } from "@/services/workspace-service";
 
 export default function ProjectWorkspace() {
   const params = useLocalSearchParams<{ projectId?: string }>();
   const projectId = typeof params.projectId === "string" ? params.projectId.trim() : "";
   const query = useProject(projectId);
-  const { mutateTask, updateProject, deleteProject } = useWorkspaceMutations();
+  const { mutateTask, updateProject, deleteProject, checkIn } = useWorkspaceMutations();
   const [taskTitle, setTaskTitle] = useState("");
   const [taskDueDate, setTaskDueDate] = useState("");
   const [taskModal, setTaskModal] = useState(false);
@@ -39,6 +46,8 @@ export default function ProjectWorkspace() {
   const [projectDescription, setProjectDescription] = useState("");
   const [projectDueDate, setProjectDueDate] = useState("");
   const [refreshing, setRefreshing] = useState(false);
+  const [checkInState, setCheckInState] = useState<ProjectCheckInState | null>(null);
+  const [checkInNote, setCheckInNote] = useState("");
 
   const tasks = useMemo(() => query.data?.tasks ?? [], [query.data?.tasks]);
   const sections = useMemo(() => getProjectTaskSections(tasks), [tasks]);
@@ -70,12 +79,25 @@ export default function ProjectWorkspace() {
       />
     );
   const { project } = query.data;
+  const checkIns = query.data.checkIns;
   const progress = getProjectProgress(tasks);
   const next = getProjectNextAction(tasks);
   const overdue = getProjectOverdueTasks(tasks).length;
   const today = getProjectTodayTasks(tasks).length;
   const open = tasks.filter((task) => !task.completed).length;
   const health = getProjectHealthSummary(project, tasks);
+  const healthState = getProjectHealthState(project, tasks);
+  const deadline = getProjectDeadlineSummary(project);
+  const blocked = getProjectBlockedTasks(tasks);
+  const studioAction = getProjectStudioNextAction(project, tasks);
+  const activity = getProjectActivityState(tasks, checkIns);
+  const latestCheckIn = getLatestProjectCheckIn(checkIns);
+  const completed = healthState === "completed";
+
+  function askNexora(question = "O que devo priorizar hoje?") {
+    const context = buildProjectAssistantContext(project, tasks, checkIns);
+    router.push({ pathname: "/assistant-chat", params: { prompt: `${question}\n\n${context}` } });
+  }
 
   function openTask(task?: Task) {
     setEditingTask(task ?? null);
@@ -139,6 +161,15 @@ export default function ProjectWorkspace() {
         </Text>
       </View>
       {project.description ? <Text style={styles.description}>{project.description}</Text> : null}
+      {!project.description ? (
+        <Text style={styles.objectiveMissing}>Defina um objetivo para orientar este projeto.</Text>
+      ) : null}
+      <View style={styles.heroSignals}>
+        <Text style={styles.healthBadge}>{healthState.replace("_", " ").toUpperCase()}</Text>
+        {deadline ? (
+          <Text style={deadline.days < 0 ? styles.danger : styles.meta}>{deadline.label}</Text>
+        ) : null}
+      </View>
       <View style={styles.actions}>
         <Pressable
           accessibilityRole="button"
@@ -177,7 +208,7 @@ export default function ProjectWorkspace() {
           style={styles.overview}
         >
           <View style={styles.overviewTop}>
-            <Text style={styles.sectionTitle}>Progresso</Text>
+            <Text style={styles.sectionTitle}>Progresso das tarefas</Text>
             <Text style={styles.progressCopy}>
               {progress.completed} de {progress.total}
             </Text>
@@ -205,29 +236,42 @@ export default function ProjectWorkspace() {
           })}
         </Text>
       ) : null}
-      <View style={styles.nextCard}>
-        <Text style={styles.eyebrow}>AGORA</Text>
-        <Text style={styles.nextTitle}>
-          {next?.title ??
-            (tasks.length
-              ? "Todas as tarefas concluídas"
-              : "Defina a primeira ação deste projeto.")}
-        </Text>
-        {next ? (
-          <Text style={[styles.meta, getDueLabel(next).startsWith("Atrasada") && styles.danger]}>
-            {getDueLabel(next)}
+      {!completed && studioAction ? (
+        <View style={styles.nextCard}>
+          <Text style={styles.eyebrow}>NEXORA AGORA</Text>
+          <Text style={styles.nextTitle}>{studioAction.message}</Text>
+          {next ? (
+            <Text style={[styles.meta, getDueLabel(next).startsWith("Atrasada") && styles.danger]}>
+              {getDueLabel(next)}
+            </Text>
+          ) : null}
+          <Pressable
+            accessibilityRole="button"
+            onPress={() =>
+              studioAction.task
+                ? router.push({
+                    pathname: "/tasks/[taskId]",
+                    params: { taskId: studioAction.task.id },
+                  })
+                : openTask()
+            }
+            style={styles.primaryButton}
+          >
+            <Text style={styles.primaryText}>
+              {studioAction.task ? "Abrir tarefa" : "Definir primeira ação"}
+            </Text>
+          </Pressable>
+        </View>
+      ) : completed ? (
+        <View style={styles.completedCard}>
+          <Text style={styles.eyebrow}>PROJETO CONCLUÍDO</Text>
+          <Text style={styles.meta}>
+            {progress
+              ? `${progress.completed} de ${progress.total} tarefas concluídas.`
+              : "Conclusão registrada sem tarefas cadastradas."}
           </Text>
-        ) : null}
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => openTask(next ?? undefined)}
-          style={styles.primaryButton}
-        >
-          <Text style={styles.primaryText}>
-            {next ? "Abrir tarefa" : tasks.length ? "Nova tarefa" : "Adicionar primeira tarefa"}
-          </Text>
-        </Pressable>
-      </View>
+        </View>
+      ) : null}
       {health.length ? (
         <View style={styles.attentionCard}>
           <Text style={styles.attentionTitle}>ATENÇÃO</Text>
@@ -238,6 +282,79 @@ export default function ProjectWorkspace() {
           ))}
         </View>
       ) : null}
+      {blocked.length ? (
+        <View style={styles.blockerCard}>
+          <Text style={styles.attentionTitle}>BLOQUEIO</Text>
+          {blocked.slice(0, 3).map((task) => (
+            <Pressable
+              key={task.id}
+              onPress={() =>
+                router.push({ pathname: "/tasks/[taskId]", params: { taskId: task.id } })
+              }
+            >
+              <Text style={styles.nextTitle}>{task.title}</Text>
+              {task.blockerNote ? <Text style={styles.meta}>“{task.blockerNote}”</Text> : null}
+              <Text style={styles.link}>Ver tarefa</Text>
+            </Pressable>
+          ))}
+          <Pressable
+            onPress={() => askNexora("Como destravo este projeto?")}
+            style={styles.secondaryButton}
+          >
+            <Text style={styles.secondaryText}>Pedir ajuda à NEXORA</Text>
+          </Pressable>
+        </View>
+      ) : null}
+      <View style={styles.checkInCard}>
+        <Text style={styles.sectionTitle}>Check-in do projeto</Text>
+        <Text style={styles.meta}>Como está o andamento?</Text>
+        <View style={styles.checkInOptions}>
+          {(
+            [
+              ["progressed", "Avancei"],
+              ["unchanged", "Sem mudança"],
+              ["blocked", "Estou bloqueado"],
+              ["reorganize", "Reorganizar"],
+            ] as const
+          ).map(([state, label]) => (
+            <Pressable
+              key={state}
+              onPress={() => {
+                setCheckInState(state);
+                setCheckInNote("");
+              }}
+              style={styles.checkInOption}
+            >
+              <Text style={styles.secondaryText}>{label}</Text>
+            </Pressable>
+          ))}
+        </View>
+        {latestCheckIn ? (
+          <View style={styles.memory}>
+            <Text style={styles.eyebrow}>ÚLTIMO CHECK-IN</Text>
+            <Text style={styles.description}>{latestCheckIn.note || latestCheckIn.state}</Text>
+            <Text style={styles.meta}>
+              {new Date(latestCheckIn.createdAt).toLocaleString("pt-BR")}
+            </Text>
+          </View>
+        ) : null}
+        {activity.state === "today" ? (
+          <Text style={styles.today}>Você avançou este projeto hoje.</Text>
+        ) : activity.state === "inactive" ? (
+          <Text style={styles.meta}>
+            Sem progresso significativo registrado há {activity.days} dias.
+          </Text>
+        ) : null}
+      </View>
+      <View style={styles.assistantCard}>
+        <Text style={styles.eyebrow}>NEXORA</Text>
+        <Text style={styles.description}>
+          Leve o contexto real deste projeto para a Assistente.
+        </Text>
+        <Pressable onPress={() => askNexora()} style={styles.primaryButton}>
+          <Text style={styles.primaryText}>Perguntar à NEXORA</Text>
+        </Pressable>
+      </View>
       <View style={styles.tasksHeading}>
         <Text style={styles.sectionTitle}>Tarefas</Text>
         <Pressable
@@ -259,13 +376,19 @@ export default function ProjectWorkspace() {
         ListHeaderComponent={header}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Text style={styles.emptyTitle}>Este projeto ainda não tem tarefas.</Text>
+            <Text style={styles.emptyTitle}>Este projeto ainda não tem um plano.</Text>
             <Pressable
               accessibilityRole="button"
               onPress={() => openTask()}
               style={styles.primaryButton}
             >
-              <Text style={styles.primaryText}>Adicionar primeira tarefa</Text>
+              <Text style={styles.primaryText}>Definir primeira ação</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => askNexora("Ajude a criar um plano para este projeto.")}
+              style={styles.secondaryButton}
+            >
+              <Text style={styles.secondaryText}>Pedir ajuda à NEXORA</Text>
             </Pressable>
           </View>
         }
@@ -337,6 +460,27 @@ export default function ProjectWorkspace() {
         }
       />
       <NativeFormModal
+        visible={Boolean(checkInState)}
+        title="Registrar check-in"
+        placeholder="Nota opcional sobre o que aconteceu"
+        value={checkInNote}
+        onChange={setCheckInNote}
+        busy={checkIn.isPending}
+        error={
+          checkIn.error
+            ? "Não foi possível registrar. Verifique sua conexão e tente novamente."
+            : null
+        }
+        onClose={() => setCheckInState(null)}
+        onSave={() =>
+          checkInState &&
+          void checkIn
+            .mutateAsync({ projectId, state: checkInState, note: checkInNote })
+            .then(() => setCheckInState(null))
+            .catch(() => undefined)
+        }
+      />
+      <NativeFormModal
         visible={taskModal}
         title={editingTask ? "Editar tarefa" : "Nova tarefa"}
         placeholder="O que precisa ser feito?"
@@ -400,6 +544,17 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   description: { ...typography.body, color: colors.textMuted },
+  objectiveMissing: { ...typography.body, color: colors.warning, fontStyle: "italic" },
+  heroSignals: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: spacing.sm },
+  healthBadge: {
+    ...typography.eyebrow,
+    color: colors.primaryBright,
+    borderWidth: 1,
+    borderColor: colors.accentMuted,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
   actions: { flexDirection: "row", gap: spacing.sm },
   secondaryButton: {
     minHeight: 44,
@@ -445,6 +600,52 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.accentMuted,
     backgroundColor: colors.surface,
+  },
+  completedCard: {
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.accentMuted,
+    backgroundColor: colors.surface,
+  },
+  blockerCard: {
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.danger,
+    backgroundColor: colors.surface,
+  },
+  checkInCard: {
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  checkInOptions: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  checkInOption: {
+    minHeight: 44,
+    justifyContent: "center",
+    paddingHorizontal: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+  },
+  memory: {
+    gap: spacing.xs,
+    marginTop: spacing.sm,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  assistantCard: {
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surfaceRaised,
   },
   attentionTitle: { ...typography.eyebrow, color: colors.warning },
   attentionCopy: { ...typography.body, color: colors.text },
