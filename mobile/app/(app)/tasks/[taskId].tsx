@@ -15,12 +15,17 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { ErrorState, LoadingState } from "@/components/screen-state";
 import { useProjects, useTasks, useWorkspaceMutations } from "@/hooks/use-workspaces";
 import {
+  buildTaskAssistantContext,
+  getTaskActivity,
   getRescheduleDate,
   getTaskDuePresentation,
   getTaskNudge,
   getTaskPriorityLabel,
+  getTaskProgressSummary,
+  getTaskRhythmState,
   getTaskWorkState,
 } from "@/lib/task-selectors";
+import { getProjectHealthState } from "@/lib/project-selectors";
 import { colors, radius, spacing, typography } from "@/lib/theme";
 import { cancelTaskReminder, scheduleTaskReminder } from "@/services/notification-service";
 import type { Task } from "@/services/workspace-service";
@@ -47,6 +52,7 @@ export default function TaskWorkspace() {
   const [blocker, setBlocker] = useState<string | null>(null);
   const [editingNext, setEditingNext] = useState(false);
   const [editingBlocker, setEditingBlocker] = useState(false);
+  const [checkingIn, setCheckingIn] = useState(false);
   const [error, setError] = useState("");
   if (tasks.isPending) return <LoadingState title="Preparando espaço de execução…" />;
   if (tasks.isError)
@@ -66,6 +72,9 @@ export default function TaskWorkspace() {
       />
     );
   const workState = getTaskWorkState(task);
+  const rhythm = getTaskRhythmState(task);
+  const progressSummary = getTaskProgressSummary(task);
+  const activity = getTaskActivity(task);
   const draftNext = nextAction ?? task.nextAction ?? "";
   const draftBlocker = blocker ?? task.blockerNote ?? "";
 
@@ -104,6 +113,28 @@ export default function TaskWorkspace() {
         ),
       )
       .catch(() => undefined);
+  const reopen = () =>
+    void update({ completed: false, executionStatus: "in_progress", reminderAt: null }).catch(
+      () => undefined,
+    );
+  const registerProgress = (state: "progressed" | "unchanged" | "blocked") => {
+    if (state === "unchanged") {
+      setCheckingIn(false);
+      Alert.alert("Sem mudança", "Nenhum progresso foi registrado.");
+      return;
+    }
+    const patch: Partial<Task> =
+      state === "progressed"
+        ? {
+            executionStatus: "in_progress",
+            lastProgressAt: new Date().toISOString(),
+            blockerNote: null,
+          }
+        : { executionStatus: "blocked" };
+    void update(patch)
+      .then(() => setCheckingIn(false))
+      .catch(() => undefined);
+  };
   const saveNext = () =>
     void update({ nextAction: draftNext })
       .then(() => {
@@ -145,6 +176,11 @@ export default function TaskWorkspace() {
       { text: "Cancelar", style: "cancel" },
     ]);
   }
+  function cancelReminder() {
+    void cancelTaskReminder(task!.id)
+      .then(() => update({ reminderAt: null }))
+      .catch(() => setError("Não foi possível cancelar o lembrete."));
+  }
   function changeDeadline() {
     const apply = (option: "tomorrow" | "next-week") =>
       void update({ dueDate: getRescheduleDate(option) }).catch(() => undefined);
@@ -154,18 +190,7 @@ export default function TaskWorkspace() {
       { text: "Cancelar", style: "cancel" },
     ]);
   }
-  const helpPrompt = [
-    `Ajude-me a executar esta tarefa sem alterar dados automaticamente.`,
-    `Tarefa: ${task.title}`,
-    task.description && `Descrição: ${task.description}`,
-    project && `Projeto: ${project.title}`,
-    `Prazo: ${task.dueDate ?? "sem prazo"}`,
-    `Prioridade: ${getTaskPriorityLabel(task.priority)}`,
-    task.nextAction && `Próxima ação: ${task.nextAction}`,
-    task.blockerNote && `Bloqueio: ${task.blockerNote}`,
-  ]
-    .filter(Boolean)
-    .join("\n");
+  const helpPrompt = buildTaskAssistantContext(task, project);
   const completedCount = projectTasks.filter(({ completed }) => completed).length;
   return (
     <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
@@ -178,13 +203,26 @@ export default function TaskWorkspace() {
             <Text style={styles.backText}>‹ Tarefas</Text>
           </Pressable>
           <Text style={styles.title}>{task.title}</Text>
+          {task.description ? <Text style={styles.description}>{task.description}</Text> : null}
           <Text style={styles.meta}>
             {project?.title ?? "Sem projeto"} · {getTaskPriorityLabel(task.priority)} ·{" "}
             {getTaskDuePresentation(task)}
           </Text>
           <Text style={styles.state}>{stateLabel[workState]}</Text>
-          <Card label="NEXORA ACOMPANHA">
+          <Card label="NEXORA NOW">
             <Text style={styles.body}>{getTaskNudge(task)}</Text>
+            <Text style={styles.muted}>Ritmo: {rhythm.replaceAll("_", " ")}</Text>
+            {(rhythm === "stale" || rhythm === "overdue") && (
+              <Button
+                label="Reorganizar com a NEXORA"
+                onPress={() =>
+                  router.push({
+                    pathname: "/assistant-chat",
+                    params: { prompt: `${helpPrompt}\nQuero reorganizar esta tarefa.` },
+                  })
+                }
+              />
+            )}
           </Card>
           <Card label="PRÓXIMA AÇÃO">
             {editingNext ? (
@@ -212,10 +250,37 @@ export default function TaskWorkspace() {
           </Card>
           <Card label="PROGRESSO">
             <Text style={styles.body}>{stateLabel[workState]}</Text>
+            {progressSummary ? <Text style={styles.muted}>{progressSummary}</Text> : null}
             <View style={styles.actions}>
               {workState === "not_started" && <Button label="Começar" onPress={start} />}
-              {workState !== "completed" && <Button label="Concluir" onPress={complete} />}
+              {workState === "in_progress" && (
+                <Button label="Continuar" onPress={() => setCheckingIn(true)} />
+              )}
+              {workState !== "completed" && (
+                <Button label="Registrar progresso" onPress={() => setCheckingIn(true)} />
+              )}
+              {workState !== "completed" ? (
+                <Button label="Concluir" onPress={complete} />
+              ) : (
+                <Button label="Reabrir" onPress={reopen} />
+              )}
             </View>
+            {checkingIn && workState !== "completed" ? (
+              <View style={styles.checkIn}>
+                <Text style={styles.muted}>Registre apenas o que realmente aconteceu.</Text>
+                <View style={styles.actions}>
+                  <Button label="Avancei" onPress={() => registerProgress("progressed")} />
+                  <Button label="Sem mudança" onPress={() => registerProgress("unchanged")} />
+                  <Button
+                    label="Estou bloqueado"
+                    onPress={() => {
+                      setCheckingIn(false);
+                      setEditingBlocker(true);
+                    }}
+                  />
+                </View>
+              </View>
+            ) : null}
           </Card>
           <Card label="BLOQUEIO">
             {editingBlocker ? (
@@ -240,12 +305,32 @@ export default function TaskWorkspace() {
                     onPress={() => setEditingBlocker(true)}
                   />
                 )}
+                {workState === "blocked" ? (
+                  <Button
+                    label="Resolver bloqueio"
+                    onPress={() => {
+                      setBlocker("");
+                      setEditingBlocker(true);
+                    }}
+                  />
+                ) : null}
               </>
             )}
           </Card>
           <Card label="AÇÕES">
+            <Text style={styles.body}>
+              {task.reminderAt
+                ? `Lembrete: ${new Date(task.reminderAt).toLocaleString("pt-BR")}`
+                : "Nenhum lembrete definido."}
+            </Text>
             <View style={styles.actions}>
-              <Button label="Adiar lembrete" onPress={remind} />
+              <Button
+                label={task.reminderAt ? "Alterar lembrete" : "Definir lembrete"}
+                onPress={remind}
+              />
+              {task.reminderAt ? (
+                <Button label="Cancelar lembrete" onPress={cancelReminder} />
+              ) : null}
               <Button label="Mudar prazo" onPress={changeDeadline} />
               <Button
                 label="Preciso de ajuda"
@@ -257,12 +342,32 @@ export default function TaskWorkspace() {
           </Card>
           {project && (
             <Card label="IMPACTO NO PROJETO">
-              <Text style={styles.body}>{project.title}</Text>
+              <Text style={styles.muted}>AVANÇA</Text>
+              <Pressable onPress={() => router.push(`/projects/${project.id}`)}>
+                <Text style={styles.projectLink}>{project.title}</Text>
+              </Pressable>
               <Text style={styles.muted}>
                 {completedCount} de {projectTasks.length} etapas concluídas.
               </Text>
+              <Text style={styles.muted}>
+                Saúde: {getProjectHealthState(project, projectTasks)}
+              </Text>
             </Card>
           )}
+          {activity.length ? (
+            <Card label="ATIVIDADE VERIFICÁVEL">
+              {activity.map((event) => (
+                <Text key={`${event.kind}-${event.at}`} style={styles.muted}>
+                  {event.kind === "started"
+                    ? "Iniciada"
+                    : event.kind === "completed"
+                      ? "Concluída"
+                      : "Progresso registrado"}{" "}
+                  · {new Date(event.at).toLocaleString("pt-BR")}
+                </Text>
+              ))}
+            </Card>
+          ) : null}
           {error ? (
             <Text accessibilityRole="alert" style={styles.error}>
               {error}
@@ -295,6 +400,7 @@ const styles = StyleSheet.create({
   back: { minHeight: 44, justifyContent: "center" },
   backText: { color: colors.primaryBright, ...typography.body },
   title: { color: colors.text, ...typography.title, fontSize: 28 },
+  description: { color: colors.text, ...typography.body, lineHeight: 24 },
   meta: { color: colors.textMuted, ...typography.caption },
   state: {
     alignSelf: "flex-start",
@@ -322,6 +428,8 @@ const styles = StyleSheet.create({
   },
   body: { color: colors.text, ...typography.body },
   muted: { color: colors.textMuted, ...typography.caption },
+  projectLink: { color: colors.primaryBright, ...typography.body, fontWeight: "700" },
+  checkIn: { gap: spacing.sm, paddingTop: spacing.sm },
   input: {
     minHeight: 72,
     color: colors.text,

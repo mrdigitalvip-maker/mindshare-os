@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { taskMutationInvalidations } from "../lib/query-keys";
 import {
+  buildTaskAssistantContext,
+  getTaskActivity,
   getFocusTask,
   getRescheduleDate,
   getTaskAttentionSummary,
@@ -12,6 +14,9 @@ import {
   getTaskNudge,
   getTaskNextActionState,
   getTaskStaleness,
+  getTaskRhythmState,
+  getTaskProgressSummary,
+  getTaskNotificationEligibility,
   getTaskWorkState,
   getTaskPriorityLabel,
   groupTasksForExecution,
@@ -84,7 +89,7 @@ test("presents dates with local-calendar execution semantics", () => {
     [null, "2026-08-19", "2026-08-20", "2026-08-21", "2026-08-22"].map((due) =>
       getTaskDuePresentation(task(String(due), due), now),
     ),
-    ["Sem prazo", "Atrasada", "Hoje", "Amanhã", "22 ago"],
+    ["Sem prazo", "Atrasada há 1 dia", "Hoje", "Amanhã", "Em 2 dias"],
   );
   assert.equal(getTaskExecutionState(task("done", null, true), now), "completed");
 });
@@ -125,10 +130,7 @@ test("priority orders focus candidates with the same deadline state", () => {
 
 test("a persisted next action outranks ordinary upcoming work", () => {
   const actionable = { ...task("action", null), nextAction: "Enviar o orçamento" };
-  assert.equal(
-    getFocusTask([task("ordinary", "2026-08-21"), actionable], now)?.id,
-    "action",
-  );
+  assert.equal(getFocusTask([task("ordinary", "2026-08-21"), actionable], now)?.id, "action");
 });
 
 test("active queues exclude completed tasks and duplicate ids", () => {
@@ -213,4 +215,111 @@ test("completion overrides stale active execution state", () => {
   const inconsistent = { ...task("done", null, true), executionStatus: "in_progress" as const };
   assert.equal(getTaskWorkState(inconsistent), "completed");
   assert.equal(getFocusTask([inconsistent], now), null);
+});
+
+test("rhythm uses only execution timestamps and respects lifecycle precedence", () => {
+  assert.equal(getTaskRhythmState(task("new", null), now), "not_started");
+  assert.equal(
+    getTaskRhythmState(
+      { ...task("today", null), executionStatus: "in_progress", startedAt: "2026-08-20T08:00:00" },
+      now,
+    ),
+    "started_today",
+  );
+  assert.equal(
+    getTaskRhythmState(
+      {
+        ...task("recent", null),
+        executionStatus: "in_progress",
+        lastProgressAt: "2026-08-19T12:00:00",
+      },
+      now,
+    ),
+    "active_recently",
+  );
+  assert.equal(
+    getTaskRhythmState(
+      {
+        ...task("stale", null),
+        executionStatus: "in_progress",
+        lastProgressAt: "2026-08-15T12:00:00",
+        updatedAt: "2026-08-20T12:00:00",
+      },
+      now,
+    ),
+    "stale",
+  );
+  assert.equal(
+    getTaskRhythmState({ ...task("blocked", "2026-08-01"), executionStatus: "blocked" }, now),
+    "blocked",
+  );
+  assert.equal(getTaskRhythmState(task("late", "2026-08-19"), now), "overdue");
+  assert.equal(getTaskRhythmState(task("done", "2026-08-01", true), now), "completed");
+});
+
+test("progress copy and activity never infer work from updatedAt", () => {
+  assert.equal(
+    getTaskProgressSummary({ ...task("active", null), lastProgressAt: "2026-08-19T12:00:00" }, now),
+    "Último progresso: ontem",
+  );
+  assert.deepEqual(
+    getTaskActivity({ ...task("edited", null), updatedAt: "2026-08-20T10:00:00" }),
+    [],
+  );
+  assert.deepEqual(
+    getTaskActivity({
+      ...task("active", null),
+      startedAt: "2026-08-18T10:00:00",
+      lastProgressAt: "2026-08-19T10:00:00",
+    }).map(({ kind }) => kind),
+    ["progress", "started"],
+  );
+});
+
+test("notification readiness exposes facts without scheduling anything", () => {
+  assert.deepEqual(
+    getTaskNotificationEligibility(
+      {
+        ...task("blocked", "2026-08-21"),
+        executionStatus: "blocked",
+        reminderAt: "2026-08-20T18:00:00Z",
+      },
+      now,
+    ),
+    {
+      explicitReminder: true,
+      overdue: false,
+      staleInProgress: false,
+      unresolvedBlocker: true,
+      dueSoon: true,
+    },
+  );
+});
+
+test("assistant context is bounded, real and preserves confirmation contract", () => {
+  const context = buildTaskAssistantContext(
+    {
+      ...task("a", "2026-08-21"),
+      title: "Enviar proposta",
+      nextAction: "Revisar preço",
+      blockerNote: "Aguardando jurídico",
+      executionStatus: "blocked",
+    },
+    { id: "p", title: "Lançamento", description: "Publicar o produto", status: "active" },
+  );
+  assert.match(context, /Preview → Confirmar → Aplicar/);
+  assert.match(context, /Estado: blocked/);
+  assert.match(context, /Projeto: Lançamento/);
+  assert.ok(context.length < 2500);
+});
+
+test("blocked tasks are attention, not an unactionable focus item", () => {
+  const blocked = {
+    ...task("blocked", "2026-08-01", false, "high"),
+    executionStatus: "blocked" as const,
+    blockerNote: "Dependência",
+  };
+  const actionable = { ...task("action", "2026-08-20"), nextAction: "Telefonar" };
+  assert.equal(getFocusTask([blocked, actionable], now)?.id, "action");
+  assert.match(getTaskAttentionSummary([blocked, actionable], [], now)[0], /bloqueada/);
 });

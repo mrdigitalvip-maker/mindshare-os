@@ -3,6 +3,18 @@ import type { Project, Task } from "@/services/workspace-service";
 export type TaskExecutionGroup = "overdue" | "today" | "upcoming" | "undated" | "completed";
 export type TaskQueue = "now" | "today" | "overdue" | "upcoming" | "undated" | "completed" | "all";
 export type TaskWorkState = "not_started" | "in_progress" | "blocked" | "completed";
+export type TaskRhythmState =
+  | "not_started"
+  | "started_today"
+  | "active_recently"
+  | "stale"
+  | "blocked"
+  | "overdue"
+  | "completed";
+
+export const TASK_STALE_AFTER_DAYS = 3;
+export const TASK_DUE_SOON_DAYS = 2;
+const DAY_MS = 86_400_000;
 
 const priorityLabels: Record<string, string> = { high: "Alta", medium: "Média", low: "Baixa" };
 const priorityRank: Record<string, number> = { high: 0, medium: 1, low: 2 };
@@ -54,8 +66,38 @@ export function getTaskNextActionState(task: Task) {
 
 export function getTaskStaleness(task: Task, now = new Date()) {
   if (getTaskWorkState(task) !== "in_progress" || !task.lastProgressAt) return null;
-  const days = Math.floor((now.getTime() - new Date(task.lastProgressAt).getTime()) / 86_400_000);
-  return Number.isFinite(days) && days >= 3 ? days : null;
+  const days = Math.floor((now.getTime() - new Date(task.lastProgressAt).getTime()) / DAY_MS);
+  return Number.isFinite(days) && days >= TASK_STALE_AFTER_DAYS ? days : null;
+}
+
+function meaningfulDaysAgo(value: string | null | undefined, now: Date) {
+  if (!value) return null;
+  const timestamp = new Date(value).getTime();
+  if (!Number.isFinite(timestamp)) return null;
+  return Math.max(0, Math.floor((now.getTime() - timestamp) / DAY_MS));
+}
+
+export function getTaskRhythmState(task: Task, now = new Date()): TaskRhythmState {
+  const work = getTaskWorkState(task);
+  if (work === "completed") return "completed";
+  if (work === "blocked") return "blocked";
+  if (getTaskExecutionState(task, now) === "overdue") return "overdue";
+  if (work === "not_started") return "not_started";
+  const progressDays = meaningfulDaysAgo(task.lastProgressAt, now);
+  const startedDays = meaningfulDaysAgo(task.startedAt, now);
+  if (progressDays === 0 || (progressDays === null && startedDays === 0)) return "started_today";
+  if (progressDays !== null && progressDays < TASK_STALE_AFTER_DAYS) return "active_recently";
+  return "stale";
+}
+
+export function getTaskProgressSummary(task: Task, now = new Date()) {
+  const days = meaningfulDaysAgo(task.lastProgressAt, now);
+  if (days === null) return null;
+  return days === 0
+    ? "Último progresso: hoje"
+    : days === 1
+      ? "Último progresso: ontem"
+      : `Último progresso: há ${days} dias`;
 }
 
 export function getTaskNudge(task: Task, now = new Date()) {
@@ -82,11 +124,70 @@ export function getTaskDuePresentation(task: Task, now = new Date()) {
   if (!due) return "Sem prazo";
   const today = dateKey(now);
   const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-  if (due < today) return "Atrasada";
+  if (due < today) {
+    const days = Math.round(
+      (new Date(`${today}T12:00:00`).getTime() - new Date(`${due}T12:00:00`).getTime()) / DAY_MS,
+    );
+    return `Atrasada há ${days} ${days === 1 ? "dia" : "dias"}`;
+  }
   if (due === today) return "Hoje";
   if (due === dateKey(tomorrow)) return "Amanhã";
+  const days = Math.round(
+    (new Date(`${due}T12:00:00`).getTime() - new Date(`${today}T12:00:00`).getTime()) / DAY_MS,
+  );
+  if (days <= 30) return `Em ${days} dias`;
   const [, month, day] = due.split("-").map(Number);
   return `${day} ${months[month - 1]}`;
+}
+
+export function getTaskNotificationEligibility(task: Task, now = new Date()) {
+  const deadline = getTaskExecutionState(task, now);
+  const due = normalizedDueDate(task);
+  const today = dateKey(now);
+  const daysUntilDue = due
+    ? Math.round(
+        (new Date(`${due}T12:00:00`).getTime() - new Date(`${today}T12:00:00`).getTime()) / DAY_MS,
+      )
+    : null;
+  return {
+    explicitReminder: Boolean(task.reminderAt),
+    overdue: deadline === "overdue",
+    staleInProgress: getTaskRhythmState(task, now) === "stale",
+    unresolvedBlocker: getTaskWorkState(task) === "blocked",
+    dueSoon: daysUntilDue !== null && daysUntilDue >= 0 && daysUntilDue <= TASK_DUE_SOON_DAYS,
+  };
+}
+
+export function getTaskActivity(task: Task) {
+  const events: { kind: "started" | "progress" | "completed"; at: string }[] = [];
+  if (task.startedAt) events.push({ kind: "started", at: task.startedAt });
+  if (task.lastProgressAt)
+    events.push({ kind: task.completed ? "completed" : "progress", at: task.lastProgressAt });
+  return events
+    .filter(({ at }) => Number.isFinite(new Date(at).getTime()))
+    .sort((a, b) => b.at.localeCompare(a.at));
+}
+
+/** Bounded, persisted context for the canonical Assistant. */
+export function buildTaskAssistantContext(task: Task, project?: Project | null) {
+  return [
+    "Ajude-me a executar esta tarefa. Não altere dados sem Preview → Confirmar → Aplicar.",
+    `Tarefa: ${task.title.slice(0, 160)}`,
+    task.description?.trim() && `Descrição: ${task.description.trim().slice(0, 600)}`,
+    `Estado: ${getTaskWorkState(task)}`,
+    `Prioridade: ${getTaskPriorityLabel(task.priority)}`,
+    `Prazo: ${task.dueDate ?? "sem prazo"}`,
+    task.nextAction?.trim() && `Próxima ação: ${task.nextAction.trim().slice(0, 300)}`,
+    task.blockerNote?.trim() && `Bloqueio: ${task.blockerNote.trim().slice(0, 300)}`,
+    task.startedAt && `Iniciada em: ${task.startedAt}`,
+    task.lastProgressAt && `Último progresso: ${task.lastProgressAt}`,
+    project && `Projeto: ${project.title.slice(0, 160)}`,
+    project?.description?.trim() &&
+      `Objetivo do projeto: ${project.description.trim().slice(0, 400)}`,
+    project?.dueDate && `Prazo do projeto: ${project.dueDate}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 export function sortTasksForExecution(tasks: Task[]) {
@@ -128,21 +229,25 @@ export function getFocusTask(tasks: Task[], now = new Date()) {
       if (priority) return priority;
       return sortTasksForExecution([a, b])[0].id === a.id ? -1 : 1;
     });
-  const open = uniqueTasks(tasks).filter((task) => !task.completed);
-  const overdue = byPriority(groups.overdue);
+  const open = uniqueTasks(tasks).filter(
+    (task) => !task.completed && getTaskWorkState(task) !== "blocked",
+  );
+  const actionableIds = new Set(open.map(({ id }) => id));
+  const overdue = byPriority(groups.overdue.filter(({ id }) => actionableIds.has(id)));
   return (
     overdue.find((task) => task.priority.toLowerCase() === "high") ??
     overdue[0] ??
-    byPriority(groups.today)[0] ??
+    byPriority(groups.today.filter(({ id }) => actionableIds.has(id)))[0] ??
     sortTasksForExecution(
       open.filter(
-        (task) =>
-          Boolean(task.nextAction?.trim()) || getTaskWorkState(task) === "in_progress",
+        (task) => Boolean(task.nextAction?.trim()) || getTaskWorkState(task) === "in_progress",
       ),
     )[0] ??
-    byPriority(groups.upcoming).find((task) => task.priority.toLowerCase() === "high") ??
-    byPriority(groups.upcoming)[0] ??
-    byPriority(groups.undated)[0] ??
+    byPriority(groups.upcoming.filter(({ id }) => actionableIds.has(id))).find(
+      (task) => task.priority.toLowerCase() === "high",
+    ) ??
+    byPriority(groups.upcoming.filter(({ id }) => actionableIds.has(id)))[0] ??
+    byPriority(groups.undated.filter(({ id }) => actionableIds.has(id)))[0] ??
     null
   );
 }
@@ -188,6 +293,11 @@ export function getTaskAttentionSummary(tasks: Task[], projects: Project[] = [],
     messages.push(
       `${groups.today.length} ${groups.today.length === 1 ? "tarefa vence" : "tarefas vencem"} hoje.`,
     );
+  const stale = uniqueTasks(tasks).filter((task) => getTaskRhythmState(task, now) === "stale");
+  if (stale.length)
+    messages.push(
+      `${stale.length} ${stale.length === 1 ? "tarefa está sem progresso recente" : "tarefas estão sem progresso recente"}.`,
+    );
   const loads = new Map<string, number>();
   for (const task of uniqueTasks(tasks))
     if (!task.completed && task.projectId)
@@ -202,7 +312,7 @@ export function getTaskAttentionSummary(tasks: Task[], projects: Project[] = [],
     messages.push(
       `${groups.undated.length === 1 ? "Há uma tarefa" : `Há ${groups.undated.length} tarefas`} sem prazo.`,
     );
-  return messages;
+  return messages.slice(0, 4);
 }
 
 export function getRescheduleDate(
