@@ -24,6 +24,12 @@ export default function More() {
           href="/journeys"
         />
         <ModuleCard
+          icon="◉"
+          title="Community"
+          description="Squads privados e apoio à execução verificada."
+          href="/community"
+        />
+        <ModuleCard
           icon="◎"
           title="Estudos"
           description="Matérias, metas, sessões e notas."
