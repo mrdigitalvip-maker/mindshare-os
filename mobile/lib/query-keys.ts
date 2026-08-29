@@ -21,6 +21,7 @@ export const queryKeys = {
   dailyMission: ["journeys", "daily-mission"] as const,
   momentum: ["journeys", "momentum"] as const,
   journeyChallenge: ["journeys", "challenge"] as const,
+  arena: ["arena"] as const,
 };
 
 export function taskMutationInvalidations(

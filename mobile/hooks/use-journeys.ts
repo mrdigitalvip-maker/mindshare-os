@@ -53,6 +53,7 @@ export function useJourneyMutations() {
         queryKeys.dailyMission,
         queryKeys.momentum,
         queryKeys.journeyChallenge,
+        queryKeys.arena,
         queryKeys.tasks,
         queryKeys.studyOverview,
       ].map((queryKey) => client.invalidateQueries({ queryKey })),
