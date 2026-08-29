@@ -59,7 +59,7 @@ export default function JourneyDetail() {
           <Pressable
             style={s.button}
             accessibilityRole="button"
-            onPress={() => router.push(target.href as never)}
+            onPress={() => router.push(target.href)}
           >
             <Text style={s.buttonText}>{target.label}</Text>
           </Pressable>

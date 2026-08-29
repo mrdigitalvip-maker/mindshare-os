@@ -5,7 +5,11 @@ import { resolveAppDestination, resolveAuthStatus } from "../lib/auth-state.ts";
 import { resolveCapabilityTier } from "../lib/capabilities.ts";
 import { normalizePushToken, notificationRoute } from "../lib/notification-routing.ts";
 import { normalizeAmplitude, normalizeNexoraState } from "../lib/nexora-state.ts";
-import { queryKeys, taskMutationInvalidations } from "../lib/query-keys.ts";
+import {
+  queryKeys,
+  taskMutationInvalidations,
+  verifiedExecutionInvalidations,
+} from "../lib/query-keys.ts";
 import { normalizeEntitlement } from "../lib/subscription.ts";
 import { presentAuthError } from "../lib/auth-errors.ts";
 import {
@@ -32,6 +36,18 @@ test("task mutations invalidate global and owning project data", () => {
     ["projects"],
     ["projects", "project-1"],
     ["tasks", "project", "project-1"],
+  ]);
+});
+test("verified execution refreshes every dependent read model with targeted keys", () => {
+  assert.deepEqual(verifiedExecutionInvalidations, [
+    ["tasks"],
+    ["study-subjects"],
+    ["study-overview"],
+    ["journeys"],
+    ["journeys", "momentum"],
+    ["journeys", "challenge"],
+    ["arena"],
+    ["community"],
   ]);
 });
 test("capabilities and subscriptions default conservatively", () => {

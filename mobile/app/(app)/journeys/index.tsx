@@ -119,7 +119,7 @@ export default function Journeys() {
                   style={s.button}
                   accessibilityRole="button"
                   accessibilityLabel={`${missionTarget.label}: ${mission.data.title}`}
-                  onPress={() => router.push(missionTarget.href as never)}
+                  onPress={() => router.push(missionTarget.href)}
                 >
                   <Text style={s.buttonText}>{missionTarget.label}</Text>
                 </Pressable>

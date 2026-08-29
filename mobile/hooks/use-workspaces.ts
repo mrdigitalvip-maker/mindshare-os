@@ -1,8 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { queryKeys, taskMutationInvalidations } from "@/lib/query-keys";
+import {
+  queryKeys,
+  taskMutationInvalidations,
+  verifiedExecutionInvalidations,
+} from "@/lib/query-keys";
 import { useAuth } from "@/providers/auth-provider";
 import * as service from "@/services/workspace-service";
-import type { Task } from "@/services/workspace-service";
 
 function useUserId() {
   const { session } = useAuth();
@@ -112,20 +115,11 @@ export function useWorkspaceMutations() {
         await service.updateTask(userId, input.taskId, input.patch);
       else await service.deleteTask(userId, input.taskId);
     },
-    onMutate: async (input) => {
-      if (input.action !== "update" || input.patch.completed === undefined) return undefined;
-      await client.cancelQueries({ queryKey: queryKeys.tasks });
-      const previous = client.getQueryData<Task[]>(queryKeys.tasks);
-      client.setQueryData<Task[]>(queryKeys.tasks, (tasks) =>
-        tasks?.map((task) =>
-          task.id === input.taskId ? { ...task, completed: input.patch.completed! } : task,
-        ),
-      );
-      return { previous };
-    },
-    onError: (_error, _input, context) => {
-      if (context?.previous) client.setQueryData(queryKeys.tasks, context.previous);
-    },
+    // Completion is server-authoritative; never paint unverifiable optimistic progress.
+    onSuccess: (_data, input) =>
+      input.action === "update" && input.patch.completed === true
+        ? invalidate(client, verifiedExecutionInvalidations)
+        : undefined,
     onSettled: (_data, _error, input) =>
       invalidate(
         client,
@@ -185,12 +179,15 @@ export function useWorkspaceMutations() {
       if (input.action === "note") return service.saveStudyNote(userId, input.subjectId, input);
       return service.deleteStudyNote(userId, input.noteId);
     },
-    onSuccess: (_data, input) =>
-      invalidate(client, [
+    onSuccess: async (_data, input) => {
+      await invalidate(client, [
         queryKeys.studySubjects,
         queryKeys.studyOverview,
         queryKeys.studySubject(input.subjectId),
-      ]),
+      ]);
+      if (input.action === "session-finish")
+        await invalidate(client, verifiedExecutionInvalidations);
+    },
   });
   return { createProject, updateProject, deleteProject, mutateTask, createSubject, study };
 }
