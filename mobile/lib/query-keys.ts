@@ -21,6 +21,8 @@ export const queryKeys = {
   dailyMission: ["journeys", "daily-mission"] as const,
   momentum: ["journeys", "momentum"] as const,
   journeyChallenge: ["journeys", "challenge"] as const,
+  journeyPacks: ["journey-packs"] as const,
+  journeyPack: (slug: string) => ["journey-packs", validId(slug)] as const,
   arena: ["arena"] as const,
   community: ["community"] as const,
   squad: (id: string) => ["community", "squad", validId(id)] as const,

@@ -96,6 +96,14 @@ export default function Journeys() {
           }
         />
         <Text style={s.promise}>Seu objetivo, uma próxima ação real e progresso verificável.</Text>
+        <Pressable accessibilityRole="button" style={s.card} onPress={() => router.push("/packs")}>
+          <Text style={s.meta}>JOURNEY PACKS</Text>
+          <Text style={s.cardTitle}>Comece com um programa guiado</Text>
+          <Text style={s.muted}>
+            Escolha um resultado e revise a estrutura antes de criar sua Jornada.
+          </Text>
+          <Text style={s.link}>Explorar programas ›</Text>
+        </Pressable>
         <Section title="MISSÃO DE HOJE">
           {mission.data ? (
             <View style={s.hero}>

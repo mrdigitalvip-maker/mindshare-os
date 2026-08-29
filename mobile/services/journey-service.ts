@@ -25,6 +25,8 @@ const journeyFrom = (r: Record<string, unknown>): Journey => ({
   targetDate: typeof r.target_date === "string" ? r.target_date : null,
   createdAt: String(r.created_at),
   updatedAt: String(r.updated_at),
+  sourcePackId: typeof r.source_pack_id === "string" ? r.source_pack_id : null,
+  sourcePackVersion: r.source_pack_version == null ? null : Number(r.source_pack_version),
 });
 const missionFrom = (r: Record<string, unknown>): JourneyMission => ({
   id: String(r.id),
