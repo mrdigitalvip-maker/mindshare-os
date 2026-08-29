@@ -89,6 +89,18 @@ export function useWorkspaceMutations() {
     onSuccess: (_data, projectId) =>
       invalidate(client, [queryKeys.projects, queryKeys.tasks, queryKeys.project(projectId)]),
   });
+  const checkIn = useMutation({
+    mutationFn: ({
+      projectId,
+      ...input
+    }: Parameters<typeof service.createProjectCheckIn>[2] & { projectId: string }) =>
+      service.createProjectCheckIn(userId, projectId, input),
+    onSuccess: (_data, input) =>
+      invalidate(client, [
+        queryKeys.project(input.projectId),
+        queryKeys.projectCheckIns(input.projectId),
+      ]),
+  });
   const mutateTask = useMutation({
     mutationFn: async (
       input:
@@ -189,5 +201,5 @@ export function useWorkspaceMutations() {
         await invalidate(client, verifiedExecutionInvalidations);
     },
   });
-  return { createProject, updateProject, deleteProject, mutateTask, createSubject, study };
+  return { createProject, updateProject, deleteProject, checkIn, mutateTask, createSubject, study };
 }
