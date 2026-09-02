@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { workspaceMutationError } from "@/lib/mutation-errors";
+import { normalizeSessionInput, normalizeSubjectInput } from "@/lib/study-input";
 
 export type Project = {
   id: string;
@@ -37,7 +38,7 @@ export type Subject = {
   id: string;
   name: string;
   description: string;
-  status: string;
+  status: "active" | "paused" | "completed";
   color: string;
   objective?: string;
   weeklyTargetMinutes?: number | null;
@@ -322,13 +323,16 @@ export async function listSubjects(userId: string): Promise<Subject[]> {
     .from("study_subjects")
     .select("id,name,description,status,color,objective,weekly_target_minutes,next_action")
     .eq("user_id", owner(userId))
-    .order("updated_at", { ascending: false });
+    .order("updated_at", { ascending: false })
+    .order("id", { ascending: true });
   if (error) throw workspaceMutationError(error);
   return (data ?? []).map((row) => ({
     id: row.id,
     name: row.name ?? "Matéria sem nome",
     description: row.description ?? "",
-    status: row.status ?? "active",
+    status: (["active", "paused", "completed"].includes(row.status ?? "")
+      ? row.status
+      : "active") as Subject["status"],
     color: row.color ?? "#B9854B",
     objective: row.objective ?? "",
     weeklyTargetMinutes: row.weekly_target_minutes ?? null,
@@ -339,17 +343,15 @@ export async function createSubject(
   userId: string,
   input: { name: string; objective?: string; weeklyTargetMinutes?: number | null },
 ): Promise<string> {
-  const weekly = input.weeklyTargetMinutes;
-  if (weekly != null && (!Number.isInteger(weekly) || weekly < 1 || weekly > 10080))
-    throw new Error("Meta semanal inválida.");
+  const normalized = normalizeSubjectInput(input);
   const { data, error } = await supabase
     .from("study_subjects")
     .insert({
       user_id: owner(userId),
-      name: required(input.name, "Subject name"),
-      objective: input.objective?.trim() || null,
-      description: input.objective?.trim() || "",
-      weekly_target_minutes: weekly ?? null,
+      name: normalized.name,
+      objective: normalized.objective ?? null,
+      description: normalized.objective ?? "",
+      weekly_target_minutes: normalized.weeklyTargetMinutes,
     })
     .select("id")
     .single();
@@ -359,7 +361,12 @@ export async function createSubject(
 export async function updateSubject(
   userId: string,
   subjectId: string,
-  patch: { objective?: string; nextAction?: string; weeklyTargetMinutes?: number | null },
+  patch: {
+    objective?: string;
+    nextAction?: string;
+    weeklyTargetMinutes?: number | null;
+    status?: Subject["status"];
+  },
 ): Promise<void> {
   const update = {
     ...(patch.objective !== undefined
@@ -369,6 +376,7 @@ export async function updateSubject(
     ...(patch.weeklyTargetMinutes !== undefined
       ? { weekly_target_minutes: patch.weeklyTargetMinutes }
       : {}),
+    ...(patch.status !== undefined ? { status: patch.status } : {}),
     updated_at: new Date().toISOString(),
   };
   const { data, error } = await supabase
@@ -380,6 +388,17 @@ export async function updateSubject(
     .maybeSingle();
   if (error) throw workspaceMutationError(error);
   if (!data) throw new Error("Subject not found.");
+}
+export async function deleteSubject(userId: string, subjectId: string): Promise<void> {
+  const { data, error } = await supabase
+    .from("study_subjects")
+    .delete()
+    .eq("id", resource(subjectId))
+    .eq("user_id", owner(userId))
+    .select("id")
+    .maybeSingle();
+  if (error) throw workspaceMutationError(error);
+  if (!data) throw new Error("Matéria não encontrada.");
 }
 export async function getSubjectWorkspace(
   userId: string,
@@ -444,7 +463,9 @@ export async function getSubjectWorkspace(
 }
 export async function listStudyWorkspaces(userId: string): Promise<SubjectWorkspace[]> {
   const subjects = await listSubjects(userId);
-  const workspaces = await Promise.all(subjects.map(({ id }) => getSubjectWorkspace(userId, id)));
+  // IDs are the identity contract: equal names remain separate user records.
+  const unique = [...new Map(subjects.map((subject) => [subject.id, subject])).values()];
+  const workspaces = await Promise.all(unique.map(({ id }) => getSubjectWorkspace(userId, id)));
   return workspaces.filter((item): item is SubjectWorkspace => item !== null);
 }
 export async function createStudyGoal(
@@ -507,18 +528,28 @@ export async function startStudySession(
   activity: string,
   plannedMinutes: number,
 ): Promise<string> {
-  if (!Number.isInteger(plannedMinutes) || plannedMinutes < 1 || plannedMinutes > 1440)
-    throw new Error("Duração planejada inválida.");
+  const normalized = normalizeSessionInput(activity, plannedMinutes);
+  const { data: current, error: currentError } = await supabase
+    .from("study_sessions")
+    .select("id,subject_id")
+    .eq("user_id", owner(userId))
+    .eq("status", "active")
+    .maybeSingle();
+  if (currentError) throw workspaceMutationError(currentError);
+  if (current) {
+    if (current.subject_id === resource(subjectId)) return current.id;
+    throw workspaceMutationError({ message: "STUDY_ACTIVE_SESSION_CONFLICT" });
+  }
   const { data, error } = await supabase
     .from("study_sessions")
     .insert({
       user_id: owner(userId),
       subject_id: resource(subjectId),
-      activity: required(activity, "Activity"),
+      activity: normalized.activity,
       duration: 0,
       completed: false,
       status: "active",
-      planned_minutes: plannedMinutes,
+      planned_minutes: normalized.plannedMinutes,
       started_at: new Date().toISOString(),
     })
     .select("id")
@@ -546,7 +577,7 @@ export async function finishStudySession(
     1,
     Math.round((ended.getTime() - new Date(data.started_at).getTime()) / 60000),
   );
-  const { error } = await supabase
+  const { data: finished, error } = await supabase
     .from("study_sessions")
     .update({
       activity: required(input.activity, "Activity"),
@@ -559,8 +590,11 @@ export async function finishStudySession(
     })
     .eq("id", resource(sessionId))
     .eq("user_id", user)
-    .eq("status", "active");
+    .eq("status", "active")
+    .select("id")
+    .maybeSingle();
   if (error) throw workspaceMutationError(error);
+  if (!finished) throw new Error("Sessão ativa não encontrada.");
 }
 export async function saveStudyNote(
   userId: string,

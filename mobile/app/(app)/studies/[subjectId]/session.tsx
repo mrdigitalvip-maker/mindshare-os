@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, AppState, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { ErrorState, LoadingState } from "@/components/screen-state";
@@ -10,6 +10,8 @@ export default function StudySession() {
   const subjectId = typeof raw === "string" ? raw : "";
   const query = useSubject(subjectId);
   const { study } = useWorkspaceMutations();
+  const startRef = useRef(false),
+    finishRef = useRef(false);
   const [activity, setActivity] = useState(""),
     [planned, setPlanned] = useState("25"),
     [now, setNow] = useState(new Date()),
@@ -47,20 +49,28 @@ export default function StudySession() {
     );
   const display = `${String(Math.floor(elapsed / 60)).padStart(2, "0")}:${String(elapsed % 60).padStart(2, "0")}`;
   async function start() {
+    if (startRef.current) return;
     const minutes = Number(planned);
+    startRef.current = true;
     try {
       await study.mutateAsync({
         action: "session-start",
         subjectId,
-        activity: activity || query.data!.subject.nextAction || "Estudo focado",
+        activity: activity.trim(),
         plannedMinutes: minutes,
       });
-    } catch {
-      Alert.alert("Não foi possível iniciar", "Verifique os dados e tente novamente.");
+    } catch (error) {
+      Alert.alert(
+        "Não foi possível iniciar",
+        error instanceof Error ? error.message : "Revise os dados e tente novamente.",
+      );
+    } finally {
+      startRef.current = false;
     }
   }
   async function finish() {
-    if (!active) return;
+    if (!active || finishRef.current) return;
+    finishRef.current = true;
     try {
       await study.mutateAsync({
         action: "session-finish",
@@ -70,8 +80,13 @@ export default function StudySession() {
         reflection,
       });
       router.replace(`/studies/${subjectId}`);
-    } catch {
-      Alert.alert("Não foi possível encerrar", "A sessão continua salva. Tente novamente.");
+    } catch (error) {
+      Alert.alert(
+        "Não foi possível encerrar",
+        error instanceof Error ? error.message : "A sessão continua salva. Tente novamente.",
+      );
+    } finally {
+      finishRef.current = false;
     }
   }
   return (
@@ -96,7 +111,11 @@ export default function StudySession() {
             value={planned}
             onChangeText={setPlanned}
           />
-          <Pressable style={styles.primary} onPress={() => void start()}>
+          <Pressable
+            disabled={study.isPending || !activity.trim()}
+            style={styles.primary}
+            onPress={() => void start()}
+          >
             <Text style={styles.primaryText}>
               {study.isPending ? "Iniciando…" : "Iniciar foco"}
             </Text>

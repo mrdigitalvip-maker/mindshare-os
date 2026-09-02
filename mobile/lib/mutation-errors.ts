@@ -1,6 +1,14 @@
 type BackendError = { message?: string; details?: string; code?: string; hint?: string };
 export type MutationErrorKind =
-  "free-limit" | "invalid-date" | "authentication" | "permission" | "network" | "unexpected";
+  | "free-limit"
+  | "invalid-date"
+  | "invalid-input"
+  | "not-found"
+  | "active-session"
+  | "authentication"
+  | "permission"
+  | "network"
+  | "unexpected";
 export class WorkspaceMutationError extends Error {
   constructor(
     message: string,
@@ -19,6 +27,17 @@ const messages: Record<string, string> = {
 };
 export function workspaceMutationError(error: unknown): Error {
   const backend = error as BackendError;
+  if (
+    backend?.message === "STUDY_ACTIVE_SESSION_CONFLICT" ||
+    `${backend?.message ?? ""} ${backend?.details ?? ""}`.includes(
+      "study_sessions_one_active_per_user",
+    )
+  )
+    return new WorkspaceMutationError(
+      "Já existe uma sessão de estudo em andamento. Encerre ou retome essa sessão primeiro.",
+      "active-session",
+      error,
+    );
   if (backend?.message === "TASK_STATE_CONFLICT")
     return new WorkspaceMutationError(
       "Não foi possível salvar: o estado da tarefa é inconsistente.",
@@ -38,6 +57,18 @@ export function workspaceMutationError(error: unknown): Error {
     );
   }
   const text = `${backend?.message ?? ""} ${backend?.details ?? ""}`.toLowerCase();
+  if (text.includes("weekly_target_minutes") || text.includes("planned_minutes"))
+    return new WorkspaceMutationError(
+      "Revise os minutos informados e tente novamente.",
+      "invalid-input",
+      error,
+    );
+  if (text.includes("not found") || text.includes("não encontrada"))
+    return new WorkspaceMutationError(
+      "A matéria ou sessão não foi encontrada.",
+      "not-found",
+      error,
+    );
   if (
     text.includes("journey_invalid_date") ||
     backend?.code === "23514" ||
@@ -64,7 +95,7 @@ export function workspaceMutationError(error: unknown): Error {
     text.includes("permission denied")
   )
     return new WorkspaceMutationError(
-      "Sua sessão não tem permissão para alterar esta Jornada.",
+      "Sua sessão não tem permissão para alterar este item.",
       "permission",
       error,
     );

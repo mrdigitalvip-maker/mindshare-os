@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { router } from "expo-router";
 import { NativeFormModal } from "@/components/native-form-modal";
@@ -14,6 +14,7 @@ import { colors, radius, spacing, typography } from "@/lib/theme";
 export default function Estudos() {
   const query = useStudyOverview();
   const { createSubject } = useWorkspaceMutations();
+  const savingRef = useRef(false);
   const [modal, setModal] = useState(false),
     [name, setName] = useState(""),
     [objective, setObjective] = useState(""),
@@ -31,14 +32,20 @@ export default function Estudos() {
   const workspaces = query.data ?? [];
   const allSessions = workspaces.flatMap((item) => item.sessions);
   async function save() {
+    if (savingRef.current) return;
     const parsed = weekly.trim() ? Number(weekly) : null;
-    if (parsed !== null && (!Number.isInteger(parsed) || parsed < 1)) return;
-    const id = await createSubject.mutateAsync({ name, objective, weeklyTargetMinutes: parsed });
-    setModal(false);
-    setName("");
-    setObjective("");
-    setWeekly("120");
-    router.push(`/studies/${id}`);
+    if (parsed !== null && (!Number.isInteger(parsed) || parsed < 1 || parsed > 10080)) return;
+    savingRef.current = true;
+    try {
+      const id = await createSubject.mutateAsync({ name, objective, weeklyTargetMinutes: parsed });
+      setModal(false);
+      setName("");
+      setObjective("");
+      setWeekly("120");
+      router.push(`/studies/${id}`);
+    } finally {
+      savingRef.current = false;
+    }
   }
   return (
     <View style={styles.page}>
@@ -105,6 +112,13 @@ export default function Estudos() {
               <View style={[styles.color, { backgroundColor: item.subject.color }]} />
               <View style={styles.flex}>
                 <Text style={styles.cardTitle}>{item.subject.name}</Text>
+                <Text style={styles.status}>
+                  {item.subject.status === "active"
+                    ? "Em andamento"
+                    : item.subject.status === "paused"
+                      ? "Pausada"
+                      : "Concluída"}
+                </Text>
                 {item.subject.objective ? (
                   <Text style={styles.copy}>{item.subject.objective}</Text>
                 ) : null}
@@ -130,7 +144,10 @@ export default function Estudos() {
         onSecondaryChange={setObjective}
         busy={createSubject.isPending}
         error={createSubject.error?.message}
-        onClose={() => setModal(false)}
+        errorMessage={createSubject.error?.message}
+        onClose={() => {
+          if (!savingRef.current) setModal(false);
+        }}
         onSave={() => void save()}
       >
         <TextInput
@@ -197,6 +214,7 @@ const styles = StyleSheet.create({
   copy: { ...typography.body, color: colors.textMuted },
   next: { ...typography.label, color: colors.primaryBright },
   meta: { ...typography.caption, color: colors.textMuted },
+  status: { ...typography.caption, color: colors.primaryBright },
   input: {
     minHeight: 50,
     padding: spacing.md,

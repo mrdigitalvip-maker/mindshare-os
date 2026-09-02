@@ -172,7 +172,8 @@ export function useWorkspaceMutations() {
             reflection: "understood" | "review" | "difficult";
           }
         | { action: "note"; subjectId: string; id?: string; title: string; content: string }
-        | { action: "delete-note"; subjectId: string; noteId: string },
+        | { action: "delete-note"; subjectId: string; noteId: string }
+        | { action: "delete-subject"; subjectId: string },
     ) => {
       if (input.action === "subject")
         return service.updateSubject(userId, input.subjectId, input.patch);
@@ -189,6 +190,7 @@ export function useWorkspaceMutations() {
       if (input.action === "session-finish")
         return service.finishStudySession(userId, input.sessionId, input);
       if (input.action === "note") return service.saveStudyNote(userId, input.subjectId, input);
+      if (input.action === "delete-subject") return service.deleteSubject(userId, input.subjectId);
       return service.deleteStudyNote(userId, input.noteId);
     },
     onSuccess: async (_data, input) => {
