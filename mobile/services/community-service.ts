@@ -205,6 +205,7 @@ export async function sendMessage(
   channelId: string,
   body: string,
   requestId: string,
+  replyToId?: string | null,
 ) {
   requireUser(userId);
   const clean = body.trim();
@@ -214,7 +215,7 @@ export async function sendMessage(
     p_channel: channelId,
     p_body: clean,
     p_client_request_id: requestId,
-    p_reply_to: null,
+    p_reply_to: replyToId ?? null,
   });
 }
 export async function reactToMessage(

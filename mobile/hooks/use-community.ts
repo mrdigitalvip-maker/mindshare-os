@@ -70,8 +70,8 @@ export function useMessageActions(channelId: string) {
     done = () => c.invalidateQueries({ queryKey: queryKeys.communityMessages(channelId) });
   return {
     send: useMutation({
-      mutationFn: (p: { body: string; requestId: string }) =>
-        service.sendMessage(id, channelId, p.body, p.requestId),
+      mutationFn: (p: { body: string; requestId: string; replyToId?: string | null }) =>
+        service.sendMessage(id, channelId, p.body, p.requestId, p.replyToId),
       onSuccess: done,
     }),
     react: useMutation({
@@ -101,7 +101,10 @@ export function useSaveCommunityProfile() {
     c = useQueryClient();
   return useMutation({
     mutationFn: (p: Parameters<typeof service.saveProfile>[1]) => service.saveProfile(id, p),
-    onSuccess: () => invalidate(c),
+    onSuccess: async () => {
+      await invalidate(c);
+      await c.refetchQueries({ queryKey: queryKeys.community });
+    },
   });
 }
 export function useCreateSquad() {

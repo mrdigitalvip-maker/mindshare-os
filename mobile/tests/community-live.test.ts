@@ -40,13 +40,13 @@ describe("Community Live server contract", () => {
     expect(service).toContain("const clean = body.trim()");
     expect(service).toContain("clean.length > 1200");
     expect(service).toContain("p_client_request_id: requestId");
-    expect(conversation).toContain("send(failed.body, failed.requestId)");
+    expect(conversation).toContain("send(failed.body, failed.requestId, failed.replyToId)");
     expect(conversation).toContain("onSuccess: () =>");
     expect(conversation).not.toContain('setBody("");\n    setFailed(null);');
   });
   test("conversation route never exposes its filesystem route header", () => {
     expect(layout).toContain('name="community/[channelId]" options={{ headerShown: false }}');
-    expect(conversation).toContain('"NEXORA Community"');
+    expect(conversation).toContain("NEXORA Community");
   });
   test("backend errors have specific human-readable messages", () => {
     expect(communityErrorMessage(new Error("membership_required"))).toContain("Entre");
@@ -148,9 +148,37 @@ describe("Community Live server contract", () => {
     expect(service).toContain("removeChannel(channel)");
     expect(service).toContain("setTimeout(onChange, 120)");
     expect(conversation).toContain("reconcileCommunityMessages");
-    expect(conversation).toContain("actions.react.isPending");
+    expect(conversation).toContain("actions.react.mutate");
   });
   test("notifications default conservatively", () => {
     expect(sql).toContain("default 'highlights'");
+  });
+});
+
+describe("Community physical acceptance hotfix", () => {
+  test("reply is canonical and retry preserves request and reply IDs", () => {
+    expect(service).toContain("replyToId?: string | null");
+    expect(service).toContain("p_reply_to: replyToId ?? null");
+    expect(conversation).toContain("send(failed.body, failed.requestId, failed.replyToId)");
+  });
+  test("Android composer follows the stable keyboard contract", () => {
+    expect(conversation).toContain('behavior={Platform.OS === "ios" ? "padding" : "height"}');
+    expect(conversation).toContain('keyboardDismissMode="interactive"');
+    expect(conversation).toContain('keyboardShouldPersistTaps="handled"');
+    expect(conversation).toContain("multiline");
+    expect(conversation).toContain("scrollEnabled");
+    expect(conversation).toContain("blurOnSubmit={false}");
+    expect(conversation).toContain("value={body}");
+  });
+  test("Host identity and contextual actions replace technical alerts", () => {
+    expect(conversation).toContain("NEXORA Host");
+    expect(conversation).toContain("AUTOMÁTICO");
+    expect(conversation).not.toContain("Mensagem oficial automatizada — não é uma pessoa.");
+    expect(conversation).toContain('label="Bloquear usuário"');
+    expect(conversation).toContain("messageActions(message)");
+  });
+  test("zero-count reaction controls are absent from message rows", () => {
+    expect(conversation).toContain("> 0");
+    expect(conversation).not.toContain("item.reactions[r] ?? 0");
   });
 });
