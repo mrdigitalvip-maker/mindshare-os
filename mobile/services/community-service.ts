@@ -10,6 +10,7 @@ import type {
   SquadDetail,
 } from "@/lib/community";
 import { isCommunityRequestId } from "@/lib/community-message";
+import { normalizeCommunityProfile, profileValidation } from "@/lib/community-ui";
 
 const requireUser = (id: string) => {
   if (!id.trim()) throw new Error("Authenticated user required.");
@@ -59,27 +60,36 @@ export async function getCommunityHome(userId: string): Promise<CommunityHome> {
 }
 export async function saveProfile(userId: string, profile: CommunityProfile) {
   requireUser(userId);
+  const clean = normalizeCommunityProfile(profile);
+  const validation = profileValidation(
+    clean.displayName ?? "",
+    clean.username ?? "",
+    clean.visibility === "community",
+  );
+  if (validation || (clean.bio?.length ?? 0) > 240) throw new Error("profile_invalid");
   await rpc("upsert_community_profile", {
-    p_display_name: profile.displayName,
-    p_username: profile.username,
-    p_bio: profile.bio,
-    p_visibility: profile.visibility,
-    p_show_momentum: profile.showMomentum,
-    p_show_streak: profile.showStreak,
-    p_show_activity: profile.showVerifiedActivity,
+    p_display_name: clean.displayName,
+    p_username: clean.username,
+    p_bio: clean.bio,
+    p_visibility: clean.visibility,
+    p_show_momentum: clean.showMomentum,
+    p_show_streak: clean.showStreak,
+    p_show_activity: clean.showVerifiedActivity,
   });
 }
 export async function createSquad(userId: string, name: string, description: string) {
   requireUser(userId);
+  const cleanName = name.trim();
+  if (cleanName.length < 2 || cleanName.length > 60) throw new Error("squad_name_invalid");
   return rpc<string>("create_squad", {
-    p_name: name,
-    p_description: description || null,
+    p_name: cleanName,
+    p_description: description.trim() || null,
     p_max_members: 8,
   });
 }
 export async function acceptInvite(userId: string, code: string) {
   requireUser(userId);
-  return rpc<string>("accept_squad_invite", { p_code: code });
+  return rpc<string>("accept_squad_invite", { p_code: code.trim().toUpperCase() });
 }
 export async function getSquad(userId: string, squadId: string): Promise<SquadDetail | null> {
   requireUser(userId);

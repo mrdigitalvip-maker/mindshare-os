@@ -2,6 +2,24 @@ import type { CommunityMessage } from "@/lib/community";
 
 export const COMMUNITY_USERNAME = /^[a-z][a-z0-9_]{2,29}$/;
 
+export const normalizeCommunityUsername = (value: string) =>
+  value.trim().replace(/^@+/, "").toLocaleLowerCase("pt-BR");
+
+export function normalizeCommunityProfile<
+  T extends {
+    displayName: string | null;
+    username: string | null;
+    bio: string | null;
+  },
+>(profile: T): T {
+  return {
+    ...profile,
+    displayName: profile.displayName?.trim() || null,
+    username: normalizeCommunityUsername(profile.username ?? "") || null,
+    bio: profile.bio?.trim() || null,
+  };
+}
+
 export function profileValidation(displayName: string, username: string, isVisible: boolean) {
   if (displayName.trim().length > 60) return "O nome público deve ter até 60 caracteres.";
   if (username && !COMMUNITY_USERNAME.test(username))
@@ -69,4 +87,18 @@ export function messageActions(message: CommunityMessage) {
       !message.isSelf &&
       Boolean(message.senderPublicId),
   };
+}
+
+/** Keeps the legacy native clipboard bridge contained and non-fatal on supported RN builds. */
+export function copyCommunityText(
+  value: string,
+  clipboard: { setString?: (text: string) => void } | null | undefined,
+) {
+  if (!clipboard?.setString) return false;
+  try {
+    clipboard.setString(value);
+    return true;
+  } catch {
+    return false;
+  }
 }

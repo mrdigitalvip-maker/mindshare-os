@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Alert, Pressable, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { router } from "expo-router";
 import { AppScreen } from "@/components/app-screen";
 import { StandardHeader } from "@/components/product-ui";
-import { ErrorState, LoadingState } from "@/components/screen-state";
+import { LoadingState } from "@/components/screen-state";
 import {
   useAcceptInvite,
   useCommunity,
@@ -20,7 +20,7 @@ import {
   type CommunityReaction,
 } from "@/lib/community";
 import { colors, radius, spacing, typography } from "@/lib/theme";
-import { initials, profileValidation } from "@/lib/community-ui";
+import { initials, normalizeCommunityProfile, profileValidation } from "@/lib/community-ui";
 
 const blank: CommunityProfile = {
   displayName: null,
@@ -58,6 +58,10 @@ export default function Community() {
     create = useCreateSquad(),
     accept = useAcceptInvite(),
     react = useReact();
+  const savingProfile = useRef(false),
+    creatingSquad = useRef(false),
+    joiningSquad = useRef(false),
+    reactingActivity = useRef(new Set<string>());
   const [profile, setProfile] = useState(blank),
     [editingProfile, setEditingProfile] = useState(!community.data?.profile),
     [profileFeedback, setProfileFeedback] = useState<string | null>(null),
@@ -72,20 +76,11 @@ export default function Community() {
   const persistedProfile = community.data?.profile ?? null;
   const validation = profileValidation(
     profile.displayName ?? "",
-    profile.username ?? "",
+    normalizeCommunityProfile(profile).username ?? "",
     profile.visibility === "community",
   );
   const fail = (e: unknown) => Alert.alert("Não foi possível", communityErrorMessage(e));
   if (community.isPending) return <LoadingState title="Carregando Community…" />;
-  if (community.isError)
-    return (
-      <ErrorState
-        title="Não foi possível abrir Community."
-        message="Seus dados continuam seguros."
-        actionLabel="Tentar novamente"
-        onAction={() => void community.refetch()}
-      />
-    );
   return (
     <AppScreen scroll contentContainerStyle={styles.page}>
       <StandardHeader title="Community" />
@@ -125,7 +120,7 @@ export default function Community() {
                 ? "Abrir conversa"
                 : channel.eligible
                   ? "Entrar"
-                  : "Community+ bloqueada"
+                  : "Indisponível no seu plano"
             }
             disabled={!channel.eligible || channelActions.join.isPending}
             onPress={() =>
@@ -139,130 +134,187 @@ export default function Community() {
           />
         </View>
       ))}
-      <View style={styles.card}>
-        <Text style={styles.heading}>
-          {persistedProfile ? "Seu perfil na Community" : "Crie seu perfil na Community"}
-        </Text>
-        <Text style={styles.muted}>
-          Escolha como você aparece na Community. Seus dados privados da NEXORA continuam privados.
-        </Text>
-        {profileFeedback ? <Text style={styles.success}>{profileFeedback}</Text> : null}
-        {persistedProfile && !editingProfile ? (
-          <>
-            <View style={styles.profilePreview}>
-              <View style={styles.profileAvatar}>
-                <Text style={styles.profileInitials}>
-                  {initials(persistedProfile.displayName ?? persistedProfile.username ?? "?")}
-                </Text>
+      {community.isError ? (
+        <View style={styles.card}>
+          <Text style={styles.heading}>Seu perfil e atividade</Text>
+          <Text style={styles.muted}>
+            Não foi possível carregar esta parte. As conversas oficiais continuam disponíveis.
+          </Text>
+          <Button label="Tentar novamente" onPress={() => void community.refetch()} />
+        </View>
+      ) : (
+        <View style={styles.card}>
+          <Text style={styles.heading}>
+            {persistedProfile ? "Seu perfil na Community" : "Crie seu perfil na Community"}
+          </Text>
+          <Text style={styles.muted}>
+            Escolha como você aparece na Community. Seus dados privados da NEXORA continuam
+            privados.
+          </Text>
+          {profileFeedback ? <Text style={styles.success}>{profileFeedback}</Text> : null}
+          {persistedProfile && !editingProfile ? (
+            <>
+              <View style={styles.profilePreview}>
+                <View style={styles.profileAvatar}>
+                  <Text style={styles.profileInitials}>
+                    {initials(persistedProfile.displayName ?? persistedProfile.username ?? "?")}
+                  </Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.heading}>
+                    {persistedProfile.displayName || "Perfil privado"}
+                  </Text>
+                  {persistedProfile.username ? (
+                    <Text style={styles.muted}>@{persistedProfile.username}</Text>
+                  ) : null}
+                  {persistedProfile.bio ? (
+                    <Text style={styles.body}>{persistedProfile.bio}</Text>
+                  ) : null}
+                  <Text style={styles.status}>
+                    {persistedProfile.visibility === "community"
+                      ? "Visível na Community"
+                      : "Privado"}
+                  </Text>
+                </View>
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.heading}>
-                  {persistedProfile.displayName || "Perfil privado"}
-                </Text>
-                {persistedProfile.username ? (
-                  <Text style={styles.muted}>@{persistedProfile.username}</Text>
-                ) : null}
-                {persistedProfile.bio ? (
-                  <Text style={styles.body}>{persistedProfile.bio}</Text>
-                ) : null}
-                <Text style={styles.status}>
-                  {persistedProfile.visibility === "community" ? "Visível na Community" : "Privado"}
-                </Text>
+              <Button
+                label="Editar perfil"
+                onPress={() => {
+                  setProfileFeedback(null);
+                  setEditingProfile(true);
+                }}
+              />
+            </>
+          ) : (
+            <>
+              <TextInput
+                accessibilityLabel="Nome comunitário"
+                placeholder="Nome público"
+                placeholderTextColor={colors.textMuted}
+                value={profile.displayName ?? ""}
+                onChangeText={(v) => setProfile({ ...profile, displayName: v })}
+                maxLength={60}
+                style={styles.input}
+              />
+              <TextInput
+                accessibilityLabel="Username"
+                autoCapitalize="none"
+                placeholder="@username"
+                placeholderTextColor={colors.textMuted}
+                value={profile.username ?? ""}
+                onChangeText={(v) => setProfile({ ...profile, username: v.toLowerCase() })}
+                maxLength={31}
+                style={styles.input}
+              />
+              <TextInput
+                accessibilityLabel="Bio"
+                placeholder="Bio curta (opcional)"
+                placeholderTextColor={colors.textMuted}
+                value={profile.bio ?? ""}
+                onChangeText={(v) => setProfile({ ...profile, bio: v })}
+                maxLength={240}
+                style={styles.input}
+              />
+              <Text style={styles.label}>Visibilidade</Text>
+              <View style={styles.visibility}>
+                <Pressable
+                  onPress={() => setProfile({ ...profile, visibility: "private" })}
+                  style={[styles.choice, profile.visibility === "private" && styles.selected]}
+                >
+                  <Text style={styles.chipText}>Privado</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => setProfile({ ...profile, visibility: "community" })}
+                  style={[styles.choice, profile.visibility === "community" && styles.selected]}
+                >
+                  <Text style={styles.chipText}>Visível na Community</Text>
+                </Pressable>
+              </View>
+              <Row label="Compartilhar Momentum">
+                <Switch
+                  value={profile.showMomentum}
+                  onValueChange={(v) => setProfile({ ...profile, showMomentum: v })}
+                />
+              </Row>
+              <Row label="Compartilhar execução verificada">
+                <Switch
+                  value={profile.showVerifiedActivity}
+                  onValueChange={(v) => setProfile({ ...profile, showVerifiedActivity: v })}
+                />
+              </Row>
+              <Button
+                label={
+                  save.isPending ? "Salvando…" : persistedProfile ? "Salvar perfil" : "Criar perfil"
+                }
+                disabled={save.isPending || Boolean(validation)}
+                onPress={() => {
+                  if (validation || savingProfile.current) return;
+                  savingProfile.current = true;
+                  const creating = !persistedProfile;
+                  save.mutate(normalizeCommunityProfile(profile), {
+                    onSuccess: () => {
+                      setProfileFeedback(creating ? "Perfil criado" : "Perfil atualizado");
+                      setEditingProfile(false);
+                    },
+                    onError: fail,
+                    onSettled: () => {
+                      savingProfile.current = false;
+                    },
+                  });
+                }}
+              />
+              {validation ? <Text style={styles.validation}>{validation}</Text> : null}
+            </>
+          )}
+        </View>
+      )}
+      <Text style={styles.heading}>Atividade verificada</Text>
+      {community.isError ? (
+        <Text style={styles.muted}>Atividade indisponível agora. Tente novamente acima.</Text>
+      ) : community.data?.activity.length ? (
+        <>
+          {community.data.activity.map((a) => (
+            <View key={a.id} style={styles.card}>
+              <Text style={styles.heading}>{a.displayName}</Text>
+              <Text style={styles.muted}>
+                Concluiu uma missão verificada ·{" "}
+                {new Date(a.occurredAt).toLocaleDateString("pt-BR")}
+              </Text>
+              <View style={styles.actions}>
+                {(["support", "celebrate", "respect"] as CommunityReaction[]).map((r) => (
+                  <Pressable
+                    key={r}
+                    onPress={() =>
+                      !reactingActivity.current.has(a.id) &&
+                      (reactingActivity.current.add(a.id),
+                      react.mutate(
+                        { activityId: a.id, reaction: a.myReaction === r ? null : r },
+                        {
+                          onError: fail,
+                          onSettled: () => reactingActivity.current.delete(a.id),
+                        },
+                      ))
+                    }
+                    accessibilityLabel={`${r === "support" ? "Apoiar" : r === "celebrate" ? "Celebrar" : "Respeitar"} atividade de ${a.displayName}`}
+                    style={[styles.chip, a.myReaction === r && styles.selected]}
+                  >
+                    <Text style={styles.chipText}>
+                      {r === "support" ? "Apoio" : r === "celebrate" ? "Celebrar" : "Respeito"}{" "}
+                      {a.reactions[r] ?? 0}
+                    </Text>
+                  </Pressable>
+                ))}
               </View>
             </View>
-            <Button
-              label="Editar perfil"
-              onPress={() => {
-                setProfileFeedback(null);
-                setEditingProfile(true);
-              }}
-            />
-          </>
-        ) : (
-          <>
-            <TextInput
-              accessibilityLabel="Nome comunitário"
-              placeholder="Nome público"
-              placeholderTextColor={colors.textMuted}
-              value={profile.displayName ?? ""}
-              onChangeText={(v) => setProfile({ ...profile, displayName: v })}
-              maxLength={60}
-              style={styles.input}
-            />
-            <TextInput
-              accessibilityLabel="Username"
-              autoCapitalize="none"
-              placeholder="@username"
-              placeholderTextColor={colors.textMuted}
-              value={profile.username ?? ""}
-              onChangeText={(v) => setProfile({ ...profile, username: v.toLowerCase() })}
-              style={styles.input}
-            />
-            <TextInput
-              accessibilityLabel="Bio"
-              placeholder="Bio curta (opcional)"
-              placeholderTextColor={colors.textMuted}
-              value={profile.bio ?? ""}
-              onChangeText={(v) => setProfile({ ...profile, bio: v })}
-              maxLength={240}
-              style={styles.input}
-            />
-            <Text style={styles.label}>Visibilidade</Text>
-            <View style={styles.visibility}>
-              <Pressable
-                onPress={() => setProfile({ ...profile, visibility: "private" })}
-                style={[styles.choice, profile.visibility === "private" && styles.selected]}
-              >
-                <Text style={styles.chipText}>Privado</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => setProfile({ ...profile, visibility: "community" })}
-                style={[styles.choice, profile.visibility === "community" && styles.selected]}
-              >
-                <Text style={styles.chipText}>Visível na Community</Text>
-              </Pressable>
-            </View>
-            <Row label="Compartilhar Momentum">
-              <Switch
-                value={profile.showMomentum}
-                onValueChange={(v) => setProfile({ ...profile, showMomentum: v })}
-              />
-            </Row>
-            <Row label="Compartilhar streak">
-              <Switch
-                value={profile.showStreak}
-                onValueChange={(v) => setProfile({ ...profile, showStreak: v })}
-              />
-            </Row>
-            <Row label="Compartilhar execução verificada">
-              <Switch
-                value={profile.showVerifiedActivity}
-                onValueChange={(v) => setProfile({ ...profile, showVerifiedActivity: v })}
-              />
-            </Row>
-            <Button
-              label={
-                save.isPending ? "Salvando…" : persistedProfile ? "Salvar perfil" : "Criar perfil"
-              }
-              disabled={save.isPending || Boolean(validation)}
-              onPress={() => {
-                if (validation) return Alert.alert("Revise o perfil", validation);
-                const creating = !persistedProfile;
-                save.mutate(profile, {
-                  onSuccess: () => {
-                    setProfileFeedback(creating ? "Perfil criado" : "Perfil atualizado");
-                    setEditingProfile(false);
-                  },
-                  onError: fail,
-                });
-              }}
-            />
-            {validation ? <Text style={styles.validation}>{validation}</Text> : null}
-          </>
-        )}
-      </View>
+          ))}
+        </>
+      ) : (
+        <Text style={styles.muted}>Nenhuma atividade verificada compartilhada ainda.</Text>
+      )}
       <Text style={styles.heading}>Seus Squads</Text>
-      {community.data?.squads.length ? (
+      {community.isError ? (
+        <Text style={styles.muted}>Não foi possível carregar seus Squads.</Text>
+      ) : community.data?.squads.length ? (
         community.data.squads.map((s) => (
           <Pressable
             key={s.id}
@@ -282,16 +334,20 @@ export default function Community() {
       <View style={styles.card}>
         <Text style={styles.heading}>Criar Squad privado</Text>
         <TextInput
+          accessibilityLabel="Nome do Squad"
           placeholder="Nome do Squad"
           placeholderTextColor={colors.textMuted}
           value={squadName}
           onChangeText={setSquadName}
+          maxLength={60}
           style={styles.input}
         />
         <Button
           label={create.isPending ? "Criando…" : "Criar Squad"}
           disabled={create.isPending || squadName.trim().length < 2}
-          onPress={() =>
+          onPress={() => {
+            if (creatingSquad.current) return;
+            creatingSquad.current = true;
             create.mutate(
               { name: squadName, description: "" },
               {
@@ -300,68 +356,44 @@ export default function Community() {
                   router.push(`/community/squads/${id}`);
                 },
                 onError: fail,
+                onSettled: () => {
+                  creatingSquad.current = false;
+                },
               },
-            )
-          }
+            );
+          }}
         />
       </View>
       <View style={styles.card}>
         <Text style={styles.heading}>Entrar com convite</Text>
         <TextInput
+          accessibilityLabel="Código de convite"
           autoCapitalize="characters"
           placeholder="Código"
           placeholderTextColor={colors.textMuted}
           value={code}
-          onChangeText={setCode}
+          onChangeText={(value) => setCode(value.toUpperCase())}
           style={styles.input}
         />
         <Button
           label="Validar convite"
           disabled={!code.trim() || accept.isPending}
-          onPress={() =>
-            accept.mutate(code, {
+          onPress={() => {
+            if (joiningSquad.current) return;
+            joiningSquad.current = true;
+            accept.mutate(code.trim().toUpperCase(), {
               onSuccess: (id) => {
                 setCode("");
                 router.push(`/community/squads/${id}`);
               },
               onError: fail,
-            })
-          }
+              onSettled: () => {
+                joiningSquad.current = false;
+              },
+            });
+          }}
         />
       </View>
-      {community.data?.activity.length ? (
-        <>
-          <Text style={styles.heading}>Atividade recente</Text>
-          {community.data.activity.map((a) => (
-            <View key={a.id} style={styles.card}>
-              <Text style={styles.heading}>{a.displayName}</Text>
-              <Text style={styles.muted}>
-                Concluiu uma missão verificada ·{" "}
-                {new Date(a.occurredAt).toLocaleDateString("pt-BR")}
-              </Text>
-              <View style={styles.actions}>
-                {(["support", "celebrate", "respect"] as CommunityReaction[]).map((r) => (
-                  <Pressable
-                    key={r}
-                    onPress={() =>
-                      react.mutate(
-                        { activityId: a.id, reaction: a.myReaction === r ? null : r },
-                        { onError: fail },
-                      )
-                    }
-                    style={[styles.chip, a.myReaction === r && styles.selected]}
-                  >
-                    <Text style={styles.chipText}>
-                      {r === "support" ? "Apoio" : r === "celebrate" ? "Celebrar" : "Respeito"}{" "}
-                      {a.reactions[r] ?? 0}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            </View>
-          ))}
-        </>
-      ) : null}
     </AppScreen>
   );
 }
