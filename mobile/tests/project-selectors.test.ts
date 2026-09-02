@@ -129,11 +129,11 @@ test("reports due-soon deadlines only for active projects", () => {
   );
   assert.equal(
     getProjectDeadlineState({ ...project("done", "completed"), dueDate: "2026-08-19" }, now),
-    "none",
+    "completed",
   );
   assert.equal(
     getProjectDeadlineState({ ...project("archived", "archived"), dueDate: "2026-08-19" }, now),
-    "none",
+    "completed",
   );
 });
 

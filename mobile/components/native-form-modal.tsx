@@ -11,6 +11,7 @@ import {
   View,
 } from "react-native";
 import { colors, radius, spacing, typography } from "@/lib/theme";
+import { NativeDateField } from "@/components/native-date-field";
 export function NativeFormModal({
   visible,
   title,
@@ -30,6 +31,8 @@ export function NativeFormModal({
   children,
   errorMessage,
   destructiveAction,
+  valueMaxLength,
+  secondaryMaxLength,
 }: {
   visible: boolean;
   title: string;
@@ -49,6 +52,8 @@ export function NativeFormModal({
   children?: ReactNode;
   errorMessage?: string;
   destructiveAction?: { label: string; onPress(): void; busy?: boolean };
+  valueMaxLength?: number;
+  secondaryMaxLength?: number;
 }) {
   return (
     <Modal
@@ -70,6 +75,7 @@ export function NativeFormModal({
             placeholder={placeholder}
             placeholderTextColor={colors.textMuted}
             value={value}
+            maxLength={valueMaxLength}
             onChangeText={onChange}
             style={styles.input}
           />
@@ -79,27 +85,20 @@ export function NativeFormModal({
               placeholder={secondaryPlaceholder}
               placeholderTextColor={colors.textMuted}
               value={secondaryValue}
+              maxLength={secondaryMaxLength}
               onChangeText={onSecondaryChange}
               style={[styles.input, styles.multiline]}
             />
           ) : null}
           {dateValue !== undefined && onDateChange ? (
-            <TextInput
-              accessibilityLabel="Prazo da tarefa"
-              autoCapitalize="none"
-              keyboardType="numbers-and-punctuation"
-              maxLength={10}
-              placeholder={datePlaceholder}
-              placeholderTextColor={colors.textMuted}
-              value={dateValue}
-              onChangeText={onDateChange}
-              style={styles.input}
+            <NativeDateField
+              value={dateValue || null}
+              onChange={(next) => onDateChange(next ?? "")}
+              label={datePlaceholder}
             />
           ) : null}
           {children}
-          {error ? (
-            <Text style={styles.error}>{errorMessage ?? "Não foi possível salvar agora."}</Text>
-          ) : null}
+          {error ? <Text style={styles.error}>{errorMessage ?? error}</Text> : null}
           <View style={styles.actions}>
             <Pressable
               accessibilityRole="button"

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   Alert,
   Pressable,
@@ -21,6 +21,8 @@ import {
   getProjectBlockedTasks,
   getProjectDeadlineSummary,
   getProjectHealthState,
+  getProjectHealthLabel,
+  getProjectCheckInLabel,
   getProjectHealthSummary,
   getProjectOverdueTasks,
   getProjectProgress,
@@ -48,6 +50,10 @@ export default function ProjectWorkspace() {
   const [refreshing, setRefreshing] = useState(false);
   const [checkInState, setCheckInState] = useState<ProjectCheckInState | null>(null);
   const [checkInNote, setCheckInNote] = useState("");
+  const taskSubmitting = useRef(false);
+  const projectSubmitting = useRef(false);
+  const checkInSubmitting = useRef(false);
+  const completingTasks = useRef(new Set<string>());
 
   const tasks = useMemo(() => query.data?.tasks ?? [], [query.data?.tasks]);
   const sections = useMemo(() => getProjectTaskSections(tasks), [tasks]);
@@ -80,16 +86,21 @@ export default function ProjectWorkspace() {
     );
   const { project } = query.data;
   const checkIns = query.data.checkIns;
-  const progress = getProjectProgress(tasks);
-  const next = getProjectNextAction(tasks);
+  const tasksAvailable = !query.data.tasksUnavailable;
+  const progress = tasksAvailable ? getProjectProgress(tasks) : null;
+  const next = tasksAvailable ? getProjectNextAction(tasks) : null;
   const overdue = getProjectOverdueTasks(tasks).length;
   const today = getProjectTodayTasks(tasks).length;
   const open = tasks.filter((task) => !task.completed).length;
-  const health = getProjectHealthSummary(project, tasks);
-  const healthState = getProjectHealthState(project, tasks);
+  const health = tasksAvailable ? getProjectHealthSummary(project, tasks) : [];
+  const healthState = tasksAvailable
+    ? getProjectHealthState(project, tasks)
+    : project.status === "completed"
+      ? "completed"
+      : "on_track";
   const deadline = getProjectDeadlineSummary(project);
-  const blocked = getProjectBlockedTasks(tasks);
-  const studioAction = getProjectStudioNextAction(project, tasks);
+  const blocked = tasksAvailable ? getProjectBlockedTasks(tasks) : [];
+  const studioAction = tasksAvailable ? getProjectStudioNextAction(project, tasks) : null;
   const activity = getProjectActivityState(tasks, checkIns);
   const latestCheckIn = getLatestProjectCheckIn(checkIns);
   const completed = healthState === "completed";
@@ -106,6 +117,8 @@ export default function ProjectWorkspace() {
     setTaskModal(true);
   }
   async function saveTask() {
+    if (taskSubmitting.current || mutateTask.isPending) return;
+    taskSubmitting.current = true;
     try {
       if (editingTask)
         await mutateTask.mutateAsync({
@@ -127,12 +140,68 @@ export default function ProjectWorkspace() {
       setTaskDueDate("");
     } catch {
       /* Preserve the form for correction/retry. */
+    } finally {
+      taskSubmitting.current = false;
+    }
+  }
+  async function saveCheckIn() {
+    if (!checkInState || checkInSubmitting.current || checkIn.isPending) return;
+    checkInSubmitting.current = true;
+    try {
+      await checkIn.mutateAsync({ projectId, state: checkInState, note: checkInNote });
+      setCheckInState(null);
+      setCheckInNote("");
+    } catch {
+      /* Keep the selected state and note available for retry. */
+    } finally {
+      checkInSubmitting.current = false;
+    }
+  }
+  async function saveProject() {
+    if (projectSubmitting.current || updateProject.isPending) return;
+    const objective = projectDescription.trim();
+    if (
+      projectTitle.trim() === project.title &&
+      objective === project.objective &&
+      projectDueDate === (project.dueDate?.slice(0, 10) ?? "")
+    ) {
+      setProjectModal(false);
+      return;
+    }
+    projectSubmitting.current = true;
+    try {
+      await updateProject.mutateAsync({
+        projectId,
+        patch: { title: projectTitle, objective, dueDate: projectDueDate || null },
+      });
+      setProjectModal(false);
+    } catch {
+      /* Keep canonical edit fields available for correction/retry. */
+    } finally {
+      projectSubmitting.current = false;
+    }
+  }
+  async function toggleTask(task: Task) {
+    if (completingTasks.current.has(task.id)) return;
+    completingTasks.current.add(task.id);
+    try {
+      await mutateTask.mutateAsync({
+        action: "update",
+        taskId: task.id,
+        projectId,
+        previousProjectId: projectId,
+        patch: { completed: !task.completed },
+      });
+    } finally {
+      completingTasks.current.delete(task.id);
     }
   }
   function confirmDelete() {
     Alert.alert(
       "Excluir projeto?",
-      "O aplicativo não excluirá tarefas vinculadas. Se o banco impedir a exclusão, o projeto será mantido.",
+      tasks.length
+        ? "Este projeto possui tarefas e não pode ser excluído até que elas sejam movidas ou removidas."
+        : "Excluir este projeto permanentemente? Os check-ins vinculados também serão removidos.",
       [
         { text: "Cancelar", style: "cancel" },
         {
@@ -160,12 +229,16 @@ export default function ProjectWorkspace() {
           {getProjectStatusLabel(project.status)}
         </Text>
       </View>
-      {project.description ? <Text style={styles.description}>{project.description}</Text> : null}
-      {!project.description ? (
+      {project.objective || project.description ? (
+        <Text style={styles.description}>{project.objective || project.description}</Text>
+      ) : null}
+      {!project.objective && !project.description ? (
         <Text style={styles.objectiveMissing}>Defina um objetivo para orientar este projeto.</Text>
       ) : null}
       <View style={styles.heroSignals}>
-        <Text style={styles.healthBadge}>{healthState.replace("_", " ").toUpperCase()}</Text>
+        {tasksAvailable ? (
+          <Text style={styles.healthBadge}>{getProjectHealthLabel(healthState)}</Text>
+        ) : null}
         {deadline ? (
           <Text style={deadline.days < 0 ? styles.danger : styles.meta}>{deadline.label}</Text>
         ) : null}
@@ -175,7 +248,7 @@ export default function ProjectWorkspace() {
           accessibilityRole="button"
           onPress={() => {
             setProjectTitle(project.title);
-            setProjectDescription(project.description);
+            setProjectDescription(project.objective || project.description);
             setProjectDueDate(project.dueDate?.slice(0, 10) ?? "");
             setProjectModal(true);
           }}
@@ -187,10 +260,25 @@ export default function ProjectWorkspace() {
           accessibilityRole="button"
           disabled={updateProject.isPending}
           onPress={() =>
-            void updateProject.mutateAsync({
-              projectId,
-              patch: { status: project.status === "completed" ? "active" : "completed" },
-            })
+            Alert.alert(
+              project.status === "completed" ? "Reabrir projeto?" : "Concluir projeto?",
+              project.status === "completed"
+                ? "O projeto voltará a contar como ativo no seu plano."
+                : "O projeto ficará concluído e poderá ser reaberto depois.",
+              [
+                { text: "Cancelar", style: "cancel" },
+                {
+                  text: project.status === "completed" ? "Reabrir" : "Concluir",
+                  onPress: () =>
+                    void updateProject
+                      .mutateAsync({
+                        projectId,
+                        patch: { status: project.status === "completed" ? "active" : "completed" },
+                      })
+                      .catch(() => undefined),
+                },
+              ],
+            )
           }
           style={styles.secondaryButton}
         >
@@ -199,43 +287,6 @@ export default function ProjectWorkspace() {
           </Text>
         </Pressable>
       </View>
-      {progress ? (
-        <View
-          accessible
-          accessibilityRole="progressbar"
-          accessibilityLabel={`${progress.completed} de ${progress.total} tarefas concluídas`}
-          accessibilityValue={{ min: 0, max: 100, now: Math.round(progress.ratio * 100) }}
-          style={styles.overview}
-        >
-          <View style={styles.overviewTop}>
-            <Text style={styles.sectionTitle}>Progresso das tarefas</Text>
-            <Text style={styles.progressCopy}>
-              {progress.completed} de {progress.total}
-            </Text>
-          </View>
-          <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: `${progress.ratio * 100}%` }]} />
-          </View>
-          <View style={styles.metrics}>
-            <Text style={styles.meta}>{open} abertas</Text>
-            {overdue ? <Text style={styles.danger}>{overdue} atrasadas</Text> : null}
-            {today ? <Text style={styles.today}>{today} hoje</Text> : null}
-          </View>
-        </View>
-      ) : (
-        <View style={styles.overview}>
-          <Text style={styles.meta}>Adicione tarefas para acompanhar o progresso.</Text>
-        </View>
-      )}
-      {project.dueDate ? (
-        <Text style={styles.meta}>
-          Prazo do projeto:{" "}
-          {new Date(`${project.dueDate.slice(0, 10)}T12:00:00Z`).toLocaleDateString("pt-BR", {
-            dateStyle: "long",
-            timeZone: "UTC",
-          })}
-        </Text>
-      ) : null}
       {!completed && studioAction ? (
         <View style={styles.nextCard}>
           <Text style={styles.eyebrow}>NEXORA AGORA</Text>
@@ -272,6 +323,45 @@ export default function ProjectWorkspace() {
           </Text>
         </View>
       ) : null}
+      {progress ? (
+        <View
+          accessible
+          accessibilityRole="progressbar"
+          accessibilityLabel={`${progress.completed} de ${progress.total} tarefas concluídas`}
+          accessibilityValue={{ min: 0, max: 100, now: Math.round(progress.ratio * 100) }}
+          style={styles.overview}
+        >
+          <View style={styles.overviewTop}>
+            <Text style={styles.sectionTitle}>Progresso das tarefas</Text>
+            <Text style={styles.progressCopy}>
+              {progress.completed} de {progress.total}
+            </Text>
+          </View>
+          <View style={styles.progressTrack}>
+            <View style={[styles.progressFill, { width: `${progress.ratio * 100}%` }]} />
+          </View>
+          <View style={styles.metrics}>
+            <Text style={styles.meta}>{open} abertas</Text>
+            {overdue ? <Text style={styles.danger}>{overdue} atrasadas</Text> : null}
+            {today ? <Text style={styles.today}>{today} hoje</Text> : null}
+          </View>
+        </View>
+      ) : tasksAvailable ? (
+        <View style={styles.overview}>
+          <Text style={styles.meta}>
+            Adicione a primeira ação para começar a medir o progresso.
+          </Text>
+        </View>
+      ) : null}
+      {project.dueDate ? (
+        <Text style={styles.meta}>
+          Prazo do projeto:{" "}
+          {new Date(`${project.dueDate.slice(0, 10)}T12:00:00Z`).toLocaleDateString("pt-BR", {
+            dateStyle: "long",
+            timeZone: "UTC",
+          })}
+        </Text>
+      ) : null}
       {health.length ? (
         <View style={styles.attentionCard}>
           <Text style={styles.attentionTitle}>ATENÇÃO</Text>
@@ -284,7 +374,7 @@ export default function ProjectWorkspace() {
       ) : null}
       {blocked.length ? (
         <View style={styles.blockerCard}>
-          <Text style={styles.attentionTitle}>BLOQUEIO</Text>
+          <Text style={styles.attentionTitle}>BLOQUEIOS</Text>
           {blocked.slice(0, 3).map((task) => (
             <Pressable
               key={task.id}
@@ -314,7 +404,7 @@ export default function ProjectWorkspace() {
               ["progressed", "Avancei"],
               ["unchanged", "Sem mudança"],
               ["blocked", "Estou bloqueado"],
-              ["reorganize", "Reorganizar"],
+              ["reorganize", "Preciso reorganizar"],
             ] as const
           ).map(([state, label]) => (
             <Pressable
@@ -332,7 +422,8 @@ export default function ProjectWorkspace() {
         {latestCheckIn ? (
           <View style={styles.memory}>
             <Text style={styles.eyebrow}>ÚLTIMO CHECK-IN</Text>
-            <Text style={styles.description}>{latestCheckIn.note || latestCheckIn.state}</Text>
+            <Text style={styles.description}>{getProjectCheckInLabel(latestCheckIn.state)}</Text>
+            {latestCheckIn.note ? <Text style={styles.meta}>{latestCheckIn.note}</Text> : null}
             <Text style={styles.meta}>
               {new Date(latestCheckIn.createdAt).toLocaleString("pt-BR")}
             </Text>
@@ -346,6 +437,19 @@ export default function ProjectWorkspace() {
           </Text>
         ) : null}
       </View>
+      {query.data.tasksUnavailable ? (
+        <View style={styles.attentionCard}>
+          <Text style={styles.attentionCopy}>
+            Não foi possível atualizar as tarefas deste projeto.
+          </Text>
+          <Pressable onPress={() => void query.refetch()}>
+            <Text style={styles.link}>Tentar novamente</Text>
+          </Pressable>
+        </View>
+      ) : null}
+      {query.data.checkInsUnavailable ? (
+        <Text style={styles.meta}>O histórico de check-ins está temporariamente indisponível.</Text>
+      ) : null}
       <View style={styles.assistantCard}>
         <Text style={styles.eyebrow}>NEXORA</Text>
         <Text style={styles.description}>
@@ -402,14 +506,7 @@ export default function ProjectWorkspace() {
               accessibilityState={{ checked: item.completed }}
               accessibilityLabel={`${item.completed ? "Reabrir" : "Concluir"} ${item.title}`}
               disabled={mutateTask.isPending}
-              onPress={() =>
-                void mutateTask.mutateAsync({
-                  action: "update",
-                  taskId: item.id,
-                  projectId,
-                  patch: { completed: !item.completed },
-                })
-              }
+              onPress={() => void toggleTask(item).catch(() => undefined)}
               style={[styles.checkbox, item.completed && styles.checked]}
             >
               <Text style={styles.check}>{item.completed ? "✓" : ""}</Text>
@@ -472,13 +569,8 @@ export default function ProjectWorkspace() {
             : null
         }
         onClose={() => setCheckInState(null)}
-        onSave={() =>
-          checkInState &&
-          void checkIn
-            .mutateAsync({ projectId, state: checkInState, note: checkInNote })
-            .then(() => setCheckInState(null))
-            .catch(() => undefined)
-        }
+        onSave={() => void saveCheckIn()}
+        valueMaxLength={1000}
       />
       <NativeFormModal
         visible={taskModal}
@@ -487,10 +579,11 @@ export default function ProjectWorkspace() {
         value={taskTitle}
         onChange={setTaskTitle}
         dateValue={taskDueDate}
-        datePlaceholder="Prazo (AAAA-MM-DD, opcional)"
+        datePlaceholder="Adicionar prazo (opcional)"
         onDateChange={setTaskDueDate}
         busy={mutateTask.isPending}
-        error={mutateTask.error ? "Não foi possível salvar a tarefa." : null}
+        error={mutateTask.error?.message ?? null}
+        valueMaxLength={160}
         onClose={() => setTaskModal(false)}
         onSave={() => void saveTask()}
       />
@@ -501,27 +594,17 @@ export default function ProjectWorkspace() {
         value={projectTitle}
         onChange={setProjectTitle}
         secondaryValue={projectDescription}
-        secondaryPlaceholder="Descrição (opcional)"
+        secondaryPlaceholder="Qual resultado define o sucesso? (opcional)"
         onSecondaryChange={setProjectDescription}
         dateValue={projectDueDate}
-        datePlaceholder="Prazo (AAAA-MM-DD, opcional)"
+        datePlaceholder="Adicionar prazo (opcional)"
         onDateChange={setProjectDueDate}
         busy={updateProject.isPending}
-        error={updateProject.error ? "Não foi possível salvar o projeto." : null}
+        error={updateProject.error?.message ?? null}
+        valueMaxLength={120}
+        secondaryMaxLength={1000}
         onClose={() => setProjectModal(false)}
-        onSave={() =>
-          void updateProject
-            .mutateAsync({
-              projectId,
-              patch: {
-                title: projectTitle,
-                description: projectDescription,
-                dueDate: projectDueDate || null,
-              },
-            })
-            .then(() => setProjectModal(false))
-            .catch(() => undefined)
-        }
+        onSave={() => void saveProject()}
       />
     </View>
   );

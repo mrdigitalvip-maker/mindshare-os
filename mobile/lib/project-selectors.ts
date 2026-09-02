@@ -1,5 +1,6 @@
 import { getOverdueTasks, getTodayTasks, getUpcomingTasks } from "@/lib/dashboard-selectors";
 import type { Project, ProjectCheckIn, Task } from "@/services/workspace-service";
+import { getDisplayProjectStatus } from "@/lib/presentation";
 
 const completeStatuses = new Set(["completed", "archived"]);
 const DAY = 86_400_000;
@@ -14,14 +15,26 @@ const dayValue = (value: string | null | undefined) => {
 };
 
 export function getProjectDeadlineState(project: Project, now = new Date()) {
-  if (completeStatuses.has(project.status.trim().toLowerCase())) return "none" as const;
+  if (completeStatuses.has(project.status.trim().toLowerCase())) return "completed" as const;
   const due = dayValue(project.dueDate);
   if (due === null) return "none" as const;
   const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
   if (due < today) return "overdue" as const;
+  if (due === today) return "today" as const;
   if (due <= today + PROJECT_DUE_SOON_DAYS * DAY) return "approaching" as const;
-  return "scheduled" as const;
+  return "future" as const;
 }
+
+export const getProjectHealthLabel = (state: ProjectHealthState) =>
+  ({
+    on_track: "EM DIA",
+    attention: "ATENÇÃO",
+    at_risk: "ATENÇÃO",
+    blocked: "BLOQUEADO",
+    overdue: "ATENÇÃO",
+    completed: "CONCLUÍDO",
+    needs_plan: "PRECISA DE PLANO",
+  })[state];
 
 export function getProjectDeadlineSummary(project: Project, now = new Date()) {
   const due = dayValue(project.dueDate);
@@ -113,15 +126,21 @@ export function buildProjectAssistantContext(
   const progress = getProjectProgress(tasks);
   return [
     `Contexto verificado do projeto: ${project.title}`,
-    project.description ? `Objetivo: ${project.description.slice(0, 500)}` : null,
-    `Status: ${project.status}`,
+    project.objective
+      ? `Objetivo: ${project.objective.slice(0, 500)}`
+      : project.description
+        ? `Descrição: ${project.description.slice(0, 500)}`
+        : null,
+    `Status: ${getDisplayProjectStatus(project.status)}`,
     project.dueDate ? `Prazo: ${project.dueDate.slice(0, 10)}` : null,
     progress
       ? `Progresso das tarefas: ${progress.completed}/${progress.total}`
       : "Sem tarefas cadastradas",
     `Tarefas abertas (${open.length} exibidas): ${open.map((task) => `${task.title}${task.blockerNote ? ` [bloqueio: ${task.blockerNote}]` : ""}`).join("; ") || "nenhuma"}`,
     `Atrasadas: ${getProjectOverdueTasks(tasks, now).length}; bloqueadas: ${getProjectBlockedTasks(tasks).length}`,
-    latest ? `Último check-in (${latest.state}): ${latest.note || "sem nota"}` : null,
+    latest
+      ? `Último check-in (${getProjectCheckInLabel(latest.state)}): ${latest.note || "sem nota"}`
+      : null,
     "Use Preview → Confirm → Apply para qualquer alteração; nunca faça escrita silenciosa.",
   ]
     .filter(Boolean)
@@ -180,8 +199,17 @@ export function getProjectTaskSections(tasks: Task[], now = new Date()) {
 
 export { getDisplayProjectStatus as getProjectStatusLabel } from "@/lib/presentation";
 
+export const getProjectCheckInLabel = (state: ProjectCheckIn["state"]) =>
+  ({
+    progressed: "Avancei",
+    unchanged: "Sem mudança",
+    blocked: "Estou bloqueado",
+    reorganize: "Preciso reorganizar",
+  })[state];
+
 export function getProjectAttention(project: Project, tasks: Task[], now = new Date()) {
   if (completeStatuses.has(project.status.trim().toLowerCase())) return "Concluído";
+  if (getProjectBlockedTasks(tasks).length) return "Bloqueado";
   if (getOverdueTasks(tasks, now).length) return "Atrasado";
   if (getProjectDeadlineState(project, now) === "overdue") return "Prazo vencido";
   if (getProjectDeadlineState(project, now) === "approaching" && getProjectOpenTaskCount(tasks))
@@ -197,13 +225,14 @@ export function sortProjectsByAttention(
   now = new Date(),
 ) {
   const rank: Record<string, number> = {
-    Atrasado: 0,
-    "Prazo vencido": 1,
-    "Prazo próximo": 2,
-    Hoje: 3,
-    "Sem próxima tarefa": 4,
-    "Em andamento": 5,
-    Concluído: 6,
+    Bloqueado: 0,
+    Atrasado: 1,
+    "Prazo vencido": 2,
+    "Prazo próximo": 3,
+    Hoje: 4,
+    "Sem próxima tarefa": 5,
+    "Em andamento": 6,
+    Concluído: 7,
   };
   return [...new Map(projects.map((project) => [project.id, project])).values()].sort((a, b) => {
     const difference =

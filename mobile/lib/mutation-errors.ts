@@ -7,6 +7,8 @@ export type MutationErrorKind =
   | "active-session"
   | "authentication"
   | "permission"
+  | "delete-restricted"
+  | "stale"
   | "network"
   | "unexpected";
 export class WorkspaceMutationError extends Error {
@@ -57,6 +59,20 @@ export function workspaceMutationError(error: unknown): Error {
     );
   }
   const text = `${backend?.message ?? ""} ${backend?.details ?? ""}`.toLowerCase();
+  if (backend?.code === "23503" || text.includes("foreign key constraint"))
+    return new WorkspaceMutationError(
+      "Este projeto possui tarefas e não pode ser excluído até que elas sejam movidas ou removidas.",
+      "delete-restricted",
+      error,
+    );
+  if (text.includes("project_stale_or_not_found") || text.includes("stale"))
+    return new WorkspaceMutationError(
+      "Este projeto mudou em outro lugar. Atualize a tela antes de tentar novamente.",
+      "stale",
+      error,
+    );
+  if (text.includes("project not found") || text.includes("project_not_found"))
+    return new WorkspaceMutationError("Projeto não encontrado.", "not-found", error);
   if (text.includes("weekly_target_minutes") || text.includes("planned_minutes"))
     return new WorkspaceMutationError(
       "Revise os minutos informados e tente novamente.",
@@ -65,7 +81,7 @@ export function workspaceMutationError(error: unknown): Error {
     );
   if (text.includes("not found") || text.includes("não encontrada"))
     return new WorkspaceMutationError(
-      "A matéria ou sessão não foi encontrada.",
+      "O item não foi encontrado.",
       "not-found",
       error,
     );

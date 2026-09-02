@@ -71,7 +71,7 @@ export function useWorkspaceMutations() {
   const createProject = useMutation({
     mutationFn: (input: Parameters<typeof service.createProject>[1]) =>
       service.createProject(userId, input),
-    onSuccess: () => client.invalidateQueries({ queryKey: queryKeys.projects }),
+    onSuccess: () => invalidate(client, [queryKeys.projects, queryKeys.tasks]),
   });
   const updateProject = useMutation({
     mutationFn: ({
@@ -82,12 +82,24 @@ export function useWorkspaceMutations() {
       patch: Parameters<typeof service.updateProject>[2];
     }) => service.updateProject(userId, projectId, patch),
     onSuccess: (_data, input) =>
-      invalidate(client, [queryKeys.projects, queryKeys.project(input.projectId)]),
+      invalidate(client, [
+        queryKeys.projects,
+        queryKeys.project(input.projectId),
+        queryKeys.tasks,
+        queryKeys.journeys,
+        queryKeys.dailyMission,
+      ]),
   });
   const deleteProject = useMutation({
     mutationFn: (projectId: string) => service.deleteProject(userId, projectId),
     onSuccess: (_data, projectId) =>
-      invalidate(client, [queryKeys.projects, queryKeys.tasks, queryKeys.project(projectId)]),
+      invalidate(client, [
+        queryKeys.projects,
+        queryKeys.tasks,
+        queryKeys.project(projectId),
+        queryKeys.journeys,
+        queryKeys.dailyMission,
+      ]),
   });
   const checkIn = useMutation({
     mutationFn: ({
@@ -124,7 +136,12 @@ export function useWorkspaceMutations() {
     ) => {
       if (input.action === "create") await service.createTask(userId, input);
       else if (input.action === "update")
-        await service.updateTask(userId, input.taskId, input.patch);
+        await service.updateTask(
+          userId,
+          input.taskId,
+          input.patch,
+          input.previousProjectId ?? input.projectId,
+        );
       else await service.deleteTask(userId, input.taskId);
     },
     // Completion is server-authoritative; never paint unverifiable optimistic progress.
