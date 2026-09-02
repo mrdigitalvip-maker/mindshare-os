@@ -20,6 +20,17 @@ export function useJourney(id: string) {
     enabled: Boolean(uid && normalizedId),
   });
 }
+export function useJourneyProgram(id: string, sourcePackId?: string | null) {
+  const uid = useUid(),
+    normalizedId = id.trim();
+  return useQuery({
+    queryKey: normalizedId
+      ? queryKeys.journeyProgram(normalizedId)
+      : ["journeys", "missing-program"],
+    queryFn: () => service.getJourneyProgram(uid, normalizedId),
+    enabled: Boolean(uid && normalizedId && sourcePackId),
+  });
+}
 export function useDailyMission() {
   const id = useUid();
   return useQuery({
@@ -66,7 +77,16 @@ export function useJourneyMutations() {
   });
   const completeMission = useMutation({
     mutationFn: (missionId: string) => service.completeJourneyAction(id, missionId),
-    onSuccess: refresh,
+    onSuccess: async (completed) => {
+      if (completed.journeyId) {
+        await Promise.all([
+          client.invalidateQueries({ queryKey: queryKeys.journey(completed.journeyId) }),
+          client.invalidateQueries({ queryKey: queryKeys.journeyProgram(completed.journeyId) }),
+        ]);
+      }
+      await client.invalidateQueries({ queryKey: queryKeys.dailyMission });
+      await refresh();
+    },
   });
   return { create, status, completeMission };
 }

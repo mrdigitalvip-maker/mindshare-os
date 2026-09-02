@@ -19,6 +19,7 @@ export const queryKeys = {
   subscription: ["subscription"] as const,
   journeys: ["journeys"] as const,
   journey: (id: string) => ["journeys", validId(id)] as const,
+  journeyProgram: (id: string) => ["journeys", validId(id), "program"] as const,
   dailyMission: ["journeys", "daily-mission"] as const,
   momentum: ["journeys", "momentum"] as const,
   journeyChallenge: ["journeys", "challenge"] as const,

@@ -30,6 +30,51 @@ export type JourneyMission = {
   completedAt: string | null;
   createdAt: string;
 };
+export type JourneyProgramStepStatus = "completed" | "current" | "upcoming";
+export type JourneyProgramStep = {
+  id: string;
+  sequence: number;
+  phase: string;
+  title: string;
+  description: string;
+  required: boolean;
+  completedAt: string | null;
+  status: JourneyProgramStepStatus;
+};
+export type JourneyProgramState = {
+  journeyId: string;
+  totalSteps: number;
+  completedSteps: number;
+  progressRatio: number;
+  currentStep: JourneyProgramStep | null;
+  steps: JourneyProgramStep[];
+};
+export type JourneyProgramStepRecord = Omit<JourneyProgramStep, "status">;
+
+/** Builds persisted program progress. Instance IDs are the identity and timestamps are authoritative. */
+export function buildJourneyProgramState(
+  journeyId: string,
+  records: JourneyProgramStepRecord[],
+): JourneyProgramState | null {
+  const ordered = [...new Map(records.map((step) => [step.id, step])).values()].sort(
+    (a, b) => a.sequence - b.sequence,
+  );
+  if (!ordered.length) return null;
+  const currentId = ordered.find((step) => !step.completedAt)?.id ?? null;
+  const steps: JourneyProgramStep[] = ordered.map((step) => ({
+    ...step,
+    status: step.completedAt ? "completed" : step.id === currentId ? "current" : "upcoming",
+  }));
+  const completedSteps = steps.filter((step) => step.status === "completed").length;
+  return {
+    journeyId,
+    totalSteps: steps.length,
+    completedSteps,
+    progressRatio: completedSteps / steps.length,
+    currentStep: steps.find((step) => step.status === "current") ?? null,
+    steps,
+  };
+}
 export type MomentumEvent = {
   id: string;
   journeyId: string | null;
