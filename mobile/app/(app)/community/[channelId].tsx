@@ -33,6 +33,7 @@ import { createCommunityRequestId, reconcileCommunityMessages } from "@/lib/comm
 import {
   formatMessageDate,
   initials,
+  copyCommunityText,
   messageActions,
   withDateSeparators,
 } from "@/lib/community-ui";
@@ -56,7 +57,9 @@ export default function CommunityConversation() {
   const list = useRef<FlatList>(null),
     nearBottom = useRef(true),
     didInitialScroll = useRef(false),
-    sending = useRef(false);
+    sending = useRef(false),
+    reacting = useRef(new Set<string>()),
+    reporting = useRef(new Set<string>());
   const [body, setBody] = useState("");
   const [failed, setFailed] = useState<{
     body: string;
@@ -159,7 +162,7 @@ export default function CommunityConversation() {
           <Text style={styles.title}>NEXORA Community</Text>
           <Text style={[styles.live, messages.realtimeStatus !== "connected" && styles.offline]}>
             {messages.realtimeStatus === "connected"
-              ? "Tempo real conectado"
+              ? "Tempo real ativo"
               : messages.realtimeStatus === "connecting"
                 ? "Reconectando…"
                 : "Comunidade oficial"}
@@ -184,6 +187,8 @@ export default function CommunityConversation() {
           {(["highlights", "all", "muted"] as NotificationMode[]).map((mode) => (
             <Pressable
               key={mode}
+              accessibilityRole="button"
+              accessibilityLabel={`Notificações: ${mode === "highlights" ? "Destaques" : mode === "all" ? "Todas" : "Silenciado"}`}
               disabled={channelActions.notifications.isPending}
               onPress={() =>
                 channelActions.notifications.mutate({ channel: channelId, mode }, { onError: fail })
@@ -308,19 +313,27 @@ export default function CommunityConversation() {
           setSelected(null);
         }}
         react={(reaction) => {
-          if (selected)
+          if (selected && !reacting.current.has(selected.id)) {
+            reacting.current.add(selected.id);
             actions.react.mutate(
               { id: selected.id, reaction: selected.myReaction === reaction ? null : reaction },
-              { onError: fail },
+              {
+                onError: fail,
+                onSettled: () => reacting.current.delete(selected.id),
+              },
             );
+          }
           setSelected(null);
         }}
         report={() => {
-          if (selected)
+          if (selected && !reporting.current.has(selected.id)) {
+            reporting.current.add(selected.id);
             actions.report.mutate(selected.id, {
               onSuccess: () => Alert.alert("Recebido", "A denúncia foi registrada para análise."),
               onError: fail,
+              onSettled: () => reporting.current.delete(selected.id),
             });
+          }
           setSelected(null);
         }}
         block={() => {
@@ -425,7 +438,13 @@ function MessageMenu({
           <Text style={styles.sheetTitle}>{message.displayName}</Text>
           <View style={styles.quick}>
             {(Object.keys(reactionLabels) as ChatReaction[]).map((reaction) => (
-              <Pressable key={reaction} onPress={() => react(reaction)}>
+              <Pressable
+                key={reaction}
+                accessibilityRole="button"
+                accessibilityLabel={`Reagir com ${reaction === "heart" ? "coração" : reaction === "fire" ? "fogo" : reaction === "clap" ? "aplausos" : "força"}`}
+                onPress={() => react(reaction)}
+                style={styles.quickButton}
+              >
                 <Text style={styles.quickEmoji}>{reactionLabels[reaction]}</Text>
               </Pressable>
             ))}
@@ -435,7 +454,8 @@ function MessageMenu({
             <MenuButton
               label="Copiar texto"
               onPress={() => {
-                NativeModules.Clipboard?.setString(message.body);
+                if (!copyCommunityText(message.body, NativeModules.Clipboard))
+                  Alert.alert("Não foi possível copiar", "Tente novamente neste dispositivo.");
                 close();
               }}
             />
@@ -625,6 +645,7 @@ const styles = StyleSheet.create({
   },
   sheetTitle: { ...typography.heading, color: colors.text },
   quick: { flexDirection: "row", justifyContent: "space-around", paddingVertical: spacing.sm },
+  quickButton: { minWidth: 44, minHeight: 44, alignItems: "center", justifyContent: "center" },
   quickEmoji: { fontSize: 28 },
   menuButton: {
     minHeight: 44,

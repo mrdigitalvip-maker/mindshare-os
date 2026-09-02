@@ -27,7 +27,7 @@ export default function Squad() {
       <StandardHeader title={s.name} />
       {s.description ? <Text style={styles.muted}>{s.description}</Text> : null}
       <Text style={styles.muted}>
-        {s.members.length} de {s.maxMembers} membros reais
+        {s.members.length} de {s.maxMembers} membros
       </Text>
       <Text style={styles.heading}>Membros</Text>
       {s.members.map((m) => (
@@ -35,13 +35,17 @@ export default function Squad() {
           <Text style={styles.body}>{m.displayName}</Text>
           <Text style={styles.muted}>{m.role === "owner" ? "Responsável" : "Membro"}</Text>
           {s.role === "owner" && m.role === "member" ? (
-            <Pressable onPress={() => actions.remove.mutate(m.userId, { onError: fail })}>
+            <Pressable
+              accessibilityLabel={`Remover ${m.displayName} do Squad`}
+              onPress={() => actions.remove.mutate(m.userId, { onError: fail })}
+            >
               <Text style={styles.danger}>Remover</Text>
             </Pressable>
           ) : null}
           {!m.isSelf ? (
             <View style={styles.inlineActions}>
               <Pressable
+                accessibilityLabel={`Reportar ${m.displayName}`}
                 onPress={() =>
                   actions.reportMember.mutate(m.userId, {
                     onSuccess: () =>
@@ -52,7 +56,10 @@ export default function Squad() {
               >
                 <Text style={styles.secondary}>Reportar</Text>
               </Pressable>
-              <Pressable onPress={() => actions.block.mutate(m.userId, { onError: fail })}>
+              <Pressable
+                accessibilityLabel={`Bloquear ${m.displayName}`}
+                onPress={() => actions.block.mutate(m.userId, { onError: fail })}
+              >
                 <Text style={styles.danger}>Bloquear</Text>
               </Pressable>
             </View>
@@ -62,6 +69,7 @@ export default function Squad() {
       {s.role === "owner" ? (
         <>
           <Pressable
+            accessibilityLabel="Criar código de convite do Squad"
             style={styles.button}
             onPress={() =>
               actions.invite.mutate(undefined, {
