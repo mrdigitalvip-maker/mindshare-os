@@ -18,6 +18,7 @@ import {
   getHomeProjects,
   getNextAction,
   getProjectProgress,
+  shouldShowSecondaryMission,
 } from "@/lib/dashboard-selectors";
 import { getDisplayProjectStatus } from "@/lib/presentation";
 import { colors, radius, spacing, typography } from "@/lib/theme";
@@ -74,6 +75,7 @@ function SectionState({
 
 function ProjectCard({ project, tasks }: { project: Project; tasks?: Task[] }) {
   const progress = tasks ? getProjectProgress(project.id, tasks) : null;
+  const nextProjectTask = tasks?.find((task) => !task.completed);
   return (
     <Pressable
       accessibilityRole="button"
@@ -87,9 +89,14 @@ function ProjectCard({ project, tasks }: { project: Project; tasks?: Task[] }) {
         </Text>
         <Text style={styles.status}>{getDisplayProjectStatus(project.status)}</Text>
       </View>
-      {project.description ? (
+      {project.objective || project.description ? (
         <Text numberOfLines={2} style={styles.muted}>
-          {project.description}
+          {project.objective || project.description}
+        </Text>
+      ) : null}
+      {nextProjectTask ? (
+        <Text numberOfLines={1} style={styles.meta}>
+          Próxima ação: {nextProjectTask.nextAction || nextProjectTask.title}
         </Text>
       ) : null}
       {!tasks ? (
@@ -128,7 +135,10 @@ function StudyCard({ subject }: { subject: Subject }) {
           {subject.name}
         </Text>
         <Text numberOfLines={1} style={styles.meta}>
-          {subject.description || getDisplayProjectStatus(subject.status)}
+          {subject.nextAction ||
+            subject.objective ||
+            subject.description ||
+            getDisplayProjectStatus(subject.status)}
         </Text>
       </View>
       <Text style={styles.arrow}>›</Text>
@@ -249,19 +259,74 @@ export default function Dashboard() {
         }
       >
         <View style={styles.identity}>
-          <NexoraAgent size={40} state="idle" />
+          <NexoraAgent size={72} state="idle" />
           <View style={styles.identityCopy}>
             <Text style={styles.eyebrow}>{tier}</Text>
             <Text style={styles.greeting}>Olá, {name}.</Text>
             <Text style={styles.context}>{contextMessage}</Text>
           </View>
         </View>
-        <View style={styles.hero}>
-          <Text style={styles.spark}>✦</Text>
-          <Text style={styles.title}>O que vamos mover hoje?</Text>
-        </View>
+        {!tasksQuery.isPending && !tasksQuery.isError && nextAction ? (
+          <View style={styles.section}>
+            <SectionHeader
+              title={nextAction.executionStatus === "blocked" ? "ATENÇÃO" : "SEU PRÓXIMO PASSO"}
+            />
+            <View style={styles.commandCard}>
+              <Text style={styles.nextLabel}>
+                {nextAction.executionStatus === "blocked"
+                  ? "Há algo travando seu avanço"
+                  : getDueLabel(nextAction)}
+              </Text>
+              <Text style={styles.nextTitle}>{nextAction.title}</Text>
+              {nextAction.projectId ? (
+                <Text numberOfLines={1} style={styles.meta}>
+                  {projectById.get(nextAction.projectId)?.title ?? "Projeto vinculado indisponível"}
+                </Text>
+              ) : null}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Abrir tarefa ${nextAction.title}`}
+                onPress={() => router.push(`/tasks/${nextAction.id}`)}
+                style={styles.commandButton}
+              >
+                <Text style={styles.commandButtonText}>
+                  {nextAction.executionStatus === "blocked" ? "Resolver" : "Abrir tarefa"}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : !tasksQuery.isPending && !tasksQuery.isError && dailyMission.data && missionTarget ? (
+          <View style={styles.section}>
+            <SectionHeader title="MISSÃO DE HOJE" />
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => router.push(missionTarget.href)}
+              style={styles.commandCard}
+            >
+              <Text style={styles.nextLabel}>MISSÃO DE HOJE</Text>
+              <Text style={styles.nextTitle}>{dailyMission.data.title}</Text>
+              <Text style={styles.commandButtonText}>{missionTarget.label}</Text>
+            </Pressable>
+          </View>
+        ) : !tasksQuery.isPending && !tasksQuery.isError ? (
+          <View style={styles.section}>
+            <View style={styles.commandCard}>
+              <Text style={styles.nextTitle}>Seu espaço está livre agora.</Text>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => router.push("/assistant")}
+                style={styles.commandButton}
+              >
+                <Text style={styles.commandButtonText}>Planejar com a NEXORA</Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : null}
 
-        {dailyMission.data && missionTarget ? (
+        {nextAction &&
+        dailyMission.data &&
+        missionTarget &&
+        shouldShowSecondaryMission(`/tasks/${nextAction.id}`, missionTarget.href) ? (
           <View style={styles.section}>
             <SectionHeader
               title="MISSÃO DE HOJE"
@@ -283,38 +348,6 @@ export default function Dashboard() {
               ) : null}
               <Text style={styles.link}>{missionTarget.label} ›</Text>
             </Pressable>
-          </View>
-        ) : null}
-
-        {!tasksQuery.isPending && !tasksQuery.isError ? (
-          <View style={styles.section}>
-            <SectionHeader title="AGORA" />
-            {nextAction ? (
-              <View style={styles.nextCard}>
-                <Text style={styles.nextLabel}>{getDueLabel(nextAction)}</Text>
-                <Text style={styles.nextTitle}>{nextAction.title}</Text>
-                {nextAction.projectId && projectById.get(nextAction.projectId) ? (
-                  <Text numberOfLines={1} style={styles.meta}>
-                    {projectById.get(nextAction.projectId)?.title}
-                  </Text>
-                ) : null}
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={`Abrir tarefa ${nextAction.title}`}
-                  onPress={() => router.push("/productivity")}
-                  style={styles.openButton}
-                >
-                  <Text style={styles.openButtonText}>Abrir tarefa</Text>
-                </Pressable>
-              </View>
-            ) : (
-              <View style={styles.compactState}>
-                <Text style={styles.calm}>Nenhuma ação urgente agora.</Text>
-                <Pressable accessibilityRole="button" onPress={() => router.push("/productivity")}>
-                  <Text style={styles.link}>Ver tarefas</Text>
-                </Pressable>
-              </View>
-            )}
           </View>
         ) : null}
 
@@ -540,6 +573,24 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     backgroundColor: colors.surface,
   },
+  commandCard: {
+    gap: spacing.sm,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.accentMuted,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
+  },
+  commandButton: {
+    minHeight: 48,
+    alignSelf: "flex-start",
+    justifyContent: "center",
+    marginTop: spacing.xs,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primaryBright,
+  },
+  commandButtonText: { ...typography.label, color: colors.background },
   dayProgress: { paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
   dailyRows: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
   dailyRow: {

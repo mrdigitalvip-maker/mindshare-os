@@ -58,11 +58,10 @@ export function getHomeContextMessage(
   summary: Pick<ReturnType<typeof getHomeDaySummary>, "overdue" | "pending">,
   hasActionableTask: boolean,
 ) {
-  if (summary.overdue > 0) return "Vamos tirar uma pendência do caminho.";
-  if (summary.pending > 0)
-    return `Você tem ${summary.pending} ${summary.pending === 1 ? "prioridade" : "prioridades"} para hoje.`;
-  if (!hasActionableTask) return "Vamos definir o próximo passo.";
-  return "Seu dia está sob controle.";
+  if (summary.overdue > 0) return "Há uma tarefa atrasada pedindo atenção.";
+  if (summary.pending > 0) return "Você tem uma ação importante para hoje.";
+  if (hasActionableTask) return "Seu próximo passo está definido.";
+  return "Seu dia está leve. Podemos planejar o que vem depois.";
 }
 
 export function getUpcomingTasks(tasks: Task[], now = new Date()) {
@@ -82,6 +81,11 @@ export function getNextAction(tasks: Task[], now = new Date()) {
     getUpcomingTasks(tasks, now)[0] ??
     null
   );
+}
+
+/** Prevents the same canonical execution target from occupying two Home cards. */
+export function shouldShowSecondaryMission(primaryHref: string | null, missionHref: string | null) {
+  return Boolean(missionHref && missionHref !== primaryHref);
 }
 
 export function getTaskPreviews(tasks: Task[], now = new Date(), limit = 3) {
@@ -111,13 +115,7 @@ export function getActiveProjects(projects: Project[], limit = 3) {
 }
 
 export function getHomeProjects(projects: Project[], tasks: Task[], now = new Date(), limit = 3) {
-  const activeStatuses = new Set([
-    "active",
-    "open",
-    "in_progress",
-    "in progress",
-    "em andamento",
-  ]);
+  const activeStatuses = new Set(["active", "open", "in_progress", "in progress", "em andamento"]);
   const today = localDateKey(now);
   const ranks = new Map<string, number>();
   for (const task of tasks) {

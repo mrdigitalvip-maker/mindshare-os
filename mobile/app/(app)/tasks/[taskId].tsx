@@ -131,14 +131,13 @@ export default function TaskWorkspace() {
       "complete",
     )
       .then(async (saved) => {
-        if (saved) await cancelTaskReminder(task.id);
-      })
-      .then(() =>
+        if (!saved) return;
+        await cancelTaskReminder(task.id);
         Alert.alert(
           "Concluída.",
           project ? `Esta etapa avançou o projeto ${project.title}.` : undefined,
-        ),
-      )
+        );
+      })
       .catch(() => undefined);
   const reopen = () =>
     void update(
@@ -309,8 +308,14 @@ export default function TaskWorkspace() {
           <Text style={styles.title}>{task.title}</Text>
           {task.description ? <Text style={styles.description}>{task.description}</Text> : null}
           <Text style={styles.meta}>
-            {project?.title ?? "Sem projeto"} · {getTaskPriorityLabel(task.priority)} ·{" "}
-            {getTaskDuePresentation(task)}
+            {task.projectId == null
+              ? "Sem projeto"
+              : project
+                ? project.title
+                : projectQuery.isPending
+                  ? "Projeto vinculado…"
+                  : "Projeto vinculado indisponível"}{" "}
+            · {getTaskPriorityLabel(task.priority)} · {getTaskDuePresentation(task)}
           </Text>
           <Text style={styles.state}>{stateLabel[workState]}</Text>
           <Card label="NEXORA AGORA">
