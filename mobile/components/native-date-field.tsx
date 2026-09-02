@@ -23,10 +23,12 @@ export function NativeDateField({
   value,
   onChange,
   minimumDate = new Date(),
+  label = "Adicionar data-alvo (opcional)",
 }: {
   value: string | null;
   onChange(value: string | null): void;
   minimumDate?: Date;
+  label?: string;
 }) {
   const minimum = new Date(
     minimumDate.getFullYear(),
@@ -51,14 +53,12 @@ export function NativeDateField({
     <>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Escolher data-alvo"
+        accessibilityLabel={label}
         onPress={() => setOpen(true)}
         style={s.field}
       >
         <Text style={value ? s.value : s.placeholder}>
-          {value
-            ? `Data-alvo: ${selected.toLocaleDateString("pt-BR")}`
-            : "Adicionar data-alvo (opcional)"}
+          {value ? `Data-alvo: ${selected.toLocaleDateString("pt-BR")}` : label}
         </Text>
       </Pressable>
       <Modal transparent animationType="fade" visible={open} onRequestClose={() => setOpen(false)}>

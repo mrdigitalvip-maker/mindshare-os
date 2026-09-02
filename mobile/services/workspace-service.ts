@@ -1,14 +1,22 @@
 import { supabase } from "@/lib/supabase";
-import { workspaceMutationError } from "@/lib/mutation-errors";
+import { WorkspaceMutationError, workspaceMutationError } from "@/lib/mutation-errors";
 import { normalizeSessionInput, normalizeSubjectInput } from "@/lib/study-input";
 
 export type Project = {
   id: string;
   title: string;
   description: string;
+  objective?: string;
   status: string;
   dueDate?: string | null;
   updatedAt?: string | null;
+};
+export type ProjectWorkspace = {
+  project: Project;
+  tasks: Task[];
+  checkIns: ProjectCheckIn[];
+  tasksUnavailable: boolean;
+  checkInsUnavailable: boolean;
 };
 export type ProjectCheckInState = "progressed" | "unchanged" | "blocked" | "reorganize";
 export type ProjectCheckIn = {
@@ -77,6 +85,65 @@ const required = (value: string, label: string) => {
 };
 const owner = (userId: string) => required(userId, "User ID");
 const resource = (id: string) => required(id, "Resource ID");
+const DATE = /^\d{4}-\d{2}-\d{2}$/;
+const normalizeDate = (value?: string | null) => {
+  if (!value) return null;
+  const normalized = value.trim();
+  const parsed = new Date(`${normalized}T12:00:00Z`);
+  if (
+    !DATE.test(normalized) ||
+    Number.isNaN(parsed.getTime()) ||
+    parsed.toISOString().slice(0, 10) !== normalized
+  )
+    throw new WorkspaceMutationError("Escolha uma data válida.", "invalid-date", value);
+  return normalized;
+};
+export const normalizeProjectInput = (input: {
+  title: string;
+  objective?: string;
+  description?: string;
+  dueDate?: string | null;
+}) => {
+  const title = input.title.trim();
+  if (!title)
+    throw new WorkspaceMutationError("Informe o nome do projeto.", "invalid-input", input.title);
+  if (title.length > 120)
+    throw new WorkspaceMutationError(
+      "O nome do projeto deve ter até 120 caracteres.",
+      "invalid-input",
+      input.title,
+    );
+  const objective = input.objective?.trim() || null;
+  const description = input.description?.trim() || null;
+  if ((objective?.length ?? 0) > 1000 || (description?.length ?? 0) > 1000)
+    throw new WorkspaceMutationError(
+      "O objetivo e a descrição devem ter até 1000 caracteres.",
+      "invalid-input",
+      input,
+    );
+  return { title, objective, description, dueDate: normalizeDate(input.dueDate) };
+};
+const projectFrom = (row: Record<string, unknown>): Project => ({
+  id: String(row.id),
+  title: String(row.title ?? "Projeto sem título"),
+  description: String(row.description ?? ""),
+  objective: String(row.objective ?? ""),
+  status: typeof row.status === "string" ? row.status : "active",
+  dueDate: typeof row.due_date === "string" ? row.due_date : null,
+  updatedAt: typeof row.updated_at === "string" ? row.updated_at : null,
+});
+const normalizeTaskTitle = (value: string) => {
+  const title = value.trim();
+  if (!title)
+    throw new WorkspaceMutationError("Informe o título da tarefa.", "invalid-input", value);
+  if (title.length > 160)
+    throw new WorkspaceMutationError(
+      "O título da tarefa deve ter até 160 caracteres.",
+      "invalid-input",
+      value,
+    );
+  return title;
+};
 const taskFrom = (row: Record<string, unknown>): Task => ({
   id: String(row.id),
   title: String(row.title ?? "Tarefa sem título"),
@@ -103,30 +170,25 @@ export async function listProjects(userId: string): Promise<Project[]> {
   const id = owner(userId);
   const { data, error } = await supabase
     .from("projects")
-    .select("id,title,description,status,due_date,updated_at")
+    .select("id,title,description,objective,status,due_date,updated_at")
     .eq("user_id", id)
     .order("updated_at", { ascending: false });
   if (error) throw workspaceMutationError(error);
-  return (data ?? []).map((row) => ({
-    id: row.id,
-    title: row.title ?? "Projeto sem título",
-    description: row.description ?? "",
-    status: row.status ?? "active",
-    dueDate: row.due_date ?? null,
-    updatedAt: row.updated_at ?? null,
-  }));
+  return (data ?? []).map(projectFrom);
 }
 export async function createProject(
   userId: string,
-  input: { title: string; description?: string; dueDate?: string | null },
+  input: { title: string; objective?: string; description?: string; dueDate?: string | null },
 ): Promise<string> {
+  const normalized = normalizeProjectInput(input);
   const { data, error } = await supabase
     .from("projects")
     .insert({
       user_id: owner(userId),
-      title: required(input.title, "Project name"),
-      description: input.description?.trim() || null,
-      due_date: input.dueDate || null,
+      title: normalized.title,
+      objective: normalized.objective,
+      description: normalized.description,
+      due_date: normalized.dueDate,
       status: "active",
     })
     .select("id")
@@ -148,13 +210,42 @@ export async function deleteProject(userId: string, projectId: string): Promise<
 export async function updateProject(
   userId: string,
   projectId: string,
-  patch: { title?: string; description?: string; status?: string; dueDate?: string | null },
+  patch: {
+    title?: string;
+    objective?: string;
+    description?: string;
+    status?: "active" | "completed";
+    dueDate?: string | null;
+  },
 ): Promise<void> {
+  if (patch.status !== undefined && !["active", "completed"].includes(patch.status))
+    throw new WorkspaceMutationError("Status de projeto inválido.", "invalid-input", patch.status);
+  if (
+    (patch.objective?.trim().length ?? 0) > 1000 ||
+    (patch.description?.trim().length ?? 0) > 1000
+  )
+    throw new WorkspaceMutationError(
+      "O objetivo e a descrição devem ter até 1000 caracteres.",
+      "invalid-input",
+      patch,
+    );
+  const normalized =
+    patch.title !== undefined
+      ? normalizeProjectInput({
+          title: patch.title,
+          objective: patch.objective,
+          description: patch.description,
+          dueDate: patch.dueDate,
+        })
+      : null;
   const update = {
     ...(patch.description !== undefined ? { description: patch.description.trim() || null } : {}),
+    ...(patch.objective !== undefined ? { objective: patch.objective.trim() || null } : {}),
     ...(patch.status !== undefined ? { status: patch.status } : {}),
-    ...(patch.dueDate !== undefined ? { due_date: patch.dueDate || null } : {}),
-    ...(patch.title !== undefined ? { title: required(patch.title, "Project name") } : {}),
+    ...(patch.dueDate !== undefined
+      ? { due_date: normalized?.dueDate ?? normalizeDate(patch.dueDate) }
+      : {}),
+    ...(patch.title !== undefined ? { title: normalized!.title } : {}),
     updated_at: new Date().toISOString(),
   };
   const { data, error } = await supabase
@@ -170,16 +261,28 @@ export async function updateProject(
 export async function getProject(
   userId: string,
   projectId: string,
-): Promise<{ project: Project; tasks: Task[]; checkIns: ProjectCheckIn[] } | null> {
-  const id = resource(projectId);
-  const projects = await listProjects(userId);
-  const project = projects.find((item) => item.id === id);
-  if (!project) return null;
-  const [tasks, checkIns] = await Promise.all([
+): Promise<ProjectWorkspace | null> {
+  const id = resource(projectId),
+    user = owner(userId);
+  const { data, error } = await supabase
+    .from("projects")
+    .select("id,title,description,objective,status,due_date,updated_at")
+    .eq("id", id)
+    .eq("user_id", user)
+    .maybeSingle();
+  if (error) throw workspaceMutationError(error);
+  if (!data) return null;
+  const [tasksResult, checkInsResult] = await Promise.allSettled([
     listTasks(userId, id),
     listProjectCheckIns(userId, id),
   ]);
-  return { project, tasks, checkIns };
+  return {
+    project: projectFrom(data),
+    tasks: tasksResult.status === "fulfilled" ? tasksResult.value : [],
+    checkIns: checkInsResult.status === "fulfilled" ? checkInsResult.value : [],
+    tasksUnavailable: tasksResult.status === "rejected",
+    checkInsUnavailable: checkInsResult.status === "rejected",
+  };
 }
 
 export async function listProjectCheckIns(
@@ -208,13 +311,20 @@ export async function createProjectCheckIn(
   projectId: string,
   input: { state: ProjectCheckInState; note?: string },
 ): Promise<string> {
+  const note = input.note?.trim() || null;
+  if ((note?.length ?? 0) > 1000)
+    throw new WorkspaceMutationError(
+      "A nota deve ter até 1000 caracteres.",
+      "invalid-input",
+      input.note,
+    );
   const { data, error } = await supabase
     .from("project_check_ins")
     .insert({
       user_id: owner(userId),
       project_id: resource(projectId),
       state: input.state,
-      note: input.note?.trim() || null,
+      note,
     })
     .select("id")
     .single();
@@ -250,11 +360,11 @@ export async function createTask(
     .from("tasks")
     .insert({
       user_id: owner(userId),
-      title: required(input.title, "Task title"),
+      title: normalizeTaskTitle(input.title),
       description: input.description?.trim() || null,
       project_id: input.projectId ? resource(input.projectId) : null,
       priority: input.priority ?? "medium",
-      due_date: input.dueDate || null,
+      due_date: normalizeDate(input.dueDate),
       completed: false,
       next_action: input.nextAction?.trim() || null,
     })
@@ -283,12 +393,13 @@ export async function updateTask(
       | "reminderAt"
     >
   >,
+  expectedProjectId?: string | null,
 ): Promise<void> {
   const update = {
-    ...(patch.title !== undefined ? { title: required(patch.title, "Task title") } : {}),
+    ...(patch.title !== undefined ? { title: normalizeTaskTitle(patch.title) } : {}),
     ...(patch.description !== undefined ? { description: patch.description } : {}),
     ...(patch.priority !== undefined ? { priority: patch.priority } : {}),
-    ...(patch.dueDate !== undefined ? { due_date: patch.dueDate } : {}),
+    ...(patch.dueDate !== undefined ? { due_date: normalizeDate(patch.dueDate) } : {}),
     ...(patch.projectId !== undefined ? { project_id: patch.projectId } : {}),
     ...(patch.completed !== undefined ? { completed: patch.completed } : {}),
     ...(patch.executionStatus !== undefined ? { execution_status: patch.executionStatus } : {}),
@@ -299,13 +410,13 @@ export async function updateTask(
     ...(patch.reminderAt !== undefined ? { reminder_at: patch.reminderAt } : {}),
     updated_at: new Date().toISOString(),
   };
-  const { data, error } = await supabase
+  let query = supabase
     .from("tasks")
     .update(update)
     .eq("id", resource(taskId))
-    .eq("user_id", owner(userId))
-    .select("id")
-    .maybeSingle();
+    .eq("user_id", owner(userId));
+  if (expectedProjectId) query = query.eq("project_id", resource(expectedProjectId));
+  const { data, error } = await query.select("id").maybeSingle();
   if (error) throw workspaceMutationError(error);
   if (!data) throw new Error("Task not found.");
 }

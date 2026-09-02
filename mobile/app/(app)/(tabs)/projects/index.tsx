@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { NativeFormModal } from "@/components/native-form-modal";
@@ -20,12 +20,16 @@ import {
 import { colors, radius, spacing, typography } from "@/lib/theme";
 import type { Project, Task } from "@/services/workspace-service";
 
-function ProjectCard({ project, tasks }: { project: Project; tasks: Task[] }) {
-  const progress = getProjectProgress(tasks);
-  const attention = getProjectAttention(project, tasks);
-  const overdue = getProjectOverdueTasks(tasks).length;
-  const next = getProjectNextAction(tasks);
-  const open = tasks.filter((task) => !task.completed).length;
+function ProjectCard({ project, tasks }: { project: Project; tasks: Task[] | null }) {
+  const taskDataAvailable = tasks !== null;
+  const canonicalTasks = tasks ?? [];
+  const progress = taskDataAvailable ? getProjectProgress(canonicalTasks) : null;
+  const attention = taskDataAvailable
+    ? getProjectAttention(project, canonicalTasks)
+    : getProjectStatusLabel(project.status);
+  const overdue = getProjectOverdueTasks(canonicalTasks).length;
+  const next = taskDataAvailable ? getProjectNextAction(canonicalTasks) : null;
+  const open = canonicalTasks.filter((task) => !task.completed).length;
   const subdued = ["completed", "archived"].includes(project.status.toLowerCase());
   return (
     <Pressable
@@ -45,9 +49,9 @@ function ProjectCard({ project, tasks }: { project: Project; tasks: Task[] }) {
           {attention}
         </Text>
       </View>
-      {project.description ? (
+      {project.objective || project.description ? (
         <Text numberOfLines={2} style={styles.copy}>
-          {project.description}
+          {project.objective || project.description}
         </Text>
       ) : null}
       {next ? (
@@ -80,8 +84,10 @@ function ProjectCard({ project, tasks }: { project: Project; tasks: Task[] }) {
             ) : null}
           </View>
         </View>
-      ) : (
+      ) : taskDataAvailable ? (
         <Text style={styles.meta}>Sem tarefas vinculadas</Text>
+      ) : (
+        <Text style={styles.meta}>Progresso e próxima ação indisponíveis.</Text>
       )}
       <View style={styles.cardFooter}>
         <Text
@@ -106,14 +112,22 @@ export default function Projetos() {
   const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [refreshing, setRefreshing] = useState(false);
+  const submitting = useRef(false);
   const grouped = useMemo(() => groupTasksByProject(tasksQuery.data ?? []), [tasksQuery.data]);
   const projects = useMemo(
     () => sortProjectsByAttention(projectsQuery.data ?? [], grouped),
     [projectsQuery.data, grouped],
   );
   async function save() {
+    if (submitting.current || createProject.isPending) return;
+    submitting.current = true;
     try {
-      const id = await createProject.mutateAsync({ title, description, dueDate: dueDate || null });
+      const id = await createProject.mutateAsync({
+        title,
+        objective: description,
+        dueDate: dueDate || null,
+      });
+      if (!id) throw new Error("Projeto sem identificação canônica.");
       setOpen(false);
       setTitle("");
       setDescription("");
@@ -121,6 +135,8 @@ export default function Projetos() {
       router.push(`/projects/${id}`);
     } catch {
       /* The modal preserves input and presents a safe error. */
+    } finally {
+      submitting.current = false;
     }
   }
   async function refresh() {
@@ -128,9 +144,8 @@ export default function Projetos() {
     await Promise.allSettled([projectsQuery.refetch(), tasksQuery.refetch()]);
     setRefreshing(false);
   }
-  if (projectsQuery.isPending || tasksQuery.isPending)
-    return <LoadingState title="Carregando projetos…" />;
-  if (projectsQuery.isError || tasksQuery.isError)
+  if (projectsQuery.isPending) return <LoadingState title="Carregando projetos…" />;
+  if (projectsQuery.isError)
     return (
       <ErrorState
         title="Não foi possível carregar seus projetos."
@@ -139,7 +154,8 @@ export default function Projetos() {
         onAction={() => void refresh()}
       />
     );
-  const overview = getProjectsOverview(projects, grouped);
+  const taskDataAvailable = !tasksQuery.isError && !tasksQuery.isPending;
+  const overview = taskDataAvailable ? getProjectsOverview(projects, grouped) : null;
   return (
     <AppScreen contentContainerStyle={styles.page}>
       <StandardHeader
@@ -150,7 +166,7 @@ export default function Projetos() {
           </Pressable>
         }
       />
-      {projects.length ? (
+      {projects.length && overview ? (
         <View style={styles.summary}>
           <Text style={styles.summaryTitle}>Hoje nos seus projetos</Text>
           {overview.attention ? (
@@ -175,6 +191,16 @@ export default function Projetos() {
           ) : null}
         </View>
       ) : null}
+      {projects.length && tasksQuery.isError ? (
+        <View style={styles.warning}>
+          <Text style={styles.warningText}>
+            Não foi possível atualizar o progresso das tarefas.
+          </Text>
+          <Pressable accessibilityRole="button" onPress={() => void tasksQuery.refetch()}>
+            <Text style={styles.continue}>Tentar novamente</Text>
+          </Pressable>
+        </View>
+      ) : null}
       <FlatList
         data={projects}
         keyExtractor={(item) => item.id}
@@ -195,7 +221,12 @@ export default function Projetos() {
             onAction={() => setOpen(true)}
           />
         }
-        renderItem={({ item }) => <ProjectCard project={item} tasks={grouped.get(item.id) ?? []} />}
+        renderItem={({ item }) => (
+          <ProjectCard
+            project={item}
+            tasks={taskDataAvailable ? (grouped.get(item.id) ?? []) : null}
+          />
+        )}
       />
       <NativeFormModal
         visible={open}
@@ -207,10 +238,12 @@ export default function Projetos() {
         secondaryPlaceholder="Como será o resultado quando estiver concluído?"
         onSecondaryChange={setDescription}
         dateValue={dueDate}
-        datePlaceholder="Quando concluir? (AAAA-MM-DD, opcional)"
+        datePlaceholder="Adicionar prazo (opcional)"
         onDateChange={setDueDate}
         busy={createProject.isPending}
-        error={createProject.error ? "Não foi possível salvar o projeto." : null}
+        error={createProject.error?.message ?? null}
+        valueMaxLength={120}
+        secondaryMaxLength={1000}
         onClose={() => setOpen(false)}
         onSave={() => void save()}
       />
@@ -234,6 +267,16 @@ const styles = StyleSheet.create({
   },
   summaryTitle: { ...typography.heading, fontSize: 17, color: colors.text },
   summaryText: { ...typography.caption, color: colors.textMuted },
+  warning: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.sm,
+    padding: spacing.sm,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceRaised,
+  },
+  warningText: { ...typography.caption, color: colors.warning, flex: 1 },
   list: { gap: spacing.sm, paddingBottom: spacing.xl },
   empty: { flexGrow: 1 },
   card: {
