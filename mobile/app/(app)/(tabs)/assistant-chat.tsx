@@ -40,10 +40,26 @@ import {
 import { colors, radius, spacing, typography } from "@/lib/theme";
 import { uploadChatAttachment } from "@/services/chat-attachment-service";
 import { ChatServiceError, type ChatMessage } from "@/services/chat-service";
-import { actionInvalidationRoots, actionPreview, type NexoraAction } from "@/lib/nexora-actions";
-import { applyNexoraAction } from "@/services/nexora-action-service";
+import {
+  actionInvalidationRoots,
+  actionPreview,
+  actionReceipt,
+  actionResultRoute,
+  type NexoraAction,
+  type NexoraActionStatus,
+} from "@/lib/nexora-actions";
+import { applyNexoraAction, NexoraActionError } from "@/services/nexora-action-service";
 
 const uuid = () => createAssistantRequestId();
+type ProposalItem = {
+  action: NexoraAction;
+  actionId: string;
+  requestId: string;
+  status: NexoraActionStatus;
+  resourceId?: string;
+  message?: string;
+  canRetry?: boolean;
+};
 
 export default function Assistant() {
   const {
@@ -55,6 +71,7 @@ export default function Assistant() {
   const list = useRef<FlatList<ChatMessage>>(null);
   const nearBottom = useRef(true);
   const submitting = useRef(false);
+  const applyingActions = useRef(new Set<string>());
   const handledPrompt = useRef<string | undefined>(undefined);
   const history = useConversation(conversationId);
   const send = useSendChat();
@@ -71,11 +88,10 @@ export default function Assistant() {
     uploadedAttachment?: ChatAttachment;
   } | null>(null);
   const [optimistic, setOptimistic] = useState<ChatMessage | null>(null);
-  const [proposal, setProposal] = useState<{ actions: NexoraAction[]; actionIds: string[] } | null>(
-    null,
-  );
-  const [applying, setApplying] = useState(false);
-  const [applyMessage, setApplyMessage] = useState<string | null>(null);
+  const [proposal, setProposal] = useState<{
+    conversationId: string;
+    items: ProposalItem[];
+  } | null>(null);
   const messages = useMemo(
     () => reconcileAssistantMessages(history.data, optimistic),
     [history.data, optimistic],
@@ -167,6 +183,8 @@ export default function Assistant() {
       const content = value.trim();
       if ((!content && !attachment) || submitting.current || send.isPending || uploading) return;
       submitting.current = true;
+      // A proposal is tied to one successful canonical response, never to a later send/retry.
+      setProposal(null);
       const id = retryId ?? createAssistantRequestId();
       const preservedDraft = content;
       if (!retryId) setDraft("");
@@ -191,11 +209,22 @@ export default function Assistant() {
           requestId: id,
           attachments: uploaded ? [uploaded] : [],
         });
-        if (result.proposedActions.length)
-          setProposal({
-            actions: result.proposedActions,
-            actionIds: result.proposedActions.map(() => createAssistantRequestId()),
-          });
+        setProposal(
+          result.proposedActions.length
+            ? {
+                conversationId: result.conversationId,
+                items: result.proposedActions.map((action) => {
+                  const stableId = createAssistantRequestId();
+                  return {
+                    action,
+                    actionId: stableId,
+                    requestId: stableId,
+                    status: "pending" as const,
+                  };
+                }),
+              }
+            : null,
+        );
         setAttachment(null);
         if (!conversationId) router.setParams({ conversationId: result.conversationId });
         setOptimistic(null);
@@ -235,6 +264,9 @@ export default function Assistant() {
     if (attachmentIntent === "open") setAttachmentMenuOpen(true);
   }, [attachmentIntent]);
   useEffect(() => {
+    if (proposal && conversationId && proposal.conversationId !== conversationId) setProposal(null);
+  }, [conversationId, proposal]);
+  useEffect(() => {
     if (messages.length && nearBottom.current)
       requestAnimationFrame(() => list.current?.scrollToEnd({ animated: true }));
   }, [messages.length]);
@@ -262,6 +294,63 @@ export default function Assistant() {
     } catch {
       setSpeakingId(null);
       Alert.alert("Áudio indisponível", "Não foi possível reproduzir esta resposta.");
+    }
+  };
+  const updateProposalItem = (actionId: string, patch: Partial<ProposalItem>) =>
+    setProposal((current) =>
+      current
+        ? {
+            ...current,
+            items: current.items.map((item) =>
+              item.actionId === actionId ? { ...item, ...patch } : item,
+            ),
+          }
+        : current,
+    );
+  const confirmAction = async (item: ProposalItem) => {
+    // State updates are asynchronous; this ref closes the rapid physical-tap window synchronously.
+    if (
+      applyingActions.current.has(item.actionId) ||
+      !proposal ||
+      proposal.conversationId !== conversationId ||
+      !["pending", "failed"].includes(item.status)
+    )
+      return;
+    applyingActions.current.add(item.actionId);
+    updateProposalItem(item.actionId, { status: "applying", message: undefined });
+    try {
+      const result = await applyNexoraAction({
+        actionId: item.actionId,
+        requestId: item.requestId,
+        conversationId: proposal.conversationId,
+        confirmed: true,
+        action: item.action,
+      });
+      updateProposalItem(item.actionId, {
+        status: "applied",
+        resourceId: result.resourceId,
+        message: actionReceipt(item.action),
+        canRetry: false,
+      });
+      // Refresh failures cannot turn a confirmed server mutation into a false apply failure.
+      await Promise.allSettled(
+        actionInvalidationRoots([item.action]).map((root) =>
+          queryClient.invalidateQueries({ queryKey: [root] }),
+        ),
+      );
+    } catch (error) {
+      const safe =
+        error instanceof NexoraActionError
+          ? error.safe
+          : { kind: "unexpected", message: "Não foi possível aplicar a alteração.", retry: true };
+      if (__DEV__) console.warn("[nexora-action]", { kind: safe.kind });
+      updateProposalItem(item.actionId, {
+        status: "failed",
+        message: safe.message,
+        canRetry: safe.retry,
+      });
+    } finally {
+      applyingActions.current.delete(item.actionId);
     }
   };
 
@@ -303,6 +392,8 @@ export default function Assistant() {
           accessibilityRole="button"
           accessibilityLabel="Novo chat"
           onPress={() => {
+            applyingActions.current.clear();
+            setProposal(null);
             router.replace("/(app)/(tabs)/assistant-chat");
           }}
           style={styles.newButton}
@@ -400,86 +491,82 @@ export default function Assistant() {
               {send.isPending && <Text style={styles.thinking}>✦ NEXORA está pensando…</Text>}
               {proposal && (
                 <View style={styles.actionCard}>
-                  <Text style={styles.actionEyebrow}>ALTERAÇÕES PROPOSTAS</Text>
-                  {proposal.actions.map((action, index) => {
-                    const preview = actionPreview(action);
+                  <Text style={styles.actionEyebrow}>
+                    {proposal.items.length === 1 ? "ALTERAÇÃO PROPOSTA" : "ALTERAÇÕES PROPOSTAS"}
+                  </Text>
+                  {proposal.items.map((item) => {
+                    const preview = actionPreview(item.action);
+                    const resultRoute = item.resourceId
+                      ? actionResultRoute(item.action, item.resourceId)
+                      : null;
                     return (
-                      <View key={`${action.action_type}-${index}`} style={styles.actionItem}>
+                      <View key={item.actionId} style={styles.actionItem}>
                         <Text style={styles.actionTitle}>{preview.label}</Text>
                         {preview.details.map((detail) => (
                           <Text key={detail} style={styles.actionDetail}>
                             • {detail}
                           </Text>
                         ))}
+                        {item.message && (
+                          <Text accessibilityRole="alert" style={styles.actionStatus}>
+                            {item.message}
+                          </Text>
+                        )}
+                        {item.status === "pending" || item.status === "failed" ? (
+                          <View style={styles.actionButtons}>
+                            <Pressable
+                              onPress={() =>
+                                updateProposalItem(item.actionId, {
+                                  status: "cancelled",
+                                  message: "Alteração cancelada. Nada foi modificado.",
+                                  canRetry: false,
+                                })
+                              }
+                              style={styles.cancelAction}
+                            >
+                              <Text style={styles.actionButtonText}>Cancelar</Text>
+                            </Pressable>
+                            {(item.status === "pending" || item.canRetry) && (
+                              <Pressable
+                                onPress={() => void confirmAction(item)}
+                                style={styles.confirmAction}
+                              >
+                                <Text style={styles.actionButtonText}>
+                                  {item.status === "failed" ? "Tentar novamente" : "Confirmar"}
+                                </Text>
+                              </Pressable>
+                            )}
+                            {item.status === "failed" && !item.canRetry && (
+                              <Pressable
+                                onPress={() => {
+                                  setProposal(null);
+                                  setDraft("Atualize a proposta com os dados mais recentes.");
+                                }}
+                                style={styles.confirmAction}
+                              >
+                                <Text style={styles.actionButtonText}>Pedir nova proposta</Text>
+                              </Pressable>
+                            )}
+                          </View>
+                        ) : item.status === "applying" ? (
+                          <View style={styles.applyingRow}>
+                            <ActivityIndicator color={colors.primaryBright} />
+                            <Text style={styles.actionDetail}>Aplicando após sua confirmação…</Text>
+                          </View>
+                        ) : null}
+                        {resultRoute && item.status === "applied" && (
+                          <Pressable
+                            accessibilityRole="button"
+                            onPress={() => router.push(resultRoute.href)}
+                            style={styles.openResult}
+                          >
+                            <Text style={styles.actionButtonText}>{resultRoute.label}</Text>
+                          </Pressable>
+                        )}
                       </View>
                     );
                   })}
-                  <View style={styles.actionButtons}>
-                    <Pressable
-                      disabled={applying}
-                      onPress={() => {
-                        setProposal(null);
-                        setApplyMessage("Alterações canceladas. Nada foi modificado.");
-                      }}
-                      style={styles.cancelAction}
-                    >
-                      <Text style={styles.actionButtonText}>Cancelar</Text>
-                    </Pressable>
-                    <Pressable
-                      disabled={applying}
-                      onPress={() =>
-                        void (async () => {
-                          const current = proposal;
-                          if (!current || applying) return;
-                          setApplying(true);
-                          setApplyMessage(null);
-                          let applied = 0;
-                          try {
-                            for (let i = 0; i < current.actions.length; i++) {
-                              await applyNexoraAction({
-                                actionId: current.actionIds[i],
-                                requestId: current.actionIds[i],
-                                conversationId,
-                                confirmed: true,
-                                action: current.actions[i],
-                              });
-                              applied++;
-                            }
-                            await Promise.all(
-                              actionInvalidationRoots(current.actions).map((root) =>
-                                queryClient.invalidateQueries({ queryKey: [root] }),
-                              ),
-                            );
-                            setProposal(null);
-                            setApplyMessage(
-                              `Pronto. ${current.actions.length === 1 ? "A alteração foi aplicada" : `As ${current.actions.length} alterações foram aplicadas`} e confirmada pelo servidor.`,
-                            );
-                          } catch {
-                            setApplyMessage(
-                              applied
-                                ? `${applied} alteração(ões) foram confirmadas pelo servidor; ${current.actions.length - applied} não foram aplicadas. Revise os dados antes de tentar novamente.`
-                                : "Nenhuma alteração foi aplicada. Os dados podem ter mudado; revise e tente novamente.",
-                            );
-                          } finally {
-                            setApplying(false);
-                          }
-                        })()
-                      }
-                      style={styles.confirmAction}
-                    >
-                      {applying ? (
-                        <ActivityIndicator color={colors.text} />
-                      ) : (
-                        <Text style={styles.actionButtonText}>Confirmar</Text>
-                      )}
-                    </Pressable>
-                  </View>
                 </View>
-              )}
-              {applyMessage && (
-                <Text accessibilityRole="alert" style={styles.applyMessage}>
-                  {applyMessage}
-                </Text>
               )}
             </>
           }
@@ -691,6 +778,8 @@ const styles = StyleSheet.create({
   actionItem: { gap: spacing.xs },
   actionTitle: { ...typography.label, color: colors.text },
   actionDetail: { ...typography.body, color: colors.textMuted },
+  actionStatus: { ...typography.label, color: colors.text, marginTop: spacing.xs },
+  applyingRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   actionButtons: {
     flexDirection: "row",
     justifyContent: "flex-end",
@@ -709,6 +798,14 @@ const styles = StyleSheet.create({
     minHeight: 44,
     minWidth: 112,
     alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.primary,
+  },
+  openResult: {
+    alignSelf: "flex-start",
+    minHeight: 44,
     justifyContent: "center",
     paddingHorizontal: spacing.md,
     borderRadius: radius.md,
