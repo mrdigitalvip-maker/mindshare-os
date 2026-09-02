@@ -40,7 +40,7 @@ test("mission deduplication compares canonical execution targets", () => {
 });
 
 test("Home modules fail independently", () => {
-  assert.match(dashboard, /dailyMission\.data && missionTarget/);
+  assert.match(dashboard, /todayMission && missionTarget/);
   assert.match(dashboard, /projectsQuery\.isError/);
   assert.match(dashboard, /tasksQuery\.isError/);
   assert.match(dashboard, /Promise\.allSettled/);

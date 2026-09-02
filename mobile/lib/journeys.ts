@@ -160,6 +160,28 @@ export function summarizeMomentum(events: MomentumEvent[], now: Date): MomentumS
 }
 export const getActiveJourney = (journeys: Journey[]) =>
   journeys.find((journey) => journey.status === "active") ?? null;
+const journeyStatusOrder: Record<JourneyStatus, number> = {
+  active: 0,
+  paused: 1,
+  completed: 2,
+  archived: 3,
+};
+/** Stable overview order: executable work first, then the latest persisted update. */
+export const orderJourneys = (journeys: Journey[]) =>
+  [...new Map(journeys.map((journey) => [journey.id, journey])).values()].sort(
+    (a, b) =>
+      journeyStatusOrder[a.status] - journeyStatusOrder[b.status] ||
+      b.updatedAt.localeCompare(a.updatedAt) ||
+      a.id.localeCompare(b.id),
+  );
+export const journeyStatusLabel = (status: JourneyStatus) =>
+  status === "active"
+    ? "Em andamento"
+    : status === "paused"
+      ? "Pausada"
+      : status === "completed"
+        ? "Concluída"
+        : "Arquivada";
 export const getTodayMission = (mission: JourneyMission | null | undefined) =>
   mission && !["completed", "skipped"].includes(mission.status) ? mission : null;
 export const getMissionSourceLabel = (mission: JourneyMission) =>

@@ -22,7 +22,7 @@ import {
 } from "@/lib/dashboard-selectors";
 import { getDisplayProjectStatus } from "@/lib/presentation";
 import { colors, radius, spacing, typography } from "@/lib/theme";
-import { getMissionExecutionTarget } from "@/lib/journeys";
+import { getMissionExecutionTarget, getTodayMission } from "@/lib/journeys";
 import type { Project, Subject, Task } from "@/services/workspace-service";
 
 function SectionHeader({
@@ -184,7 +184,8 @@ export default function Dashboard() {
   const projectsQuery = useProjects();
   const subjectsQuery = useSubjects();
   const dailyMission = useDailyMission();
-  const missionTarget = dailyMission.data ? getMissionExecutionTarget(dailyMission.data) : null;
+  const todayMission = getTodayMission(dailyMission.data);
+  const missionTarget = todayMission ? getMissionExecutionTarget(todayMission) : null;
   const tasks = useMemo(() => tasksQuery.data ?? [], [tasksQuery.data]);
   const projects = useMemo(() => projectsQuery.data ?? [], [projectsQuery.data]);
   const nextAction = useMemo(() => getNextAction(tasks), [tasks]);
@@ -295,7 +296,7 @@ export default function Dashboard() {
               </Pressable>
             </View>
           </View>
-        ) : !tasksQuery.isPending && !tasksQuery.isError && dailyMission.data && missionTarget ? (
+        ) : !tasksQuery.isPending && !tasksQuery.isError && todayMission && missionTarget ? (
           <View style={styles.section}>
             <SectionHeader title="MISSÃO DE HOJE" />
             <Pressable
@@ -304,7 +305,7 @@ export default function Dashboard() {
               style={styles.commandCard}
             >
               <Text style={styles.nextLabel}>MISSÃO DE HOJE</Text>
-              <Text style={styles.nextTitle}>{dailyMission.data.title}</Text>
+              <Text style={styles.nextTitle}>{todayMission.title}</Text>
               <Text style={styles.commandButtonText}>{missionTarget.label}</Text>
             </Pressable>
           </View>
@@ -324,7 +325,7 @@ export default function Dashboard() {
         ) : null}
 
         {nextAction &&
-        dailyMission.data &&
+        todayMission &&
         missionTarget &&
         shouldShowSecondaryMission(`/tasks/${nextAction.id}`, missionTarget.href) ? (
           <View style={styles.section}>
@@ -335,15 +336,15 @@ export default function Dashboard() {
             />
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={`${missionTarget.label}: ${dailyMission.data.title}`}
+              accessibilityLabel={`${missionTarget.label}: ${todayMission.title}`}
               onPress={() => router.push(missionTarget.href)}
               style={styles.nextCard}
             >
               <Text style={styles.nextLabel}>EXECUÇÃO VERIFICÁVEL</Text>
-              <Text style={styles.nextTitle}>{dailyMission.data.title}</Text>
-              {dailyMission.data.description ? (
+              <Text style={styles.nextTitle}>{todayMission.title}</Text>
+              {todayMission.description ? (
                 <Text numberOfLines={2} style={styles.meta}>
-                  {dailyMission.data.description}
+                  {todayMission.description}
                 </Text>
               ) : null}
               <Text style={styles.link}>{missionTarget.label} ›</Text>
