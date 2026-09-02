@@ -9,6 +9,8 @@ import {
   type WeeklyChallenge,
   journeyCreatePayload,
   type CreateJourneyInput,
+  buildJourneyProgramState,
+  type JourneyProgramStepRecord,
 } from "@/lib/journeys";
 import { supabase } from "@/lib/supabase";
 import { workspaceMutationError } from "@/lib/mutation-errors";
@@ -61,6 +63,25 @@ export async function getJourney(userId: string, id: string) {
     .maybeSingle();
   if (error) throw workspaceMutationError(error);
   return data ? journeyFrom(data) : null;
+}
+export async function getJourneyProgram(userId: string, journeyId: string) {
+  const { data, error } = await supabase
+    .from("journey_pack_step_instances")
+    .select("id,sequence,phase,title,description,required,completed_at")
+    .eq("user_id", user(userId))
+    .eq("journey_id", journeyId.trim())
+    .order("sequence", { ascending: true });
+  if (error) throw workspaceMutationError(error);
+  const records: JourneyProgramStepRecord[] = (data ?? []).map((row) => ({
+    id: String(row.id),
+    sequence: Number(row.sequence),
+    phase: String(row.phase),
+    title: String(row.title),
+    description: String(row.description),
+    required: Boolean(row.required),
+    completedAt: typeof row.completed_at === "string" ? row.completed_at : null,
+  }));
+  return buildJourneyProgramState(journeyId, records);
 }
 export async function createJourney(userId: string, input: CreateJourneyInput) {
   let payload;

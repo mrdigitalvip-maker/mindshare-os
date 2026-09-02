@@ -2,6 +2,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { AppScreen } from "@/components/app-screen";
+import { NativeDateField } from "@/components/native-date-field";
 import { ErrorState, LoadingState } from "@/components/screen-state";
 import { useJourneyPack, useStartJourneyPack } from "@/hooks/use-journey-packs";
 import { packErrorMessage } from "@/lib/journey-packs";
@@ -18,7 +19,7 @@ export default function PackDetail() {
     start = useStartJourneyPack();
   const [preview, setPreview] = useState(false),
     [goal, setGoal] = useState(""),
-    [date, setDate] = useState(""),
+    [date, setDate] = useState<string | null>(null),
     [context, setContext] = useState("");
   const key = useRef(requestKey());
   if (detail.isPending) return <LoadingState title="Carregando programa…" />;
@@ -39,7 +40,7 @@ export default function PackDetail() {
         packId: pack.id,
         requestKey: key.current,
         goal,
-        targetDate: date || null,
+        targetDate: date,
         context,
       });
       router.replace(`/journeys/${id}`);
@@ -75,8 +76,8 @@ export default function PackDetail() {
         <View style={s.preview}>
           <Text style={s.section}>PREVIEW → CONFIRMAR</Text>
           <Text style={s.body}>
-            A NEXORA criará uma Jornada e {steps.length} ações ordenadas. Apenas a próxima ação
-            elegível entra no motor canônico de Missão Diária.
+            Seu programa será criado com {steps.length} etapas. Você verá o próximo passo, o
+            progresso real e o plano completo dentro da Jornada.
           </Text>
           <TextInput
             style={s.input}
@@ -86,13 +87,7 @@ export default function PackDetail() {
             onChangeText={setGoal}
             maxLength={160}
           />
-          <TextInput
-            style={s.input}
-            placeholder="Data-alvo: AAAA-MM-DD (opcional)"
-            placeholderTextColor={colors.textMuted}
-            value={date}
-            onChangeText={setDate}
-          />
+          <NativeDateField value={date} onChange={setDate} />
           <TextInput
             style={[s.input, s.multiline]}
             multiline
@@ -115,7 +110,7 @@ export default function PackDetail() {
             onPress={() => void apply()}
           >
             <Text style={s.buttonText}>
-              {start.isPending ? "Criando com segurança…" : "Confirmar e criar Jornada"}
+              {start.isPending ? "Preparando programa…" : "Iniciar meu programa"}
             </Text>
           </Pressable>
         </View>
