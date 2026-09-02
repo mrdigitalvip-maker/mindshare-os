@@ -15,6 +15,7 @@ import {
 } from "@/hooks/use-community";
 import {
   communityErrorMessage,
+  hasActiveOfficialMembership,
   type CommunityProfile,
   type CommunityReaction,
 } from "@/lib/community";
@@ -93,13 +94,13 @@ export default function Community() {
               ? "Espaço Premium, validado pelo servidor."
               : "Aberta para contas Free e Premium."}
           </Text>
-          {channel.recentBody && channel.joined ? (
+          {channel.recentBody && hasActiveOfficialMembership(channel) ? (
             <Text style={styles.body} numberOfLines={2}>
               {channel.recentBody}
             </Text>
           ) : (
             <Text style={styles.muted}>
-              {channel.joined
+              {hasActiveOfficialMembership(channel)
                 ? "Ainda não há mensagens. Comece uma conversa útil."
                 : channel.eligible
                   ? "Participe quando quiser — sua entrada é explícita."
@@ -108,7 +109,7 @@ export default function Community() {
           )}
           <Button
             label={
-              channel.joined
+              hasActiveOfficialMembership(channel)
                 ? "Abrir conversa"
                 : channel.eligible
                   ? "Entrar"
@@ -116,10 +117,10 @@ export default function Community() {
             }
             disabled={!channel.eligible || channelActions.join.isPending}
             onPress={() =>
-              channel.joined
+              hasActiveOfficialMembership(channel)
                 ? router.push({
                     pathname: "/community/[channelId]",
-                    params: { channelId: channel.id, name: channel.name },
+                    params: { channelId: channel.id },
                   })
                 : channelActions.join.mutate(channel.id, { onError: fail })
             }

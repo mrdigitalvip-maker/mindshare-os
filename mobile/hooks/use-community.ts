@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/providers/auth-provider";
 import { queryKeys } from "@/lib/query-keys";
@@ -45,6 +45,8 @@ export function useOfficialChannelActions() {
 export function useCommunityMessages(channelId: string) {
   const id = useUserId(),
     client = useQueryClient();
+  const [realtimeStatus, setRealtimeStatus] =
+    useState<service.CommunityRealtimeStatus>("disconnected");
   const query = useInfiniteQuery({
     queryKey: queryKeys.communityMessages(channelId),
     queryFn: ({ pageParam }) => service.getMessages(id, channelId, pageParam),
@@ -57,9 +59,10 @@ export function useCommunityMessages(channelId: string) {
     return service.subscribeToChannel(
       channelId,
       () => void client.invalidateQueries({ queryKey: queryKeys.communityMessages(channelId) }),
+      setRealtimeStatus,
     );
   }, [channelId, client, id]);
-  return query;
+  return { ...query, realtimeStatus };
 }
 export function useMessageActions(channelId: string) {
   const id = useUserId(),

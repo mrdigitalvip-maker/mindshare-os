@@ -14,6 +14,10 @@ export type OfficialChannel = {
   recentBody: string | null;
   recentAt: string | null;
 };
+export const hasActiveOfficialMembership = (channel: OfficialChannel) =>
+  channel.joined &&
+  channel.eligible &&
+  (channel.membershipStatus === "active" || channel.membershipStatus === "muted");
 export type CommunityMessage = {
   id: string;
   clientRequestId: string | null;
@@ -77,6 +81,8 @@ export const communityErrorMessage = (error: unknown) => {
   const message =
     error instanceof Error ? error.message : String((error as { message?: string })?.message ?? "");
   const match = Object.entries({
+    unauthenticated: "Entre novamente para continuar.",
+    channel_not_found: "Esta comunidade não está disponível.",
     username_taken: "Este username já está em uso.",
     rate_limited: "Muitas tentativas. Aguarde um pouco.",
     squad_full: "Este Squad já está completo.",
@@ -90,7 +96,16 @@ export const communityErrorMessage = (error: unknown) => {
     premium_required: "Community+ está disponível para assinantes Premium.",
     membership_required: "Entre na comunidade para participar.",
     membership_restricted: "Sua participação está restrita. Consulte a moderação.",
+    membership_removed: "Sua participação nesta comunidade foi removida.",
+    message_length: "A mensagem deve ter entre 1 e 1200 caracteres.",
     duplicate_message: "Esta mensagem já foi enviada.",
+    invalid_reply: "A mensagem respondida não está mais disponível.",
+    request_id_required: "Não foi possível preparar o envio. Tente novamente.",
+    "row-level security": "Você não tem permissão para esta ação.",
+    "permission denied": "Você não tem permissão para esta ação.",
+    "failed to fetch": "Sem conexão. Verifique sua internet e tente novamente.",
+    "network request failed": "Sem conexão. Verifique sua internet e tente novamente.",
+    unavailable: "Serviço indisponível agora. Tente novamente em instantes.",
   }).find(([code]) => message.includes(code));
   return match?.[1] ?? "Não foi possível concluir. Verifique sua conexão e tente novamente.";
 };
