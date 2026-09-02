@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { Redirect, router } from "expo-router";
 import { NexoraAgent } from "@/components/nexora-agent";
@@ -17,6 +17,7 @@ export default function Onboarding() {
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>();
+  const submitLock = useRef(false);
   useEffect(() => {
     if (!name && profile.data?.displayName !== "Conta NEXORA")
       setName(profile.data?.displayName ?? "");
@@ -24,19 +25,26 @@ export default function Onboarding() {
   if (status === "initializing") return <LoadingState title="Preparando seu espaço…" />;
   if (status === "unauthenticated") return <Redirect href="/auth" />;
   async function complete() {
-    if (!session || !name.trim() || busy) return;
+    const normalizedName = name.trim();
+    if (!session || !normalizedName || normalizedName.length > 80 || submitLock.current) return;
+    submitLock.current = true;
     setBusy(true);
     setErrorMessage(undefined);
-    const { error } = await supabase
-      .from("profiles")
-      .upsert({ id: session.user.id, full_name: name.trim(), onboarded: true });
-    setBusy(false);
-    if (error) {
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .upsert({ id: session.user.id, full_name: normalizedName, onboarded: true });
+      if (error) throw error;
+      await client.invalidateQueries({ queryKey: queryKeys.profile });
+      const refreshed = await profile.refetch();
+      if (refreshed.data?.onboarded) router.replace("/dashboard");
+      else setErrorMessage("Não foi possível confirmar seu perfil. Tente novamente.");
+    } catch {
       setErrorMessage("Não foi possível concluir agora. Seu nome foi mantido; tente novamente.");
-      return;
+    } finally {
+      submitLock.current = false;
+      setBusy(false);
     }
-    await client.invalidateQueries({ queryKey: queryKeys.profile });
-    router.replace("/dashboard");
   }
   return (
     <AppScreen keyboard includeBottomInset contentContainerStyle={s.page}>
@@ -49,6 +57,7 @@ export default function Onboarding() {
           autoFocus
           value={name}
           onChangeText={setName}
+          maxLength={80}
           placeholder="Seu nome"
           placeholderTextColor={colors.textMuted}
           style={s.input}

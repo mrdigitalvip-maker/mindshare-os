@@ -36,25 +36,31 @@ export default function Premium() {
           Não foi possível verificar seu plano. Seu último acesso não foi alterado.
         </Text>
       )}
-      {premium && (
+      {!subscription.isError && !subscription.isPending && subscription.data && (
         <View style={[s.card, s.highlight]}>
-          <Text style={s.cardTitle}>PREMIUM · Plano atual</Text>
-          <Text style={s.item}>
-            Status: {subscription.data?.status === "trialing" ? "Em teste" : "Ativo"}
-          </Text>
-          <Text style={s.item}>
-            Provedor:{" "}
-            {subscription.data?.provider === "google_play"
-              ? "Google Play"
-              : subscription.data?.provider === "stripe"
-                ? "Stripe"
-                : "NEXORA"}
-          </Text>
+          <Text style={s.cardTitle}>DADOS DO PLANO</Text>
+          {subscription.data.plan && <Text style={s.item}>Plano: {subscription.data.plan}</Text>}
+          {subscription.data.status && (
+            <Text style={s.item}>Status: {subscription.data.status}</Text>
+          )}
+          {subscription.data.provider && (
+            <Text style={s.item}>
+              Provedor:{" "}
+              {subscription.data.provider === "google_play"
+                ? "Google Play"
+                : subscription.data?.provider === "stripe"
+                  ? "Stripe"
+                  : "NEXORA"}
+            </Text>
+          )}
           {subscription.data?.currentPeriodEnd && (
             <Text style={s.item}>
               {subscription.data.cancelAtPeriodEnd ? "Acesso até" : "Renovação"}:{" "}
               {new Date(subscription.data.currentPeriodEnd).toLocaleDateString("pt-BR")}
             </Text>
+          )}
+          {subscription.data.cancelAtPeriodEnd === true && !subscription.data.currentPeriodEnd && (
+            <Text style={s.item}>Cancelamento ao fim do período: Sim</Text>
           )}
         </View>
       )}

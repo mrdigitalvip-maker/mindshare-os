@@ -18,6 +18,12 @@ export function presentAuthError(error: unknown, fallback: AuthErrorCategory = "
     return { category: "NETWORK", message: "Sem conexão com a NEXORA. Verifique sua internet e tente novamente." };
   if (value.includes("cancel"))
     return { category: "AUTH_CANCELLED", message: "A entrada com Google foi cancelada." };
+  if (value.includes("password") && (value.includes("weak") || value.includes("short")))
+    return { category: "VALIDATION", message: "Crie uma senha mais forte, com pelo menos 8 caracteres." };
+  if (value.includes("expired") || value.includes("otp_expired"))
+    return { category: "SESSION", message: "Este link expirou. Solicite um novo link de recuperação." };
+  if (value.includes("invalid_callback") || value.includes("invalid_redirect") || value.includes("invalid otp"))
+    return { category: "CALLBACK", message: "Este link de autenticação é inválido. Solicite um novo link." };
   const messages: Record<AuthErrorCategory, string> = {
     VALIDATION: "Revise os dados informados.", INVALID_CREDENTIALS: "Não foi possível entrar.",
     EMAIL_NOT_CONFIRMED: "Confirme seu e-mail antes de entrar.", AUTH_PROVIDER: "Não foi possível entrar com Google. Tente novamente.",

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { passwordRecoveryUrl } from "@/lib/auth-links";
 import { supabase } from "@/lib/supabase";
@@ -7,18 +7,28 @@ export default function Recovery() {
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState<string>();
   const [busy, setBusy] = useState(false);
+  const submitLock = useRef(false);
   async function send() {
-    if (!email.trim() || busy) return;
+    if (!email.trim() || submitLock.current) return;
+    submitLock.current = true;
     setBusy(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: passwordRecoveryUrl,
-    });
-    setBusy(false);
-    setMessage(
-      error
-        ? "Não foi possível enviar o link. Confira o e-mail e tente novamente."
-        : "Confira seu e-mail para acessar o link de recuperação.",
-    );
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+        redirectTo: passwordRecoveryUrl,
+      });
+      setMessage(
+        error
+          ? "Não foi possível solicitar a recuperação agora. Verifique sua conexão e tente novamente."
+          : "Se houver uma conta para este e-mail, você receberá as instruções de recuperação.",
+      );
+    } catch {
+      setMessage(
+        "Não foi possível solicitar a recuperação agora. Verifique sua conexão e tente novamente.",
+      );
+    } finally {
+      submitLock.current = false;
+      setBusy(false);
+    }
   }
   return (
     <View style={styles.page}>

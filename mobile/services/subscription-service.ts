@@ -6,7 +6,7 @@ export type SubscriptionSummary = {
   status: string | null;
   provider: "stripe" | "google_play" | "manual" | null;
   currentPeriodEnd: string | null;
-  cancelAtPeriodEnd: boolean;
+  cancelAtPeriodEnd: boolean | null;
 };
 export async function getSubscription(userId: string): Promise<SubscriptionSummary> {
   const id = userId.trim();
@@ -23,6 +23,6 @@ export async function getSubscription(userId: string): Promise<SubscriptionSumma
     status: data?.status ?? null,
     provider: (data?.provider as SubscriptionSummary["provider"]) ?? null,
     currentPeriodEnd: data?.current_period_end ?? null,
-    cancelAtPeriodEnd: data?.cancel_at_period_end ?? false,
+    cancelAtPeriodEnd: typeof data?.cancel_at_period_end === "boolean" ? data.cancel_at_period_end : null,
   };
 }
