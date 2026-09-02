@@ -133,11 +133,11 @@ export default function Settings() {
     try {
       setNoticeMessage(
         testPushSucceeded(await sendTestNotification())
-          ? "Notificação enviada para este dispositivo."
-          : "Não foi possível entregar uma notificação neste dispositivo.",
+          ? "Envio aceito pelo servidor. Confirme o recebimento neste aparelho."
+          : "O servidor não aceitou o teste remoto neste momento.",
       );
     } catch {
-      setNoticeMessage("Não foi possível entregar uma notificação neste dispositivo.");
+      setNoticeMessage("Não foi possível solicitar o teste remoto neste momento.");
     } finally {
       setBusy(false);
     }
@@ -258,19 +258,29 @@ export default function Settings() {
             ) : null}
             {noticeState === "active" || noticeState === "needs-registration" ? (
               <>
+                <Text style={s.subheading}>TESTE LOCAL NESTE APARELHO</Text>
+                <Text style={s.help}>
+                  Agenda uma notificação local, sem verificar a entrega por servidor.
+                </Text>
                 <Action
                   secondary
-                  label="Testar no aparelho"
+                  label="Agendar teste local"
                   disabled={busy}
                   action={() => void testLocalNotice()}
                 />
                 {noticeState === "active" ? (
-                  <Action
-                    secondary
-                    label="Testar push remoto"
-                    disabled={busy}
-                    action={() => void testNotice()}
-                  />
+                  <>
+                    <Text style={s.subheading}>PUSH REMOTO</Text>
+                    <Text style={s.help}>
+                      Solicita um envio ao servidor. A entrega precisa ser confirmada no aparelho.
+                    </Text>
+                    <Action
+                      secondary
+                      label="Solicitar teste remoto"
+                      disabled={busy}
+                      action={() => void testNotice()}
+                    />
+                  </>
                 ) : null}
                 {noticeState === "active" ? (
                   <Action
@@ -437,6 +447,11 @@ const s = StyleSheet.create({
     borderColor: colors.border,
   },
   heading: { ...typography.eyebrow, color: colors.primaryBright },
+  subheading: {
+    ...typography.eyebrow,
+    color: colors.textMuted,
+    marginTop: spacing.xs,
+  },
   account: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   accountCopy: { flex: 1, minWidth: 0, gap: spacing.xs },
   name: { ...typography.heading, color: colors.text, flexShrink: 1 },
