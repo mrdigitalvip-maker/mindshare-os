@@ -12,11 +12,12 @@ export function useJourneys() {
   });
 }
 export function useJourney(id: string) {
-  const uid = useUid();
+  const uid = useUid(),
+    normalizedId = id.trim();
   return useQuery({
-    queryKey: queryKeys.journey(id),
-    queryFn: () => service.getJourney(uid, id),
-    enabled: Boolean(uid && id),
+    queryKey: normalizedId ? queryKeys.journey(normalizedId) : ["journeys", "missing-id"],
+    queryFn: () => service.getJourney(uid, normalizedId),
+    enabled: Boolean(uid && normalizedId),
   });
 }
 export function useDailyMission() {
@@ -48,9 +49,7 @@ export function useJourneyMutations() {
     client = useQueryClient();
   const refresh = () =>
     Promise.all(
-      verifiedExecutionInvalidations.map((queryKey) =>
-        client.invalidateQueries({ queryKey }),
-      ),
+      verifiedExecutionInvalidations.map((queryKey) => client.invalidateQueries({ queryKey })),
     );
   const create = useMutation({
     mutationFn: (input: Parameters<typeof service.createJourney>[1]) =>

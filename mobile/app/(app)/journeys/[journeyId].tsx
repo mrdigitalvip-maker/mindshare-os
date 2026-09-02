@@ -17,13 +17,22 @@ export default function JourneyDetail() {
     momentum = useMomentum(),
     mutations = useJourneyMutations();
   if (journey.isPending) return <LoadingState title="Carregando Jornada…" />;
-  if (journey.isError || !journey.data)
+  if (journey.isError)
     return (
       <ErrorState
         title="Jornada indisponível."
-        message="Não foi possível sincronizar os dados."
+        message="Não foi possível sincronizar os dados. Verifique sua conexão e tente novamente."
         actionLabel="Tentar novamente"
         onAction={() => void journey.refetch()}
+      />
+    );
+  if (!journey.data)
+    return (
+      <ErrorState
+        title="Jornada não encontrada."
+        message="Ela pode ter sido removida ou não pertence a esta conta."
+        actionLabel="Voltar para Jornadas"
+        onAction={() => router.replace("/journeys")}
       />
     );
   const j = journey.data,
@@ -33,6 +42,9 @@ export default function JourneyDetail() {
   return (
     <AppScreen scroll contentContainerStyle={s.page}>
       <Text style={s.eyebrow}>{j.category.toUpperCase()}</Text>
+      <Pressable accessibilityRole="button" onPress={() => router.back()}>
+        <Text style={s.back}>‹ Voltar para Jornadas</Text>
+      </Pressable>
       <Text style={s.title}>{j.title}</Text>
       <Text style={s.muted}>
         {j.status === "active" ? "Em andamento" : j.status === "paused" ? "Pausada" : "Concluída"}
@@ -117,14 +129,25 @@ export default function JourneyDetail() {
         >
           <Text style={s.link}>Pausar Jornada</Text>
         </Pressable>
-      ) : (
+      ) : j.status === "paused" ? (
         <Pressable
           disabled={mutations.status.isPending}
           onPress={() => mutations.status.mutate({ id: j.id, status: "active" })}
         >
           <Text style={s.link}>Ativar Jornada</Text>
         </Pressable>
-      )}
+      ) : null}
+      {j.status !== "completed" && j.status !== "archived" ? (
+        <Pressable
+          disabled={mutations.status.isPending}
+          onPress={() => mutations.status.mutate({ id: j.id, status: "completed" })}
+        >
+          <Text style={s.link}>Concluir Jornada</Text>
+        </Pressable>
+      ) : null}
+      {mutations.status.error ? (
+        <Text style={s.error}>{mutations.status.error.message}</Text>
+      ) : null}
     </AppScreen>
   );
 }
@@ -165,4 +188,6 @@ const s = StyleSheet.create({
     textAlign: "center",
     padding: spacing.md,
   },
+  back: { ...typography.label, color: colors.textMuted },
+  error: { ...typography.body, color: colors.danger, textAlign: "center" },
 });

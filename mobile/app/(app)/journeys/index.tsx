@@ -1,8 +1,9 @@
 import { router } from "expo-router";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { AppScreen } from "@/components/app-screen";
 import { NativeFormModal } from "@/components/native-form-modal";
+import { NativeDateField } from "@/components/native-date-field";
 import { StandardHeader } from "@/components/product-ui";
 import { ErrorState, LoadingState } from "@/components/screen-state";
 import {
@@ -35,9 +36,10 @@ export default function Journeys() {
   const [modal, setModal] = useState(false),
     [title, setTitle] = useState(""),
     [objective, setObjective] = useState(""),
-    [date, setDate] = useState(""),
+    [date, setDate] = useState<string | null>(null),
     [category, setCategory] = useState<JourneyCategory>("custom");
   const [refreshing, setRefreshing] = useState(false);
+  const saving = useRef(false);
   const active = useMemo(
     () => journeys.data?.filter((j) => j.status === "active") ?? [],
     [journeys.data],
@@ -59,16 +61,18 @@ export default function Journeys() {
     setRefreshing(false);
   }
   async function create() {
-    if (!title.trim() || !objective.trim()) return;
-    await mutations.create.mutateAsync({
-      title,
-      objective: objective || title,
-      category,
-      targetDate: date || null,
-    });
-    setModal(false);
-    setTitle("");
-    setObjective("");
+    if (saving.current || mutations.create.isPending || !title.trim() || !objective.trim()) return;
+    if (limit !== null && active.length >= limit) return;
+    saving.current = true;
+    try {
+      await mutations.create.mutateAsync({ title, objective, category, targetDate: date });
+      setModal(false);
+      setTitle("");
+      setObjective("");
+      setDate(null);
+    } finally {
+      saving.current = false;
+    }
   }
   if (journeys.isPending || mission.isPending)
     return <LoadingState title="Preparando suas Jornadas…" />;
@@ -96,6 +100,14 @@ export default function Journeys() {
           }
         />
         <Text style={s.promise}>Seu objetivo, uma próxima ação real e progresso verificável.</Text>
+        {limit !== null && active.length >= limit ? (
+          <View style={s.limitNotice}>
+            <Text style={s.cardTitle}>Seu plano Free permite uma Jornada ativa.</Text>
+            <Text style={s.muted}>
+              Pause ou conclua a Jornada atual antes de criar ou reativar outra.
+            </Text>
+          </View>
+        ) : null}
         <Pressable accessibilityRole="button" style={s.card} onPress={() => router.push("/packs")}>
           <Text style={s.meta}>JOURNEY PACKS</Text>
           <Text style={s.cardTitle}>Comece com um programa guiado</Text>
@@ -250,21 +262,17 @@ export default function Journeys() {
         placeholder="O que você quer alcançar?"
         secondaryValue={objective}
         secondaryPlaceholder="Qual resultado você quer alcançar?"
-        dateValue={date}
-        datePlaceholder="Data-alvo: AAAA-MM-DD (opcional)"
         busy={mutations.create.isPending}
         error={mutations.create.error?.message ?? null}
-        errorMessage={
-          mutations.create.error?.message.includes("FREE_CREATION")
-            ? "Seu plano Free permite uma Jornada ativa. Pause ou conclua a atual, ou conheça o Premium."
-            : undefined
-        }
+        errorMessage={mutations.create.error?.message}
         onChange={setTitle}
         onSecondaryChange={setObjective}
-        onDateChange={setDate}
-        onClose={() => setModal(false)}
+        onClose={() => {
+          if (!mutations.create.isPending) setModal(false);
+        }}
         onSave={() => void create()}
       >
+        <NativeDateField value={date} onChange={setDate} />
         <View style={s.chips}>
           {JOURNEY_TEMPLATES.map((t) => (
             <Pressable
@@ -358,4 +366,12 @@ const s = StyleSheet.create({
   },
   fill: { height: "100%", backgroundColor: colors.primaryBright },
   privacy: { ...typography.caption, color: colors.textMuted, textAlign: "center" },
+  limitNotice: {
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    backgroundColor: colors.surface,
+  },
 });

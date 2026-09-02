@@ -7,11 +7,13 @@ import {
   type MomentumEvent,
   summarizeMomentum,
   type WeeklyChallenge,
+  journeyCreatePayload,
+  type CreateJourneyInput,
 } from "@/lib/journeys";
 import { supabase } from "@/lib/supabase";
 import { workspaceMutationError } from "@/lib/mutation-errors";
 const user = (id: string) => {
-  if (!id.trim()) throw new Error("Authenticated user required.");
+  if (!id.trim()) throw workspaceMutationError(new Error("Authenticated user required."));
   return id.trim();
 };
 const journeyFrom = (r: Record<string, unknown>): Journey => ({
@@ -60,25 +62,18 @@ export async function getJourney(userId: string, id: string) {
   if (error) throw workspaceMutationError(error);
   return data ? journeyFrom(data) : null;
 }
-export async function createJourney(
-  userId: string,
-  input: {
-    title: string;
-    objective: string;
-    context?: string;
-    category: JourneyCategory;
-    targetDate?: string | null;
-  },
-) {
+export async function createJourney(userId: string, input: CreateJourneyInput) {
+  let payload;
+  try {
+    payload = journeyCreatePayload(input);
+  } catch (error) {
+    throw workspaceMutationError(error);
+  }
   const { data, error } = await supabase
     .from("journeys")
     .insert({
       user_id: user(userId),
-      title: input.title.trim(),
-      objective: input.objective.trim(),
-      context: input.context?.trim() || null,
-      category: input.category,
-      target_date: input.targetDate || null,
+      ...payload,
     })
     .select("id")
     .single();
@@ -90,7 +85,9 @@ export async function setJourneyStatus(userId: string, id: string, status: Journ
     .from("journeys")
     .update({ status, updated_at: new Date().toISOString() })
     .eq("user_id", user(userId))
-    .eq("id", id);
+    .eq("id", id.trim())
+    .select("id")
+    .single();
   if (error) throw workspaceMutationError(error);
 }
 export async function ensureDailyMission(userId: string, date = new Date()) {
