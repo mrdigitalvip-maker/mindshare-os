@@ -9,6 +9,10 @@ import { useProjects, useTasks, useWorkspaceMutations } from "@/hooks/use-worksp
 import {
   getProjectAttention,
   getProjectDeadlineState,
+  getProjectDeadlineSummary,
+  getProjectBlockedTasks,
+  getProjectHealthLabel,
+  getProjectHealthState,
   getProjectNextAction,
   getProjectOverdueTasks,
   getProjectProgress,
@@ -28,13 +32,17 @@ function ProjectCard({ project, tasks }: { project: Project; tasks: Task[] | nul
     ? getProjectAttention(project, canonicalTasks)
     : getProjectStatusLabel(project.status);
   const overdue = getProjectOverdueTasks(canonicalTasks).length;
+  const blocked = taskDataAvailable ? getProjectBlockedTasks(canonicalTasks).length : 0;
+  const health = taskDataAvailable ? getProjectHealthState(project, canonicalTasks) : null;
+  const healthLabel = health ? getProjectHealthLabel(health) : attention;
+  const deadline = getProjectDeadlineSummary(project);
   const next = taskDataAvailable ? getProjectNextAction(canonicalTasks) : null;
   const open = canonicalTasks.filter((task) => !task.completed).length;
   const subdued = ["completed", "archived"].includes(project.status.toLowerCase());
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`Abrir projeto ${project.title}. ${attention}`}
+      accessibilityLabel={`Abrir projeto ${project.title}. ${healthLabel}`}
       onPress={() => router.push(`/projects/${project.id}`)}
       style={({ pressed }) => [styles.card, subdued && styles.subdued, pressed && styles.pressed]}
     >
@@ -42,11 +50,8 @@ function ProjectCard({ project, tasks }: { project: Project; tasks: Task[] | nul
         <Text numberOfLines={2} style={styles.cardTitle}>
           {project.title}
         </Text>
-        <Text
-          accessibilityLabel={`Status: ${getProjectStatusLabel(project.status)}`}
-          style={styles.status}
-        >
-          {attention}
+        <Text accessibilityLabel={`Situação: ${healthLabel}`} style={styles.status}>
+          {healthLabel}
         </Text>
       </View>
       {project.objective || project.description ? (
@@ -82,6 +87,11 @@ function ProjectCard({ project, tasks }: { project: Project; tasks: Task[] | nul
                 {overdue} {overdue === 1 ? "atrasada" : "atrasadas"}
               </Text>
             ) : null}
+            {blocked ? (
+              <Text style={styles.overdue}>
+                {blocked} {blocked === 1 ? "bloqueada" : "bloqueadas"}
+              </Text>
+            ) : null}
           </View>
         </View>
       ) : taskDataAvailable ? (
@@ -93,11 +103,11 @@ function ProjectCard({ project, tasks }: { project: Project; tasks: Task[] | nul
         <Text
           style={[styles.meta, getProjectDeadlineState(project) === "overdue" && styles.overdue]}
         >
-          {project.dueDate
-            ? `Prazo ${new Date(`${project.dueDate.slice(0, 10)}T12:00:00Z`).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", timeZone: "UTC" })}`
+          {deadline
+            ? deadline.label
             : `${open} ${open === 1 ? "tarefa aberta" : "tarefas abertas"}`}
         </Text>
-        <Text style={styles.continue}>Continuar →</Text>
+        <Text style={styles.continue}>{next ? "Agir agora →" : "Abrir workspace →"}</Text>
       </View>
     </Pressable>
   );
