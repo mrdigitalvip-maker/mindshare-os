@@ -51,7 +51,14 @@ export function NativeFormModal({
   destructiveAction?: { label: string; onPress(): void; busy?: boolean };
 }) {
   return (
-    <Modal animationType="slide" transparent visible={visible} onRequestClose={onClose}>
+    <Modal
+      animationType="slide"
+      transparent
+      visible={visible}
+      onRequestClose={() => {
+        if (!busy) onClose();
+      }}
+    >
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.overlay}

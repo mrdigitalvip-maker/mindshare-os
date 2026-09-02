@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { NativeFormModal } from "@/components/native-form-modal";
@@ -12,6 +12,7 @@ export default function SubjectWorkspace() {
   const subjectId = typeof raw === "string" ? raw.trim() : "";
   const query = useSubject(subjectId);
   const { study } = useWorkspaceMutations();
+  const savingRef = useRef(false);
   const [mode, setMode] = useState<Mode>(null),
     [value, setValue] = useState(""),
     [content, setContent] = useState(""),
@@ -39,15 +40,60 @@ export default function SubjectWorkspace() {
     active = getSubjectActiveGoal(goals),
     activeSession = sessions.find((s) => s.status === "active");
   async function save() {
-    if (mode === "goal") await study.mutateAsync({ action: "goal", subjectId, title: value });
-    if (mode === "action")
-      await study.mutateAsync({ action: "subject", subjectId, patch: { nextAction: value } });
-    if (mode === "note")
-      await study.mutateAsync({ action: "note", subjectId, id: noteId, title: value, content });
-    setMode(null);
-    setValue("");
-    setContent("");
-    setNoteId(undefined);
+    if (savingRef.current) return;
+    savingRef.current = true;
+    try {
+      if (mode === "goal") await study.mutateAsync({ action: "goal", subjectId, title: value });
+      if (mode === "action")
+        await study.mutateAsync({ action: "subject", subjectId, patch: { nextAction: value } });
+      if (mode === "note")
+        await study.mutateAsync({ action: "note", subjectId, id: noteId, title: value, content });
+      setMode(null);
+      setValue("");
+      setContent("");
+      setNoteId(undefined);
+    } finally {
+      savingRef.current = false;
+    }
+  }
+  async function changeStatus(status: "active" | "paused" | "completed") {
+    try {
+      await study.mutateAsync({ action: "subject", subjectId, patch: { status } });
+    } catch (error) {
+      Alert.alert(
+        "Não foi possível atualizar",
+        error instanceof Error ? error.message : "Tente novamente.",
+      );
+    }
+  }
+  function confirmDelete() {
+    Alert.alert(
+      "Excluir matéria?",
+      "Esta ação é permanente. Sessões, metas e notas desta matéria também podem ser excluídas.",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Excluir definitivamente",
+          style: "destructive",
+          onPress: () => {
+            if (savingRef.current) return;
+            savingRef.current = true;
+            void study
+              .mutateAsync({ action: "delete-subject", subjectId })
+              .then(() => router.replace("/studies"))
+              .catch((error: unknown) =>
+                Alert.alert(
+                  "Não foi possível excluir",
+                  error instanceof Error ? error.message : "Tente novamente.",
+                ),
+              )
+              .finally(() => {
+                savingRef.current = false;
+              });
+          },
+        },
+      ],
+    );
   }
   const tutorContext = [
     `Atue como tutor da matéria ${subject.name}.`,
@@ -76,6 +122,36 @@ export default function SubjectWorkspace() {
           </Text>
         ) : null}
       </View>
+      <Section title="GERENCIAR MATÉRIA">
+        <Text style={styles.copy}>
+          Status:{" "}
+          {subject.status === "active"
+            ? "Em andamento"
+            : subject.status === "paused"
+              ? "Pausada"
+              : "Concluída"}
+        </Text>
+        <View style={styles.management}>
+          {subject.status !== "active" ? (
+            <Pressable disabled={study.isPending} onPress={() => void changeStatus("active")}>
+              <Text style={styles.link}>Retomar</Text>
+            </Pressable>
+          ) : null}
+          {subject.status === "active" ? (
+            <Pressable disabled={study.isPending} onPress={() => void changeStatus("paused")}>
+              <Text style={styles.link}>Pausar</Text>
+            </Pressable>
+          ) : null}
+          {subject.status !== "completed" ? (
+            <Pressable disabled={study.isPending} onPress={() => void changeStatus("completed")}>
+              <Text style={styles.link}>Concluir plano</Text>
+            </Pressable>
+          ) : null}
+          <Pressable disabled={study.isPending} onPress={confirmDelete}>
+            <Text style={styles.delete}>Excluir matéria</Text>
+          </Pressable>
+        </View>
+      </Section>
       <View style={styles.focus}>
         <Text style={styles.eyebrow}>ESTUDAR AGORA</Text>
         <Text style={styles.heading}>
@@ -224,7 +300,10 @@ export default function SubjectWorkspace() {
         onSecondaryChange={setContent}
         busy={study.isPending}
         error={study.error?.message}
-        onClose={() => setMode(null)}
+        errorMessage={study.error?.message}
+        onClose={() => {
+          if (!savingRef.current) setMode(null);
+        }}
         onSave={() => void save()}
       />
     </ScrollView>
@@ -311,5 +390,6 @@ const styles = StyleSheet.create({
     borderTopColor: colors.border,
   },
   delete: { ...typography.caption, color: colors.danger, paddingVertical: spacing.sm },
+  management: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md },
   secondary: { minHeight: 44, justifyContent: "center" },
 });
