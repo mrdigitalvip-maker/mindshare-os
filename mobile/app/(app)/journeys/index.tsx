@@ -74,9 +74,8 @@ export default function Journeys() {
       saving.current = false;
     }
   }
-  if (journeys.isPending || mission.isPending)
-    return <LoadingState title="Preparando suas Jornadas…" />;
-  if (journeys.isError || mission.isError)
+  if (journeys.isPending) return <LoadingState title="Preparando suas Jornadas…" />;
+  if (journeys.isError)
     return (
       <ErrorState
         title="Não foi possível sincronizar Jornadas."
@@ -117,7 +116,20 @@ export default function Journeys() {
           <Text style={s.link}>Explorar programas ›</Text>
         </Pressable>
         <Section title="MISSÃO DE HOJE">
-          {mission.data ? (
+          {mission.isPending ? (
+            <View style={s.card}>
+              <Text style={s.muted}>Buscando sua missão…</Text>
+            </View>
+          ) : mission.isError ? (
+            <View style={s.card}>
+              <Text style={s.cardTitle}>Não foi possível carregar a missão de hoje.</Text>
+              <Text style={s.muted}>Suas Jornadas continuam disponíveis.</Text>
+              {__DEV__ ? <Text style={s.diagnostic}>{String(mission.error)}</Text> : null}
+              <Pressable accessibilityRole="button" onPress={() => void mission.refetch()}>
+                <Text style={s.link}>Tentar novamente</Text>
+              </Pressable>
+            </View>
+          ) : mission.data ? (
             <View style={s.hero}>
               <Text style={s.meta}>
                 {getMissionSourceLabel(mission.data)} · {missionReason(mission.data)}
@@ -172,17 +184,28 @@ export default function Journeys() {
         </Section>
         <Section title="SEU RITMO">
           <View style={s.card}>
-            <Text style={s.metric}>
-              {momentum.data?.weekPoints ?? 0}{" "}
-              <Text style={s.metricLabel}>Momentum esta semana</Text>
-            </Text>
-            <Text style={s.muted}>
-              {momentum.data?.completedMissions ?? 0} missões verificadas ·{" "}
-              {momentum.data?.streak ?? 0} dias de ritmo
-            </Text>
-            {(momentum.data?.streak ?? 0) === 0 ? (
-              <Text style={s.meta}>Conclua uma missão hoje para iniciar seu ritmo.</Text>
-            ) : null}
+            {momentum.isError ? (
+              <>
+                <Text style={s.cardTitle}>Seu ritmo está temporariamente indisponível.</Text>
+                <Pressable onPress={() => void momentum.refetch()}>
+                  <Text style={s.link}>Tentar novamente</Text>
+                </Pressable>
+              </>
+            ) : (
+              <>
+                <Text style={s.metric}>
+                  {momentum.data?.weekPoints ?? 0}{" "}
+                  <Text style={s.metricLabel}>Momentum esta semana</Text>
+                </Text>
+                <Text style={s.muted}>
+                  {momentum.data?.completedMissions ?? 0} missões verificadas ·{" "}
+                  {momentum.data?.streak ?? 0} dias de ritmo
+                </Text>
+                {(momentum.data?.streak ?? 0) === 0 ? (
+                  <Text style={s.meta}>Conclua uma missão hoje para iniciar seu ritmo.</Text>
+                ) : null}
+              </>
+            )}
           </View>
         </Section>
         <Section title="JORNADA ATIVA">
@@ -335,6 +358,7 @@ const s = StyleSheet.create({
   cardTitle: { ...typography.heading, color: colors.text },
   body: { ...typography.body, color: colors.text },
   muted: { ...typography.body, color: colors.textMuted },
+  diagnostic: { ...typography.caption, color: colors.danger },
   meta: { ...typography.caption, color: colors.textMuted },
   reward: { ...typography.label, color: colors.primaryBright },
   link: { ...typography.label, color: colors.primaryBright, paddingVertical: spacing.sm },

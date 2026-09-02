@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
+import { fileURLToPath, URL } from "node:url";
 import {
   calculateStreak,
   canActivateJourney,
@@ -93,5 +95,21 @@ describe("Journeys domain", () => {
     expect(
       getMissionExecutionTarget({ ...base, sourceType: "journey_action", journeyId: null }),
     ).toBeNull();
+  });
+});
+
+describe("Journey screen auxiliary failure isolation", () => {
+  const screen = readFileSync(
+    fileURLToPath(new URL("../app/(app)/journeys/index.tsx", import.meta.url)),
+    "utf8",
+  );
+  test("only the canonical Journey query is fatal", () => {
+    expect(screen).toContain("if (journeys.isError)");
+    expect(screen).not.toContain("journeys.isError || mission.isError");
+  });
+  test("mission failure is inline, retryable, and does not fabricate a mission", () => {
+    expect(screen).toContain("mission.isError ?");
+    expect(screen).toContain("void mission.refetch()");
+    expect(screen).toContain("Nova jornada");
   });
 });
