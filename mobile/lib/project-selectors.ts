@@ -115,6 +115,44 @@ export function getProjectActivityState(
 export const getLatestProjectCheckIn = (checkIns: ProjectCheckIn[]) =>
   [...checkIns].sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0] ?? null;
 
+export type ProjectActivity = {
+  at: string;
+  label: string;
+  task: Task | null;
+  checkIn: ProjectCheckIn | null;
+};
+
+/** Returns only persisted execution events; project edits are deliberately not activity. */
+export function getLatestProjectActivity(tasks: Task[], checkIns: ProjectCheckIn[]) {
+  const events: ProjectActivity[] = [
+    ...tasks.flatMap((task) => {
+      const taskEvents: ProjectActivity[] = [];
+      if (task.lastProgressAt)
+        taskEvents.push({
+          at: task.lastProgressAt,
+          label: `Progresso registrado em ${task.title}`,
+          task,
+          checkIn: null,
+        });
+      if (task.startedAt)
+        taskEvents.push({
+          at: task.startedAt,
+          label: `Tarefa iniciada: ${task.title}`,
+          task,
+          checkIn: null,
+        });
+      return taskEvents;
+    }),
+    ...checkIns.map((item) => ({
+      at: item.createdAt,
+      label: `Check-in: ${getProjectCheckInLabel(item.state)}`,
+      task: null,
+      checkIn: item,
+    })),
+  ].filter((event) => Number.isFinite(new Date(event.at).getTime()));
+  return events.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())[0] ?? null;
+}
+
 export function buildProjectAssistantContext(
   project: Project,
   tasks: Task[],

@@ -17,6 +17,7 @@ import {
   getProjectNextAction,
   buildProjectAssistantContext,
   getLatestProjectCheckIn,
+  getLatestProjectActivity,
   getProjectActivityState,
   getProjectBlockedTasks,
   getProjectDeadlineSummary,
@@ -103,6 +104,7 @@ export default function ProjectWorkspace() {
   const studioAction = tasksAvailable ? getProjectStudioNextAction(project, tasks) : null;
   const activity = getProjectActivityState(tasks, checkIns);
   const latestCheckIn = getLatestProjectCheckIn(checkIns);
+  const latestActivity = getLatestProjectActivity(tasks, checkIns);
   const completed = healthState === "completed";
 
   function askNexora(question = "O que devo priorizar hoje?") {
@@ -395,6 +397,38 @@ export default function ProjectWorkspace() {
           </Pressable>
         </View>
       ) : null}
+      <View style={styles.activityCard}>
+        <Text style={styles.sectionTitle}>Atividade recente</Text>
+        {latestActivity ? (
+          <Pressable
+            disabled={!latestActivity.task}
+            onPress={() =>
+              latestActivity.task
+                ? router.push({
+                    pathname: "/tasks/[taskId]",
+                    params: { taskId: latestActivity.task.id },
+                  })
+                : undefined
+            }
+            style={styles.activityEntry}
+          >
+            <Text style={styles.description}>{latestActivity.label}</Text>
+            {latestActivity.checkIn?.note ? (
+              <Text numberOfLines={3} style={styles.meta}>
+                {latestActivity.checkIn.note}
+              </Text>
+            ) : null}
+            <Text style={styles.meta}>{new Date(latestActivity.at).toLocaleString("pt-BR")}</Text>
+          </Pressable>
+        ) : query.data.checkInsUnavailable ? (
+          <Text style={styles.meta}>
+            A atividade das tarefas está disponível; o histórico de check-ins não pôde ser
+            atualizado.
+          </Text>
+        ) : (
+          <Text style={styles.meta}>Nenhuma atividade de execução foi registrada ainda.</Text>
+        )}
+      </View>
       <View style={styles.checkInCard}>
         <Text style={styles.sectionTitle}>Check-in do projeto</Text>
         <Text style={styles.meta}>Como está o andamento?</Text>
@@ -708,6 +742,15 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.surface,
   },
+  activityCard: {
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  activityEntry: { gap: spacing.xs },
   checkInOptions: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   checkInOption: {
     minHeight: 44,
