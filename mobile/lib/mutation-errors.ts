@@ -53,6 +53,30 @@ export function workspaceMutationError(error: unknown): Error {
       "stale",
       error,
     );
+  if (text.includes("mission_not_confirmable") || text.includes("mission_already_completed"))
+    return new WorkspaceMutationError(
+      "Esta missão já foi concluída ou não está mais disponível. Atualize a tela.",
+      "stale",
+      error,
+    );
+  if (text.includes("pack_step_not_found"))
+    return new WorkspaceMutationError(
+      "A etapa deste programa não está mais disponível. Atualize a Jornada.",
+      "not-found",
+      error,
+    );
+  if (text.includes("journey_not_found"))
+    return new WorkspaceMutationError("Jornada não encontrada.", "not-found", error);
+  if (
+    text.includes("ensure_daily_journey_mission") ||
+    text.includes("could not find the function") ||
+    backend?.code === "PGRST202"
+  )
+    return new WorkspaceMutationError(
+      "Não foi possível atualizar a missão de hoje. Tente novamente.",
+      "unexpected",
+      error,
+    );
   if (backend?.message === "FREE_CREATION_LIMIT_REACHED") {
     const resource = Object.keys(messages).find(
       (key) =>

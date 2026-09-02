@@ -10,6 +10,7 @@ import {
   journeyCreatePayload,
   type CreateJourneyInput,
   buildJourneyProgramState,
+  orderJourneys,
   type JourneyProgramStepRecord,
 } from "@/lib/journeys";
 import { supabase } from "@/lib/supabase";
@@ -52,7 +53,7 @@ export async function listJourneys(userId: string) {
     .eq("user_id", user(userId))
     .order("updated_at", { ascending: false });
   if (error) throw workspaceMutationError(error);
-  return (data ?? []).map(journeyFrom);
+  return orderJourneys((data ?? []).map(journeyFrom));
 }
 export async function getJourney(userId: string, id: string) {
   const { data, error } = await supabase

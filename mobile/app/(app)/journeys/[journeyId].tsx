@@ -1,5 +1,6 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useRef } from "react";
 import { AppScreen } from "@/components/app-screen";
 import { ErrorState, LoadingState } from "@/components/screen-state";
 import {
@@ -12,6 +13,7 @@ import {
 import { colors, radius, spacing, typography } from "@/lib/theme";
 import {
   getMissionExecutionTarget,
+  getTodayMission,
   getMissionSourceLabel,
   type JourneyProgramState,
 } from "@/lib/journeys";
@@ -22,6 +24,7 @@ export default function JourneyDetail() {
     momentum = useMomentum(),
     program = useJourneyProgram(journeyId ?? "", journey.data?.sourcePackId),
     mutations = useJourneyMutations();
+  const completionGuard = useRef(false);
   if (journey.isPending) return <LoadingState title="Carregando Jornada…" />;
   if (journey.isError)
     return (
@@ -42,7 +45,8 @@ export default function JourneyDetail() {
       />
     );
   const j = journey.data,
-    current = mission.data?.journeyId === j.id ? mission.data : null,
+    canonicalMission = getTodayMission(mission.data),
+    current = canonicalMission?.journeyId === j.id ? canonicalMission : null,
     isProgram = Boolean(j.sourcePackId && program.data),
     programMission = Boolean(
       program.data?.currentStep &&
@@ -51,6 +55,15 @@ export default function JourneyDetail() {
     );
   const target = current ? getMissionExecutionTarget(current) : null;
   const recent = (momentum.data?.recentEvents ?? []).filter((event) => event.journeyId === j.id);
+  const completeMission = async () => {
+    if (!current || completionGuard.current) return;
+    completionGuard.current = true;
+    try {
+      await mutations.completeMission.mutateAsync(current.id);
+    } finally {
+      completionGuard.current = false;
+    }
+  };
   return (
     <AppScreen scroll contentContainerStyle={s.page}>
       <Text style={s.eyebrow}>{j.category.toUpperCase()}</Text>
@@ -85,14 +98,12 @@ export default function JourneyDetail() {
           program={program.data!}
           hasMission={programMission}
           pending={mutations.completeMission.isPending}
-          onComplete={() => current && mutations.completeMission.mutate(current.id)}
-          onPlan={() => openAssistant(j, program.data!)}
+          onComplete={() => void completeMission()}
+          onPlan={() => openAssistant(j, program.data!, current)}
         />
       ) : !j.sourcePackId || (!program.isPending && !program.isError) ? (
         <Block title="AGORA">
-          <Text style={s.body}>
-            {current?.title ?? "Defina uma próxima ação para avançar esta Jornada."}
-          </Text>
+          <Text style={s.body}>{current?.title ?? "Defina o próximo passo desta Jornada."}</Text>
           {current ? (
             <Text style={s.muted}>
               {getMissionSourceLabel(current)}
@@ -107,12 +118,12 @@ export default function JourneyDetail() {
           {current?.sourceType === "journey_action" ? (
             <Pressable
               disabled={mutations.completeMission.isPending}
-              onPress={() => mutations.completeMission.mutate(current.id)}
+              onPress={() => void completeMission()}
             >
               <Text style={s.link}>Confirmar ação concluída</Text>
             </Pressable>
           ) : null}
-          <Pressable style={s.outlineButton} onPress={() => openAssistant(j)}>
+          <Pressable style={s.outlineButton} onPress={() => openAssistant(j, undefined, current)}>
             <Text style={s.outlineText}>Planejar com a NEXORA</Text>
           </Pressable>
         </Block>
@@ -165,13 +176,14 @@ export default function JourneyDetail() {
   );
 }
 function openAssistant(
-  journey: { title: string; objective: string },
+  journey: { title: string; objective: string; status: string; targetDate: string | null },
   program?: JourneyProgramState,
+  mission?: { title: string } | null,
 ) {
   const step = program?.currentStep;
   const context = program
-    ? `Planeje esta etapa da Jornada.\nTítulo: ${journey.title.slice(0, 160)}\nObjetivo: ${journey.objective.slice(0, 500)}\nEtapa: ${step?.title.slice(0, 240)}\nDescrição: ${step?.description.slice(0, 500)}\nFase: ${step?.phase.slice(0, 80)}\nProgresso: ${program.completedSteps} de ${program.totalSteps}.\nPara alterações, preserve PREVIEW → CONFIRMAR → APLICAR.`
-    : `Ajude a definir uma próxima ação.\nTítulo: ${journey.title.slice(0, 160)}\nObjetivo: ${journey.objective.slice(0, 500)}\nPara alterações, preserve PREVIEW → CONFIRMAR → APLICAR.`;
+    ? `Planeje esta etapa da Jornada.\nTítulo: ${journey.title.slice(0, 160)}\nObjetivo: ${journey.objective.slice(0, 500)}\nStatus: ${journey.status}.\nEtapa atual: ${step?.title.slice(0, 240) ?? "nenhuma — programa concluído"}.\nProgresso: ${program.completedSteps} de ${program.totalSteps}.\nPrazo: ${journey.targetDate ?? "não definido"}.\nMissão de hoje: ${mission?.title.slice(0, 240) ?? "nenhuma"}.\nPara alterações, preserve PREVIEW → CONFIRMAR → APLICAR.`
+    : `Ajude a definir uma próxima ação.\nTítulo: ${journey.title.slice(0, 160)}\nObjetivo: ${journey.objective.slice(0, 500)}\nStatus: ${journey.status}.\nPrazo: ${journey.targetDate ?? "não definido"}.\nMissão de hoje: ${mission?.title.slice(0, 240) ?? "nenhuma"}.\nPara alterações, preserve PREVIEW → CONFIRMAR → APLICAR.`;
   router.push({ pathname: "/assistant", params: { context } });
 }
 function ProgramWorkspace({

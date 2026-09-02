@@ -19,6 +19,8 @@ import {
   getActiveJourney,
   getChallengeProgress,
   getMissionExecutionTarget,
+  getTodayMission,
+  journeyStatusLabel,
   getMissionSourceLabel,
   JOURNEY_TEMPLATES,
   missionReason,
@@ -46,7 +48,8 @@ export default function Journeys() {
   );
   const primaryJourney = getActiveJourney(journeys.data ?? []);
   const otherJourneys = (journeys.data ?? []).filter((item) => item.id !== primaryJourney?.id);
-  const missionTarget = mission.data ? getMissionExecutionTarget(mission.data) : null;
+  const todayMission = getTodayMission(mission.data);
+  const missionTarget = todayMission ? getMissionExecutionTarget(todayMission) : null;
   const premium = isPremiumEntitlement(subscription.data?.entitlement ?? "free"),
     limit = PLAN_LIMITS[premium ? "premium" : "free"].activeJourneys;
   async function refresh() {
@@ -122,35 +125,35 @@ export default function Journeys() {
             </View>
           ) : mission.isError ? (
             <View style={s.card}>
-              <Text style={s.cardTitle}>Não foi possível carregar a missão de hoje.</Text>
+              <Text style={s.cardTitle}>Não foi possível atualizar a missão de hoje.</Text>
               <Text style={s.muted}>Suas Jornadas continuam disponíveis.</Text>
               {__DEV__ ? <Text style={s.diagnostic}>{String(mission.error)}</Text> : null}
               <Pressable accessibilityRole="button" onPress={() => void mission.refetch()}>
                 <Text style={s.link}>Tentar novamente</Text>
               </Pressable>
             </View>
-          ) : mission.data ? (
+          ) : todayMission ? (
             <View style={s.hero}>
               <Text style={s.meta}>
-                {getMissionSourceLabel(mission.data)} · {missionReason(mission.data)}
+                {getMissionSourceLabel(todayMission)} · {missionReason(todayMission)}
               </Text>
-              <Text style={s.heroTitle}>{mission.data.title}</Text>
-              {mission.data.description ? (
+              <Text style={s.heroTitle}>{todayMission.title}</Text>
+              {todayMission.description ? (
                 <>
                   <Text style={s.meta}>Próxima ação</Text>
-                  <Text style={s.body}>{mission.data.description}</Text>
+                  <Text style={s.body}>{todayMission.description}</Text>
                 </>
               ) : null}
-              {mission.data.momentumValue > 0 ? (
+              {todayMission.momentumValue > 0 ? (
                 <Text style={s.reward}>
-                  +{mission.data.momentumValue} Momentum após conclusão verificada
+                  +{todayMission.momentumValue} Momentum após conclusão verificada
                 </Text>
               ) : null}
               {missionTarget ? (
                 <Pressable
                   style={s.button}
                   accessibilityRole="button"
-                  accessibilityLabel={`${missionTarget.label}: ${mission.data.title}`}
+                  accessibilityLabel={`${missionTarget.label}: ${todayMission.title}`}
                   onPress={() => router.push(missionTarget.href)}
                 >
                   <Text style={s.buttonText}>{missionTarget.label}</Text>
@@ -194,16 +197,9 @@ export default function Journeys() {
             ) : (
               <>
                 <Text style={s.metric}>
-                  {momentum.data?.weekPoints ?? 0}{" "}
-                  <Text style={s.metricLabel}>Momentum esta semana</Text>
+                  {momentum.data?.totalPoints ?? 0} <Text style={s.metricLabel}>Momentum</Text>
                 </Text>
-                <Text style={s.muted}>
-                  {momentum.data?.completedMissions ?? 0} missões verificadas ·{" "}
-                  {momentum.data?.streak ?? 0} dias de ritmo
-                </Text>
-                {(momentum.data?.streak ?? 0) === 0 ? (
-                  <Text style={s.meta}>Conclua uma missão hoje para iniciar seu ritmo.</Text>
-                ) : null}
+                <Text style={s.muted}>Construído por execuções verificadas.</Text>
               </>
             )}
           </View>
@@ -268,7 +264,7 @@ export default function Journeys() {
                 onPress={() => router.push(`/journeys/${j.id}`)}
               >
                 <Text style={s.cardTitle}>{j.title}</Text>
-                <Text style={s.meta}>{j.status.toUpperCase()}</Text>
+                <Text style={s.meta}>{journeyStatusLabel(j.status).toUpperCase()}</Text>
               </Pressable>
             ))}
           </Section>
