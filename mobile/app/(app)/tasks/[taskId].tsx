@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useRef, useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -13,7 +13,8 @@ import {
 import { router, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ErrorState, LoadingState } from "@/components/screen-state";
-import { useProjects, useTasks, useWorkspaceMutations } from "@/hooks/use-workspaces";
+import { NativeFormModal } from "@/components/native-form-modal";
+import { useProject, useProjects, useTask, useWorkspaceMutations } from "@/hooks/use-workspaces";
 import {
   buildTaskAssistantContext,
   getTaskActivity,
@@ -23,9 +24,10 @@ import {
   getTaskPriorityLabel,
   getTaskProgressSummary,
   getTaskRhythmState,
+  getTaskRhythmLabel,
   getTaskWorkState,
 } from "@/lib/task-selectors";
-import { getProjectHealthState } from "@/lib/project-selectors";
+import { getProjectHealthLabel, getProjectHealthState } from "@/lib/project-selectors";
 import { colors, radius, spacing, typography } from "@/lib/theme";
 import { cancelTaskReminder, scheduleTaskReminder } from "@/services/notification-service";
 import type { Task } from "@/services/workspace-service";
@@ -39,28 +41,38 @@ const stateLabel = {
 
 export default function TaskWorkspace() {
   const { taskId = "" } = useLocalSearchParams<{ taskId: string }>();
-  const tasks = useTasks();
+  const taskQuery = useTask(taskId);
   const projects = useProjects();
   const { mutateTask } = useWorkspaceMutations();
-  const task = tasks.data?.find(({ id }) => id === taskId);
-  const project = projects.data?.find(({ id }) => id === task?.projectId);
-  const projectTasks = useMemo(
-    () => (tasks.data ?? []).filter(({ projectId }) => projectId === task?.projectId),
-    [task?.projectId, tasks.data],
-  );
+  // Runtime null is still handled below; the assertion keeps event-handler closures narrowed.
+  const task = taskQuery.data!;
+  const projectQuery = useProject(task?.projectId ?? "");
+  const project = projectQuery.data?.project;
+  const projectTasks = projectQuery.data?.tasks ?? [];
   const [nextAction, setNextAction] = useState<string | null>(null);
   const [blocker, setBlocker] = useState<string | null>(null);
   const [editingNext, setEditingNext] = useState(false);
   const [editingBlocker, setEditingBlocker] = useState(false);
   const [checkingIn, setCheckingIn] = useState(false);
   const [error, setError] = useState("");
-  if (tasks.isPending) return <LoadingState title="Preparando espaço de execução…" />;
-  if (tasks.isError)
+  const [editingTask, setEditingTask] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editDueDate, setEditDueDate] = useState("");
+  const [editPriority, setEditPriority] = useState("medium");
+  const [editProjectId, setEditProjectId] = useState<string | null>(null);
+  const operationGuards = useRef(new Set<string>());
+  if (!taskId.trim())
+    return (
+      <ErrorState title="Tarefa inválida." actionLabel="Voltar" onAction={() => router.back()} />
+    );
+  if (taskQuery.isPending) return <LoadingState title="Preparando espaço de execução…" />;
+  if (taskQuery.isError)
     return (
       <ErrorState
         title="Não foi possível carregar esta tarefa."
         actionLabel="Tentar novamente"
-        onAction={() => void tasks.refetch()}
+        onAction={() => void taskQuery.refetch()}
       />
     );
   if (!task)
@@ -78,7 +90,9 @@ export default function TaskWorkspace() {
   const draftNext = nextAction ?? task.nextAction ?? "";
   const draftBlocker = blocker ?? task.blockerNote ?? "";
 
-  async function update(patch: Partial<Task>) {
+  async function update(patch: Partial<Task>, operation = "update") {
+    if (operationGuards.current.has(operation) || mutateTask.isPending) return false;
+    operationGuards.current.add(operation);
     setError("");
     try {
       await mutateTask.mutateAsync({
@@ -87,25 +101,38 @@ export default function TaskWorkspace() {
         projectId: task!.projectId,
         patch,
       });
-    } catch {
-      setError("Não foi possível salvar a alteração. Tente novamente.");
-      throw new Error("mutation");
+      return true;
+    } catch (caught) {
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : "Não foi possível salvar a alteração. Tente novamente.",
+      );
+      throw caught;
+    } finally {
+      operationGuards.current.delete(operation);
     }
   }
   const start = () =>
-    void update({
-      executionStatus: "in_progress",
-      startedAt: task.startedAt ?? new Date().toISOString(),
-      lastProgressAt: new Date().toISOString(),
-    });
+    void update(
+      {
+        executionStatus: "in_progress",
+        startedAt: task.startedAt ?? new Date().toISOString(),
+      },
+      "start",
+    );
   const complete = () =>
-    void update({
-      completed: true,
-      executionStatus: "completed",
-      lastProgressAt: new Date().toISOString(),
-      reminderAt: null,
-    })
-      .then(() => cancelTaskReminder(task.id))
+    void update(
+      {
+        completed: true,
+        executionStatus: "completed",
+        reminderAt: null,
+      },
+      "complete",
+    )
+      .then(async (saved) => {
+        if (saved) await cancelTaskReminder(task.id);
+      })
       .then(() =>
         Alert.alert(
           "Concluída.",
@@ -114,9 +141,14 @@ export default function TaskWorkspace() {
       )
       .catch(() => undefined);
   const reopen = () =>
-    void update({ completed: false, executionStatus: "in_progress", reminderAt: null }).catch(
-      () => undefined,
-    );
+    void update(
+      {
+        completed: false,
+        executionStatus: task.startedAt ? "in_progress" : "not_started",
+        reminderAt: null,
+      },
+      "reopen",
+    ).catch(() => undefined);
   const registerProgress = (state: "progressed" | "unchanged" | "blocked") => {
     if (state === "unchanged") {
       setCheckingIn(false);
@@ -131,39 +163,49 @@ export default function TaskWorkspace() {
             blockerNote: null,
           }
         : { executionStatus: "blocked" };
-    void update(patch)
+    void update(patch, "progress")
       .then(() => setCheckingIn(false))
       .catch(() => undefined);
   };
   const saveNext = () =>
-    void update({ nextAction: draftNext })
+    void update({ nextAction: draftNext }, "next-action")
       .then(() => {
         setEditingNext(false);
         setNextAction(null);
       })
       .catch(() => undefined);
   const saveBlocker = () =>
-    void update({
-      blockerNote: draftBlocker,
-      executionStatus: draftBlocker.trim() ? "blocked" : "in_progress",
-      lastProgressAt: new Date().toISOString(),
-    })
-      .then(() => {
-        setEditingBlocker(false);
-        setBlocker(null);
-      })
-      .catch(() => undefined);
+    !draftBlocker.trim()
+      ? setError("Explique o bloqueio antes de salvar.")
+      : void update(
+          {
+            blockerNote: draftBlocker,
+            executionStatus: "blocked",
+          },
+          "blocker",
+        )
+          .then(() => {
+            setEditingBlocker(false);
+            setBlocker(null);
+          })
+          .catch(() => undefined);
   function remind() {
+    const currentTask = task;
     const apply = async (hours: number) => {
       const at = new Date(Date.now() + hours * 3_600_000).toISOString();
       try {
-        const result = await scheduleTaskReminder(task!, at);
+        const result = await scheduleTaskReminder(currentTask, at);
         if (!result.scheduled)
           return Alert.alert(
             "Notificações desativadas",
             "Ative as notificações nas configurações do Android para usar lembretes.",
           );
-        await update({ reminderAt: at });
+        try {
+          await update({ reminderAt: at }, "reminder-create");
+        } catch (persistError) {
+          await cancelTaskReminder(currentTask.id).catch(() => undefined);
+          throw persistError;
+        }
         Alert.alert("Lembrete definido", "A NEXORA lembrará você no horário escolhido.");
       } catch {
         setError("Não foi possível agendar o lembrete.");
@@ -177,17 +219,79 @@ export default function TaskWorkspace() {
     ]);
   }
   function cancelReminder() {
-    void cancelTaskReminder(task!.id)
-      .then(() => update({ reminderAt: null }))
+    void update({ reminderAt: null }, "reminder-cancel")
+      .then(async (saved) => {
+        if (saved) await cancelTaskReminder(task!.id);
+      })
       .catch(() => setError("Não foi possível cancelar o lembrete."));
   }
   function changeDeadline() {
     const apply = (option: "tomorrow" | "next-week") =>
-      void update({ dueDate: getRescheduleDate(option) }).catch(() => undefined);
+      void update({ dueDate: getRescheduleDate(option) }, "deadline").catch(() => undefined);
     Alert.alert("Mudar prazo", "Esta ação altera o prazo real da tarefa.", [
       { text: "Amanhã", onPress: () => apply("tomorrow") },
       { text: "Próxima semana", onPress: () => apply("next-week") },
       { text: "Cancelar", style: "cancel" },
+    ]);
+  }
+  function openTaskEditor() {
+    setEditTitle(task.title);
+    setEditDescription(task.description);
+    setEditDueDate(task.dueDate ?? "");
+    setEditPriority(task.priority);
+    setEditProjectId(task.projectId);
+    setEditingTask(true);
+  }
+  async function saveTaskEditor() {
+    const unchanged =
+      editTitle.trim() === task.title &&
+      editDescription.trim() === task.description &&
+      (editDueDate || null) === task.dueDate &&
+      editPriority === task.priority &&
+      editProjectId === task.projectId;
+    if (unchanged) return setEditingTask(false);
+    try {
+      await mutateTask.mutateAsync({
+        action: "update",
+        taskId: task.id,
+        projectId: editProjectId,
+        previousProjectId: task.projectId,
+        patch: {
+          title: editTitle,
+          description: editDescription,
+          dueDate: editDueDate || null,
+          priority: editPriority,
+          projectId: editProjectId,
+        },
+      });
+      setEditingTask(false);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Não foi possível editar a tarefa.");
+    }
+  }
+  function deleteTask() {
+    Alert.alert("Excluir tarefa?", "Esta ação não pode ser desfeita.", [
+      { text: "Cancelar", style: "cancel" },
+      {
+        text: "Excluir",
+        style: "destructive",
+        onPress: () => {
+          if (operationGuards.current.has("delete")) return;
+          operationGuards.current.add("delete");
+          void mutateTask
+            .mutateAsync({ action: "delete", taskId: task.id, projectId: task.projectId })
+            .then(async () => {
+              await cancelTaskReminder(task.id);
+              router.back();
+            })
+            .catch((caught) =>
+              setError(
+                caught instanceof Error ? caught.message : "Não foi possível excluir a tarefa.",
+              ),
+            )
+            .finally(() => operationGuards.current.delete("delete"));
+        },
+      },
     ]);
   }
   const helpPrompt = buildTaskAssistantContext(task, project);
@@ -209,9 +313,9 @@ export default function TaskWorkspace() {
             {getTaskDuePresentation(task)}
           </Text>
           <Text style={styles.state}>{stateLabel[workState]}</Text>
-          <Card label="NEXORA NOW">
+          <Card label="NEXORA AGORA">
             <Text style={styles.body}>{getTaskNudge(task)}</Text>
-            <Text style={styles.muted}>Ritmo: {rhythm.replaceAll("_", " ")}</Text>
+            <Text style={styles.muted}>Ritmo: {getTaskRhythmLabel(rhythm)}</Text>
             {(rhythm === "stale" || rhythm === "overdue") && (
               <Button
                 label="Reorganizar com a NEXORA"
@@ -240,7 +344,9 @@ export default function TaskWorkspace() {
               </>
             ) : (
               <>
-                <Text style={styles.body}>{task.nextAction || "Nenhuma ação definida."}</Text>
+                <Text style={styles.body}>
+                  {task.nextAction || "Nenhuma próxima ação definida."}
+                </Text>
                 <Button
                   label={task.nextAction ? "Editar" : "Definir próxima ação"}
                   onPress={() => setEditingNext(true)}
@@ -248,7 +354,7 @@ export default function TaskWorkspace() {
               </>
             )}
           </Card>
-          <Card label="PROGRESSO">
+          <Card label="EXECUÇÃO E PROGRESSO">
             <Text style={styles.body}>{stateLabel[workState]}</Text>
             {progressSummary ? <Text style={styles.muted}>{progressSummary}</Text> : null}
             <View style={styles.actions}>
@@ -308,27 +414,44 @@ export default function TaskWorkspace() {
                 {workState === "blocked" ? (
                   <Button
                     label="Resolver bloqueio"
-                    onPress={() => {
-                      setBlocker("");
-                      setEditingBlocker(true);
-                    }}
+                    onPress={() =>
+                      void update(
+                        {
+                          blockerNote: null,
+                          executionStatus: task.startedAt ? "in_progress" : "not_started",
+                        },
+                        "clear-blocker",
+                      ).catch(() => undefined)
+                    }
                   />
                 ) : null}
+                <Button
+                  label="Pedir ajuda à NEXORA"
+                  onPress={() =>
+                    router.push({
+                      pathname: "/assistant-chat",
+                      params: { prompt: `${helpPrompt}\nAjude-me a resolver este bloqueio.` },
+                    })
+                  }
+                />
               </>
             )}
           </Card>
-          <Card label="AÇÕES">
+          <Card label="PRAZO E LEMBRETE">
             <Text style={styles.body}>
-              {task.reminderAt
+              {task.reminderAt && new Date(task.reminderAt) > new Date()
                 ? `Lembrete: ${new Date(task.reminderAt).toLocaleString("pt-BR")}`
                 : "Nenhum lembrete definido."}
+            </Text>
+            <Text style={styles.muted}>
+              O lembrete avisa você; o prazo continua sendo {getTaskDuePresentation(task)}.
             </Text>
             <View style={styles.actions}>
               <Button
                 label={task.reminderAt ? "Alterar lembrete" : "Definir lembrete"}
                 onPress={remind}
               />
-              {task.reminderAt ? (
+              {task.reminderAt && new Date(task.reminderAt) > new Date() ? (
                 <Button label="Cancelar lembrete" onPress={cancelReminder} />
               ) : null}
               <Button label="Mudar prazo" onPress={changeDeadline} />
@@ -340,6 +463,12 @@ export default function TaskWorkspace() {
               />
             </View>
           </Card>
+          {projectQuery.isError ? (
+            <Card label="IMPACTO NO PROJETO">
+              <Text style={styles.muted}>Não foi possível carregar o projeto vinculado.</Text>
+              <Button label="Tentar novamente" onPress={() => void projectQuery.refetch()} />
+            </Card>
+          ) : null}
           {project && (
             <Card label="IMPACTO NO PROJETO">
               <Text style={styles.muted}>AVANÇA</Text>
@@ -350,7 +479,7 @@ export default function TaskWorkspace() {
                 {completedCount} de {projectTasks.length} etapas concluídas.
               </Text>
               <Text style={styles.muted}>
-                Saúde: {getProjectHealthState(project, projectTasks)}
+                Saúde: {getProjectHealthLabel(getProjectHealthState(project, projectTasks))}
               </Text>
             </Card>
           )}
@@ -368,12 +497,51 @@ export default function TaskWorkspace() {
               ))}
             </Card>
           ) : null}
+          <Card label="GERENCIAR TAREFA">
+            <Button label="Editar tarefa" onPress={openTaskEditor} />
+            <Button label="Excluir tarefa" onPress={deleteTask} />
+          </Card>
           {error ? (
             <Text accessibilityRole="alert" style={styles.error}>
               {error}
             </Text>
           ) : null}
         </ScrollView>
+        <NativeFormModal
+          visible={editingTask}
+          title="Editar tarefa"
+          placeholder="Título da tarefa"
+          value={editTitle}
+          secondaryValue={editDescription}
+          secondaryPlaceholder="Descrição (opcional)"
+          dateValue={editDueDate}
+          datePlaceholder="Prazo (opcional)"
+          busy={mutateTask.isPending}
+          error={error}
+          valueMaxLength={160}
+          secondaryMaxLength={2000}
+          onChange={setEditTitle}
+          onSecondaryChange={setEditDescription}
+          onDateChange={setEditDueDate}
+          onClose={() => setEditingTask(false)}
+          onSave={() => void saveTaskEditor()}
+        >
+          <View style={styles.actions}>
+            {(["high", "medium", "low"] as const).map((value) => (
+              <Button
+                key={value}
+                label={getTaskPriorityLabel(value)}
+                onPress={() => setEditPriority(value)}
+              />
+            ))}
+          </View>
+          <View style={styles.actions}>
+            <Button label="Sem projeto" onPress={() => setEditProjectId(null)} />
+            {(projects.data ?? []).map((item) => (
+              <Button key={item.id} label={item.title} onPress={() => setEditProjectId(item.id)} />
+            ))}
+          </View>
+        </NativeFormModal>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

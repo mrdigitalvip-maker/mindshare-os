@@ -144,6 +144,37 @@ const normalizeTaskTitle = (value: string) => {
     );
   return title;
 };
+const TASK_PRIORITIES = ["high", "medium", "low"] as const;
+const normalizePriority = (value: string | undefined) => {
+  const priority = (value ?? "medium").trim().toLowerCase();
+  if (!TASK_PRIORITIES.includes(priority as (typeof TASK_PRIORITIES)[number]))
+    throw new WorkspaceMutationError("Escolha uma prioridade válida.", "invalid-input", value);
+  return priority;
+};
+const normalizeTaskText = (value: string | null | undefined, max: number, label: string) => {
+  const text = value?.trim() || null;
+  if ((text?.length ?? 0) > max)
+    throw new WorkspaceMutationError(
+      `${label} deve ter até ${max} caracteres.`,
+      "invalid-input",
+      value,
+    );
+  return text;
+};
+async function assertOwnedProject(userId: string, projectId: string | null | undefined) {
+  if (!projectId) return null;
+  const id = resource(projectId);
+  const { data, error } = await supabase
+    .from("projects")
+    .select("id")
+    .eq("id", id)
+    .eq("user_id", owner(userId))
+    .maybeSingle();
+  if (error) throw workspaceMutationError(error);
+  if (!data)
+    throw new WorkspaceMutationError("Projeto vinculado inválido.", "not-found", projectId);
+  return id;
+}
 const taskFrom = (row: Record<string, unknown>): Task => ({
   id: String(row.id),
   title: String(row.title ?? "Tarefa sem título"),
@@ -345,6 +376,18 @@ export async function listTasks(userId: string, projectId?: string): Promise<Tas
   if (error) throw workspaceMutationError(error);
   return (data ?? []).map(taskFrom);
 }
+export async function getTask(userId: string, taskId: string): Promise<Task | null> {
+  const { data, error } = await supabase
+    .from("tasks")
+    .select(
+      "id,title,description,priority,due_date,project_id,completed,updated_at,execution_status,next_action,blocker_note,started_at,last_progress_at,reminder_at",
+    )
+    .eq("id", resource(taskId))
+    .eq("user_id", owner(userId))
+    .maybeSingle();
+  if (error) throw workspaceMutationError(error);
+  return data ? taskFrom(data) : null;
+}
 export async function createTask(
   userId: string,
   input: {
@@ -356,17 +399,18 @@ export async function createTask(
     nextAction?: string | null;
   },
 ): Promise<string> {
+  const projectId = await assertOwnedProject(userId, input.projectId);
   const { data, error } = await supabase
     .from("tasks")
     .insert({
       user_id: owner(userId),
       title: normalizeTaskTitle(input.title),
-      description: input.description?.trim() || null,
-      project_id: input.projectId ? resource(input.projectId) : null,
-      priority: input.priority ?? "medium",
+      description: normalizeTaskText(input.description, 2000, "A descrição"),
+      project_id: projectId,
+      priority: normalizePriority(input.priority),
       due_date: normalizeDate(input.dueDate),
       completed: false,
-      next_action: input.nextAction?.trim() || null,
+      next_action: normalizeTaskText(input.nextAction, 500, "A próxima ação"),
     })
     .select("id")
     .single();
@@ -395,16 +439,55 @@ export async function updateTask(
   >,
   expectedProjectId?: string | null,
 ): Promise<void> {
+  if (patch.projectId !== undefined) await assertOwnedProject(userId, patch.projectId);
+  if (
+    patch.executionStatus &&
+    !["not_started", "in_progress", "blocked", "completed"].includes(patch.executionStatus)
+  )
+    throw new WorkspaceMutationError(
+      "Estado de execução inválido.",
+      "invalid-input",
+      patch.executionStatus,
+    );
+  if (
+    patch.completed === true &&
+    patch.executionStatus !== undefined &&
+    patch.executionStatus !== "completed"
+  )
+    throw new WorkspaceMutationError(
+      "O estado da tarefa concluída é inconsistente.",
+      "invalid-input",
+      patch,
+    );
+  if (
+    patch.executionStatus === "blocked" &&
+    !normalizeTaskText(patch.blockerNote, 500, "O bloqueio")
+  )
+    throw new WorkspaceMutationError(
+      "Explique o bloqueio antes de salvar.",
+      "invalid-input",
+      patch.blockerNote,
+    );
+  if (patch.executionStatus === "completed" && patch.completed === false)
+    throw new WorkspaceMutationError("O estado da tarefa é inconsistente.", "invalid-input", patch);
   const update = {
     ...(patch.title !== undefined ? { title: normalizeTaskTitle(patch.title) } : {}),
-    ...(patch.description !== undefined ? { description: patch.description } : {}),
-    ...(patch.priority !== undefined ? { priority: patch.priority } : {}),
+    ...(patch.description !== undefined
+      ? { description: normalizeTaskText(patch.description, 2000, "A descrição") }
+      : {}),
+    ...(patch.priority !== undefined ? { priority: normalizePriority(patch.priority) } : {}),
     ...(patch.dueDate !== undefined ? { due_date: normalizeDate(patch.dueDate) } : {}),
-    ...(patch.projectId !== undefined ? { project_id: patch.projectId } : {}),
+    ...(patch.projectId !== undefined
+      ? { project_id: patch.projectId ? resource(patch.projectId) : null }
+      : {}),
     ...(patch.completed !== undefined ? { completed: patch.completed } : {}),
     ...(patch.executionStatus !== undefined ? { execution_status: patch.executionStatus } : {}),
-    ...(patch.nextAction !== undefined ? { next_action: patch.nextAction?.trim() || null } : {}),
-    ...(patch.blockerNote !== undefined ? { blocker_note: patch.blockerNote?.trim() || null } : {}),
+    ...(patch.nextAction !== undefined
+      ? { next_action: normalizeTaskText(patch.nextAction, 500, "A próxima ação") }
+      : {}),
+    ...(patch.blockerNote !== undefined
+      ? { blocker_note: normalizeTaskText(patch.blockerNote, 500, "O bloqueio") }
+      : {}),
     ...(patch.startedAt !== undefined ? { started_at: patch.startedAt } : {}),
     ...(patch.lastProgressAt !== undefined ? { last_progress_at: patch.lastProgressAt } : {}),
     ...(patch.reminderAt !== undefined ? { reminder_at: patch.reminderAt } : {}),
@@ -421,12 +504,15 @@ export async function updateTask(
   if (!data) throw new Error("Task not found.");
 }
 export async function deleteTask(userId: string, taskId: string): Promise<void> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("tasks")
     .delete()
     .eq("id", resource(taskId))
-    .eq("user_id", owner(userId));
+    .eq("user_id", owner(userId))
+    .select("id")
+    .maybeSingle();
   if (error) throw workspaceMutationError(error);
+  if (!data) throw new WorkspaceMutationError("Tarefa não encontrada.", "not-found", taskId);
 }
 
 export async function listSubjects(userId: string): Promise<Subject[]> {

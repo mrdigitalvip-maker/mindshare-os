@@ -90,6 +90,19 @@ export function getTaskRhythmState(task: Task, now = new Date()): TaskRhythmStat
   return "stale";
 }
 
+const rhythmLabels: Record<TaskRhythmState, string> = {
+  not_started: "Ainda não iniciada",
+  started_today: "Iniciada hoje",
+  active_recently: "Avanço recente",
+  stale: "Sem avanço recente",
+  blocked: "Bloqueada",
+  overdue: "Atrasada",
+  completed: "Concluída",
+};
+export function getTaskRhythmLabel(state: TaskRhythmState) {
+  return rhythmLabels[state];
+}
+
 export function getTaskProgressSummary(task: Task, now = new Date()) {
   const days = meaningfulDaysAgo(task.lastProgressAt, now);
   if (days === null) return null;
@@ -161,10 +174,16 @@ export function getTaskNotificationEligibility(task: Task, now = new Date()) {
 export function getTaskActivity(task: Task) {
   const events: { kind: "started" | "progress" | "completed"; at: string }[] = [];
   if (task.startedAt) events.push({ kind: "started", at: task.startedAt });
-  if (task.lastProgressAt)
-    events.push({ kind: task.completed ? "completed" : "progress", at: task.lastProgressAt });
+  if (task.lastProgressAt) events.push({ kind: "progress", at: task.lastProgressAt });
+  const seen = new Set<string>();
   return events
     .filter(({ at }) => Number.isFinite(new Date(at).getTime()))
+    .filter(({ kind, at }) => {
+      const key = `${kind}-${at}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
     .sort((a, b) => b.at.localeCompare(a.at));
 }
 
@@ -182,8 +201,8 @@ export function buildTaskAssistantContext(task: Task, project?: Project | null) 
     task.startedAt && `Iniciada em: ${task.startedAt}`,
     task.lastProgressAt && `Último progresso: ${task.lastProgressAt}`,
     project && `Projeto: ${project.title.slice(0, 160)}`,
-    project?.description?.trim() &&
-      `Objetivo do projeto: ${project.description.trim().slice(0, 400)}`,
+    (project?.objective?.trim() || project?.description?.trim()) &&
+      `Objetivo do projeto: ${(project.objective?.trim() || project.description.trim()).slice(0, 400)}`,
     project?.dueDate && `Prazo do projeto: ${project.dueDate}`,
   ]
     .filter(Boolean)

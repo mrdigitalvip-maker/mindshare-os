@@ -97,6 +97,8 @@ test("project reassignment invalidates both project workspaces", () => {
   assert.deepEqual(taskMutationInvalidations("project-b", "project-a"), [
     ["tasks"],
     ["projects"],
+    ["journeys"],
+    ["journeys", "daily-mission"],
     ["projects", "project-b"],
     ["tasks", "project", "project-b"],
     ["projects", "project-a"],

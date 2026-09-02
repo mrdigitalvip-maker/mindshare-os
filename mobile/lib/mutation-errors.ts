@@ -23,12 +23,13 @@ export class WorkspaceMutationError extends Error {
 }
 const messages: Record<string, string> = {
   projects: "O plano gratuito permite até 3 projetos ativos.",
-  tasks: "O plano gratuito permite até 30 tarefas abertas.",
+  tasks: "O plano gratuito permite até 30 tarefas em aberto.",
   study_subjects: "O plano gratuito permite até 3 matérias ativas.",
   journeys: "O plano gratuito permite apenas 1 Journey ativa.",
 };
 export function workspaceMutationError(error: unknown): Error {
   const backend = error as BackendError;
+  const text = `${backend?.message ?? ""} ${backend?.details ?? ""}`.toLowerCase();
   if (
     backend?.message === "STUDY_ACTIVE_SESSION_CONFLICT" ||
     `${backend?.message ?? ""} ${backend?.details ?? ""}`.includes(
@@ -46,6 +47,12 @@ export function workspaceMutationError(error: unknown): Error {
       "unexpected",
       error,
     );
+  if (text.includes("task_stale_or_not_found"))
+    return new WorkspaceMutationError(
+      "Esta tarefa mudou em outro lugar ou não está mais disponível. Atualize a tela.",
+      "stale",
+      error,
+    );
   if (backend?.message === "FREE_CREATION_LIMIT_REACHED") {
     const resource = Object.keys(messages).find(
       (key) =>
@@ -58,7 +65,6 @@ export function workspaceMutationError(error: unknown): Error {
       error,
     );
   }
-  const text = `${backend?.message ?? ""} ${backend?.details ?? ""}`.toLowerCase();
   if (backend?.code === "23503" || text.includes("foreign key constraint"))
     return new WorkspaceMutationError(
       "Este projeto possui tarefas e não pode ser excluído até que elas sejam movidas ou removidas.",
@@ -80,11 +86,7 @@ export function workspaceMutationError(error: unknown): Error {
       error,
     );
   if (text.includes("not found") || text.includes("não encontrada"))
-    return new WorkspaceMutationError(
-      "O item não foi encontrado.",
-      "not-found",
-      error,
-    );
+    return new WorkspaceMutationError("O item não foi encontrado.", "not-found", error);
   if (
     text.includes("journey_invalid_date") ||
     backend?.code === "23514" ||
