@@ -6,6 +6,30 @@ import { normalizePushToken } from "@/lib/notification-routing";
 import { supabase } from "@/lib/supabase";
 
 export type NativePermission = "granted" | "denied" | "blocked" | "undetermined" | "unsupported";
+export type NotificationDiagnostic =
+  | "permission"
+  | "channel"
+  | "project-config"
+  | "token"
+  | "registration"
+  | "network"
+  | "remote-delivery"
+  | "unexpected";
+export type NotificationDeviceState = {
+  platformSupported: boolean;
+  permission: NativePermission;
+  channelReady: boolean;
+  projectConfigAvailable: boolean;
+  deviceRegistered: boolean;
+  remotePushReady: boolean;
+};
+export class NotificationSetupError extends Error {
+  constructor(readonly category: NotificationDiagnostic) {
+    super(category);
+    this.name = "NotificationSetupError";
+  }
+}
+
 const DEVICE_KEY = "nexora:device-id";
 async function deviceId() {
   const stored = await SecureStore.getItemAsync(DEVICE_KEY);
@@ -14,6 +38,22 @@ async function deviceId() {
   await SecureStore.setItemAsync(DEVICE_KEY, next);
   return next;
 }
+const projectId = () =>
+  Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
+
+async function ensureAndroidChannel() {
+  if (Platform.OS !== "android") return true;
+  try {
+    await Notifications.setNotificationChannelAsync("default", {
+      name: "NEXORA",
+      importance: Notifications.AndroidImportance.DEFAULT,
+    });
+    return Boolean(await Notifications.getNotificationChannelAsync("default"));
+  } catch {
+    throw new NotificationSetupError("channel");
+  }
+}
+
 export async function isCurrentDeviceRegistered(userId: string): Promise<boolean> {
   if (Platform.OS !== "android" && Platform.OS !== "ios") return false;
   const { data, error } = await supabase
@@ -24,8 +64,32 @@ export async function isCurrentDeviceRegistered(userId: string): Promise<boolean
     .eq("device_id", await deviceId())
     .eq("enabled", true)
     .maybeSingle();
-  if (error) throw error;
+  if (error) throw new NotificationSetupError("registration");
   return Boolean(data);
+}
+
+export async function getNotificationDeviceState(userId: string): Promise<NotificationDeviceState> {
+  const platformSupported = Platform.OS === "android" || Platform.OS === "ios";
+  const permission = await notificationPermission();
+  let channelReady = Platform.OS === "ios";
+  if (Platform.OS === "android") {
+    try {
+      channelReady = Boolean(await Notifications.getNotificationChannelAsync("default"));
+    } catch {
+      channelReady = false;
+    }
+  }
+  const deviceRegistered = permission === "granted" && (await isCurrentDeviceRegistered(userId));
+  const projectConfigAvailable = Boolean(projectId());
+  return {
+    platformSupported,
+    permission,
+    channelReady,
+    projectConfigAvailable,
+    deviceRegistered,
+    remotePushReady:
+      permission === "granted" && channelReady && projectConfigAvailable && deviceRegistered,
+  };
 }
 
 export async function disableCurrentPushDevice(userId: string): Promise<void> {
@@ -36,7 +100,7 @@ export async function disableCurrentPushDevice(userId: string): Promise<void> {
     .eq("user_id", userId)
     .eq("provider", "expo")
     .eq("device_id", await deviceId());
-  if (error) throw error;
+  if (error) throw new NotificationSetupError("registration");
 }
 export async function notificationPermission(): Promise<NativePermission> {
   if (Platform.OS !== "android" && Platform.OS !== "ios") return "unsupported";
@@ -45,9 +109,12 @@ export async function notificationPermission(): Promise<NativePermission> {
   if (value.canAskAgain) return value.status === "undetermined" ? "undetermined" : "denied";
   return "blocked";
 }
+
+/** Must only be called from an explicit activation action. */
 export async function registerNativeNotifications(
   userId: string,
 ): Promise<{ permission: NativePermission; registered: boolean }> {
+  await ensureAndroidChannel();
   const existing = await notificationPermission();
   const permission =
     existing === "granted"
@@ -56,29 +123,47 @@ export async function registerNativeNotifications(
         ? "granted"
         : await notificationPermission();
   if (permission !== "granted") return { permission, registered: false };
-  if (Platform.OS === "android")
-    await Notifications.setNotificationChannelAsync("default", {
-      name: "NEXORA",
-      importance: Notifications.AndroidImportance.DEFAULT,
-    });
-  const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
-  if (!projectId) throw new Error("EAS project ID is required for push registration.");
-  const token = normalizePushToken((await Notifications.getExpoPushTokenAsync({ projectId })).data);
-  if (!token) throw new Error("The push provider returned an invalid token.");
+  const easProjectId = projectId();
+  if (!easProjectId) throw new NotificationSetupError("project-config");
+  let rawToken: unknown;
+  try {
+    rawToken = (await Notifications.getExpoPushTokenAsync({ projectId: easProjectId })).data;
+  } catch {
+    throw new NotificationSetupError("token");
+  }
+  const token = normalizePushToken(rawToken);
+  if (!token) throw new NotificationSetupError("token");
+  const id = await deviceId();
   const { error } = await supabase.from("push_devices").upsert(
     {
       user_id: userId,
       platform: Platform.OS,
       provider: "expo",
       token_or_endpoint: token,
-      device_id: await deviceId(),
+      device_id: id,
       enabled: true,
       updated_at: new Date().toISOString(),
     },
     { onConflict: "user_id,provider,device_id" },
   );
-  if (error) throw error;
+  if (error) throw new NotificationSetupError("registration");
+  // Never report ready based only on the write response: read the canonical row back.
+  if (!(await isCurrentDeviceRegistered(userId))) throw new NotificationSetupError("registration");
   return { permission, registered: true };
+}
+
+export async function scheduleLocalNotificationTest(): Promise<string> {
+  if ((await notificationPermission()) !== "granted")
+    throw new NotificationSetupError("permission");
+  await ensureAndroidChannel();
+  return Notifications.scheduleNotificationAsync({
+    content: {
+      title: "Teste NEXORA",
+      body: "As notificações locais estão funcionando neste aparelho.",
+      data: { kind: "general" },
+    },
+    trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: 3 },
+  });
 }
 
 export async function sendTestNotification(): Promise<{ accepted: number; failed: number }> {
@@ -88,12 +173,12 @@ export async function sendTestNotification(): Promise<{ accepted: number; failed
     error?: string;
   }>("push-send", {
     body: {
-      title: "NEXORA is connected",
-      body: "Native notifications are ready on this device.",
+      title: "Teste remoto NEXORA",
+      body: "Este aparelho recebeu um push remoto da NEXORA.",
       url: "/dashboard",
     },
   });
-  if (error || data?.error) throw new Error("The test notification could not be sent.");
+  if (error || data?.error) throw new NotificationSetupError("remote-delivery");
   return { accepted: data?.accepted ?? 0, failed: data?.failed ?? 0 };
 }
 
@@ -106,10 +191,10 @@ export async function scheduleTaskReminder(
   const granted =
     permission === "granted" || (await Notifications.requestPermissionsAsync()).granted;
   if (!granted) return { scheduled: false as const, permission: await notificationPermission() };
-  await cancelTaskReminder(task.id);
   const date = new Date(reminderAt);
   if (!Number.isFinite(date.getTime()) || date <= new Date())
     throw new Error("Invalid reminder date.");
+  await cancelTaskReminder(task.id);
   const identifier = await Notifications.scheduleNotificationAsync({
     content: {
       title: task.title,
@@ -120,7 +205,6 @@ export async function scheduleTaskReminder(
   });
   return { scheduled: true as const, permission: "granted" as const, identifier };
 }
-
 export async function cancelTaskReminder(taskId: string) {
   const scheduled = await Notifications.getAllScheduledNotificationsAsync();
   await Promise.all(

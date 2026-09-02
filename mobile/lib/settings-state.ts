@@ -16,23 +16,23 @@ export const notificationCopy: Record<
   { title: string; description: string; action?: string }
 > = {
   active: {
-    title: "Ativadas neste dispositivo",
+    title: "Notificações prontas neste dispositivo",
     description: "Este aparelho está pronto para receber lembretes da NEXORA.",
   },
   "needs-registration": {
-    title: "Precisam ser concluídas",
+    title: "Permissão ativa",
     description: "A permissão está ativa, mas este aparelho ainda precisa ser registrado.",
     action: "Concluir ativação",
   },
   denied: {
-    title: "Desativadas",
-    description: "A NEXORA não pode enviar lembretes neste aparelho.",
+    title: "Permissão não concedida",
+    description: "O Android ainda permite solicitar a permissão novamente.",
     action: "Tentar novamente",
   },
   blocked: {
-    title: "Bloqueadas neste dispositivo",
+    title: "Bloqueadas pelo Android",
     description: "Autorize as notificações nas configurações do aparelho.",
-    action: "Abrir configurações do aparelho",
+    action: "Abrir configurações do Android",
   },
   undetermined: {
     title: "Ainda não ativadas",
