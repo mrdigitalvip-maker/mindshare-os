@@ -25,5 +25,5 @@ export async function consumeAuthLink(url: string): Promise<Session | null> {
     if (error) throw error;
     return data.session;
   }
-  return null;
+  throw new Error("invalid_callback");
 }
