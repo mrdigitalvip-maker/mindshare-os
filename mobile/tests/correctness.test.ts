@@ -34,6 +34,8 @@ test("task mutations invalidate global and owning project data", () => {
   assert.deepEqual(taskMutationInvalidations("project-1"), [
     ["tasks"],
     ["projects"],
+    ["journeys"],
+    ["journeys", "daily-mission"],
     ["projects", "project-1"],
     ["tasks", "project", "project-1"],
   ]);

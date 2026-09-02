@@ -80,7 +80,7 @@ test("Free project and task limits retain canonical PT-BR mapping", () => {
       message: "FREE_CREATION_LIMIT_REACHED",
       details: '{"resource":"tasks"}',
     }).message,
-    "O plano gratuito permite até 30 tarefas abertas.",
+    "O plano gratuito permite até 30 tarefas em aberto.",
   );
 });
 

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "expo-router";
 import {
   Alert,
@@ -70,6 +70,9 @@ export default function Productivity() {
   const [priority, setPriority] = useState("medium");
   const [projectId, setProjectId] = useState<string | null>(null);
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
+  const pendingIdsRef = useRef(new Set<string>());
+  const saveGuard = useRef(false);
+  const deleteGuard = useRef(new Set<string>());
   const [actionError, setActionError] = useState<string | null>(null);
   const tasks = useMemo(() => tasksQuery.data ?? [], [tasksQuery.data]);
   const counts = useMemo(() => getTaskCounts(tasks), [tasks]);
@@ -128,6 +131,8 @@ export default function Productivity() {
   }
 
   async function save() {
+    if (saveGuard.current || mutateTask.isPending) return;
+    saveGuard.current = true;
     try {
       if (editing) {
         await mutateTask.mutateAsync({
@@ -150,11 +155,14 @@ export default function Productivity() {
       setModal(false);
     } catch {
       // The modal intentionally stays open so entered values are preserved.
+    } finally {
+      saveGuard.current = false;
     }
   }
 
   async function toggle(task: Task) {
-    if (pendingIds.has(task.id)) return;
+    if (pendingIdsRef.current.has(task.id)) return;
+    pendingIdsRef.current.add(task.id);
     setActionError(null);
     setPendingIds((current) => new Set(current).add(task.id));
     try {
@@ -167,7 +175,6 @@ export default function Productivity() {
           : {
               completed: true,
               executionStatus: "completed",
-              lastProgressAt: new Date().toISOString(),
               reminderAt: null,
             },
       });
@@ -175,6 +182,7 @@ export default function Productivity() {
     } catch {
       setActionError("Não foi possível atualizar a tarefa.");
     } finally {
+      pendingIdsRef.current.delete(task.id);
       setPendingIds((current) => {
         const nextIds = new Set(current);
         nextIds.delete(task.id);
@@ -190,11 +198,14 @@ export default function Productivity() {
         text: "Excluir",
         style: "destructive",
         onPress: () => {
+          if (deleteGuard.current.has(task.id)) return;
+          deleteGuard.current.add(task.id);
           void mutateTask
             .mutateAsync({ action: "delete", taskId: task.id, projectId: task.projectId })
             .then(() => cancelTaskReminder(task.id))
             .then(() => setModal(false))
-            .catch(() => setActionError("Não foi possível excluir a tarefa."));
+            .catch(() => setActionError("Não foi possível excluir a tarefa."))
+            .finally(() => deleteGuard.current.delete(task.id));
         },
       },
     ]);
@@ -303,6 +314,13 @@ export default function Productivity() {
                 {actionError}
               </Text>
             ) : null}
+            {projectsQuery.isError ? (
+              <Pressable onPress={() => void projectsQuery.refetch()}>
+                <Text style={styles.error}>
+                  Não foi possível atualizar os projetos vinculados. Tentar novamente
+                </Text>
+              </Pressable>
+            ) : null}
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -358,7 +376,9 @@ export default function Productivity() {
         secondaryValue={description}
         secondaryPlaceholder="Descrição (opcional)"
         dateValue={dueDate}
-        datePlaceholder="Data: AAAA-MM-DD (opcional)"
+        datePlaceholder="Prazo (opcional)"
+        valueMaxLength={160}
+        secondaryMaxLength={2000}
         busy={mutateTask.isPending}
         error={mutateTask.error?.message}
         errorMessage={

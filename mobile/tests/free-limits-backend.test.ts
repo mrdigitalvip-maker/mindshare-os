@@ -34,7 +34,7 @@ describe("task state invariant", () => {
     expect(sql).toContain("check (completed = (execution_status = 'completed'))");
   });
   test("maps stable backend failures", () => {
-    expect(workspaceMutationError({message:"FREE_CREATION_LIMIT_REACHED",details:'{"resource":"tasks"}'}).message).toContain("30 tarefas abertas");
+    expect(workspaceMutationError({message:"FREE_CREATION_LIMIT_REACHED",details:'{"resource":"tasks"}'}).message).toContain("30 tarefas em aberto");
     expect(workspaceMutationError({message:"TASK_STATE_CONFLICT"}).message).toContain("estado da tarefa");
   });
 });

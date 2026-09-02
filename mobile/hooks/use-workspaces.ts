@@ -35,6 +35,15 @@ export function useTasks() {
     enabled: Boolean(userId),
   });
 }
+export function useTask(taskId: string) {
+  const userId = useUserId();
+  const valid = Boolean(taskId.trim());
+  return useQuery({
+    queryKey: valid ? queryKeys.task(taskId) : ["tasks", "detail", "invalid"],
+    queryFn: () => service.getTask(userId, taskId),
+    enabled: Boolean(userId && valid),
+  });
+}
 export function useSubjects() {
   const userId = useUserId();
   return useQuery({
@@ -150,13 +159,13 @@ export function useWorkspaceMutations() {
         ? invalidate(client, verifiedExecutionInvalidations)
         : undefined,
     onSettled: (_data, _error, input) =>
-      invalidate(
-        client,
-        taskMutationInvalidations(
+      invalidate(client, [
+        ...taskMutationInvalidations(
           input.action === "update" ? (input.patch.projectId ?? input.projectId) : input.projectId,
           input.action === "update" ? input.previousProjectId : undefined,
         ),
-      ),
+        ...(input.action !== "create" ? [queryKeys.task(input.taskId)] : []),
+      ]),
   });
   const createSubject = useMutation({
     mutationFn: (input: Parameters<typeof service.createSubject>[1]) =>

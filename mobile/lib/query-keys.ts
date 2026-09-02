@@ -10,6 +10,7 @@ export const queryKeys = {
   project: (id: string) => ["projects", validId(id)] as const,
   projectCheckIns: (id: string) => ["projects", validId(id), "check-ins"] as const,
   tasks: ["tasks"] as const,
+  task: (id: string) => ["tasks", "detail", validId(id)] as const,
   projectTasks: (id: string) => ["tasks", "project", validId(id)] as const,
   studySubjects: ["study-subjects"] as const,
   studyOverview: ["study-overview"] as const,
@@ -52,6 +53,8 @@ export function taskMutationInvalidations(
   return [
     queryKeys.tasks,
     queryKeys.projects,
+    queryKeys.journeys,
+    queryKeys.dailyMission,
     ...projectIds.flatMap((id) => [queryKeys.project(id), queryKeys.projectTasks(id)]),
   ] as const;
 }
