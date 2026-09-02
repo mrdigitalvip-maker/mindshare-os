@@ -137,6 +137,40 @@ export const getChallengeProgress = (challenge: WeeklyChallenge) => {
 };
 export const canActivateJourney = (activeCount: number, activeLimit: number | null) =>
   activeLimit === null || activeCount < activeLimit;
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+export type CreateJourneyInput = {
+  title: string;
+  objective: string;
+  context?: string;
+  category: JourneyCategory;
+  targetDate?: string | null;
+};
+
+/** Builds the exact values accepted by the journeys table, without changing server authority. */
+export function journeyCreatePayload(input: CreateJourneyInput, today = new Date()) {
+  const title = input.title.trim();
+  const objective = input.objective.trim();
+  const startDate = localDateKey(today);
+  const targetDate = input.targetDate?.trim() || null;
+  if (!title || !objective) throw new Error("JOURNEY_REQUIRED_FIELDS");
+  if (title.length > 160 || objective.length > 1000) throw new Error("JOURNEY_FIELD_TOO_LONG");
+  if (
+    targetDate &&
+    (!ISO_DATE.test(targetDate) || Number.isNaN(Date.parse(`${targetDate}T12:00:00`)))
+  )
+    throw new Error("JOURNEY_INVALID_DATE");
+  if (targetDate && targetDate < startDate) throw new Error("JOURNEY_INVALID_DATE");
+  return {
+    title,
+    objective,
+    context: input.context?.trim() || null,
+    category: input.category,
+    start_date: startDate,
+    target_date: targetDate,
+  };
+}
 export const sourceHref = (mission: JourneyMission) =>
   mission.sourceType === "task"
     ? `/tasks/${mission.sourceId}`

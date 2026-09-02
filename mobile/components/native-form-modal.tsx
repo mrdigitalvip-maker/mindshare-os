@@ -94,7 +94,12 @@ export function NativeFormModal({
             <Text style={styles.error}>{errorMessage ?? "Não foi possível salvar agora."}</Text>
           ) : null}
           <View style={styles.actions}>
-            <Pressable accessibilityRole="button" onPress={onClose} style={styles.secondary}>
+            <Pressable
+              accessibilityRole="button"
+              disabled={busy}
+              onPress={onClose}
+              style={styles.secondary}
+            >
               <Text style={styles.secondaryText}>Cancelar</Text>
             </Pressable>
             <Pressable
