@@ -8,32 +8,34 @@ export default function More() {
     <AppScreen scroll contentContainerStyle={styles.page}>
       <StandardHeader title="Mais" />
       <Text style={styles.eyebrow}>MÓDULOS NEXORA</Text>
-      <Text style={styles.title}>Mais possibilidades</Text>
-      <Text style={styles.copy}>Acesse os módulos disponíveis no seu espaço.</Text>
-      <View style={styles.grid}>
+      <Text style={styles.title}>Seu espaço, além da rotina</Text>
+      <Text style={styles.copy}>Continue sua execução ou cuide da sua experiência NEXORA.</Text>
+      <ModuleGroup title="EXECUÇÃO">
         <ModuleCard
           icon="◇"
           title="Arena"
-          description="Desafios reais e progresso verificado."
+          description="Desafios reais conectados ao seu progresso."
           href="/arena"
         />
         <ModuleCard
           icon="◈"
           title="Jornadas"
-          description="Missões, desafios e objetivos."
+          description="Programas, missões e próximos passos."
           href="/journeys"
-        />
-        <ModuleCard
-          icon="◉"
-          title="Community"
-          description="Squads privados e apoio à execução verificada."
-          href="/community"
         />
         <ModuleCard
           icon="◎"
           title="Estudos"
-          description="Matérias, metas, sessões e notas."
+          description="Matérias, metas e sessões de foco."
           href="/studies"
+        />
+      </ModuleGroup>
+      <ModuleGroup title="CONTA & NEXORA">
+        <ModuleCard
+          icon="◉"
+          title="Community"
+          description="Canais oficiais e seus Squads privados."
+          href="/community"
         />
         <ModuleCard
           icon="✦"
@@ -47,8 +49,18 @@ export default function More() {
           description="Conta, perfil, notificações e privacidade."
           href="/settings"
         />
-      </View>
+      </ModuleGroup>
     </AppScreen>
+  );
+}
+function ModuleGroup({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <View style={styles.group}>
+      <Text accessibilityRole="header" style={styles.groupTitle}>
+        {title}
+      </Text>
+      <View style={styles.grid}>{children}</View>
+    </View>
   );
 }
 const styles = StyleSheet.create({
@@ -56,5 +68,7 @@ const styles = StyleSheet.create({
   eyebrow: { ...typography.eyebrow, color: colors.primaryBright },
   title: { ...typography.title, color: colors.text },
   copy: { ...typography.body, color: colors.textMuted, marginBottom: spacing.sm },
+  group: { gap: spacing.sm, marginTop: spacing.sm },
+  groupTitle: { ...typography.eyebrow, color: colors.textMuted },
   grid: { gap: spacing.sm },
 });

@@ -75,15 +75,21 @@ export function ModuleCard({
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={title}
+      accessibilityHint={description}
       onPress={() => router.push(href)}
       style={({ pressed }) => [styles.module, pressed && { opacity: 0.7 }]}
     >
-      <Text style={styles.moduleIcon}>{icon}</Text>
+      <Text accessible={false} style={styles.moduleIcon}>
+        {icon}
+      </Text>
       <View style={{ flex: 1 }}>
         <Text style={styles.moduleTitle}>{title}</Text>
         <Text style={styles.moduleCopy}>{description}</Text>
       </View>
-      <Text style={styles.chevron}>›</Text>
+      <Text accessible={false} style={styles.chevron}>
+        ›
+      </Text>
     </Pressable>
   );
 }
