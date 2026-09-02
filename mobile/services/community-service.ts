@@ -9,6 +9,7 @@ import type {
   NotificationMode,
   SquadDetail,
 } from "@/lib/community";
+import { isCommunityRequestId } from "@/lib/community-message";
 
 const requireUser = (id: string) => {
   if (!id.trim()) throw new Error("Authenticated user required.");
@@ -206,9 +207,12 @@ export async function sendMessage(
   requestId: string,
 ) {
   requireUser(userId);
+  const clean = body.trim();
+  if (!clean || clean.length > 1200) throw new Error("message_length");
+  if (!isCommunityRequestId(requestId)) throw new Error("request_id_required");
   return rpc<string>("send_community_message", {
     p_channel: channelId,
-    p_body: body,
+    p_body: clean,
     p_client_request_id: requestId,
     p_reply_to: null,
   });
@@ -233,7 +237,12 @@ export async function blockMessageSender(userId: string, messageId: string) {
   requireUser(userId);
   await rpc("block_community_message_sender", { p_message: messageId });
 }
-export function subscribeToChannel(channelId: string, onChange: () => void) {
+export type CommunityRealtimeStatus = "connecting" | "connected" | "disconnected" | "error";
+export function subscribeToChannel(
+  channelId: string,
+  onChange: () => void,
+  onStatus: (status: CommunityRealtimeStatus) => void = () => undefined,
+) {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const reconcile = () => {
     clearTimeout(timer);
@@ -257,10 +266,16 @@ export function subscribeToChannel(channelId: string, onChange: () => void) {
       reconcile,
     )
     .subscribe((status) => {
-      if (status === "SUBSCRIBED") reconcile();
+      if (status === "SUBSCRIBED") {
+        onStatus("connected");
+        reconcile();
+      } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") onStatus("error");
+      else if (status === "CLOSED") onStatus("disconnected");
     });
+  onStatus("connecting");
   return () => {
     clearTimeout(timer);
+    onStatus("disconnected");
     void supabase.removeChannel(channel);
   };
 }

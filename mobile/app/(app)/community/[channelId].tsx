@@ -10,10 +10,12 @@ import {
 } from "@/hooks/use-community";
 import {
   communityErrorMessage,
+  hasActiveOfficialMembership,
   type ChatReaction,
   type CommunityMessage,
   type NotificationMode,
 } from "@/lib/community";
+import { createCommunityRequestId, reconcileCommunityMessages } from "@/lib/community-message";
 import { colors, radius, spacing, typography } from "@/lib/theme";
 
 const reactionLabels: Record<ChatReaction, string> = {
@@ -23,7 +25,8 @@ const reactionLabels: Record<ChatReaction, string> = {
   heart: "❤️",
 };
 export default function CommunityConversation() {
-  const { channelId, name } = useLocalSearchParams<{ channelId: string; name?: string }>();
+  const params = useLocalSearchParams<{ channelId?: string | string[] }>();
+  const channelId = typeof params.channelId === "string" ? params.channelId : "invalid-channel";
   const messages = useCommunityMessages(channelId),
     actions = useMessageActions(channelId),
     channelActions = useOfficialChannelActions(),
@@ -32,26 +35,30 @@ export default function CommunityConversation() {
     [failed, setFailed] = useState<{ body: string; requestId: string } | null>(null),
     [showNew, setShowNew] = useState(false);
   const atBottom = useRef(true);
+  const sending = useRef(false);
   const channel = channels.data?.find((x) => x.id === channelId);
   const rows = useMemo(
-    () => messages.data?.pages.flat().sort((a, b) => a.createdAt.localeCompare(b.createdAt)) ?? [],
+    () => reconcileCommunityMessages(messages.data?.pages ?? []),
     [messages.data],
   );
   const fail = (e: unknown) => Alert.alert("Não foi possível", communityErrorMessage(e));
-  const send = (
-    draft = body,
-    requestId = `${Date.now().toString(16).padStart(12, "0").slice(-12)}-${Math.random().toString(16).slice(2, 6).padEnd(4, "0")}-4${Math.random().toString(16).slice(2, 5).padEnd(3, "0")}-a${Math.random().toString(16).slice(2, 5).padEnd(3, "0")}-${Math.random().toString(16).slice(2, 14).padEnd(12, "0")}`,
-  ) => {
+  const send = (draft = body, requestId = createCommunityRequestId()) => {
     const clean = draft.trim();
-    if (!clean || actions.send.isPending) return;
-    setBody("");
-    setFailed(null);
+    if (!clean || clean.length > 1200 || sending.current) return;
+    sending.current = true;
     actions.send.mutate(
       { body: clean, requestId },
       {
+        onSuccess: () => {
+          setFailed(null);
+          setBody((current) => (current.trim() === clean ? "" : current));
+        },
         onError: (e) => {
           setFailed({ body: clean, requestId });
           fail(e);
+        },
+        onSettled: () => {
+          sending.current = false;
         },
       },
     );
@@ -83,6 +90,38 @@ export default function CommunityConversation() {
         { text: "Cancelar", style: "cancel" },
       ],
     );
+  const membershipActive = channel ? hasActiveOfficialMembership(channel) : false;
+  if (channels.isPending) {
+    return (
+      <AppScreen>
+        <View style={styles.center}>
+          <Text style={styles.muted}>Validando participação…</Text>
+        </View>
+      </AppScreen>
+    );
+  }
+  if (channels.isError || !channel || !membershipActive) {
+    return (
+      <AppScreen>
+        <View style={styles.center}>
+          <Text style={styles.title}>NEXORA Community</Text>
+          <Text style={styles.muted}>
+            {channels.isError
+              ? "Não foi possível confirmar sua participação. Verifique a conexão e tente novamente."
+              : "Entre pela tela Community antes de abrir esta conversa."}
+          </Text>
+          {channels.isError ? (
+            <Pressable onPress={() => channels.refetch()}>
+              <Text style={styles.link}>Tentar novamente</Text>
+            </Pressable>
+          ) : null}
+          <Pressable onPress={() => router.back()}>
+            <Text style={styles.link}>Voltar</Text>
+          </Pressable>
+        </View>
+      </AppScreen>
+    );
+  }
   return (
     <AppScreen keyboard includeBottomInset padded={false}>
       <View style={styles.header}>
@@ -90,8 +129,14 @@ export default function CommunityConversation() {
           <Text style={styles.back}>‹</Text>
         </Pressable>
         <View style={{ flex: 1 }}>
-          <Text style={styles.title}>{name ?? channel?.name ?? "Community"}</Text>
-          <Text style={styles.live}>Conversa sincronizada com o servidor</Text>
+          <Text style={styles.title}>{channel.name || "NEXORA Community"}</Text>
+          <Text style={[styles.live, messages.realtimeStatus !== "connected" && styles.offline]}>
+            {messages.realtimeStatus === "connected"
+              ? "Atualizações em tempo real conectadas"
+              : messages.realtimeStatus === "connecting"
+                ? "Conectando atualizações em tempo real…"
+                : "Tempo real indisponível · histórico no servidor"}
+          </Text>
         </View>
         <Pressable
           onPress={() =>
@@ -108,6 +153,7 @@ export default function CommunityConversation() {
         {(["highlights", "all", "muted"] as NotificationMode[]).map((mode) => (
           <Pressable
             key={mode}
+            disabled={channelActions.notifications.isPending}
             onPress={() =>
               channelActions.notifications.mutate({ channel: channelId, mode }, { onError: fail })
             }
@@ -171,6 +217,7 @@ export default function CommunityConversation() {
                     <Pressable
                       accessibilityLabel={`Reagir ${reactionLabels[r]}`}
                       key={r}
+                      disabled={actions.react.isPending}
                       onPress={() =>
                         actions.react.mutate(
                           { id: item.id, reaction: item.myReaction === r ? null : r },
@@ -217,9 +264,9 @@ export default function CommunityConversation() {
           accessibilityLabel="Enviar mensagem"
           disabled={!body.trim() || actions.send.isPending}
           onPress={() => send()}
-          style={styles.send}
+          style={[styles.send, (!body.trim() || actions.send.isPending) && styles.sendDisabled]}
         >
-          <Text style={styles.sendText}>Enviar</Text>
+          <Text style={styles.sendText}>{actions.send.isPending ? "Enviando…" : "Enviar"}</Text>
         </Pressable>
       </View>
     </AppScreen>
@@ -237,6 +284,7 @@ const styles = StyleSheet.create({
   back: { fontSize: 36, color: colors.text },
   title: { ...typography.heading, color: colors.text },
   live: { ...typography.caption, color: colors.success },
+  offline: { color: colors.textMuted },
   rules: { ...typography.label, color: colors.primaryBright },
   preferences: {
     flexDirection: "row",
@@ -295,6 +343,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   sendText: { ...typography.label, color: colors.background },
+  sendDisabled: { opacity: 0.45 },
   center: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.lg },
   muted: { ...typography.body, color: colors.textMuted },
   link: { ...typography.label, color: colors.primaryBright, marginTop: spacing.sm },
