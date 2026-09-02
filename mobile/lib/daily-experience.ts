@@ -5,7 +5,7 @@ export type DailyAction = {
   id: string;
   title: string;
   detail: string;
-  href: "/productivity" | `/projects/${string}` | `/studies/${string}`;
+  href: "/productivity" | `/tasks/${string}` | `/projects/${string}` | `/studies/${string}`;
 };
 
 export type WeeklyChallenge = {
@@ -74,7 +74,7 @@ export function getDailyActions(
       id: `task-${overdue[0].id}`,
       title: overdue[0].title,
       detail: "Comece pelo que já passou do prazo.",
-      href: "/productivity",
+      href: `/tasks/${overdue[0].id}`,
     });
   }
   if (today.length) {
@@ -82,12 +82,15 @@ export function getDailyActions(
       id: `task-${today[0].id}`,
       title: today[0].title,
       detail: "Prioridades com prazo de hoje.",
-      href: "/productivity",
+      href: `/tasks/${today[0].id}`,
     });
   }
   const active = projects.find((project) => {
     const status = project.status.trim().toLowerCase();
-    return !["completed", "archived"].includes(status) && !tasks.some((task) => task.projectId === project.id && !task.completed);
+    return (
+      !["completed", "archived"].includes(status) &&
+      !tasks.some((task) => task.projectId === project.id && !task.completed)
+    );
   });
   if (active) {
     actions.push({
@@ -113,13 +116,19 @@ export function getDailyActions(
  * Uses the current completion state of a stable, due-this-week task cohort.
  * `updatedAt` is deliberately not treated as a completion timestamp.
  */
-export function getWeeklyChallenge(tasks: Task[], userId: string, now = new Date()): WeeklyChallenge | null {
+export function getWeeklyChallenge(
+  tasks: Task[],
+  userId: string,
+  now = new Date(),
+): WeeklyChallenge | null {
   if (!userId.trim()) return null;
   const weekKey = getWeekKey(now);
   const cohort = tasks
     .filter((task) => dueInWeek(task, now))
     .sort((left, right) => {
-      const difference = stableScore(`${weekKey}:${userId}:${left.id}`) - stableScore(`${weekKey}:${userId}:${right.id}`);
+      const difference =
+        stableScore(`${weekKey}:${userId}:${left.id}`) -
+        stableScore(`${weekKey}:${userId}:${right.id}`);
       return difference || left.id.localeCompare(right.id);
     })
     .slice(0, 5);
@@ -129,7 +138,10 @@ export function getWeeklyChallenge(tasks: Task[], userId: string, now = new Date
   return {
     key: `${weekKey}:${userId}:tasks-due`,
     type: "tasks",
-    title: target === 1 ? "Conclua sua tarefa com prazo nesta semana" : `Conclua ${target} tarefas com prazo nesta semana`,
+    title:
+      target === 1
+        ? "Conclua sua tarefa com prazo nesta semana"
+        : `Conclua ${target} tarefas com prazo nesta semana`,
     benefit: "Reduza pendências e termine a semana com progresso visível.",
     completed,
     target,

@@ -44,6 +44,19 @@ test("project failures remain auxiliary in list and detail", () => {
   assert.match(list, /Não foi possível atualizar os projetos vinculados/);
   assert.match(detail, /projectQuery\.isError/);
   assert.match(detail, /Não foi possível carregar o projeto vinculado/);
+  assert.match(detail, /task\.projectId == null[\s\S]*?"Sem projeto"/);
+  assert.match(detail, /projectQuery\.isPending[\s\S]*?"Projeto vinculado…"/);
+  assert.match(detail, /"Projeto vinculado indisponível"/);
+});
+
+test("duplicate completion only emits success after a saved canonical mutation", () => {
+  const completion = detail.match(/const complete = \(\) =>[\s\S]*?const reopen/)?.[0] ?? "";
+  assert.match(completion, /if \(!saved\) return;/);
+  assert.ok(completion.indexOf("if (!saved) return") < completion.indexOf("cancelTaskReminder"));
+  assert.ok(
+    completion.indexOf("cancelTaskReminder") <
+      completion.indexOf('Alert.alert(\n          "Concluída."'),
+  );
 });
 
 test("queues are unique and focus excludes blocked and completed tasks", () => {
