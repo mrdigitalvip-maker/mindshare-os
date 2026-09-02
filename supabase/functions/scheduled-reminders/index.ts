@@ -63,33 +63,7 @@ Deno.serve(async (request) => {
         }
       }
     }
-    if (hour !== 18) continue;
-    const { data: goal } = await db
-      .from("studio_daily_goals")
-      .select("completed")
-      .eq("user_id", pref.user_id)
-      .eq("goal_date", day)
-      .maybeSingle();
-    if (!pref.studio_enabled || goal?.completed) continue;
-    const dedupe = "studio-goal-reminder";
-    const { error } = await db
-      .from("notification_deliveries")
-      .insert({ user_id: pref.user_id, dedupe_key: dedupe, kind: "studio", delivered_on: day });
-    if (error) continue;
-    await fetch(`${url}/functions/v1/push-send`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-scheduler-secret": schedulerSecret,
-      },
-      body: JSON.stringify({
-        userId: pref.user_id,
-        title: "Your Studio plan",
-        body: "Your learning goal is still open when you are ready.",
-        url: "/studio",
-      }),
-    });
-    queued++;
+    // Legacy Studio reminders are intentionally not emitted by the native product.
   }
   return Response.json({ queued });
 });

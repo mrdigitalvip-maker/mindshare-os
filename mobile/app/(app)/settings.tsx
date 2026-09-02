@@ -29,9 +29,10 @@ import {
 import { colors, radius, spacing, typography } from "@/lib/theme";
 import { useAuth } from "@/providers/auth-provider";
 import {
-  isCurrentDeviceRegistered,
-  notificationPermission,
+  disableCurrentPushDevice,
+  getNotificationDeviceState,
   registerNativeNotifications,
+  scheduleLocalNotificationTest,
   sendTestNotification,
 } from "@/services/notification-service";
 import { updateProfileName } from "@/services/profile-service";
@@ -55,9 +56,8 @@ export default function Settings() {
   const refreshNotifications = useCallback(async () => {
     if (!session?.user.id) return;
     try {
-      const p = await notificationPermission();
-      const registered = p === "granted" && (await isCurrentDeviceRegistered(session.user.id));
-      setNoticeState(notificationReadiness(p, registered));
+      const state = await getNotificationDeviceState(session.user.id);
+      setNoticeState(notificationReadiness(state.permission, state.deviceRegistered));
       setNoticeError(false);
     } catch {
       setNoticeError(true);
@@ -138,6 +138,31 @@ export default function Settings() {
       );
     } catch {
       setNoticeMessage("Não foi possível entregar uma notificação neste dispositivo.");
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function testLocalNotice() {
+    if (busy || (noticeState !== "active" && noticeState !== "needs-registration")) return;
+    setBusy(true);
+    try {
+      await scheduleLocalNotificationTest();
+      setNoticeMessage("Teste agendado. Aguarde alguns segundos.");
+    } catch {
+      setNoticeMessage("Não foi possível agendar o teste neste aparelho.");
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function disableDevice() {
+    if (!session || busy) return;
+    setBusy(true);
+    try {
+      await disableCurrentPushDevice(session.user.id);
+      await refreshNotifications();
+      setNoticeMessage("Este dispositivo foi desativado. A permissão do Android permanece ativa.");
+    } catch {
+      setNoticeMessage("Não foi possível desativar este dispositivo. Tente novamente.");
     } finally {
       setBusy(false);
     }
@@ -231,13 +256,44 @@ export default function Settings() {
             {notice.action ? (
               <Action label={notice.action} disabled={busy} action={() => void enable()} />
             ) : null}
-            {noticeState === "active" ? (
-              <Action
-                secondary
-                label="Testar notificações"
-                disabled={busy}
-                action={() => void testNotice()}
-              />
+            {noticeState === "active" || noticeState === "needs-registration" ? (
+              <>
+                <Action
+                  secondary
+                  label="Testar no aparelho"
+                  disabled={busy}
+                  action={() => void testLocalNotice()}
+                />
+                {noticeState === "active" ? (
+                  <Action
+                    secondary
+                    label="Testar push remoto"
+                    disabled={busy}
+                    action={() => void testNotice()}
+                  />
+                ) : null}
+                {noticeState === "active" ? (
+                  <Action
+                    secondary
+                    label="Desativar neste dispositivo"
+                    disabled={busy}
+                    action={() =>
+                      Alert.alert(
+                        "Desativar neste dispositivo",
+                        "A NEXORA deixará de usar o registro deste aparelho. A permissão do Android poderá continuar ativa.",
+                        [
+                          { text: "Cancelar", style: "cancel" },
+                          {
+                            text: "Desativar",
+                            style: "destructive",
+                            onPress: () => void disableDevice(),
+                          },
+                        ],
+                      )
+                    }
+                  />
+                ) : null}
+              </>
             ) : null}
           </>
         ) : (
