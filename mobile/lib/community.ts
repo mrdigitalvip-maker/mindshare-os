@@ -78,8 +78,17 @@ export type SquadMember = {
 export type SquadDetail = Omit<SquadSummary, "memberCount"> & { members: SquadMember[] };
 
 export const communityErrorMessage = (error: unknown) => {
-  const message =
-    error instanceof Error ? error.message : String((error as { message?: string })?.message ?? "");
+  const record = error && typeof error === "object" ? (error as Record<string, unknown>) : {};
+  const technical = [
+    error instanceof Error ? error.message : error,
+    record.code,
+    record.message,
+    record.details,
+    record.hint,
+  ]
+    .filter((value): value is string => typeof value === "string")
+    .join(" ")
+    .toLocaleLowerCase("en-US");
   const match = Object.entries({
     unauthenticated: "Entre novamente para continuar.",
     channel_not_found: "Esta comunidade não está disponível.",
@@ -104,11 +113,12 @@ export const communityErrorMessage = (error: unknown) => {
     duplicate_message: "Esta mensagem já foi enviada.",
     invalid_reply: "A mensagem respondida não está mais disponível.",
     request_id_required: "Não foi possível preparar o envio. Tente novamente.",
+    invalid_rpc_response: "Não foi possível confirmar o envio. Tente novamente.",
     "row-level security": "Você não tem permissão para esta ação.",
     "permission denied": "Você não tem permissão para esta ação.",
     "failed to fetch": "Sem conexão. Verifique sua internet e tente novamente.",
     "network request failed": "Sem conexão. Verifique sua internet e tente novamente.",
     unavailable: "Serviço indisponível agora. Tente novamente em instantes.",
-  }).find(([code]) => message.includes(code));
+  }).find(([code]) => technical.includes(code));
   return match?.[1] ?? "Não foi possível concluir. Verifique sua conexão e tente novamente.";
 };

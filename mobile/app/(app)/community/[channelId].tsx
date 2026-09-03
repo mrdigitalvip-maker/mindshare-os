@@ -29,7 +29,14 @@ import {
   type CommunityMessage,
   type NotificationMode,
 } from "@/lib/community";
-import { createCommunityRequestId, reconcileCommunityMessages } from "@/lib/community-message";
+import {
+  createCommunityRequestId,
+  createCommunitySendGate,
+  clearComposerAfterSend,
+  clearFailedAfterSend,
+  clearReplyAfterSend,
+  reconcileCommunityMessages,
+} from "@/lib/community-message";
 import {
   formatMessageDate,
   initials,
@@ -76,10 +83,11 @@ function CommunityConversationContent({ channelId }: { channelId: string }) {
   const list = useRef<FlatList>(null),
     nearBottom = useRef(true),
     didInitialScroll = useRef(false),
-    sending = useRef(false),
+    sending = useRef(createCommunitySendGate()),
     reacting = useRef(new Set<string>()),
     reporting = useRef(new Set<string>());
   const [body, setBody] = useState("");
+  const [sendInFlight, setSendInFlight] = useState(false);
   const [failed, setFailed] = useState<{
     body: string;
     requestId: string;
@@ -120,15 +128,15 @@ function CommunityConversationContent({ channelId }: { channelId: string }) {
     replyToId = reply?.id ?? null,
   ) => {
     const clean = draft.trim();
-    if (!clean || clean.length > 1200 || sending.current) return;
-    sending.current = true;
+    if (!clean || clean.length > 1200 || !sending.current.acquire()) return;
+    setSendInFlight(true);
     actions.send.mutate(
       { body: clean, requestId, replyToId },
       {
         onSuccess: () => {
-          setFailed(null);
-          setBody((current) => (current.trim() === clean ? "" : current));
-          setReply((current) => (current?.id === replyToId ? null : current));
+          setFailed((current) => clearFailedAfterSend(current, requestId));
+          setBody((current) => clearComposerAfterSend(current, clean));
+          setReply((current) => clearReplyAfterSend(current, replyToId));
           if (nearBottom.current) scrollLatest();
         },
         onError: (error) => {
@@ -136,7 +144,8 @@ function CommunityConversationContent({ channelId }: { channelId: string }) {
           fail(error);
         },
         onSettled: () => {
-          sending.current = false;
+          sending.current.release();
+          setSendInFlight(false);
         },
       },
     );
@@ -316,9 +325,9 @@ function CommunityConversationContent({ channelId }: { channelId: string }) {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Enviar mensagem"
-            disabled={!body.trim() || actions.send.isPending}
+            disabled={!body.trim() || sendInFlight}
             onPress={() => send()}
-            style={[styles.send, (!body.trim() || actions.send.isPending) && styles.disabled]}
+            style={[styles.send, (!body.trim() || sendInFlight) && styles.disabled]}
           >
             <Text style={styles.sendText}>Enviar</Text>
           </Pressable>

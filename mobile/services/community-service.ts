@@ -9,7 +9,7 @@ import type {
   NotificationMode,
   SquadDetail,
 } from "@/lib/community";
-import { isCommunityRequestId } from "@/lib/community-message";
+import { isCommunityRequestId, normalizeCommunityMessageId } from "@/lib/community-message";
 import { normalizeCommunityProfile, profileValidation } from "@/lib/community-ui";
 
 const requireUser = (id: string) => {
@@ -221,12 +221,13 @@ export async function sendMessage(
   const clean = body.trim();
   if (!clean || clean.length > 1200) throw new Error("message_length");
   if (!isCommunityRequestId(requestId)) throw new Error("request_id_required");
-  return rpc<string>("send_community_message", {
+  const result = await rpc<unknown>("send_community_message", {
     p_channel: channelId,
     p_body: clean,
     p_client_request_id: requestId,
     p_reply_to: replyToId ?? null,
   });
+  return normalizeCommunityMessageId(result);
 }
 export async function reactToMessage(
   userId: string,
