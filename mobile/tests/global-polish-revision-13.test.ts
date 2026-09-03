@@ -12,6 +12,9 @@ const productUi = source("../components/product-ui.tsx");
 const authProvider = source("../providers/auth-provider.tsx");
 const logout = source("../hooks/use-logout.ts");
 
+const commandPaths = (output: string) =>
+  output.trim().split(/\r?\n/).filter(Boolean).map((path) => path.replace(/\\/g, "/"));
+
 describe("Revision 13 — acabamento global nativo", () => {
   test("as cinco abas primárias continuam canônicas e o chat permanece oculto", () => {
     for (const title of ["Início", "Assistente", "Projetos", "Tarefas", "Mais"])
@@ -70,7 +73,7 @@ describe("Revision 13 — acabamento global nativo", () => {
     expect(settings).toContain('label="Tentar novamente"');
   });
   test("limpeza global do cache fica restrita a mudanças de identidade", () => {
-    const production = execFileSync("rg", ["-l", "(?:queryClient|client)\\.clear\\(\\)", "app", "components", "features", "hooks", "lib", "providers", "services"], { cwd: fileURLToPath(new URL("..", import.meta.url)), encoding: "utf8" }).trim().split("\n").filter(Boolean).sort();
+    const production = commandPaths(execFileSync("rg", ["-l", "(?:queryClient|client)\\.clear\\(\\)", "app", "components", "features", "hooks", "lib", "providers", "services"], { cwd: fileURLToPath(new URL("..", import.meta.url)), encoding: "utf8" })).sort();
     expect(production).toEqual(["hooks/use-logout.ts", "providers/auth-provider.tsx"]);
     expect(authProvider).toContain("activeUserId.current !== nextUserId");
     expect(logout).toContain("queryClient.clear()");
@@ -84,7 +87,9 @@ describe("Revision 13 — acabamento global nativo", () => {
   });
   test("a revisão permanece limitada ao código nativo permitido", () => {
     const root = fileURLToPath(new URL("../..", import.meta.url));
-    const changed = execFileSync("git", ["diff", "--name-only", "ddd1dd2fe8b13e7a219238c5cff900976ccc85aa...HEAD"], { cwd: root, encoding: "utf8" }).trim().split("\n").filter(Boolean);
+    // These commits are the immutable boundaries of Revision 13 (PR #128).
+    const revision13Range = "ddd1dd2fe8b13e7a219238c5cff900976ccc85aa...197d91bd3d131c71522c6162829bb2610e0ebd49";
+    const changed = commandPaths(execFileSync("git", ["diff", "--name-only", revision13Range], { cwd: root, encoding: "utf8" }));
     for (const file of changed) {
       expect(file).toStartWith("mobile/");
       expect(file).not.toStartWith("mobile/android/");
