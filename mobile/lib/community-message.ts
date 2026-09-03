@@ -1,6 +1,7 @@
 import type { CommunityMessage } from "@/lib/community";
 
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 type CryptoLike = {
   randomUUID?: () => string;
@@ -26,6 +27,41 @@ export function createCommunityRequestId(
 }
 
 export const isCommunityRequestId = (value: string) => UUID_V4.test(value);
+
+/** PostgREST exposes a scalar UUID RPC as a string. Reject every other shape. */
+export function normalizeCommunityMessageId(value: unknown): string {
+  if (typeof value !== "string" || !UUID.test(value.trim())) throw new Error("invalid_rpc_response");
+  return value.trim();
+}
+
+/** A render-independent lock: React mutation state cannot close a same-frame double-tap race. */
+export function createCommunitySendGate() {
+  let locked = false;
+  return {
+    acquire() {
+      if (locked) return false;
+      locked = true;
+      return true;
+    },
+    release() {
+      locked = false;
+    },
+    isLocked: () => locked,
+  };
+}
+
+export type FailedCommunitySend = {
+  body: string;
+  requestId: string;
+  replyToId: string | null;
+};
+
+export const clearComposerAfterSend = (current: string, sentBody: string) =>
+  current.trim() === sentBody ? "" : current;
+export const clearReplyAfterSend = <T extends { id: string }>(current: T | null, replyId: string | null) =>
+  current?.id === replyId ? null : current;
+export const clearFailedAfterSend = (current: FailedCommunitySend | null, requestId: string) =>
+  current?.requestId === requestId ? null : current;
 
 /** Server pages can overlap at cursor boundaries or while realtime triggers a refetch. */
 export function reconcileCommunityMessages(pages: CommunityMessage[][]) {
