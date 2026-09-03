@@ -6,7 +6,6 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   Modal,
-  NativeModules,
   Platform,
   Pressable,
   StyleSheet,
@@ -481,9 +480,11 @@ function MessageMenu({
           {available.canCopy ? (
             <MenuButton
               label="Copiar texto"
-              onPress={() => {
-                if (!copyCommunityText(message.body, NativeModules.Clipboard))
-                  Alert.alert("Não foi possível copiar", "Tente novamente neste dispositivo.");
+              onPress={async () => {
+                // expo-clipboard is the SDK 54 contract; dependency installation is required
+                // before enabling copy in a native build.
+                const copied = await copyCommunityText(message.body, message.removed, undefined);
+                Alert.alert(copied ? "Mensagem copiada." : "Não foi possível copiar a mensagem.");
                 close();
               }}
             />

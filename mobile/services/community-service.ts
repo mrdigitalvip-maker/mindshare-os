@@ -11,6 +11,8 @@ import type {
 } from "@/lib/community";
 import { isCommunityRequestId, normalizeCommunityMessageId } from "@/lib/community-message";
 import { normalizeCommunityProfile, profileValidation } from "@/lib/community-ui";
+import type { CommunityRealtimeStatus } from "@/lib/community-realtime";
+export type { CommunityRealtimeStatus } from "@/lib/community-realtime";
 
 const requireUser = (id: string) => {
   if (!id.trim()) throw new Error("Authenticated user required.");
@@ -249,16 +251,19 @@ export async function blockMessageSender(userId: string, messageId: string) {
   requireUser(userId);
   await rpc("block_community_message_sender", { p_message: messageId });
 }
-export type CommunityRealtimeStatus = "connecting" | "connected" | "disconnected" | "error";
 export function subscribeToChannel(
   channelId: string,
   onChange: () => void,
   onStatus: (status: CommunityRealtimeStatus) => void = () => undefined,
 ) {
+  let active = true;
   let timer: ReturnType<typeof setTimeout> | undefined;
   const reconcile = () => {
+    if (!active) return;
     clearTimeout(timer);
-    timer = setTimeout(onChange, 120);
+    timer = setTimeout(() => {
+      if (active) onChange();
+    }, 120);
   };
   const channel = supabase
     .channel(`community:${channelId}`)
@@ -278,6 +283,7 @@ export function subscribeToChannel(
       reconcile,
     )
     .subscribe((status) => {
+      if (!active) return;
       if (status === "SUBSCRIBED") {
         onStatus("connected");
         reconcile();
@@ -286,8 +292,9 @@ export function subscribeToChannel(
     });
   onStatus("connecting");
   return () => {
+    if (!active) return;
+    active = false;
     clearTimeout(timer);
-    onStatus("disconnected");
     void supabase.removeChannel(channel);
   };
 }
