@@ -297,6 +297,23 @@ export default function Dashboard() {
               </Pressable>
             </View>
           </View>
+        ) : !tasksQuery.isPending && !tasksQuery.isError && dailyMission.isError ? (
+          <View style={styles.section}>
+            <SectionHeader title="MISSÃO DE HOJE" />
+            <View style={styles.commandCard}>
+              <Text style={styles.nextTitle}>Não foi possível atualizar sua missão.</Text>
+              <Text style={styles.meta}>
+                Seu dia continua disponível. Tente sincronizar novamente.
+              </Text>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => void dailyMission.refetch()}
+                style={styles.commandButton}
+              >
+                <Text style={styles.commandButtonText}>Tentar novamente</Text>
+              </Pressable>
+            </View>
+          </View>
         ) : !tasksQuery.isPending && !tasksQuery.isError && todayMission && missionTarget ? (
           <View style={styles.section}>
             <SectionHeader title="MISSÃO DE HOJE" />
