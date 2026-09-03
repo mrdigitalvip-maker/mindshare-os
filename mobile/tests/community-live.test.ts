@@ -25,6 +25,10 @@ const layout = readFileSync(
   fileURLToPath(new URL("../app/(app)/_layout.tsx", import.meta.url)),
   "utf8",
 );
+const communityLayout = readFileSync(
+  fileURLToPath(new URL("../app/(app)/community/_layout.tsx", import.meta.url)),
+  "utf8",
+);
 describe("Community Live server contract", () => {
   test("client request IDs are standards-valid UUID v4 values", () => {
     const id = createCommunityRequestId({
@@ -45,7 +49,9 @@ describe("Community Live server contract", () => {
     expect(conversation).not.toContain('setBody("");\n    setFailed(null);');
   });
   test("conversation route never exposes its filesystem route header", () => {
-    expect(layout).toContain('name="community/[channelId]" options={{ headerShown: false }}');
+    expect(layout).toContain('name="community" options={{ headerShown: false }}');
+    expect(communityLayout).toContain('<Stack screenOptions={{ headerShown: false }}>');
+    expect(communityLayout).toContain('<Stack.Screen name="[channelId]" />');
     expect(conversation).toContain("NEXORA Community");
   });
   test("backend errors have specific human-readable messages", () => {

@@ -40,9 +40,7 @@ export default function AppLayout() {
       <Stack.Screen name="packs/index" options={{ headerShown: false }} />
       <Stack.Screen name="packs/[slug]" options={{ title: "Programa" }} />
       <Stack.Screen name="arena" options={{ headerShown: false }} />
-      <Stack.Screen name="community/index" options={{ headerShown: false }} />
-      <Stack.Screen name="community/[channelId]" options={{ headerShown: false }} />
-      <Stack.Screen name="community/squads/[squadId]" options={{ headerShown: false }} />
+      <Stack.Screen name="community" options={{ headerShown: false }} />
       <Stack.Screen
         name="projects/[projectId]"
         options={{
