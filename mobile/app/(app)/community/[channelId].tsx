@@ -49,7 +49,26 @@ const truncate = (body: string) => (body.length > 72 ? `${body.slice(0, 72)}…`
 
 export default function CommunityConversation() {
   const params = useLocalSearchParams<{ channelId?: string | string[] }>();
-  const channelId = typeof params.channelId === "string" ? params.channelId : "invalid-channel";
+  const channelId = typeof params.channelId === "string" ? params.channelId.trim() : "";
+  if (!channelId) return <UnavailableChannel />;
+  return <CommunityConversationContent channelId={channelId} />;
+}
+
+function UnavailableChannel() {
+  return (
+    <SafeAreaView style={styles.safe}>
+      <View style={styles.center}>
+        <Text style={styles.title}>NEXORA Community</Text>
+        <Text style={styles.muted}>Esta conversa não está disponível.</Text>
+        <Pressable accessibilityRole="button" onPress={() => router.replace("/community")}>
+          <Text style={styles.link}>Voltar para Community</Text>
+        </Pressable>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+function CommunityConversationContent({ channelId }: { channelId: string }) {
   const messages = useCommunityMessages(channelId),
     actions = useMessageActions(channelId),
     channelActions = useOfficialChannelActions(),
