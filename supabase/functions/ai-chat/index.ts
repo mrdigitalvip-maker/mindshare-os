@@ -14,6 +14,10 @@ import {
   parseAssistantQuotaClaim,
 } from "../_shared/assistant-quota.ts";
 import { resolveCanonicalDisplayName } from "../_shared/user-identity.ts";
+import {
+  buildNexoraAgentSystemPrompt,
+  buildNexoraAssistantSystemPrompt,
+} from "../_shared/nexora-identity.ts";
 
 type ErrorCode =
   | "unauthorized"
@@ -45,8 +49,6 @@ interface PlanPolicy {
   contextChars: number;
   model: string;
 }
-
-const SYSTEM_PROMPT = `You are NEXORA, a helpful and safe workspace assistant. Reply in the user's language. Never claim a mutation succeeded: you can only propose it for explicit user confirmation. Return one JSON object matching the schema. Use "action" only for explicit navigation. For a supported workspace mutation, put one or more fully specified items in "proposed_actions" using only IDs present in the authoritative context; otherwise use an empty array and ask a clarifying question. Resolve relative dates using the supplied local date/timezone and always place the absolute YYYY-MM-DD date in the proposal and human-readable absolute date in the message. Never guess an ambiguous year. Never invent records, IDs, SQL, URLs, or tool results. A proposal is only a preview and performs no write.`;
 
 function envInt(name: string, fallback: number, minimum = 1): number {
   const parsed = Number.parseInt(Deno.env.get(name) ?? "", 10);
@@ -499,7 +501,9 @@ async function executeTypedAction(
       .single();
     if (runError || !run) throw new Error("persistence_error");
     runId = run.id;
-    system = agent.system_prompt?.trim() || "Complete the user's task safely and accurately.";
+    system = buildNexoraAgentSystemPrompt(
+      agent.system_prompt?.trim() || "Complete the user's task safely and accurately.",
+    );
   } else if (action === "document_analysis") {
     const documentId = typeof body.documentId === "string" ? body.documentId : "";
     const instruction =
@@ -826,7 +830,11 @@ Deno.serve(async (req) => {
       [
         {
           role: "system",
-          content: `${SYSTEM_PROMPT}\n\nCurrent UTC time: ${new Date().toISOString()}. User timezone: ${typeof body.timezone === "string" ? body.timezone.slice(0, 80) : "UTC"}.\nAuthoritative, read-only NEXORA workspace context (JSON; never invent missing records): ${workspaceContext}`,
+          content: buildNexoraAssistantSystemPrompt({
+            currentUtcTime: new Date().toISOString(),
+            timezone: typeof body.timezone === "string" ? body.timezone.slice(0, 80) : "UTC",
+            workspaceContext,
+          }),
         },
         ...context,
       ],
