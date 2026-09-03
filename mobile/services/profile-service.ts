@@ -1,6 +1,6 @@
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
-import { initialProfileValues, normalizeProfileIdentity, providerIdentity, type ProfileIdentity, type ProfileRecord } from "@/lib/profile-identity";
+import { initialProfileValues, normalizeProfileIdentity, type ProfileIdentity, type ProfileRecord } from "@/lib/profile-identity";
 
 export type MobileProfile = ProfileIdentity;
 
@@ -15,7 +15,7 @@ export async function getProfile(userId: string): Promise<MobileProfile | null> 
   if (error) throw error;
   if (!data) return null;
   return { id: data.id, fullName: data.full_name, avatarUrl: data.avatar_url, onboarded: data.onboarded === true,
-    displayName: data.full_name ?? "Conta NEXORA", email: null, provider: "email" };
+    displayName: null, email: null, provider: "email" };
 }
 
 export async function ensureAuthenticatedProfile(user: User): Promise<ProfileIdentity> {
@@ -25,17 +25,6 @@ export async function ensureAuthenticatedProfile(user: User): Promise<ProfileIde
     const { error } = await supabase.from("profiles").upsert(values, { onConflict: "id", ignoreDuplicates: true });
     if (error) throw error;
     profile = await getProfile(user.id);
-  } else {
-    const provider = providerIdentity(user);
-    const patch: Record<string, string> = {};
-    if (!profile.fullName && provider.name) patch.full_name = provider.name;
-    if (!profile.avatarUrl && provider.avatarUrl) patch.avatar_url = provider.avatarUrl;
-    if (Object.keys(patch).length) {
-      patch.updated_at = new Date().toISOString();
-      const { error } = await supabase.from("profiles").update(patch).eq("id", user.id);
-      if (error) throw error;
-      profile = await getProfile(user.id);
-    }
   }
   if (!profile) throw new Error("Profile could not be ensured.");
   return normalizeProfileIdentity(user, profile as ProfileRecord);
