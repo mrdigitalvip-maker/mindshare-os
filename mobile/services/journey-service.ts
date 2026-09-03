@@ -1,8 +1,6 @@
 import {
-  localDateKey,
   type Journey,
   type JourneyCategory,
-  type JourneyMission,
   type MomentumSummary,
   type MomentumEvent,
   summarizeMomentum,
@@ -13,6 +11,7 @@ import {
   orderJourneys,
   type JourneyProgramStepRecord,
 } from "@/lib/journeys";
+import { requestDailyMission, requestJourneyActionCompletion } from "@/lib/daily-mission-runtime";
 import { supabase } from "@/lib/supabase";
 import { workspaceMutationError } from "@/lib/mutation-errors";
 const user = (id: string) => {
@@ -32,19 +31,6 @@ const journeyFrom = (r: Record<string, unknown>): Journey => ({
   updatedAt: String(r.updated_at),
   sourcePackId: typeof r.source_pack_id === "string" ? r.source_pack_id : null,
   sourcePackVersion: r.source_pack_version == null ? null : Number(r.source_pack_version),
-});
-const missionFrom = (r: Record<string, unknown>): JourneyMission => ({
-  id: String(r.id),
-  journeyId: typeof r.journey_id === "string" ? r.journey_id : null,
-  sourceType: r.source_type as JourneyMission["sourceType"],
-  sourceId: String(r.source_id),
-  title: String(r.title),
-  description: typeof r.description === "string" ? r.description : null,
-  status: r.status as JourneyMission["status"],
-  scheduledDate: String(r.scheduled_date),
-  momentumValue: Number(r.momentum_value),
-  completedAt: typeof r.completed_at === "string" ? r.completed_at : null,
-  createdAt: String(r.created_at),
 });
 export async function listJourneys(userId: string) {
   const { data, error } = await supabase
@@ -113,21 +99,22 @@ export async function setJourneyStatus(userId: string, id: string, status: Journ
   if (error) throw workspaceMutationError(error);
 }
 export async function ensureDailyMission(userId: string, date = new Date()) {
-  user(userId);
-  const { data, error } = await supabase.rpc("ensure_daily_journey_mission", {
-    p_local_date: localDateKey(date),
-  });
-  if (error) throw workspaceMutationError(error);
-  return data ? missionFrom(data) : null;
+  try {
+    return await requestDailyMission(userId, date, (_name, args) =>
+      supabase.rpc("ensure_daily_journey_mission", args),
+    );
+  } catch (error) {
+    throw workspaceMutationError(error);
+  }
 }
 export async function completeJourneyAction(userId: string, missionId: string) {
-  user(userId);
-  if (!missionId.trim()) throw new Error("Mission required.");
-  const { data, error } = await supabase.rpc("complete_journey_action", {
-    p_mission: missionId.trim(),
-  });
-  if (error) throw workspaceMutationError(error);
-  return missionFrom(data);
+  try {
+    return await requestJourneyActionCompletion(userId, missionId, (_name, args) =>
+      supabase.rpc("complete_journey_action", args),
+    );
+  } catch (error) {
+    throw workspaceMutationError(error);
+  }
 }
 export async function getMomentum(userId: string, date = new Date()): Promise<MomentumSummary> {
   const uid = user(userId);
