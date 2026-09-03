@@ -19,8 +19,7 @@ export default function Onboarding() {
   const [errorMessage, setErrorMessage] = useState<string>();
   const submitLock = useRef(false);
   useEffect(() => {
-    if (!name && profile.data?.displayName !== "Conta NEXORA")
-      setName(profile.data?.displayName ?? "");
+    if (!name && profile.data?.displayName) setName(profile.data.displayName);
   }, [name, profile.data?.displayName]);
   if (status === "initializing") return <LoadingState title="Preparando seu espaço…" />;
   if (status === "unauthenticated") return <Redirect href="/auth" />;

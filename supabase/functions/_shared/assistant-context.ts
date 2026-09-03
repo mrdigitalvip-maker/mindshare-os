@@ -1,3 +1,5 @@
+import { normalizeHumanName } from "./user-identity.ts";
+
 export type WorkspaceContext = {
   profile?: string | null;
   tasks: unknown[];
@@ -6,7 +8,7 @@ export type WorkspaceContext = {
 };
 export function boundWorkspaceContext(value: WorkspaceContext, maxChars = 6000) {
   const safe = {
-    profile: value.profile?.slice(0, 120) || null,
+    profile: normalizeHumanName(value.profile)?.slice(0, 120) ?? null,
     tasks: value.tasks.slice(0, 30),
     projects: value.projects.slice(0, 15),
     studies: value.studies.slice(0, 15),

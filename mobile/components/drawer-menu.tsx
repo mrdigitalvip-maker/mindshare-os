@@ -126,7 +126,7 @@ export function DrawerMenu({ visible, onClose }: { visible: boolean; onClose(): 
   const actionLocked = useRef(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const identity = profile.data;
-  const displayName = identity?.displayName ?? session?.user.email?.split("@")[0] ?? "Conta NEXORA";
+  const displayName = identity?.displayName ?? "Conta NEXORA";
   const email = identity?.email ?? session?.user.email ?? "Conta autenticada";
   const plan = subscription.isPending
     ? "Consultando plano…"

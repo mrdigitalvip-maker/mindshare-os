@@ -5,6 +5,7 @@ import { AppScreen } from "@/components/app-screen";
 import { NexoraAgent } from "@/components/nexora-agent";
 import { AppHeader, DrawerMenu } from "@/components/product-ui";
 import { useProfile } from "@/hooks/use-profile";
+import { homeGreeting } from "@/lib/profile-identity";
 import { useDailyMission } from "@/hooks/use-journeys";
 import { useSubscription } from "@/hooks/use-subscription";
 import { useProjects, useSubjects, useTasks } from "@/hooks/use-workspaces";
@@ -225,7 +226,7 @@ export default function Dashboard() {
     () => getWeeklyChallenge(tasks, session?.user.id ?? ""),
     [session?.user.id, tasks],
   );
-  const name = profile.data?.fullName?.trim().split(" ")[0] || "você";
+  const greeting = homeGreeting(profile.data?.displayName);
   const tier = subscription.isError
     ? "NEXORA BASIC"
     : resolveCapabilityTier(subscription.data?.plan, subscription.data?.status);
@@ -263,7 +264,7 @@ export default function Dashboard() {
           <NexoraAgent size={72} state="idle" />
           <View style={styles.identityCopy}>
             <Text style={styles.eyebrow}>{tier}</Text>
-            <Text style={styles.greeting}>Olá, {name}.</Text>
+            <Text style={styles.greeting}>{greeting}</Text>
             <Text style={styles.context}>{contextMessage}</Text>
           </View>
         </View>

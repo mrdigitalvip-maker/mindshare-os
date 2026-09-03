@@ -13,6 +13,7 @@ import {
   assistantRequestFingerprint,
   parseAssistantQuotaClaim,
 } from "../_shared/assistant-quota.ts";
+import { resolveCanonicalDisplayName } from "../_shared/user-identity.ts";
 
 type ErrorCode =
   | "unauthorized"
@@ -188,7 +189,11 @@ function conversationTitle(message: string, maxLength = 56) {
   return clipped.slice(0, boundary >= maxLength * 0.6 ? boundary : maxLength).trim();
 }
 
-async function loadWorkspaceContext(supabase: DbClient, userId: string) {
+async function loadWorkspaceContext(
+  supabase: DbClient,
+  userId: string,
+  authMetadata?: Record<string, unknown>,
+) {
   const [profile, tasks, projects, studies] = await Promise.all([
     supabase.from("profiles").select("full_name").eq("id", userId).maybeSingle(),
     supabase
@@ -216,7 +221,7 @@ async function loadWorkspaceContext(supabase: DbClient, userId: string) {
     throw new Error("workspace_context_failed");
   const projectNames = new Map((projects.data ?? []).map((project) => [project.id, project.title]));
   return boundWorkspaceContext({
-    profile: profile.data?.full_name,
+    profile: resolveCanonicalDisplayName(profile.data?.full_name, authMetadata),
     tasks: (tasks.data ?? []).map((task) => ({
       id: task.id,
       title: task.title,
@@ -808,7 +813,7 @@ Deno.serve(async (req) => {
     if (historyError) throw new Error("persistence_error");
 
     const context = trimContext(historyRows ?? [], policy);
-    const workspaceContext = await loadWorkspaceContext(supabase, user.id);
+    const workspaceContext = await loadWorkspaceContext(supabase, user.id, user.user_metadata);
     if (context.length && loadedAttachment) {
       context[context.length - 1] = {
         role: "user",
