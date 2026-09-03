@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
+import { AppState } from "react-native";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/providers/auth-provider";
 import { queryKeys } from "@/lib/query-keys";
 import * as service from "@/services/community-service";
+import { createCommunityRealtimeLifecycle } from "@/lib/community-realtime";
 const useUserId = () => useAuth().session?.user.id ?? "";
 export function useCommunity() {
   const id = useUserId();
@@ -56,11 +58,21 @@ export function useCommunityMessages(channelId: string) {
   });
   useEffect(() => {
     if (!id || !channelId) return;
-    return service.subscribeToChannel(
-      channelId,
-      () => void client.invalidateQueries({ queryKey: queryKeys.communityMessages(channelId) }),
-      setRealtimeStatus,
+    const reconcile = () =>
+      void client.invalidateQueries({ queryKey: queryKeys.communityMessages(channelId) });
+    const lifecycle = createCommunityRealtimeLifecycle({
+      subscribe: (onStatus) => service.subscribeToChannel(channelId, reconcile, onStatus),
+      reconcile,
+      status: setRealtimeStatus,
+    });
+    lifecycle.start(AppState.currentState === "active");
+    const appState = AppState.addEventListener("change", (next) =>
+      lifecycle.setForeground(next === "active"),
     );
+    return () => {
+      appState.remove();
+      lifecycle.stop();
+    };
   }, [channelId, client, id]);
   return { ...query, realtimeStatus };
 }

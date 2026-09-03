@@ -89,14 +89,15 @@ export function messageActions(message: CommunityMessage) {
   };
 }
 
-/** Keeps the legacy native clipboard bridge contained and non-fatal on supported RN builds. */
-export function copyCommunityText(
+/** Copies only visible message text and keeps unavailable native support non-fatal. */
+export async function copyCommunityText(
   value: string,
-  clipboard: { setString?: (text: string) => void } | null | undefined,
+  removed: boolean,
+  clipboard: { setStringAsync?: (text: string) => Promise<void> } | null | undefined,
 ) {
-  if (!clipboard?.setString) return false;
+  if (removed || !clipboard?.setStringAsync) return false;
   try {
-    clipboard.setString(value);
+    await clipboard.setStringAsync(value);
     return true;
   } catch {
     return false;

@@ -152,7 +152,7 @@ describe("Community Live server contract", () => {
   test("realtime scopes, reconciles and cleans up", () => {
     expect(service).toContain("filter: `channel_id=eq.${channelId}`");
     expect(service).toContain("removeChannel(channel)");
-    expect(service).toContain("setTimeout(onChange, 120)");
+    expect(service).toContain("if (active) onChange()");
     expect(conversation).toContain("reconcileCommunityMessages");
     expect(conversation).toContain("actions.react.mutate");
   });

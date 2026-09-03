@@ -84,19 +84,19 @@ describe("Community revision 11 — persisted social truth", () => {
     expect(chat).toContain("AUTOMÁTICO");
     expect(chat).toContain("reporting.current.has(selected.id)");
   });
-  test("clipboard path is safe when native support is missing or throws", () => {
-    expect(copyCommunityText("real", undefined)).toBe(false);
+  test("clipboard path is safe when native support is missing or throws", async () => {
+    expect(await copyCommunityText("real", false, undefined)).toBe(false);
     expect(
-      copyCommunityText("real", {
-        setString: () => {
+      await copyCommunityText("real", false, {
+        setStringAsync: async () => {
           throw new Error("native");
         },
       }),
     ).toBe(false);
     let copied = "";
     expect(
-      copyCommunityText("real", {
-        setString: (value) => {
+      await copyCommunityText("real", false, {
+        setStringAsync: async (value) => {
           copied = value;
         },
       }),
