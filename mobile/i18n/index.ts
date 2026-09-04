@@ -261,6 +261,11 @@ export const translations = {
     "creator.captionsOff": "Desativadas",
     "creator.foundation":
       "O processamento de vídeo será disponibilizado na próxima etapa. Nenhum clipe é criado sem processamento real.",
+    "creator.uploading": "Enviando com segurança…",
+    "creator.processVideo": "Enviar e processar vídeo",
+    "creator.cancelProcessing": "Solicitar cancelamento",
+    "creator.highestPotential": "Maior potencial",
+    "creator.clipScore": "Pontuação de Clipe NEXORA",
     "creator.invalidRoute": "Este projeto de criação não está disponível.",
     "creator.loadError": "Não foi possível carregar seus projetos.",
     "creator.create": "CRIAR",
@@ -352,6 +357,11 @@ export const translations = {
     "creator.captionsOff": "Off",
     "creator.foundation":
       "Video processing will be available in the next stage. No clip is created without real processing.",
+    "creator.uploading": "Uploading securely…",
+    "creator.processVideo": "Upload and process video",
+    "creator.cancelProcessing": "Request cancellation",
+    "creator.highestPotential": "Highest potential",
+    "creator.clipScore": "NEXORA Clip Score",
     "creator.invalidRoute": "This creator project is not available.",
     "creator.loadError": "We couldn't load your projects.",
     "creator.create": "CREATE",
