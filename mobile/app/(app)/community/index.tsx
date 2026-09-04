@@ -1,3 +1,4 @@
+import { LocalizedCopy } from "@/components/localized-copy";
 import { useEffect, useRef, useState } from "react";
 import { Alert, Pressable, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { router } from "expo-router";
@@ -50,6 +51,7 @@ const Button = ({
     <Text style={styles.buttonText}>{label}</Text>
   </Pressable>
 );
+
 export default function Community() {
   const community = useCommunity(),
     channels = useOfficialChannels(),
@@ -85,12 +87,14 @@ export default function Community() {
     <AppScreen scroll contentContainerStyle={styles.page}>
       <StandardHeader title="Community" />
       <Text style={styles.subtitle}>
-        Compartilhe progresso, ideias e desafios com pessoas construindo algo.
+        <LocalizedCopy copyKey="legacy.ec46754a4d22" />
       </Text>
-      <Text style={styles.heading}>Comunidades oficiais</Text>
+      <Text style={styles.heading}>
+        <LocalizedCopy copyKey="legacy.a2c509954b40" />
+      </Text>
       {channels.isError ? (
         <Text style={styles.muted}>
-          Não foi possível carregar as conversas. Toque em tentar novamente.
+          <LocalizedCopy copyKey="legacy.af94c81f4036" />
         </Text>
       ) : null}
       {channels.data?.map((channel) => (
@@ -136,9 +140,11 @@ export default function Community() {
       ))}
       {community.isError ? (
         <View style={styles.card}>
-          <Text style={styles.heading}>Seu perfil e atividade</Text>
+          <Text style={styles.heading}>
+            <LocalizedCopy copyKey="legacy.21d9191b0740" />
+          </Text>
           <Text style={styles.muted}>
-            Não foi possível carregar esta parte. As conversas oficiais continuam disponíveis.
+            <LocalizedCopy copyKey="legacy.51985864bc4e" />
           </Text>
           <Button label="Tentar novamente" onPress={() => void community.refetch()} />
         </View>
@@ -148,8 +154,7 @@ export default function Community() {
             {persistedProfile ? "Seu perfil na Community" : "Crie seu perfil na Community"}
           </Text>
           <Text style={styles.muted}>
-            Escolha como você aparece na Community. Seus dados privados da NEXORA continuam
-            privados.
+            <LocalizedCopy copyKey="legacy.c453ef98bd7f" />
           </Text>
           {profileFeedback ? <Text style={styles.success}>{profileFeedback}</Text> : null}
           {persistedProfile && !editingProfile ? (
@@ -196,6 +201,7 @@ export default function Community() {
                 maxLength={60}
                 style={styles.input}
               />
+
               <TextInput
                 accessibilityLabel="Username"
                 autoCapitalize="none"
@@ -206,6 +212,7 @@ export default function Community() {
                 maxLength={31}
                 style={styles.input}
               />
+
               <TextInput
                 accessibilityLabel="Bio"
                 placeholder="Bio curta (opcional)"
@@ -215,19 +222,26 @@ export default function Community() {
                 maxLength={240}
                 style={styles.input}
               />
-              <Text style={styles.label}>Visibilidade</Text>
+
+              <Text style={styles.label}>
+                <LocalizedCopy copyKey="legacy.1547e23d9a41" />
+              </Text>
               <View style={styles.visibility}>
                 <Pressable
                   onPress={() => setProfile({ ...profile, visibility: "private" })}
                   style={[styles.choice, profile.visibility === "private" && styles.selected]}
                 >
-                  <Text style={styles.chipText}>Privado</Text>
+                  <Text style={styles.chipText}>
+                    <LocalizedCopy copyKey="legacy.49a4e6191e75" />
+                  </Text>
                 </Pressable>
                 <Pressable
                   onPress={() => setProfile({ ...profile, visibility: "community" })}
                   style={[styles.choice, profile.visibility === "community" && styles.selected]}
                 >
-                  <Text style={styles.chipText}>Visível na Community</Text>
+                  <Text style={styles.chipText}>
+                    <LocalizedCopy copyKey="legacy.d826235eee56" />
+                  </Text>
                 </Pressable>
               </View>
               <Row label="Compartilhar Momentum">
@@ -263,14 +277,19 @@ export default function Community() {
                   });
                 }}
               />
+
               {validation ? <Text style={styles.validation}>{validation}</Text> : null}
             </>
           )}
         </View>
       )}
-      <Text style={styles.heading}>Atividade verificada</Text>
+      <Text style={styles.heading}>
+        <LocalizedCopy copyKey="legacy.27018f233ea5" />
+      </Text>
       {community.isError ? (
-        <Text style={styles.muted}>Atividade indisponível agora. Tente novamente acima.</Text>
+        <Text style={styles.muted}>
+          <LocalizedCopy copyKey="legacy.549390a2c08d" />
+        </Text>
       ) : community.data?.activity.length ? (
         <>
           {community.data.activity.map((a) => (
@@ -309,11 +328,17 @@ export default function Community() {
           ))}
         </>
       ) : (
-        <Text style={styles.muted}>Nenhuma atividade verificada compartilhada ainda.</Text>
+        <Text style={styles.muted}>
+          <LocalizedCopy copyKey="legacy.bccd0f29e3f9" />
+        </Text>
       )}
-      <Text style={styles.heading}>Seus Squads</Text>
+      <Text style={styles.heading}>
+        <LocalizedCopy copyKey="legacy.b8512a2d9d1c" />
+      </Text>
       {community.isError ? (
-        <Text style={styles.muted}>Não foi possível carregar seus Squads.</Text>
+        <Text style={styles.muted}>
+          <LocalizedCopy copyKey="legacy.4ca6157993ef" />
+        </Text>
       ) : community.data?.squads.length ? (
         community.data.squads.map((s) => (
           <Pressable
@@ -329,10 +354,14 @@ export default function Community() {
           </Pressable>
         ))
       ) : (
-        <Text style={styles.muted}>Você ainda não participa de um Squad.</Text>
+        <Text style={styles.muted}>
+          <LocalizedCopy copyKey="legacy.206667f21607" />
+        </Text>
       )}
       <View style={styles.card}>
-        <Text style={styles.heading}>Criar Squad privado</Text>
+        <Text style={styles.heading}>
+          <LocalizedCopy copyKey="legacy.e1f23e263e5f" />
+        </Text>
         <TextInput
           accessibilityLabel="Nome do Squad"
           placeholder="Nome do Squad"
@@ -342,6 +371,7 @@ export default function Community() {
           maxLength={60}
           style={styles.input}
         />
+
         <Button
           label={create.isPending ? "Criando…" : "Criar Squad"}
           disabled={create.isPending || squadName.trim().length < 2}
@@ -365,7 +395,9 @@ export default function Community() {
         />
       </View>
       <View style={styles.card}>
-        <Text style={styles.heading}>Entrar com convite</Text>
+        <Text style={styles.heading}>
+          <LocalizedCopy copyKey="legacy.0951616f8f0d" />
+        </Text>
         <TextInput
           accessibilityLabel="Código de convite"
           autoCapitalize="characters"
@@ -375,6 +407,7 @@ export default function Community() {
           onChangeText={(value) => setCode(value.toUpperCase())}
           style={styles.input}
         />
+
         <Button
           label="Validar convite"
           disabled={!code.trim() || accept.isPending}
@@ -403,6 +436,7 @@ const Row = ({ label, children }: { label: string; children: React.ReactNode }) 
     {children}
   </View>
 );
+
 const styles = StyleSheet.create({
   page: { gap: spacing.md, paddingBottom: spacing.xl },
   subtitle: { ...typography.body, color: colors.textMuted },

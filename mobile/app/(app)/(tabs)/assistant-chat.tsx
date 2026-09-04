@@ -1,3 +1,4 @@
+import { LocalizedCopy } from "@/components/localized-copy";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
@@ -366,6 +367,7 @@ export default function Assistant() {
         }
       />
     );
+
   const errorCopy = failed ? assistantErrorCopy(failed.code) : null;
   const busy = send.isPending || uploading;
   const canSend = canSendAssistantMessage(draft, attachment, busy);
@@ -376,6 +378,7 @@ export default function Assistant() {
           state={send.isPending ? "thinking" : failed ? "attention" : "idle"}
           size={52}
         />
+
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Voltar às conversas"
@@ -385,7 +388,9 @@ export default function Assistant() {
           <Text style={styles.backText}>‹</Text>
         </Pressable>
         <View style={styles.headerCopy}>
-          <Text style={styles.brand}>NEXORA</Text>
+          <Text style={styles.brand}>
+            <LocalizedCopy copyKey="legacy.5c98cc45eda7" />
+          </Text>
           <Text style={styles.status}>{send.isPending ? "Pensando…" : "Pronta para ajudar"}</Text>
         </View>
         <Pressable
@@ -398,7 +403,9 @@ export default function Assistant() {
           }}
           style={styles.newButton}
         >
-          <Text style={styles.newText}>Novo</Text>
+          <Text style={styles.newText}>
+            <LocalizedCopy copyKey="legacy.d07958415f26" />
+          </Text>
         </Pressable>
       </View>
       <KeyboardAvoidingView
@@ -425,9 +432,11 @@ export default function Assistant() {
           ListEmptyComponent={
             <View style={styles.empty}>
               <NexoraAgent state="quiet" size={76} />
-              <Text style={styles.emptyTitle}>Como posso ajudar agora?</Text>
+              <Text style={styles.emptyTitle}>
+                <LocalizedCopy copyKey="legacy.ed095b84a6b4" />
+              </Text>
               <Text style={styles.emptyBody}>
-                Use seus dados reais da NEXORA ou envie uma imagem.
+                <LocalizedCopy copyKey="legacy.d8937d95f180" />
               </Text>
               <View style={styles.starters}>
                 {ASSISTANT_QUICK_ACTIONS.map((action) => (
@@ -450,7 +459,11 @@ export default function Assistant() {
           }
           renderItem={({ item }) => (
             <View style={styles.messageRow}>
-              {item.role === "assistant" && <Text style={styles.author}>NEXORA</Text>}
+              {item.role === "assistant" && (
+                <Text style={styles.author}>
+                  <LocalizedCopy copyKey="legacy.5c98cc45eda7" />
+                </Text>
+              )}
               <View style={[styles.message, item.role === "user" ? styles.user : styles.assistant]}>
                 {item.attachments.map((file) =>
                   file.kind === "image" && file.previewUri ? (
@@ -524,7 +537,9 @@ export default function Assistant() {
                               }
                               style={styles.cancelAction}
                             >
-                              <Text style={styles.actionButtonText}>Cancelar</Text>
+                              <Text style={styles.actionButtonText}>
+                                <LocalizedCopy copyKey="legacy.1c0de5351a3d" />
+                              </Text>
                             </Pressable>
                             {(item.status === "pending" || item.canRetry) && (
                               <Pressable
@@ -544,14 +559,18 @@ export default function Assistant() {
                                 }}
                                 style={styles.confirmAction}
                               >
-                                <Text style={styles.actionButtonText}>Pedir nova proposta</Text>
+                                <Text style={styles.actionButtonText}>
+                                  <LocalizedCopy copyKey="legacy.6e21ef6d244c" />
+                                </Text>
                               </Pressable>
                             )}
                           </View>
                         ) : item.status === "applying" ? (
                           <View style={styles.applyingRow}>
                             <ActivityIndicator color={colors.primaryBright} />
-                            <Text style={styles.actionDetail}>Aplicando após sua confirmação…</Text>
+                            <Text style={styles.actionDetail}>
+                              <LocalizedCopy copyKey="legacy.4ae61ba83494" />
+                            </Text>
                           </View>
                         ) : null}
                         {resultRoute && item.status === "applied" && (
@@ -571,6 +590,7 @@ export default function Assistant() {
             </>
           }
         />
+
         {errorCopy && (
           <View accessibilityRole="alert" style={styles.error}>
             <View style={{ flex: 1 }}>
@@ -585,7 +605,9 @@ export default function Assistant() {
                 void submit(failed!.content, failed!.requestId, failed!.uploadedAttachment)
               }
             >
-              <Text style={styles.retry}>Tentar novamente</Text>
+              <Text style={styles.retry}>
+                <LocalizedCopy copyKey="legacy.e1c2744087e9" />
+              </Text>
             </Pressable>
           </View>
         )}
@@ -616,7 +638,9 @@ export default function Assistant() {
                   setFailed(null);
                 }}
               >
-                <Text style={styles.remove}>×</Text>
+                <Text style={styles.remove}>
+                  <LocalizedCopy copyKey="legacy.5c31a5f09425" />
+                </Text>
               </Pressable>
             )}
           </View>
@@ -625,8 +649,12 @@ export default function Assistant() {
           <View accessibilityRole="menu" style={styles.attachmentMenu}>
             <View style={styles.menuHeading}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.menuTitle}>Adicionar ao chat</Text>
-                <Text style={styles.menuCaption}>Escolha uma origem compatível</Text>
+                <Text style={styles.menuTitle}>
+                  <LocalizedCopy copyKey="legacy.c7ccf7bdb129" />
+                </Text>
+                <Text style={styles.menuCaption}>
+                  <LocalizedCopy copyKey="legacy.c9198d410e9c" />
+                </Text>
               </View>
               <Pressable
                 accessibilityRole="button"
@@ -634,7 +662,9 @@ export default function Assistant() {
                 onPress={() => setAttachmentMenuOpen(false)}
                 hitSlop={8}
               >
-                <Text style={styles.menuClose}>×</Text>
+                <Text style={styles.menuClose}>
+                  <LocalizedCopy copyKey="legacy.5c31a5f09425" />
+                </Text>
               </Pressable>
             </View>
             <View style={styles.menuActions}>
@@ -686,6 +716,7 @@ export default function Assistant() {
             style={styles.input}
             textAlignVertical="top"
           />
+
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Enviar mensagem"

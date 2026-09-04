@@ -1,3 +1,4 @@
+import { LocalizedCopy } from "@/components/localized-copy";
 import { useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { passwordRecoveryUrl } from "@/lib/auth-links";
@@ -32,7 +33,9 @@ export default function Recovery() {
   }
   return (
     <View style={styles.page}>
-      <Text style={styles.title}>Recuperar acesso</Text>
+      <Text style={styles.title}>
+        <LocalizedCopy copyKey="legacy.c84aaa145b3e" />
+      </Text>
       <TextInput
         autoCapitalize="none"
         keyboardType="email-address"
@@ -42,6 +45,7 @@ export default function Recovery() {
         onChangeText={setEmail}
         style={styles.input}
       />
+
       {message ? <Text style={styles.message}>{message}</Text> : null}
       <Pressable disabled={!email.trim() || busy} onPress={() => void send()} style={styles.button}>
         <Text style={styles.buttonText}>{busy ? "Enviando…" : "Enviar link de recuperação"}</Text>

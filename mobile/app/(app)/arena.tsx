@@ -1,3 +1,4 @@
+import { LocalizedCopy } from "@/components/localized-copy";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { AppScreen } from "@/components/app-screen";
 import { StandardHeader } from "@/components/product-ui";
@@ -78,16 +79,21 @@ export default function Arena() {
         onAction={() => void arena.refetch()}
       />
     );
+
   const challenges = arena.data ?? [];
   const current = challenges.filter((item) => isCurrentArenaChallenge(item));
   const history = challenges.filter((item) => !isCurrentArenaChallenge(item) && item.joinedAt);
   return (
     <AppScreen scroll contentContainerStyle={styles.page}>
       <StandardHeader title="Arena" />
-      <Text style={styles.eyebrow}>EXECUÇÃO COMPROVADA</Text>
-      <Text style={styles.hero}>Real challenges. Truthful ranking.</Text>
+      <Text style={styles.eyebrow}>
+        <LocalizedCopy copyKey="legacy.4afa7a478dfb" />
+      </Text>
+      <Text style={styles.hero}>
+        <LocalizedCopy copyKey="legacy.5aa9842d8f20" />
+      </Text>
       <Text style={styles.copy}>
-        Seu progresso vem apenas de missões e eventos que a NEXORA consegue verificar.
+        <LocalizedCopy copyKey="legacy.df04ce9030fa" />
       </Text>
       {current.length === 0 ? (
         <EmptyState
@@ -105,11 +111,15 @@ export default function Arena() {
         ))
       )}
       {join.isError ? (
-        <Text style={styles.error}>Não foi possível participar. O desafio pode ter encerrado.</Text>
+        <Text style={styles.error}>
+          <LocalizedCopy copyKey="legacy.ec850793e10b" />
+        </Text>
       ) : null}
       {history.length > 0 ? (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Histórico</Text>
+          <Text style={styles.sectionTitle}>
+            <LocalizedCopy copyKey="legacy.fef2d814db6d" />
+          </Text>
           {history.map((challenge) => (
             <ChallengeCard
               key={challenge.id}
@@ -121,8 +131,7 @@ export default function Arena() {
         </View>
       ) : null}
       <Text style={styles.privacy}>
-        Ranking público indisponível enquanto não houver um modelo seguro de identidade pública. Seu
-        e-mail e detalhes pessoais nunca são exibidos.
+        <LocalizedCopy copyKey="legacy.0de1bc1ba1d3" />
       </Text>
     </AppScreen>
   );

@@ -1,16 +1,21 @@
+import { LocalizedCopy } from "@/components/localized-copy";
 import { StyleSheet, Text, View } from "react-native";
 import { colors, radius, spacing, typography } from "@/lib/theme";
 export function FoundationScreen({ title, description }: { title: string; description: string }) {
   return (
     <View style={styles.page}>
       <View style={styles.glow} />
-      <Text style={styles.kicker}>NEXORA</Text>
+      <Text style={styles.kicker}>
+        <LocalizedCopy copyKey="legacy.89f5a9375252" />
+      </Text>
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.copy}>{description}</Text>
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Native foundation ready</Text>
+        <Text style={styles.cardTitle}>
+          <LocalizedCopy copyKey="legacy.ae77c5e8ab4d" />
+        </Text>
         <Text style={styles.copy}>
-          This route is isolated from the web client and ready for its backend vertical slice.
+          <LocalizedCopy copyKey="legacy.8b851a37bd0c" />
         </Text>
       </View>
     </View>

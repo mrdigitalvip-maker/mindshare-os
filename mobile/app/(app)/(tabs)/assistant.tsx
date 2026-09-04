@@ -1,3 +1,4 @@
+import { LocalizedCopy } from "@/components/localized-copy";
 import { useState } from "react";
 import { router } from "expo-router";
 import {
@@ -28,8 +29,12 @@ export default function AssistantHome() {
       <View style={styles.header}>
         <NexoraAgent state="idle" size={56} />
         <View style={{ flex: 1 }}>
-          <Text style={styles.brand}>NEXORA</Text>
-          <Text style={styles.subtitle}>Assistente</Text>
+          <Text style={styles.brand}>
+            <LocalizedCopy copyKey="legacy.76a29979102e" />
+          </Text>
+          <Text style={styles.subtitle}>
+            <LocalizedCopy copyKey="legacy.dbddc6a55628" />
+          </Text>
         </View>
         <Pressable
           accessibilityRole="button"
@@ -46,9 +51,11 @@ export default function AssistantHome() {
         contentContainerStyle={styles.content}
         ListHeaderComponent={
           <>
-            <Text style={styles.hero}>Como posso ajudar agora?</Text>
+            <Text style={styles.hero}>
+              <LocalizedCopy copyKey="legacy.acdeb6b004c6" />
+            </Text>
             <Text style={styles.invitation}>
-              Ideias, planejamento e respostas com o contexto da sua NEXORA.
+              <LocalizedCopy copyKey="legacy.45d84682a4c4" />
             </Text>
             <View style={styles.composer}>
               <Pressable
@@ -74,6 +81,7 @@ export default function AssistantHome() {
                 onChangeText={setDraft}
                 style={styles.input}
               />
+
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Enviar mensagem"
@@ -86,20 +94,26 @@ export default function AssistantHome() {
               </Pressable>
             </View>
             <View style={styles.sectionHeading}>
-              <Text style={styles.sectionTitle}>Conversas recentes</Text>
+              <Text style={styles.sectionTitle}>
+                <LocalizedCopy copyKey="legacy.fad69074185e" />
+              </Text>
               {conversations.isFetching && (
                 <ActivityIndicator size="small" color={colors.primaryBright} />
               )}
             </View>
             {conversations.isError && (
               <View accessibilityRole="alert" style={styles.error}>
-                <Text style={styles.errorText}>Não foi possível carregar suas conversas.</Text>
+                <Text style={styles.errorText}>
+                  <LocalizedCopy copyKey="legacy.f6c487717915" />
+                </Text>
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel="Tentar carregar conversas novamente"
                   onPress={() => void conversations.refetch()}
                 >
-                  <Text style={styles.retry}>Tentar novamente</Text>
+                  <Text style={styles.retry}>
+                    <LocalizedCopy copyKey="legacy.2ca39f4bb208" />
+                  </Text>
                 </Pressable>
               </View>
             )}
@@ -108,9 +122,11 @@ export default function AssistantHome() {
         ListEmptyComponent={
           !conversations.isPending && !conversations.isError ? (
             <View style={styles.empty}>
-              <Text style={styles.emptyTitle}>Seu próximo chat começa aqui</Text>
+              <Text style={styles.emptyTitle}>
+                <LocalizedCopy copyKey="legacy.91a7d7856d6c" />
+              </Text>
               <Text style={styles.emptyBody}>
-                Envie uma mensagem acima. A conversa será salva depois do primeiro envio.
+                <LocalizedCopy copyKey="legacy.985fecc543bf" />
               </Text>
             </View>
           ) : null

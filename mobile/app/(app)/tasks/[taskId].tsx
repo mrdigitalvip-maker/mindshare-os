@@ -1,3 +1,4 @@
+import { LocalizedCopy } from "@/components/localized-copy";
 import { useRef, useState } from "react";
 import {
   Alert,
@@ -68,6 +69,7 @@ export default function TaskWorkspace() {
     return (
       <ErrorState title="Tarefa inválida." actionLabel="Voltar" onAction={() => router.back()} />
     );
+
   if (taskQuery.isPending) return <LoadingState title="Preparando espaço de execução…" />;
   if (taskQuery.isError)
     return (
@@ -77,6 +79,7 @@ export default function TaskWorkspace() {
         onAction={() => void taskQuery.refetch()}
       />
     );
+
   if (!task)
     return (
       <ErrorState
@@ -85,6 +88,7 @@ export default function TaskWorkspace() {
         onAction={() => router.back()}
       />
     );
+
   const workState = getTaskWorkState(task);
   const rhythm = getTaskRhythmState(task);
   const progressSummary = getTaskProgressSummary(task);
@@ -347,6 +351,7 @@ export default function TaskWorkspace() {
                   placeholderTextColor={colors.textMuted}
                   style={styles.input}
                 />
+
                 <Button label="Salvar próxima ação" onPress={saveNext} />
               </>
             ) : (
@@ -380,7 +385,9 @@ export default function TaskWorkspace() {
             </View>
             {checkingIn && workState !== "completed" ? (
               <View style={styles.checkIn}>
-                <Text style={styles.muted}>Registre apenas o que realmente aconteceu.</Text>
+                <Text style={styles.muted}>
+                  <LocalizedCopy copyKey="legacy.070616ac038d" />
+                </Text>
                 <View style={styles.actions}>
                   <Button label="Avancei" onPress={() => registerProgress("progressed")} />
                   <Button label="Sem mudança" onPress={() => registerProgress("unchanged")} />
@@ -407,6 +414,7 @@ export default function TaskWorkspace() {
                   placeholderTextColor={colors.textMuted}
                   style={styles.input}
                 />
+
                 <Button label="Salvar bloqueio" onPress={saveBlocker} />
               </>
             ) : (
@@ -458,6 +466,7 @@ export default function TaskWorkspace() {
                 label={task.reminderAt ? "Alterar lembrete" : "Definir lembrete"}
                 onPress={remind}
               />
+
               {task.reminderAt && new Date(task.reminderAt) > new Date() ? (
                 <Button label="Cancelar lembrete" onPress={cancelReminder} />
               ) : null}
@@ -472,13 +481,17 @@ export default function TaskWorkspace() {
           </Card>
           {projectQuery.isError ? (
             <Card label="IMPACTO NO PROJETO">
-              <Text style={styles.muted}>Não foi possível carregar o projeto vinculado.</Text>
+              <Text style={styles.muted}>
+                <LocalizedCopy copyKey="legacy.a939940cd1a7" />
+              </Text>
               <Button label="Tentar novamente" onPress={() => void projectQuery.refetch()} />
             </Card>
           ) : null}
           {project && (
             <Card label="IMPACTO NO PROJETO">
-              <Text style={styles.muted}>AVANÇA</Text>
+              <Text style={styles.muted}>
+                <LocalizedCopy copyKey="legacy.5da7868cedbc" />
+              </Text>
               <Pressable onPress={() => router.push(`/projects/${project.id}`)}>
                 <Text style={styles.projectLink}>{project.title}</Text>
               </Pressable>

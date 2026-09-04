@@ -1,3 +1,4 @@
+import { LocalizedCopy } from "@/components/localized-copy";
 import { useMemo, useState } from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { localDateKey } from "@/lib/journeys";
@@ -17,6 +18,7 @@ const MONTHS = [
   "novembro",
   "dezembro",
 ];
+
 const WEEKDAYS = ["D", "S", "T", "Q", "Q", "S", "S"];
 
 export function NativeDateField({
@@ -121,13 +123,17 @@ export function NativeDateField({
                     setOpen(false);
                   }}
                 >
-                  <Text style={s.clear}>Remover data</Text>
+                  <Text style={s.clear}>
+                    <LocalizedCopy copyKey="legacy.1e73b75d260e" />
+                  </Text>
                 </Pressable>
               ) : (
                 <View />
               )}
               <Pressable onPress={() => setOpen(false)}>
-                <Text style={s.cancel}>Cancelar</Text>
+                <Text style={s.cancel}>
+                  <LocalizedCopy copyKey="legacy.96844ebdec58" />
+                </Text>
               </Pressable>
             </View>
           </View>

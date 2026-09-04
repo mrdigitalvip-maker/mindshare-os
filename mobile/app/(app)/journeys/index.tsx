@@ -1,3 +1,4 @@
+import { LocalizedCopy } from "@/components/localized-copy";
 import { router } from "expo-router";
 import { useMemo, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -87,6 +88,7 @@ export default function Journeys() {
         onAction={() => void refresh()}
       />
     );
+
   return (
     <>
       <AppScreen scroll contentContainerStyle={s.page}>
@@ -97,39 +99,60 @@ export default function Journeys() {
               onPress={() => setModal(true)}
               disabled={limit !== null && active.length >= limit}
             >
-              <Text style={s.link}>Nova jornada</Text>
+              <Text style={s.link}>
+                <LocalizedCopy copyKey="legacy.22b0c0cd16d0" />
+              </Text>
             </Pressable>
           }
         />
-        <Text style={s.promise}>Seu objetivo, uma próxima ação real e progresso verificável.</Text>
+
+        <Text style={s.promise}>
+          <LocalizedCopy copyKey="legacy.651703bbde39" />
+        </Text>
         {limit !== null && active.length >= limit ? (
           <View style={s.limitNotice}>
-            <Text style={s.cardTitle}>Seu plano Free permite uma Jornada ativa.</Text>
+            <Text style={s.cardTitle}>
+              <LocalizedCopy copyKey="legacy.ef20fa6faa42" />
+            </Text>
             <Text style={s.muted}>
-              Pause ou conclua a Jornada atual antes de criar ou reativar outra.
+              <LocalizedCopy copyKey="legacy.28b6f2d56999" />
             </Text>
           </View>
         ) : null}
         <Pressable accessibilityRole="button" style={s.card} onPress={() => router.push("/packs")}>
-          <Text style={s.meta}>JOURNEY PACKS</Text>
-          <Text style={s.cardTitle}>Comece com um programa guiado</Text>
-          <Text style={s.muted}>
-            Escolha um resultado e revise a estrutura antes de criar sua Jornada.
+          <Text style={s.meta}>
+            <LocalizedCopy copyKey="legacy.4dcc23f1cc1b" />
           </Text>
-          <Text style={s.link}>Explorar programas ›</Text>
+          <Text style={s.cardTitle}>
+            <LocalizedCopy copyKey="legacy.f1263562aebf" />
+          </Text>
+          <Text style={s.muted}>
+            <LocalizedCopy copyKey="legacy.8afd02847b39" />
+          </Text>
+          <Text style={s.link}>
+            <LocalizedCopy copyKey="legacy.766344a86a8c" />
+          </Text>
         </Pressable>
         <Section title="MISSÃO DE HOJE">
           {mission.isPending ? (
             <View style={s.card}>
-              <Text style={s.muted}>Buscando sua missão…</Text>
+              <Text style={s.muted}>
+                <LocalizedCopy copyKey="legacy.353cb9527fc2" />
+              </Text>
             </View>
           ) : mission.isError ? (
             <View style={s.card}>
-              <Text style={s.cardTitle}>Não foi possível atualizar a missão de hoje.</Text>
-              <Text style={s.muted}>Suas Jornadas continuam disponíveis.</Text>
+              <Text style={s.cardTitle}>
+                <LocalizedCopy copyKey="legacy.4745f50a1cb8" />
+              </Text>
+              <Text style={s.muted}>
+                <LocalizedCopy copyKey="legacy.2e478cac60e8" />
+              </Text>
               {__DEV__ ? <Text style={s.diagnostic}>{String(mission.error)}</Text> : null}
               <Pressable accessibilityRole="button" onPress={() => void mission.refetch()}>
-                <Text style={s.link}>Tentar novamente</Text>
+                <Text style={s.link}>
+                  <LocalizedCopy copyKey="legacy.311c4d131d60" />
+                </Text>
               </Pressable>
             </View>
           ) : todayMission ? (
@@ -140,7 +163,9 @@ export default function Journeys() {
               <Text style={s.heroTitle}>{todayMission.title}</Text>
               {todayMission.description ? (
                 <>
-                  <Text style={s.meta}>Próxima ação</Text>
+                  <Text style={s.meta}>
+                    <LocalizedCopy copyKey="legacy.7385d9b322b7" />
+                  </Text>
                   <Text style={s.body}>{todayMission.description}</Text>
                 </>
               ) : null}
@@ -159,7 +184,9 @@ export default function Journeys() {
                   <Text style={s.buttonText}>{missionTarget.label}</Text>
                 </Pressable>
               ) : (
-                <Text style={s.muted}>A fonte desta ação não está mais disponível.</Text>
+                <Text style={s.muted}>
+                  <LocalizedCopy copyKey="legacy.e115de4e0e4c" />
+                </Text>
               )}
             </View>
           ) : (
@@ -189,17 +216,26 @@ export default function Journeys() {
           <View style={s.card}>
             {momentum.isError ? (
               <>
-                <Text style={s.cardTitle}>Seu ritmo está temporariamente indisponível.</Text>
+                <Text style={s.cardTitle}>
+                  <LocalizedCopy copyKey="legacy.8891364260dd" />
+                </Text>
                 <Pressable onPress={() => void momentum.refetch()}>
-                  <Text style={s.link}>Tentar novamente</Text>
+                  <Text style={s.link}>
+                    <LocalizedCopy copyKey="legacy.311c4d131d60" />
+                  </Text>
                 </Pressable>
               </>
             ) : (
               <>
                 <Text style={s.metric}>
-                  {momentum.data?.totalPoints ?? 0} <Text style={s.metricLabel}>Momentum</Text>
+                  {momentum.data?.totalPoints ?? 0}{" "}
+                  <Text style={s.metricLabel}>
+                    <LocalizedCopy copyKey="legacy.7a21a88513a8" />
+                  </Text>
                 </Text>
-                <Text style={s.muted}>Construído por execuções verificadas.</Text>
+                <Text style={s.muted}>
+                  <LocalizedCopy copyKey="legacy.ff931bcb51a8" />
+                </Text>
               </>
             )}
           </View>
@@ -217,15 +253,19 @@ export default function Journeys() {
               <Text numberOfLines={3} style={s.muted}>
                 {primaryJourney.objective}
               </Text>
-              <Text style={s.link}>Continuar ›</Text>
+              <Text style={s.link}>
+                <LocalizedCopy copyKey="legacy.08260253b90c" />
+              </Text>
             </Pressable>
           ) : (
             <View style={s.card}>
               <Text style={s.cardTitle}>
-                Transforme uma meta em um plano que avança todos os dias.
+                <LocalizedCopy copyKey="legacy.c17ded40d6db" />
               </Text>
               <Pressable accessibilityRole="button" onPress={() => setModal(true)}>
-                <Text style={s.link}>Criar minha primeira Jornada</Text>
+                <Text style={s.link}>
+                  <LocalizedCopy copyKey="legacy.7b3068b0904f" />
+                </Text>
               </Pressable>
             </View>
           )}
@@ -250,7 +290,10 @@ export default function Journeys() {
                   ]}
                 />
               </View>
-              <Text style={s.reward}>+{challenge.data.rewardPoints} Momentum</Text>
+              <Text style={s.reward}>
+                +{challenge.data.rewardPoints}
+                <LocalizedCopy copyKey="legacy.7a21a88513a8" />
+              </Text>
             </View>
           </Section>
         ) : null}
@@ -270,8 +313,7 @@ export default function Journeys() {
           </Section>
         ) : null}
         <Text style={s.privacy}>
-          As Jornadas podem usar apenas os dados do seu espaço NEXORA para recomendar execução. Nada
-          é publicado.
+          <LocalizedCopy copyKey="legacy.07773d3f549e" />
         </Text>
       </AppScreen>
       <NativeFormModal

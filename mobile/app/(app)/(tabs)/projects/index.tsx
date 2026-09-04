@@ -1,3 +1,4 @@
+import { LocalizedCopy } from "@/components/localized-copy";
 import { useMemo, useRef, useState } from "react";
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
@@ -77,7 +78,9 @@ function ProjectCard({
       ) : null}
       {next ? (
         <View style={styles.nextBlock}>
-          <Text style={styles.eyebrow}>PRÓXIMO PASSO</Text>
+          <Text style={styles.eyebrow}>
+            <LocalizedCopy copyKey="legacy.deb4f5fa0244" />
+          </Text>
           <Text numberOfLines={2} style={styles.nextTitle}>
             {next.title}
           </Text>
@@ -111,9 +114,13 @@ function ProjectCard({
           </View>
         </View>
       ) : taskDataAvailable ? (
-        <Text style={styles.meta}>Sem tarefas vinculadas</Text>
+        <Text style={styles.meta}>
+          <LocalizedCopy copyKey="legacy.24ad74cb0866" />
+        </Text>
       ) : (
-        <Text style={styles.meta}>Progresso e próxima ação indisponíveis.</Text>
+        <Text style={styles.meta}>
+          <LocalizedCopy copyKey="legacy.070cfad7b5bb" />
+        </Text>
       )}
       <View style={styles.cardFooter}>
         <Text
@@ -181,6 +188,7 @@ export default function Projetos() {
         onAction={() => void refresh()}
       />
     );
+
   const taskDataAvailable = !tasksQuery.isError && !tasksQuery.isPending;
   const overview = taskDataAvailable ? getProjectsOverview(projects, grouped) : null;
   return (
@@ -189,13 +197,18 @@ export default function Projetos() {
         title="Projetos"
         action={
           <Pressable accessibilityRole="button" onPress={() => setOpen(true)} style={styles.add}>
-            <Text style={styles.addText}>Novo</Text>
+            <Text style={styles.addText}>
+              <LocalizedCopy copyKey="legacy.4510522a4ecc" />
+            </Text>
           </Pressable>
         }
       />
+
       {projects.length && overview ? (
         <View style={styles.summary}>
-          <Text style={styles.summaryTitle}>Hoje nos seus projetos</Text>
+          <Text style={styles.summaryTitle}>
+            <LocalizedCopy copyKey="legacy.90b721b716fa" />
+          </Text>
           {overview.attention ? (
             <Text style={styles.overdue}>
               {overview.attention} {overview.attention === 1 ? "precisa" : "precisam"} de atenção
@@ -214,17 +227,21 @@ export default function Projetos() {
             </Text>
           ) : null}
           {!overview.attention && !overview.approaching && !overview.actionable ? (
-            <Text style={styles.summaryText}>Tudo em dia por aqui.</Text>
+            <Text style={styles.summaryText}>
+              <LocalizedCopy copyKey="legacy.c65792093dc0" />
+            </Text>
           ) : null}
         </View>
       ) : null}
       {projects.length && tasksQuery.isError ? (
         <View style={styles.warning}>
           <Text style={styles.warningText}>
-            Não foi possível atualizar o progresso das tarefas.
+            <LocalizedCopy copyKey="legacy.fec84e911a6c" />
           </Text>
           <Pressable accessibilityRole="button" onPress={() => void tasksQuery.refetch()}>
-            <Text style={styles.continue}>Tentar novamente</Text>
+            <Text style={styles.continue}>
+              <LocalizedCopy copyKey="legacy.c8d19825d773" />
+            </Text>
           </Pressable>
         </View>
       ) : null}
@@ -256,6 +273,7 @@ export default function Projetos() {
           />
         )}
       />
+
       <NativeFormModal
         visible={open}
         title="Novo projeto"

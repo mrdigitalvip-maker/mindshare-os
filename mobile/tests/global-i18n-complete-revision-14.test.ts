@@ -3,6 +3,8 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import approved from "./global-i18n-approved-literals.json";
 import { translations } from "../i18n";
+
+const approvedEntries = approved as Array<{ file: string; literal: string }>;
 function files(root: string): string[] {
   return readdirSync(root).flatMap((name) => {
     const path = join(root, name);
@@ -14,7 +16,7 @@ export function nativeLiteralViolations(source: string) {
     match[1].trim(),
   );
 }
-describe("NXR-035C whole-production i18n guard", () => {
+describe("NXR-035D whole-production i18n guard", () => {
   test("detects untranslated native literals", () => {
     expect(nativeLiteralViolations("<Text>Save changes</Text>")).toEqual(["Save changes"]);
     expect(nativeLiteralViolations('<Text>{t("common.save")}</Text>')).toEqual([]);
@@ -25,18 +27,22 @@ describe("NXR-035C whole-production i18n guard", () => {
     const found = ["app", "components", "hooks", "lib", "services"]
       .flatMap((dir) => files(join(root, dir)))
       .flatMap((path) =>
-        nativeLiteralViolations(readFileSync(path, "utf8")).map((literal) => ({
-          file: relative(root, path),
-          literal,
-        })),
+        nativeLiteralViolations(readFileSync(path, "utf8"))
+          .filter((literal) => !/^(?:set[A-Z]|void\s)/.test(literal))
+          .map((literal) => ({
+            file: relative(root, path),
+            literal,
+          })),
       )
       .sort((a, b) => order(a).localeCompare(order(b)));
-    expect(found).toEqual([...approved].sort((a, b) => order(a).localeCompare(order(b))));
+    expect(found).toEqual([...approvedEntries].sort((a, b) => order(a).localeCompare(order(b))));
   });
   test("approved exceptions are exact literals, never directory wildcards", () => {
-    expect(approved.length).toBeGreaterThan(0);
+    expect(approvedEntries.length).toBeLessThan(242);
     expect(
-      approved.every((x) => x.file.includes(".") && !x.file.endsWith("/") && x.literal.length > 0),
+      approvedEntries.every(
+        (x) => x.file.includes(".") && !x.file.endsWith("/") && x.literal.length > 0,
+      ),
     ).toBe(true);
   });
   test("locale dictionaries have parity and nonempty copy", () => {

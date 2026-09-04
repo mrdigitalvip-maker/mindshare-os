@@ -1,3 +1,4 @@
+import { LocalizedCopy } from "@/components/localized-copy";
 import { router, useLocalSearchParams } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useRef } from "react";
@@ -35,6 +36,7 @@ export default function JourneyDetail() {
         onAction={() => void journey.refetch()}
       />
     );
+
   if (!journey.data)
     return (
       <ErrorState
@@ -44,6 +46,7 @@ export default function JourneyDetail() {
         onAction={() => router.replace("/journeys")}
       />
     );
+
   const j = journey.data,
     canonicalMission = getTodayMission(mission.data),
     current = canonicalMission?.journeyId === j.id ? canonicalMission : null,
@@ -83,13 +86,19 @@ export default function JourneyDetail() {
         ) : null}
       </Block>
       {j.sourcePackId && program.isPending ? (
-        <Text style={s.muted}>Carregando plano do programa…</Text>
+        <Text style={s.muted}>
+          <LocalizedCopy copyKey="legacy.b4f14f8e6792" />
+        </Text>
       ) : null}
       {j.sourcePackId && program.isError ? (
         <View style={s.inlineError}>
-          <Text style={s.error}>Não foi possível carregar o plano do programa.</Text>
+          <Text style={s.error}>
+            <LocalizedCopy copyKey="legacy.0bdf7e9480f9" />
+          </Text>
           <Pressable onPress={() => void program.refetch()}>
-            <Text style={s.link}>Tentar novamente</Text>
+            <Text style={s.link}>
+              <LocalizedCopy copyKey="legacy.7ea3be0c8700" />
+            </Text>
           </Pressable>
         </View>
       ) : null}
@@ -120,11 +129,15 @@ export default function JourneyDetail() {
               disabled={mutations.completeMission.isPending}
               onPress={() => void completeMission()}
             >
-              <Text style={s.link}>Confirmar ação concluída</Text>
+              <Text style={s.link}>
+                <LocalizedCopy copyKey="legacy.a0e3fcd3a50c" />
+              </Text>
             </Pressable>
           ) : null}
           <Pressable style={s.outlineButton} onPress={() => openAssistant(j, undefined, current)}>
-            <Text style={s.outlineText}>Planejar com a NEXORA</Text>
+            <Text style={s.outlineText}>
+              <LocalizedCopy copyKey="legacy.48aa87243cf9" />
+            </Text>
           </Pressable>
         </Block>
       ) : null}
@@ -149,14 +162,18 @@ export default function JourneyDetail() {
           disabled={mutations.status.isPending}
           onPress={() => mutations.status.mutate({ id: j.id, status: "paused" })}
         >
-          <Text style={s.link}>Pausar Jornada</Text>
+          <Text style={s.link}>
+            <LocalizedCopy copyKey="legacy.abb9f99db538" />
+          </Text>
         </Pressable>
       ) : j.status === "paused" ? (
         <Pressable
           disabled={mutations.status.isPending}
           onPress={() => mutations.status.mutate({ id: j.id, status: "active" })}
         >
-          <Text style={s.link}>Ativar Jornada</Text>
+          <Text style={s.link}>
+            <LocalizedCopy copyKey="legacy.2726f5323e6f" />
+          </Text>
         </Pressable>
       ) : null}
       {(!isProgram || program.data?.completedSteps === program.data?.totalSteps) &&
@@ -166,7 +183,9 @@ export default function JourneyDetail() {
           disabled={mutations.status.isPending}
           onPress={() => mutations.status.mutate({ id: j.id, status: "completed" })}
         >
-          <Text style={s.link}>Concluir Jornada</Text>
+          <Text style={s.link}>
+            <LocalizedCopy copyKey="legacy.9942daf5399c" />
+          </Text>
         </Pressable>
       ) : null}
       {mutations.status.error ? (
@@ -212,11 +231,17 @@ function ProgramWorkspace({
         <View style={s.track}>
           <View style={[s.fill, { width: `${percent}%` }]} />
         </View>
-        {done ? <Text style={s.body}>Você concluiu todas as etapas deste programa.</Text> : null}
+        {done ? (
+          <Text style={s.body}>
+            <LocalizedCopy copyKey="legacy.95b16bf77caa" />
+          </Text>
+        ) : null}
       </View>
       {program.currentStep ? (
         <View style={s.currentCard}>
-          <Text style={s.eyebrow}>AGORA</Text>
+          <Text style={s.eyebrow}>
+            <LocalizedCopy copyKey="legacy.43cd65d5ef9a" />
+          </Text>
           <Text style={s.phase}>
             ETAPA {program.currentStep.sequence} · {program.currentStep.phase.toUpperCase()}
           </Text>
@@ -224,7 +249,9 @@ function ProgramWorkspace({
           <Text style={s.body}>{program.currentStep.description}</Text>
           {hasMission ? (
             <>
-              <Text style={s.mission}>MISSÃO DE HOJE</Text>
+              <Text style={s.mission}>
+                <LocalizedCopy copyKey="legacy.4f204e859086" />
+              </Text>
               <Pressable style={s.button} disabled={pending} onPress={onComplete}>
                 <Text style={s.buttonText}>
                   {pending ? "Confirmando…" : "Confirmar etapa concluída"}
@@ -232,10 +259,14 @@ function ProgramWorkspace({
               </Pressable>
             </>
           ) : (
-            <Text style={s.muted}>Esta é a próxima etapa do seu programa.</Text>
+            <Text style={s.muted}>
+              <LocalizedCopy copyKey="legacy.78eb480b96e2" />
+            </Text>
           )}
           <Pressable style={s.outlineButton} onPress={onPlan}>
-            <Text style={s.outlineText}>Planejar com a NEXORA</Text>
+            <Text style={s.outlineText}>
+              <LocalizedCopy copyKey="legacy.48aa87243cf9" />
+            </Text>
           </Pressable>
         </View>
       ) : null}

@@ -1,3 +1,4 @@
+import { LocalizedCopy } from "@/components/localized-copy";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, AppState, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { router, Stack, useLocalSearchParams } from "expo-router";
@@ -47,6 +48,7 @@ export default function StudySession() {
         onAction={() => router.back()}
       />
     );
+
   const display = `${String(Math.floor(elapsed / 60)).padStart(2, "0")}:${String(elapsed % 60).padStart(2, "0")}`;
   async function start() {
     if (startRef.current) return;
@@ -95,7 +97,9 @@ export default function StudySession() {
       <Text style={styles.eyebrow}>{query.data.subject.name.toUpperCase()}</Text>
       {!active ? (
         <>
-          <Text style={styles.title}>Começar sessão</Text>
+          <Text style={styles.title}>
+            <LocalizedCopy copyKey="legacy.4cbb7da86894" />
+          </Text>
           <TextInput
             style={styles.input}
             placeholder="O que você vai estudar?"
@@ -103,6 +107,7 @@ export default function StudySession() {
             value={activity}
             onChangeText={setActivity}
           />
+
           <TextInput
             style={styles.input}
             keyboardType="number-pad"
@@ -111,6 +116,7 @@ export default function StudySession() {
             value={planned}
             onChangeText={setPlanned}
           />
+
           <Pressable
             disabled={study.isPending || !activity.trim()}
             style={styles.primary}
@@ -123,22 +129,31 @@ export default function StudySession() {
         </>
       ) : (
         <>
-          <Text style={styles.status}>SESSÃO EM ANDAMENTO</Text>
+          <Text style={styles.status}>
+            <LocalizedCopy copyKey="legacy.cc5d0fd07844" />
+          </Text>
           <Text style={styles.timer}>{display}</Text>
-          <Text style={styles.copy}>Estudando</Text>
+          <Text style={styles.copy}>
+            <LocalizedCopy copyKey="legacy.91241634440e" />
+          </Text>
           <TextInput
             editable={!finishing}
             style={styles.activity}
             value={activity}
             onChangeText={setActivity}
           />
+
           {!finishing ? (
             <Pressable style={styles.end} onPress={() => setFinishing(true)}>
-              <Text style={styles.primaryText}>Encerrar sessão</Text>
+              <Text style={styles.primaryText}>
+                <LocalizedCopy copyKey="legacy.8b450795021a" />
+              </Text>
             </Pressable>
           ) : (
             <View style={styles.reflection}>
-              <Text style={styles.heading}>Como foi?</Text>
+              <Text style={styles.heading}>
+                <LocalizedCopy copyKey="legacy.8835b7137d57" />
+              </Text>
               {(
                 [
                   ["understood", "Entendi bem"],

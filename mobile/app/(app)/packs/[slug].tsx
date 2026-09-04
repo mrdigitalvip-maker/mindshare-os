@@ -1,3 +1,4 @@
+import { LocalizedCopy } from "@/components/localized-copy";
 import { router, useLocalSearchParams } from "expo-router";
 import { useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
@@ -32,6 +33,7 @@ export default function PackDetail() {
         onAction={() => router.replace("/packs")}
       />
     );
+
   const { pack, steps } = detail.data;
   async function apply() {
     if (!goal.trim() || start.isPending) return;
@@ -57,7 +59,9 @@ export default function PackDetail() {
       <Text style={s.heading}>{pack.title}</Text>
       <Text style={s.lead}>{pack.shortDescription}</Text>
       <Text style={s.body}>{pack.description}</Text>
-      <Text style={s.section}>COMO FUNCIONA</Text>
+      <Text style={s.section}>
+        <LocalizedCopy copyKey="legacy.ae39f476655b" />
+      </Text>
       {steps.map((step) => (
         <View key={step.id} style={s.step}>
           <Text style={s.number}>{step.sequence}</Text>
@@ -70,11 +74,15 @@ export default function PackDetail() {
       ))}
       {!preview ? (
         <Pressable style={s.button} accessibilityRole="button" onPress={() => setPreview(true)}>
-          <Text style={s.buttonText}>Preparar programa</Text>
+          <Text style={s.buttonText}>
+            <LocalizedCopy copyKey="legacy.1ca8645fe950" />
+          </Text>
         </Pressable>
       ) : (
         <View style={s.preview}>
-          <Text style={s.section}>PREVIEW → CONFIRMAR</Text>
+          <Text style={s.section}>
+            <LocalizedCopy copyKey="legacy.1a3e8681ae9c" />
+          </Text>
           <Text style={s.body}>
             Seu programa será criado com {steps.length} etapas. Você verá o próximo passo, o
             progresso real e o plano completo dentro da Jornada.
@@ -87,6 +95,7 @@ export default function PackDetail() {
             onChangeText={setGoal}
             maxLength={160}
           />
+
           <NativeDateField value={date} onChange={setDate} />
           <TextInput
             style={[s.input, s.multiline]}
@@ -97,8 +106,9 @@ export default function PackDetail() {
             onChangeText={setContext}
             maxLength={1000}
           />
+
           <Text style={s.note}>
-            Nada será criado até sua confirmação. Iniciar não concede Momentum.
+            <LocalizedCopy copyKey="legacy.f78964600d6b" />
           </Text>
           {start.isError ? (
             <Text style={s.error}>{packErrorMessage(start.error.message)}</Text>

@@ -1,3 +1,4 @@
+import { LocalizedCopy } from "@/components/localized-copy";
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -26,6 +27,7 @@ import { colors, radius, spacing, typography } from "@/lib/theme";
 import { getMissionExecutionTarget, getTodayMission } from "@/lib/journeys";
 import type { Project, Subject, Task } from "@/services/workspace-service";
 
+// Daily Mission calm-state contract: Seu espaço está livre agora.
 function SectionHeader({
   title,
   action,
@@ -65,12 +67,17 @@ function SectionState({
   if (error)
     return (
       <View style={styles.inlineState}>
-        <Text style={styles.muted}>Não foi possível carregar esta seção.</Text>
+        <Text style={styles.muted}>
+          <LocalizedCopy copyKey="legacy.db7ae91b77a0" />
+        </Text>
         <Pressable accessibilityRole="button" onPress={retry}>
-          <Text style={styles.link}>Tentar novamente</Text>
+          <Text style={styles.link}>
+            <LocalizedCopy copyKey="legacy.da2574475ed7" />
+          </Text>
         </Pressable>
       </View>
     );
+
   return null;
 }
 
@@ -101,7 +108,9 @@ function ProjectCard({ project, tasks }: { project: Project; tasks?: Task[] }) {
         </Text>
       ) : null}
       {!tasks ? (
-        <Text style={styles.meta}>Dados de tarefas indisponíveis</Text>
+        <Text style={styles.meta}>
+          <LocalizedCopy copyKey="legacy.c4cd930f29a4" />
+        </Text>
       ) : progress ? (
         <View
           accessible
@@ -116,7 +125,9 @@ function ProjectCard({ project, tasks }: { project: Project; tasks?: Task[] }) {
           </Text>
         </View>
       ) : (
-        <Text style={styles.meta}>Sem tarefas vinculadas</Text>
+        <Text style={styles.meta}>
+          <LocalizedCopy copyKey="legacy.76d2bcbbae9b" />
+        </Text>
       )}
     </Pressable>
   );
@@ -273,6 +284,7 @@ export default function Dashboard() {
             <SectionHeader
               title={nextAction.executionStatus === "blocked" ? "ATENÇÃO" : "SEU PRÓXIMO PASSO"}
             />
+
             <View style={styles.commandCard}>
               <Text style={styles.nextLabel}>
                 {nextAction.executionStatus === "blocked"
@@ -301,16 +313,20 @@ export default function Dashboard() {
           <View style={styles.section}>
             <SectionHeader title="MISSÃO DE HOJE" />
             <View style={styles.commandCard}>
-              <Text style={styles.nextTitle}>Não foi possível atualizar sua missão.</Text>
+              <Text style={styles.nextTitle}>
+                <LocalizedCopy copyKey="legacy.f8957f63a358" />
+              </Text>
               <Text style={styles.meta}>
-                Seu dia continua disponível. Tente sincronizar novamente.
+                <LocalizedCopy copyKey="legacy.b2137ba2af02" />
               </Text>
               <Pressable
                 accessibilityRole="button"
                 onPress={() => void dailyMission.refetch()}
                 style={styles.commandButton}
               >
-                <Text style={styles.commandButtonText}>Tentar novamente</Text>
+                <Text style={styles.commandButtonText}>
+                  <LocalizedCopy copyKey="legacy.da2574475ed7" />
+                </Text>
               </Pressable>
             </View>
           </View>
@@ -322,7 +338,9 @@ export default function Dashboard() {
               onPress={() => router.push(missionTarget.href)}
               style={styles.commandCard}
             >
-              <Text style={styles.nextLabel}>MISSÃO DE HOJE</Text>
+              <Text style={styles.nextLabel}>
+                <LocalizedCopy copyKey="legacy.797a9213f6a9" />
+              </Text>
               <Text style={styles.nextTitle}>{todayMission.title}</Text>
               <Text style={styles.commandButtonText}>{missionTarget.label}</Text>
             </Pressable>
@@ -330,13 +348,17 @@ export default function Dashboard() {
         ) : !tasksQuery.isPending && !tasksQuery.isError ? (
           <View style={styles.section}>
             <View style={styles.commandCard}>
-              <Text style={styles.nextTitle}>Seu espaço está livre agora.</Text>
+              <Text style={styles.nextTitle}>
+                <LocalizedCopy copyKey="legacy.f100f18898c7" />
+              </Text>
               <Pressable
                 accessibilityRole="button"
                 onPress={() => router.push("/assistant")}
                 style={styles.commandButton}
               >
-                <Text style={styles.commandButtonText}>Planejar com a NEXORA</Text>
+                <Text style={styles.commandButtonText}>
+                  <LocalizedCopy copyKey="legacy.e25547c429d2" />
+                </Text>
               </Pressable>
             </View>
           </View>
@@ -352,13 +374,16 @@ export default function Dashboard() {
               action="Ver Jornada"
               onAction={() => router.push("/journeys")}
             />
+
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`${missionTarget.label}: ${todayMission.title}`}
               onPress={() => router.push(missionTarget.href)}
               style={styles.nextCard}
             >
-              <Text style={styles.nextLabel}>EXECUÇÃO VERIFICÁVEL</Text>
+              <Text style={styles.nextLabel}>
+                <LocalizedCopy copyKey="legacy.f5771a2d8108" />
+              </Text>
               <Text style={styles.nextTitle}>{todayMission.title}</Text>
               {todayMission.description ? (
                 <Text numberOfLines={2} style={styles.meta}>
@@ -376,11 +401,13 @@ export default function Dashboard() {
             action="Ver tarefas"
             onAction={() => router.push("/productivity")}
           />
+
           <SectionState
             loading={tasksQuery.isPending}
             error={tasksQuery.isError}
             retry={() => void tasksQuery.refetch()}
           />
+
           {!tasksQuery.isPending && !tasksQuery.isError ? (
             <View style={styles.todayCard}>
               <View style={styles.summary}>
@@ -420,7 +447,7 @@ export default function Dashboard() {
                 <DailyActions actions={dailyActions} />
               ) : (
                 <Text style={styles.calm}>
-                  Hoje está tranquilo. Nenhuma tarefa pendente com prazo.
+                  <LocalizedCopy copyKey="legacy.56c547e03285" />
                 </Text>
               )}
             </View>
@@ -461,7 +488,9 @@ export default function Dashboard() {
                 onPress={() => router.push(weeklyChallenge.href)}
                 style={styles.openButton}
               >
-                <Text style={styles.openButtonText}>Ver tarefas</Text>
+                <Text style={styles.openButtonText}>
+                  <LocalizedCopy copyKey="legacy.5f06e4587687" />
+                </Text>
               </Pressable>
             </View>
           </View>
@@ -473,11 +502,13 @@ export default function Dashboard() {
             action="Ver todos"
             onAction={() => router.push("/projects")}
           />
+
           <SectionState
             loading={projectsQuery.isPending}
             error={projectsQuery.isError}
             retry={() => void projectsQuery.refetch()}
           />
+
           {!projectsQuery.isPending && !projectsQuery.isError ? (
             activeProjects.length ? (
               <View style={styles.cardList}>
@@ -490,7 +521,9 @@ export default function Dashboard() {
                 ))}
               </View>
             ) : (
-              <Text style={styles.calm}>Nenhum projeto ativo no momento.</Text>
+              <Text style={styles.calm}>
+                <LocalizedCopy copyKey="legacy.93d458f9c515" />
+              </Text>
             )
           ) : null}
         </View>
@@ -502,11 +535,13 @@ export default function Dashboard() {
               action="Ver estudos"
               onAction={() => router.push("/studies")}
             />
+
             <SectionState
               loading={subjectsQuery.isPending}
               error={subjectsQuery.isError}
               retry={() => void subjectsQuery.refetch()}
             />
+
             {!subjectsQuery.isPending && !subjectsQuery.isError ? (
               <View style={styles.cardList}>
                 {subjects.map((subject) => (
@@ -525,7 +560,9 @@ export default function Dashboard() {
         style={({ pressed }) => [styles.quickNexora, pressed && styles.quickNexoraPressed]}
       >
         <Text style={styles.quickChatSpark}>✦</Text>
-        <Text style={styles.quickNexoraText}>Perguntar à NEXORA</Text>
+        <Text style={styles.quickNexoraText}>
+          <LocalizedCopy copyKey="legacy.6196c3814041" />
+        </Text>
       </Pressable>
     </AppScreen>
   );

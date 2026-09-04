@@ -1,3 +1,4 @@
+import { LocalizedCopy } from "@/components/localized-copy";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
@@ -64,10 +65,16 @@ function UnavailableChannel() {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.center}>
-        <Text style={styles.title}>NEXORA Community</Text>
-        <Text style={styles.muted}>Esta conversa não está disponível.</Text>
+        <Text style={styles.title}>
+          <LocalizedCopy copyKey="legacy.c252ba7e4fda" />
+        </Text>
+        <Text style={styles.muted}>
+          <LocalizedCopy copyKey="legacy.eecff4eaea70" />
+        </Text>
         <Pressable accessibilityRole="button" onPress={() => router.replace("/community")}>
-          <Text style={styles.link}>Voltar para Community</Text>
+          <Text style={styles.link}>
+            <LocalizedCopy copyKey="legacy.1e518b1661ea" />
+          </Text>
         </Pressable>
       </View>
     </SafeAreaView>
@@ -154,15 +161,20 @@ function CommunityConversationContent({ channelId }: { channelId: string }) {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.center}>
-          <Text style={styles.muted}>Abrindo a Community…</Text>
+          <Text style={styles.muted}>
+            <LocalizedCopy copyKey="legacy.5b3b39f07dde" />
+          </Text>
         </View>
       </SafeAreaView>
     );
+
   if ((channels.isError && !channels.data) || !channel || !membershipActive)
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.center}>
-          <Text style={styles.title}>NEXORA Community</Text>
+          <Text style={styles.title}>
+            <LocalizedCopy copyKey="legacy.c252ba7e4fda" />
+          </Text>
           <Text style={styles.muted}>
             {channels.isError
               ? "Não foi possível confirmar sua participação."
@@ -170,15 +182,20 @@ function CommunityConversationContent({ channelId }: { channelId: string }) {
           </Text>
           {channels.isError ? (
             <Pressable onPress={() => channels.refetch()}>
-              <Text style={styles.link}>Tentar novamente</Text>
+              <Text style={styles.link}>
+                <LocalizedCopy copyKey="legacy.3fbeabd232d3" />
+              </Text>
             </Pressable>
           ) : null}
           <Pressable onPress={() => router.back()}>
-            <Text style={styles.link}>Voltar</Text>
+            <Text style={styles.link}>
+              <LocalizedCopy copyKey="legacy.c1b2f0e4d9e5" />
+            </Text>
           </Pressable>
         </View>
       </SafeAreaView>
     );
+
   return (
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
       <View style={styles.header}>
@@ -186,7 +203,9 @@ function CommunityConversationContent({ channelId }: { channelId: string }) {
           <Text style={styles.back}>‹</Text>
         </Pressable>
         <View style={styles.headerText}>
-          <Text style={styles.title}>NEXORA Community</Text>
+          <Text style={styles.title}>
+            <LocalizedCopy copyKey="legacy.c252ba7e4fda" />
+          </Text>
           <Text style={[styles.live, messages.realtimeStatus !== "connected" && styles.offline]}>
             {messages.realtimeStatus === "connected"
               ? "Tempo real ativo"
@@ -203,7 +222,9 @@ function CommunityConversationContent({ channelId }: { channelId: string }) {
             )
           }
         >
-          <Text style={styles.rules}>Regras</Text>
+          <Text style={styles.rules}>
+            <LocalizedCopy copyKey="legacy.031db22b7075" />
+          </Text>
         </Pressable>
       </View>
       <KeyboardAvoidingView
@@ -231,15 +252,19 @@ function CommunityConversationContent({ channelId }: { channelId: string }) {
         {messages.isError && messages.data ? (
           <Pressable style={styles.failure} onPress={() => void messages.refetch()}>
             <Text style={styles.failureText}>
-              Não foi possível atualizar a conversa. Toque para tentar novamente.
+              <LocalizedCopy copyKey="legacy.9027acc44a84" />
             </Text>
           </Pressable>
         ) : null}
         {messages.isError && !messages.data ? (
           <View style={styles.center}>
-            <Text style={styles.muted}>Não foi possível carregar a conversa.</Text>
+            <Text style={styles.muted}>
+              <LocalizedCopy copyKey="legacy.b5db4985feb0" />
+            </Text>
             <Pressable onPress={() => messages.refetch()}>
-              <Text style={styles.link}>Tentar novamente</Text>
+              <Text style={styles.link}>
+                <LocalizedCopy copyKey="legacy.3fbeabd232d3" />
+              </Text>
             </Pressable>
           </View>
         ) : (
@@ -286,7 +311,9 @@ function CommunityConversationContent({ channelId }: { channelId: string }) {
               scrollLatest();
             }}
           >
-            <Text style={styles.newText}>Novas mensagens ↓</Text>
+            <Text style={styles.newText}>
+              <LocalizedCopy copyKey="legacy.b1936968eb9a" />
+            </Text>
           </Pressable>
         ) : null}
         {failed ? (
@@ -308,7 +335,9 @@ function CommunityConversationContent({ channelId }: { channelId: string }) {
               </Text>
             </View>
             <Pressable accessibilityLabel="Cancelar resposta" onPress={() => setReply(null)}>
-              <Text style={styles.close}>×</Text>
+              <Text style={styles.close}>
+                <LocalizedCopy copyKey="legacy.50039ac388eb" />
+              </Text>
             </Pressable>
           </View>
         ) : null}
@@ -328,6 +357,7 @@ function CommunityConversationContent({ channelId }: { channelId: string }) {
             cursorColor={colors.primaryBright}
             style={styles.input}
           />
+
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Enviar mensagem"
@@ -335,7 +365,9 @@ function CommunityConversationContent({ channelId }: { channelId: string }) {
             onPress={() => send()}
             style={[styles.send, (!body.trim() || sendInFlight) && styles.disabled]}
           >
-            <Text style={styles.sendText}>Enviar</Text>
+            <Text style={styles.sendText}>
+              <LocalizedCopy copyKey="legacy.1916bf3f31e3" />
+            </Text>
           </Pressable>
         </View>
       </KeyboardAvoidingView>
@@ -412,7 +444,11 @@ function MessageRow({
           <Text style={[styles.sender, host && styles.hostText]}>
             {host ? "NEXORA Host" : message.displayName}
           </Text>
-          {host ? <Text style={styles.badge}>AUTOMÁTICO</Text> : null}
+          {host ? (
+            <Text style={styles.badge}>
+              <LocalizedCopy copyKey="legacy.5f89039a541b" />
+            </Text>
+          ) : null}
         </View>
         {message.replyToId ? (
           <View style={styles.quote}>

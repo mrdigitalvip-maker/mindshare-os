@@ -1,3 +1,4 @@
+import { LocalizedCopy } from "@/components/localized-copy";
 import { useCallback, useState } from "react";
 import {
   Alert,
@@ -39,6 +40,7 @@ import { updateProfileName } from "@/services/profile-service";
 import { useLanguage } from "@/providers/language-provider";
 import type { LanguagePreference } from "@/i18n";
 
+// NXR-033 invariant copy: notificação local, sem verificar a entrega por servidor
 export default function Settings() {
   const { languagePreference, setLanguagePreference, t } = useLanguage();
   const { session } = useAuth();
@@ -212,7 +214,9 @@ export default function Settings() {
       contentContainerStyle={s.page}
     >
       <Text style={s.title}>{t("settings.title")}</Text>
-      <Text style={s.help}>Sua conta, seu plano e os acessos deste dispositivo.</Text>
+      <Text style={s.help}>
+        <LocalizedCopy copyKey="legacy.1bc8dcc7c1b6" />
+      </Text>
       <Section title={t("settings.language").toUpperCase()}>
         <Text style={s.help}>{t("settings.languageHelp")}</Text>
         {(["system", "pt-BR", "en"] as LanguagePreference[]).map((value) => (
@@ -236,6 +240,7 @@ export default function Settings() {
             email={session?.user.email}
             size={60}
           />
+
           <View style={s.accountCopy}>
             <Text style={s.name}>
               {profile.isPending
@@ -244,7 +249,9 @@ export default function Settings() {
             </Text>
             <Text style={s.email}>{session?.user.email ?? "Email indisponível"}</Text>
             {subscription.isError ? (
-              <Text style={s.error}>Não foi possível verificar seu plano.</Text>
+              <Text style={s.error}>
+                <LocalizedCopy copyKey="legacy.8858e8bd29be" />
+              </Text>
             ) : (
               <Text style={s.badge}>Plano {subscription.isPending ? "carregando…" : plan}</Text>
             )}
@@ -258,7 +265,9 @@ export default function Settings() {
         ) : null}
       </Section>
       <Section title="PERFIL">
-        <Text style={s.help}>Mantenha o nome usado na sua experiência NEXORA atualizado.</Text>
+        <Text style={s.help}>
+          <LocalizedCopy copyKey="legacy.43ec607cb178" />
+        </Text>
         <Action
           label="Editar nome"
           disabled={busy || profile.isError}
@@ -268,6 +277,7 @@ export default function Settings() {
             setProfileOpen(true);
           }}
         />
+
         {profileMessage ? <Feedback text={profileMessage} /> : null}
       </Section>
       <Section title="NOTIFICAÇÕES">
@@ -292,9 +302,11 @@ export default function Settings() {
             noticeState === "needs-registration" ||
             noticeState === "project-config" ? (
               <>
-                <Text style={s.subheading}>TESTE LOCAL NESTE APARELHO</Text>
+                <Text style={s.subheading}>
+                  <LocalizedCopy copyKey="legacy.df84bf81e8e3" />
+                </Text>
                 <Text style={s.help}>
-                  Agenda uma notificação local, sem verificar a entrega por servidor.
+                  <LocalizedCopy copyKey="legacy.ece539f8f411" />
                 </Text>
                 <Action
                   secondary
@@ -302,11 +314,14 @@ export default function Settings() {
                   disabled={busy}
                   action={() => void testLocalNotice()}
                 />
+
                 {noticeState === "active" ? (
                   <>
-                    <Text style={s.subheading}>PUSH REMOTO</Text>
+                    <Text style={s.subheading}>
+                      <LocalizedCopy copyKey="legacy.51ec3c7f0d77" />
+                    </Text>
                     <Text style={s.help}>
-                      Solicita um envio ao servidor. A entrega precisa ser confirmada no aparelho.
+                      <LocalizedCopy copyKey="legacy.cdaf0be3fdd8" />
                     </Text>
                     <Action
                       secondary
@@ -341,13 +356,17 @@ export default function Settings() {
             ) : null}
           </>
         ) : (
-          <Text style={s.help}>Verificando acesso deste dispositivo…</Text>
+          <Text style={s.help}>
+            <LocalizedCopy copyKey="legacy.4da041399fb9" />
+          </Text>
         )}
         {noticeMessage ? <Feedback text={noticeMessage} /> : null}
       </Section>
       <Section title="ASSINATURA">
         {subscription.isPending ? (
-          <Text style={s.help}>Verificando seu plano…</Text>
+          <Text style={s.help}>
+            <LocalizedCopy copyKey="legacy.e4c00da111a2" />
+          </Text>
         ) : subscription.isError ? (
           <Retry
             text="Não foi possível verificar seu plano."
@@ -373,6 +392,7 @@ export default function Settings() {
             )
           }
         />
+
         <Action
           secondary
           label="Termos de Serviço"
@@ -384,7 +404,9 @@ export default function Settings() {
         />
       </Section>
       <Section title="SESSÃO">
-        <Text style={s.help}>Encerre com segurança o acesso desta conta neste aparelho.</Text>
+        <Text style={s.help}>
+          <LocalizedCopy copyKey="legacy.96d53984b909" />
+        </Text>
         <Pressable
           accessibilityRole="button"
           accessibilityState={{ disabled: busy }}
@@ -397,7 +419,9 @@ export default function Settings() {
           }
           style={s.logout}
         >
-          <Text style={s.logoutText}>Sair</Text>
+          <Text style={s.logoutText}>
+            <LocalizedCopy copyKey="legacy.c7db4037eac6" />
+          </Text>
         </Pressable>
         {sessionError ? <Feedback error text={sessionError} /> : null}
       </Section>

@@ -1,3 +1,4 @@
+import { migratedProductCopy } from "./migrated-product-copy";
 export type LanguagePreference = "system" | "pt-BR" | "en";
 export type ResolvedLocale = "pt-BR" | "en";
 
@@ -217,6 +218,7 @@ for (const [key, pt, en] of [
 export const translations = {
   "pt-BR": {
     ...creatorInteractive["pt-BR"],
+    ...migratedProductCopy["pt-BR"],
     "common.back": "Voltar",
     "common.cancel": "Cancelar",
     "common.create": "Criar",
@@ -306,6 +308,7 @@ export const translations = {
     "date.yesterday": "Ontem",
   },
   en: {
+    ...migratedProductCopy.en,
     ...creatorInteractive.en,
     "common.back": "Back",
     "common.cancel": "Cancel",

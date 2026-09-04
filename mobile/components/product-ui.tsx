@@ -1,3 +1,4 @@
+import { LocalizedCopy } from "@/components/localized-copy";
 import { router, type Href } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -30,7 +31,7 @@ export function AppHeader({ onMenu }: { onMenu(): void }) {
       >
         <Text style={styles.gold}>✦</Text>
         <Text numberOfLines={1} ellipsizeMode="tail" style={styles.searchText}>
-          Pergunte à NEXORA
+          <LocalizedCopy copyKey="legacy.a5c82db78d67" />
         </Text>
       </Pressable>
       <Pressable
