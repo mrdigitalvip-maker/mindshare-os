@@ -31,7 +31,7 @@ describe("Revision 13 — acabamento global nativo", () => {
     expect(more).toContain('title="EXECUÇÃO"');
     expect(more).toContain('title="CONTA & NEXORA"');
     expect([...more.matchAll(/href="([^"]+)"/g)].map((match) => match[1])).toEqual([
-      "/arena", "/journeys", "/studies", "/community", "/premium", "/settings",
+      "/arena", "/journeys", "/studies", "/creator", "/community", "/premium", "/settings",
     ]);
   });
   test("superfícies sociais e de progresso não fabricam atividade competitiva", () => {
