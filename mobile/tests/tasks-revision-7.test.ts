@@ -9,6 +9,7 @@ import {
   getTasksForQueue,
 } from "../lib/task-selectors";
 import type { Task } from "../services/workspace-service";
+import { translations } from "../i18n";
 
 const service = readFileSync("services/workspace-service.ts", "utf8");
 const hooks = readFileSync("hooks/use-workspaces.ts", "utf8");
@@ -41,9 +42,17 @@ test("detail uses an owner-scoped canonical single-task read", () => {
 
 test("project failures remain auxiliary in list and detail", () => {
   assert.match(list, /if \(tasksQuery\.isError\)/);
-  assert.match(list, /Não foi possível atualizar os projetos vinculados/);
+  assert.match(list, /copyKey="legacy\.8bd8841f505d"/);
+  assert.equal(
+    (translations.en as Record<string, string>)["legacy.8bd8841f505d"],
+    "We couldn't update the linked projects. Try again",
+  );
   assert.match(detail, /projectQuery\.isError/);
-  assert.match(detail, /Não foi possível carregar o projeto vinculado/);
+  assert.match(detail, /copyKey="legacy\.a939940cd1a7"/);
+  assert.equal(
+    (translations.en as Record<string, string>)["legacy.a939940cd1a7"],
+    "We couldn't load the linked project.",
+  );
   assert.match(detail, /task\.projectId == null[\s\S]*?"Sem projeto"/);
   assert.match(detail, /projectQuery\.isPending[\s\S]*?"Projeto vinculado…"/);
   assert.match(detail, /"Projeto vinculado indisponível"/);

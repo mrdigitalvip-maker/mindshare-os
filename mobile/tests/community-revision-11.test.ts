@@ -10,6 +10,7 @@ import {
 } from "../lib/community-ui";
 import { reconcileCommunityMessages } from "../lib/community-message";
 import type { CommunityMessage } from "../lib/community";
+import { translations } from "../i18n";
 
 const source = (path: string) =>
   readFileSync(fileURLToPath(new URL(path, import.meta.url)), "utf8");
@@ -38,11 +39,19 @@ const msg = (id: string, overrides: Partial<CommunityMessage> = {}): CommunityMe
 describe("Community revision 11 — persisted social truth", () => {
   test("home sections are isolated and follow the execution hierarchy", () => {
     expect(home).toContain("channels.isError");
-    expect(home.indexOf("Comunidades oficiais")).toBeLessThan(
-      home.indexOf("Seu perfil na Community"),
+    expect(home.indexOf('copyKey="legacy.a2c509954b40"')).toBeLessThan(
+      home.indexOf('copyKey="legacy.21d9191b0740"'),
     );
-    expect(home.indexOf("Atividade verificada")).toBeLessThan(home.indexOf("Seus Squads"));
-    expect(home).toContain("Nenhuma atividade verificada compartilhada ainda.");
+    expect(home.indexOf('copyKey="legacy.27018f233ea5"')).toBeLessThan(
+      home.indexOf('copyKey="legacy.b8512a2d9d1c"'),
+    );
+    expect(home).toContain('copyKey="legacy.bccd0f29e3f9"');
+    expect((translations["pt-BR"] as Record<string, string>)["legacy.bccd0f29e3f9"]).toBe(
+      "Nenhuma atividade verificada compartilhada ainda.",
+    );
+    expect((translations.en as Record<string, string>)["legacy.bccd0f29e3f9"]).toBe(
+      "No verified activity has been shared yet.",
+    );
     expect(home).not.toMatch(/pessoas online|membros ativos|ranking/i);
   });
   test("official channels expose only canonical eligibility and latest body", () => {
@@ -81,7 +90,11 @@ describe("Community revision 11 — persisted social truth", () => {
       messageActions(msg("host", { actorType: "system", senderPublicId: null })).canBlock,
     ).toBe(false);
     expect(messageActions(msg("real")).canBlock).toBe(true);
-    expect(chat).toContain("AUTOMÁTICO");
+    expect(chat).toContain('copyKey="legacy.5f89039a541b"');
+    expect((translations["pt-BR"] as Record<string, string>)["legacy.5f89039a541b"]).toBe(
+      "AUTOMÁTICO",
+    );
+    expect((translations.en as Record<string, string>)["legacy.5f89039a541b"]).toBe("AUTOMATIC");
     expect(chat).toContain("reporting.current.has(selected.id)");
   });
   test("clipboard path is safe when native support is missing or throws", async () => {

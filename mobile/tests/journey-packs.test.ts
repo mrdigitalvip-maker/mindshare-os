@@ -41,12 +41,12 @@ describe("Journey Packs backend contract", () => {
 });
 describe("Journey Packs mobile contract", () => {
   test("catalog is truthful and has no fake social proof", () => {
-    expect(catalog).toContain("Nenhum programa disponível agora");
+    expect(catalog).toContain('copyKey="legacy.9ed8665593e5"');
     for (const fake of ["rating", "review", "membros", "popularidade", "success rate"])
       expect(catalog.toLowerCase()).not.toContain(fake);
   });
   test("detail previews, explicitly applies, and blocks duplicate taps", () => {
-    expect(detail).toContain("PREVIEW → CONFIRMAR");
+    expect(detail).toContain('copyKey="legacy.1a3e8681ae9c"');
     expect(detail).toContain("start.isPending");
     expect(detail).toContain("requestKey: key.current");
     expect(detail).toContain("router.replace(`/journeys/${id}`)");

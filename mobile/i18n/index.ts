@@ -306,6 +306,7 @@ export const translations = {
     "notification.progress": "Hora de avançar em “{title}”.",
     "date.today": "Hoje",
     "date.yesterday": "Ontem",
+    "date.tomorrow": "Amanhã",
   },
   en: {
     ...migratedProductCopy.en,
@@ -396,6 +397,7 @@ export const translations = {
     "notification.progress": "Time to make progress on “{title}”.",
     "date.today": "Today",
     "date.yesterday": "Yesterday",
+    "date.tomorrow": "Tomorrow",
   },
 } as const;
 
@@ -418,6 +420,7 @@ export function formatDateLabel(value: Date, locale: ResolvedLocale, now = new D
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
   if (day === today) return translate(locale, "date.today");
   if (day === today - 86_400_000) return translate(locale, "date.yesterday");
+  if (day === today + 86_400_000) return translate(locale, "date.tomorrow");
   return new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric" }).format(
     value,
   );

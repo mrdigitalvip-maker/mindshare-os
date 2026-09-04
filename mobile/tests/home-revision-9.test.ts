@@ -8,6 +8,7 @@ import {
   shouldShowSecondaryMission,
 } from "../lib/dashboard-selectors";
 import type { Project, Task } from "../services/workspace-service";
+import { translations } from "../i18n";
 
 const dashboard = readFileSync("app/(app)/(tabs)/dashboard.tsx", "utf8");
 const assistant = readFileSync("app/(app)/(tabs)/assistant.tsx", "utf8");
@@ -30,7 +31,15 @@ test("primary command is deterministic and opens the exact task", () => {
     "now",
   );
   assert.match(dashboard, /router\.push\(`\/tasks\/\$\{nextAction\.id\}`\)/);
-  assert.match(dashboard, /Seu espaço está livre agora/);
+  assert.match(dashboard, /copyKey="legacy\.f100f18898c7"/);
+  assert.equal(
+    (translations["pt-BR"] as Record<string, string>)["legacy.f100f18898c7"],
+    "Seu espaço está livre agora.",
+  );
+  assert.equal(
+    (translations.en as Record<string, string>)["legacy.f100f18898c7"],
+    "Your schedule is clear right now.",
+  );
 });
 
 test("mission deduplication compares canonical execution targets", () => {
@@ -53,7 +62,11 @@ test("day summary uses only real scoped tasks and has a calm empty state", () =>
   );
   assert.deepEqual(summary, { completed: 1, pending: 0, total: 1, overdue: 0, percentage: 100 });
   assert.equal(getHomeDaySummary([], new Date(2026, 8, 2)).percentage, null);
-  assert.match(dashboard, /Hoje está tranquilo/);
+  assert.match(dashboard, /copyKey="legacy\.56c547e03285"/);
+  assert.equal(
+    (translations.en as Record<string, string>)["legacy.56c547e03285"],
+    "It's a quiet day. No pending tasks are due.",
+  );
   assert.doesNotMatch(dashboard, /produtividade|performance|score/i);
 });
 

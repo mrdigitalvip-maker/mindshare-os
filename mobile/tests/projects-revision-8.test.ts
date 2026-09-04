@@ -57,7 +57,7 @@ test("R8 UI keeps auxiliary failures inline and exposes execution CTAs", () => {
   const detail = readFileSync("app/(app)/projects/[projectId].tsx", "utf8");
   assert.match(list, /Agir agora/);
   assert.match(list, /Abrir workspace/);
-  assert.match(detail, /Atividade recente/);
+  assert.match(detail, /copyKey="legacy\.373fee33d0de"/);
   assert.match(detail, /checkInsUnavailable/);
   assert.match(detail, /tasksUnavailable/);
 });

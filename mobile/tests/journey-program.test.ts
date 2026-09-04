@@ -68,7 +68,7 @@ describe("Journey program mobile integration contract", () => {
     service = read("../services/journey-service.ts"),
     pack = read("../app/(app)/packs/[slug].tsx");
   test("mission failure cannot hide program and completion stays canonical", () => {
-    expect(detail).toContain("Esta é a próxima etapa do seu programa.");
+    expect(detail).toContain('copyKey="legacy.78eb480b96e2"');
     expect(detail).toContain("program.isError");
     expect(hooks).toContain("service.completeJourneyAction");
     expect(service).toContain('supabase.rpc("complete_journey_action"');

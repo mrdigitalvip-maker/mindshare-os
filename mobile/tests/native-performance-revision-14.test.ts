@@ -76,7 +76,7 @@ describe("NXR-031 Project cache lifecycle", () => {
     expect(projectQueryOptions("user-1", "project-1", async () => workspace)).not.toHaveProperty("initialData");
     expect(projectScreen).toContain("if (query.isPending) return <LoadingState");
     expect(projectScreen).toContain("query.isError && !query.data");
-    expect(projectScreen).toContain("Não foi possível atualizar o projeto");
+    expect(projectScreen).toContain('copyKey="legacy.9529cfcb39d7"');
   });
 });
 
@@ -116,6 +116,6 @@ describe("NXR-031 request and invalidation boundaries", () => {
   test("cached errors use non-blocking states", () => {
     expect(communityScreen).toContain("channels.isError && !channels.data");
     expect(communityScreen).toContain("messages.isError && !messages.data");
-    expect(communityScreen).toContain("Não foi possível atualizar a conversa");
+    expect(communityScreen).toContain('copyKey="legacy.9027acc44a84"');
   });
 });
