@@ -201,9 +201,9 @@ export type CreatorAnalyticsSnapshot = {
     Record<
       | "views"
       | "reach"
-      | "watch_time"
-      | "average_view_duration"
-      | "retention"
+      | "watch_time_ms"
+      | "average_view_duration_ms"
+      | "retention_ratio"
       | "likes"
       | "comments"
       | "shares"
@@ -216,7 +216,54 @@ export type CreatorAnalyticsSnapshot = {
   weekday?: number;
   hour?: number;
   contentType?: string;
+  providerContentId?: string;
+  publishedAt?: string;
+  sourceTimestamp?: string;
+  grantedMetricNames?: string[];
 };
+
+export type CreatorConnectionStatus =
+  "not_connected" | "authorizing" | "connected" | "expired" | "revoked" | "error";
+export type CreatorPlatformConnection = {
+  id: string;
+  platform: "youtube" | "tiktok" | "instagram";
+  status: CreatorConnectionStatus;
+  displayName?: string;
+  lastSuccessAt?: string;
+  grantedMetrics: string[];
+};
+export const CREATOR_PROVIDER_CAPABILITIES = {
+  youtube: {
+    readiness: "CONFIG_REQUIRED",
+    metrics: [
+      "views",
+      "watch_time_ms",
+      "average_view_duration_ms",
+      "likes",
+      "comments",
+      "followers_gained",
+      "country",
+      "day",
+    ],
+  },
+  tiktok: { readiness: "APP_REVIEW_REQUIRED", metrics: ["views", "likes", "comments", "shares"] },
+  instagram: { readiness: "APP_REVIEW_REQUIRED", metrics: [], requirement: "professional_account" },
+} as const;
+
+export function creatorConfidence(input: {
+  sampleSize: number;
+  ageDays: number;
+  coefficientOfVariation: number;
+  completeness: number;
+}) {
+  if (input.sampleSize < 5) return "insufficient" as const;
+  const score =
+    Math.min(45, input.sampleSize * 2) +
+    Math.max(0, 20 - input.ageDays / 4.5) +
+    Math.max(0, 20 * (1 - Math.min(1, input.coefficientOfVariation))) +
+    15 * Math.max(0, Math.min(1, input.completeness));
+  return score >= 75 ? ("high" as const) : score >= 50 ? ("medium" as const) : ("low" as const);
+}
 
 export function presentCreatorMetrics(snapshot: CreatorAnalyticsSnapshot) {
   return Object.entries(snapshot.metrics).filter(

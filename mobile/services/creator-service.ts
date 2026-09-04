@@ -1,6 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import type {
   CreatorAnalyticsSnapshot,
+  CreatorPlatformConnection,
   CreatorGoal,
   CreatorProfileDraft,
   CreatorStrategy,
@@ -192,7 +193,9 @@ export async function listCompletedLessons(userId: string) {
 export async function listCreatorAnalytics(userId: string): Promise<CreatorAnalyticsSnapshot[]> {
   const { data, error } = await supabase
     .from("creator_analytics_snapshots")
-    .select("platform,captured_at,metrics,country,weekday,hour,content_type")
+    .select(
+      "platform,captured_at,metrics,country,weekday,hour,content_type,provider_content_id,published_at,source_timestamp,granted_metric_names",
+    )
     .eq("user_id", userId)
     .order("captured_at", { ascending: false });
   if (error) throw error;
@@ -204,7 +207,58 @@ export async function listCreatorAnalytics(userId: string): Promise<CreatorAnaly
     weekday: row.weekday ?? undefined,
     hour: row.hour ?? undefined,
     contentType: row.content_type ?? undefined,
+    providerContentId: row.provider_content_id ?? undefined,
+    publishedAt: row.published_at ?? undefined,
+    sourceTimestamp: row.source_timestamp ?? undefined,
+    grantedMetricNames: row.granted_metric_names ?? [],
   }));
+}
+
+export async function listCreatorConnections(userId: string): Promise<CreatorPlatformConnection[]> {
+  const { data, error } = await supabase
+    .from("creator_platform_connections")
+    .select("id,platform,status,provider_display_name,last_success_at,granted_metrics")
+    .eq("user_id", userId);
+  if (error) throw error;
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    platform: row.platform,
+    status: row.status,
+    displayName: row.provider_display_name ?? undefined,
+    lastSuccessAt: row.last_success_at ?? undefined,
+    grantedMetrics: row.granted_metrics ?? [],
+  }));
+}
+export async function startCreatorOAuth(
+  provider: CreatorPlatformConnection["platform"],
+  redirectUri: string,
+) {
+  const { data, error } = await supabase.functions.invoke("creator-oauth-start", {
+    body: { provider, redirectUri },
+  });
+  if (error) throw error;
+  return data as { authorizationUrl: string; status: "authorizing" };
+}
+export async function syncCreatorAnalytics() {
+  const { data, error } = await supabase.functions.invoke("creator-analytics-sync", {
+    body: { action: "sync" },
+  });
+  if (error) throw error;
+  return data;
+}
+export async function disconnectCreatorConnection(connectionId: string) {
+  const { data, error } = await supabase.functions.invoke("creator-analytics-sync", {
+    body: { action: "disconnect", connectionId },
+  });
+  if (error) throw error;
+  return data;
+}
+export async function deleteCreatorPlatformData(connectionId: string) {
+  const { data, error } = await supabase.functions.invoke("creator-analytics-sync", {
+    body: { action: "delete", connectionId },
+  });
+  if (error) throw error;
+  return data;
 }
 
 export async function listCreatorGoals(userId: string): Promise<CreatorGoal[]> {
@@ -280,12 +334,10 @@ export async function createAndUploadCreatorVideo(input: {
     const response = await fetch(input.uri);
     if (!response.ok) throw new Error("local_file_read_failed");
     const blob = await response.blob();
-    const upload = await supabase.storage
-      .from("creator-sources")
-      .upload(path, blob, {
-        contentType: input.contentType || "application/octet-stream",
-        upsert: false,
-      });
+    const upload = await supabase.storage.from("creator-sources").upload(path, blob, {
+      contentType: input.contentType || "application/octet-stream",
+      upsert: false,
+    });
     if (upload.error) throw upload.error;
     const ready = await supabase
       .from("creator_projects")
