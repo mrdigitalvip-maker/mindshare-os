@@ -57,7 +57,14 @@ export default function Settings() {
     if (!session?.user.id) return;
     try {
       const state = await getNotificationDeviceState(session.user.id);
-      setNoticeState(notificationReadiness(state.permission, state.deviceRegistered));
+      setNoticeState(
+        notificationReadiness(
+          state.permission,
+          state.deviceRegistered,
+          state.channelReady,
+          state.projectConfigAvailable,
+        ),
+      );
       setNoticeError(false);
     } catch {
       setNoticeError(true);
@@ -121,8 +128,19 @@ export default function Settings() {
           ? "Notificações ativadas neste dispositivo."
           : "Não foi possível ativar as notificações.",
       );
-    } catch {
-      setNoticeMessage("Não foi possível ativar as notificações.");
+    } catch (error) {
+      const category = error instanceof Error ? error.message : "unexpected";
+      setNoticeMessage(
+        category === "project-config"
+          ? "O push remoto não está configurado nesta versão."
+          : category === "channel"
+            ? "Não foi possível preparar o canal de notificações neste aparelho."
+            : category === "token"
+              ? "Não foi possível obter a identificação deste aparelho para push remoto."
+              : category === "registration"
+                ? "Não foi possível confirmar o registro deste aparelho."
+                : "Não foi possível ativar as notificações.",
+      );
     } finally {
       setBusy(false);
     }
@@ -256,7 +274,9 @@ export default function Settings() {
             {notice.action ? (
               <Action label={notice.action} disabled={busy} action={() => void enable()} />
             ) : null}
-            {noticeState === "active" || noticeState === "needs-registration" ? (
+            {noticeState === "active" ||
+            noticeState === "needs-registration" ||
+            noticeState === "project-config" ? (
               <>
                 <Text style={s.subheading}>TESTE LOCAL NESTE APARELHO</Text>
                 <Text style={s.help}>

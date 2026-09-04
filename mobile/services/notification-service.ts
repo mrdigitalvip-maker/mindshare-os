@@ -3,9 +3,14 @@ import Constants from "expo-constants";
 import * as Notifications from "expo-notifications";
 import * as SecureStore from "expo-secure-store";
 import { normalizePushToken } from "@/lib/notification-routing";
+import {
+  normalizeNotificationPermission,
+  normalizeProjectId,
+  type NativePermission,
+} from "@/lib/notification-contract";
 import { supabase } from "@/lib/supabase";
 
-export type NativePermission = "granted" | "denied" | "blocked" | "undetermined" | "unsupported";
+export type { NativePermission } from "@/lib/notification-contract";
 export type NotificationDiagnostic =
   | "permission"
   | "channel"
@@ -13,7 +18,7 @@ export type NotificationDiagnostic =
   | "token"
   | "registration"
   | "network"
-  | "remote-delivery"
+  | "remote-provider"
   | "unexpected";
 export type NotificationDeviceState = {
   platformSupported: boolean;
@@ -31,6 +36,7 @@ export class NotificationSetupError extends Error {
 }
 
 const DEVICE_KEY = "nexora:device-id";
+const DEVICE_OWNER_KEY = "nexora:push-device-owner";
 async function deviceId() {
   const stored = await SecureStore.getItemAsync(DEVICE_KEY);
   if (stored) return stored;
@@ -39,7 +45,9 @@ async function deviceId() {
   return next;
 }
 const projectId = () =>
-  Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
+  normalizeProjectId(
+    Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId,
+  );
 
 async function ensureAndroidChannel() {
   if (Platform.OS !== "android") return true;
@@ -101,13 +109,13 @@ export async function disableCurrentPushDevice(userId: string): Promise<void> {
     .eq("provider", "expo")
     .eq("device_id", await deviceId());
   if (error) throw new NotificationSetupError("registration");
+  if ((await SecureStore.getItemAsync(DEVICE_OWNER_KEY)) === userId)
+    await SecureStore.deleteItemAsync(DEVICE_OWNER_KEY);
 }
 export async function notificationPermission(): Promise<NativePermission> {
   if (Platform.OS !== "android" && Platform.OS !== "ios") return "unsupported";
   const value = await Notifications.getPermissionsAsync();
-  if (value.granted) return "granted";
-  if (value.canAskAgain) return value.status === "undetermined" ? "undetermined" : "denied";
-  return "blocked";
+  return normalizeNotificationPermission(value);
 }
 
 /** Must only be called from an explicit activation action. */
@@ -134,6 +142,10 @@ export async function registerNativeNotifications(
   const token = normalizePushToken(rawToken);
   if (!token) throw new NotificationSetupError("token");
   const id = await deviceId();
+  const currentOwner = await SecureStore.getItemAsync(DEVICE_OWNER_KEY);
+  // A registration owned by another signed-in account must be disabled through that
+  // account's authenticated logout before this physical installation can be reassigned.
+  if (currentOwner && currentOwner !== userId) throw new NotificationSetupError("registration");
   const { error } = await supabase.from("push_devices").upsert(
     {
       user_id: userId,
@@ -149,6 +161,7 @@ export async function registerNativeNotifications(
   if (error) throw new NotificationSetupError("registration");
   // Never report ready based only on the write response: read the canonical row back.
   if (!(await isCurrentDeviceRegistered(userId))) throw new NotificationSetupError("registration");
+  await SecureStore.setItemAsync(DEVICE_OWNER_KEY, userId);
   return { permission, registered: true };
 }
 
@@ -174,11 +187,11 @@ export async function sendTestNotification(): Promise<{ accepted: number; failed
   }>("push-send", {
     body: {
       title: "Teste remoto NEXORA",
-      body: "Este aparelho recebeu um push remoto da NEXORA.",
+      body: "Teste remoto enviado pela NEXORA.",
       url: "/dashboard",
     },
   });
-  if (error || data?.error) throw new NotificationSetupError("remote-delivery");
+  if (error || data?.error) throw new NotificationSetupError("remote-provider");
   return { accepted: data?.accepted ?? 0, failed: data?.failed ?? 0 };
 }
 
@@ -187,13 +200,14 @@ export async function scheduleTaskReminder(
   task: { id: string; title: string },
   reminderAt: string,
 ) {
+  const date = new Date(reminderAt);
+  if (!Number.isFinite(date.getTime()) || date <= new Date())
+    throw new Error("Invalid reminder date.");
   const permission = await notificationPermission();
   const granted =
     permission === "granted" || (await Notifications.requestPermissionsAsync()).granted;
   if (!granted) return { scheduled: false as const, permission: await notificationPermission() };
-  const date = new Date(reminderAt);
-  if (!Number.isFinite(date.getTime()) || date <= new Date())
-    throw new Error("Invalid reminder date.");
+  await ensureAndroidChannel();
   await cancelTaskReminder(task.id);
   const identifier = await Notifications.scheduleNotificationAsync({
     content: {
