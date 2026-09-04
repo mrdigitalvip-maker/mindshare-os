@@ -93,6 +93,26 @@ const creatorInteractive: Record<ResolvedLocale, Record<string, string>> = {
     "creator.goalsHelp": "Crie suas metas e conclua marcos manualmente.",
     "creator.goalTitle": "Título da meta",
     "creator.manualProgress": "Progresso manual; nenhum resultado foi inferido.",
+    "creator.connectedAccounts": "Contas conectadas",
+    "creator.yourPerformance": "SEU DESEMPENHO",
+    "creator.connect": "Conectar",
+    "creator.reconnect": "Reconectar",
+    "creator.disconnect": "Desconectar",
+    "creator.refreshData": "Atualizar dados",
+    "creator.deletePlatformData": "Excluir dados da plataforma",
+    "creator.lastSync": "Última sincronização: {date}",
+    "creator.neverSynced": "Ainda não sincronizado",
+    "creator.availableMetrics": "Métricas disponíveis: {metrics}",
+    "creator.contentAnalyzed": "Conteúdos analisados: {count}",
+    "creator.historicalPostingTime": "Desempenho histórico por horário de publicação",
+    "creator.notEnoughData": "Ainda não há dados suficientes.",
+    "creator.realObservationsOnly":
+      "Tendências mostram apenas observações reais persistidas; pontos ausentes não são estimados.",
+    "creator.instagramRequirement": "Requer conta profissional e aprovação do aplicativo Meta.",
+    "creator.privacy":
+      "A NEXORA lê somente identidade, conteúdo e métricas autorizadas para analisar seu desempenho. Sua senha social nunca é recebida.",
+    "creator.historyRetention":
+      "Desconectar interrompe futuras sincronizações e mantém o histórico. Excluir dados remove a conexão, credenciais e analytics.",
   },
   en: {
     "creator.setupHelp": "Tell us how you create. You can edit this later.",
@@ -172,6 +192,26 @@ const creatorInteractive: Record<ResolvedLocale, Record<string, string>> = {
     "creator.goalsHelp": "Create goals and complete milestones manually.",
     "creator.goalTitle": "Goal title",
     "creator.manualProgress": "Manual progress; no result was inferred.",
+    "creator.connectedAccounts": "Connected Accounts",
+    "creator.yourPerformance": "YOUR PERFORMANCE",
+    "creator.connect": "Connect",
+    "creator.reconnect": "Reconnect",
+    "creator.disconnect": "Disconnect",
+    "creator.refreshData": "Refresh data",
+    "creator.deletePlatformData": "Delete platform data",
+    "creator.lastSync": "Last sync: {date}",
+    "creator.neverSynced": "Not synced yet",
+    "creator.availableMetrics": "Available metrics: {metrics}",
+    "creator.contentAnalyzed": "Content analyzed: {count}",
+    "creator.historicalPostingTime": "Historical performance by posting time",
+    "creator.notEnoughData": "Not enough data yet.",
+    "creator.realObservationsOnly":
+      "Trends show only persisted real observations; missing points are not estimated.",
+    "creator.instagramRequirement": "Requires a professional account and Meta app approval.",
+    "creator.privacy":
+      "NEXORA reads only authorized identity, content, and metrics to analyze your performance. Your social password is never received.",
+    "creator.historyRetention":
+      "Disconnecting stops future sync and retains history. Deleting data removes the connection, credentials, and analytics.",
   },
 };
 const lessonNames = {
@@ -202,9 +242,9 @@ for (const [key, names] of Object.entries(lessonNames)) {
 for (const [key, pt, en] of [
   ["views", "Visualizações", "Views"],
   ["reach", "Alcance", "Reach"],
-  ["watch_time", "Tempo de exibição", "Watch time"],
-  ["average_view_duration", "Duração média", "Average view duration"],
-  ["retention", "Retenção", "Retention"],
+  ["watch_time_ms", "Tempo de exibição", "Watch time"],
+  ["average_view_duration_ms", "Duração média", "Average view duration"],
+  ["retention_ratio", "Retenção", "Retention"],
   ["likes", "Curtidas", "Likes"],
   ["comments", "Comentários", "Comments"],
   ["shares", "Compartilhamentos", "Shares"],

@@ -1,0 +1,13 @@
+{
+  "name": "@nexora/creator-intelligence",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.10",
+    "typescript": "^5.8.3"
+  }
+}
