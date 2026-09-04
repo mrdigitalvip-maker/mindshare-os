@@ -1,10 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {
-  getDailyActions,
-  getWeeklyChallenge,
-  getWeekKey,
-} from "../lib/daily-experience";
+import { getDailyActions, getWeeklyChallenge, getWeekKey } from "../lib/daily-experience";
 import {
   getDisplayEntitlement,
   getDisplayPlan,
@@ -24,7 +20,13 @@ const task = (id: string, dueDate: string | null, completed = false, updatedAt?:
   updatedAt: updatedAt ?? null,
 });
 const project = (id: string): Project => ({ id, title: id, description: "", status: "active" });
-const subject = (id: string): Subject => ({ id, name: id, description: "", status: "active", color: "#fff" });
+const subject = (id: string): Subject => ({
+  id,
+  name: id,
+  description: "",
+  status: "active",
+  color: "#fff",
+});
 
 test("week key is stable Monday through Sunday and changes on Monday", () => {
   assert.equal(getWeekKey(new Date(2026, 7, 17, 1)), "2026-08-17");
@@ -39,7 +41,10 @@ test("daily actions prioritize real overdue and today context and remain capped"
     [subject("Matemática")],
     now,
   );
-  assert.deepEqual(actions.map(({ id }) => id), ["task-late", "task-today", "project-empty-project"]);
+  assert.deepEqual(
+    actions.map(({ id }) => id),
+    ["task-late", "task-today", "project-empty-project"],
+  );
   assert.equal(actions.length, 3);
 });
 
@@ -51,7 +56,10 @@ test("daily actions suppress the task already represented by Agora", () => {
     now,
     { excludeTaskId: "now" },
   );
-  assert.deepEqual(actions.map(({ id }) => id), ["task-other"]);
+  assert.deepEqual(
+    actions.map(({ id }) => id),
+    ["task-other"],
+  );
   assert.equal(actions[0]?.title, "other");
 });
 
@@ -72,7 +80,10 @@ test("weekly challenge deterministically measures the completion state of tasks 
 test("weekly challenge is omitted when no due-this-week cohort is measurable", () => {
   assert.equal(getWeeklyChallenge([task("only", null)], "user-1", now), null);
   assert.equal(getWeeklyChallenge([task("later", "2026-08-24")], "user-1", now), null);
-  assert.equal(getWeeklyChallenge([task("a", null), task("b", null), task("c", null)], "", now), null);
+  assert.equal(
+    getWeeklyChallenge([task("a", null), task("b", null), task("c", null)], "", now),
+    null,
+  );
 });
 
 test("technical project, plan, and entitlement values are presented in PT-BR", () => {

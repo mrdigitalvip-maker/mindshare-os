@@ -50,7 +50,7 @@ describe("Community Live server contract", () => {
   });
   test("conversation route never exposes its filesystem route header", () => {
     expect(layout).toContain('name="community" options={{ headerShown: false }}');
-    expect(communityLayout).toContain('<Stack screenOptions={{ headerShown: false }}>');
+    expect(communityLayout).toContain("<Stack screenOptions={{ headerShown: false }}>");
     expect(communityLayout).toContain('<Stack.Screen name="[channelId]" />');
     expect(conversation).toContain('copyKey="legacy.c252ba7e4fda"');
   });

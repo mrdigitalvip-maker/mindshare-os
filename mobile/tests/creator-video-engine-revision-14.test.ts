@@ -51,9 +51,7 @@ describe("NXR-037C real Creator video engine", () => {
   });
   test("safe failure and storage-confirmed output", () => {
     expect(screen).toContain("job.errorCode");
-    expect(worker.indexOf("uploaded.error")).toBeLessThan(
-      worker.indexOf('.from("creator_clips")'),
-    );
+    expect(worker.indexOf("uploaded.error")).toBeLessThan(worker.indexOf('.from("creator_clips")'));
   });
   test("editor requests authoritative rerender", () =>
     expect(service).toContain("enqueue_creator_rerender"));

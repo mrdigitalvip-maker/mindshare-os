@@ -13,7 +13,10 @@ const conversation = readFileSync(
   fileURLToPath(new URL("../app/(app)/community/[channelId].tsx", import.meta.url)),
   "utf8",
 );
-const hooks = readFileSync(fileURLToPath(new URL("../hooks/use-community.ts", import.meta.url)), "utf8");
+const hooks = readFileSync(
+  fileURLToPath(new URL("../hooks/use-community.ts", import.meta.url)),
+  "utf8",
+);
 const service = readFileSync(
   fileURLToPath(new URL("../services/community-service.ts", import.meta.url)),
   "utf8",
@@ -177,7 +180,7 @@ describe("NXR-026 realtime lifecycle", () => {
 
   test("message and reaction events refresh only canonical channel query state", () => {
     expect(service).toContain('table: "community_messages"');
-    expect(service).toContain('filter: `channel_id=eq.${channelId}`');
+    expect(service).toContain("filter: `channel_id=eq.${channelId}`");
     expect(service).toContain('table: "community_message_reactions"');
     expect(hooks).toContain("queryKeys.communityMessages(channelId)");
     expect(hooks).not.toContain("setQueryData");

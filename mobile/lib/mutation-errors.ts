@@ -80,8 +80,8 @@ export function workspaceMutationError(error: unknown): Error {
   if (backend?.message === "FREE_CREATION_LIMIT_REACHED") {
     const resource = Object.keys(messages).find(
       (key) =>
-        backend.details?.includes(`\"resource\": \"${key}\"`) ||
-        backend.details?.includes(`\"resource\":\"${key}\"`),
+        backend.details?.includes(`"resource": "${key}"`) ||
+        backend.details?.includes(`"resource":"${key}"`),
     );
     return new WorkspaceMutationError(
       resource ? messages[resource] : "Você atingiu o limite do plano gratuito.",

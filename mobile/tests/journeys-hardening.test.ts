@@ -13,9 +13,7 @@ const sql = readFileSync(
   "utf8",
 );
 const docs = readFileSync(
-  fileURLToPath(
-    new URL("../../docs/journeys-momentum-challenges-hardening.md", import.meta.url),
-  ),
+  fileURLToPath(new URL("../../docs/journeys-momentum-challenges-hardening.md", import.meta.url)),
   "utf8",
 );
 
@@ -25,7 +23,10 @@ describe("Journeys 2D structural security contract", () => {
       fileURLToPath(new URL("../services/journey-service.ts", import.meta.url)),
       "utf8",
     );
-    const domain = readFileSync(fileURLToPath(new URL("../lib/journeys.ts", import.meta.url)), "utf8");
+    const domain = readFileSync(
+      fileURLToPath(new URL("../lib/journeys.ts", import.meta.url)),
+      "utf8",
+    );
     expect(service).toContain('supabase.rpc("ensure_daily_journey_mission"');
     expect(domain).not.toContain("selectDailyMission");
     expect(domain).not.toContain("stableMission");

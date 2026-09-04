@@ -30,7 +30,8 @@ export const isCommunityRequestId = (value: string) => UUID_V4.test(value);
 
 /** PostgREST exposes a scalar UUID RPC as a string. Reject every other shape. */
 export function normalizeCommunityMessageId(value: unknown): string {
-  if (typeof value !== "string" || !UUID.test(value.trim())) throw new Error("invalid_rpc_response");
+  if (typeof value !== "string" || !UUID.test(value.trim()))
+    throw new Error("invalid_rpc_response");
   return value.trim();
 }
 
@@ -58,8 +59,10 @@ export type FailedCommunitySend = {
 
 export const clearComposerAfterSend = (current: string, sentBody: string) =>
   current.trim() === sentBody ? "" : current;
-export const clearReplyAfterSend = <T extends { id: string }>(current: T | null, replyId: string | null) =>
-  current?.id === replyId ? null : current;
+export const clearReplyAfterSend = <T extends { id: string }>(
+  current: T | null,
+  replyId: string | null,
+) => (current?.id === replyId ? null : current);
 export const clearFailedAfterSend = (current: FailedCommunitySend | null, requestId: string) =>
   current?.requestId === requestId ? null : current;
 

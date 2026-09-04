@@ -18,11 +18,15 @@ export async function getSubscription(userId: string): Promise<SubscriptionSumma
     .maybeSingle();
   if (error) throw error;
   return {
-    entitlement: data?.entitlement === "premium" ? normalizeEntitlement(data?.status === "canceled" ? "active" : data?.status) : "free",
+    entitlement:
+      data?.entitlement === "premium"
+        ? normalizeEntitlement(data?.status === "canceled" ? "active" : data?.status)
+        : "free",
     plan: data?.plan ?? null,
     status: data?.status ?? null,
     provider: (data?.provider as SubscriptionSummary["provider"]) ?? null,
     currentPeriodEnd: data?.current_period_end ?? null,
-    cancelAtPeriodEnd: typeof data?.cancel_at_period_end === "boolean" ? data.cancel_at_period_end : null,
+    cancelAtPeriodEnd:
+      typeof data?.cancel_at_period_end === "boolean" ? data.cancel_at_period_end : null,
   };
 }

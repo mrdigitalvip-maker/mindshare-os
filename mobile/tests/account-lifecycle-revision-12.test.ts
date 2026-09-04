@@ -19,12 +19,20 @@ describe("Revision 12 account lifecycle", () => {
   test("same-user refresh is neutral while identity changes clear cache first", () => {
     const provider = source("providers/auth-provider.tsx");
     expect(provider).toContain("activeUserId.current !== nextUserId");
-    expect(provider.indexOf("queryClient.clear();", provider.indexOf("onAuthStateChange"))).toBeLessThan(provider.indexOf("setSession(nextSession)"));
+    expect(
+      provider.indexOf("queryClient.clear();", provider.indexOf("onAuthStateChange")),
+    ).toBeLessThan(provider.indexOf("setSession(nextSession)"));
   });
   test("routing protects private screens and preserves profile error recovery", () => {
-    expect(resolveAppDestination({ authStatus: "unauthenticated", onboarding: "loading" })).toBe("/auth");
-    expect(resolveAppDestination({ authStatus: "authenticated", onboarding: "incomplete" })).toBe("/onboarding");
-    expect(resolveAppDestination({ authStatus: "authenticated", onboarding: "complete" })).toBe("/dashboard");
+    expect(resolveAppDestination({ authStatus: "unauthenticated", onboarding: "loading" })).toBe(
+      "/auth",
+    );
+    expect(resolveAppDestination({ authStatus: "authenticated", onboarding: "incomplete" })).toBe(
+      "/onboarding",
+    );
+    expect(resolveAppDestination({ authStatus: "authenticated", onboarding: "complete" })).toBe(
+      "/dashboard",
+    );
     expect(resolveAppDestination({ authStatus: "authenticated", onboarding: "error" })).toBeNull();
     expect(source("app/(app)/_layout.tsx")).toContain('return <Redirect href="/auth" />');
   });
@@ -46,19 +54,28 @@ describe("Revision 12 account lifecycle", () => {
     expect(safeAuthDestination("https://evil.example")).toBeNull();
   });
   test("callback credentials are never logged", () => {
-    const authSources = [source("lib/auth-callback.ts"), source("lib/auth-links.ts"), source("app/auth/callback.tsx"), source("features/auth/auth-screen.tsx")].join("\n");
+    const authSources = [
+      source("lib/auth-callback.ts"),
+      source("lib/auth-links.ts"),
+      source("app/auth/callback.tsx"),
+      source("features/auth/auth-screen.tsx"),
+    ].join("\n");
     expect(authSources).not.toMatch(/console\.(log|warn|error)/);
   });
   test("tester billing remains disabled without unsafe native dependency", () => {
     const pkg = JSON.parse(source("package.json"));
     expect(pkg.dependencies["react-native-iap"]).toBeUndefined();
     expect(source("lib/purchase-capabilities.ts")).toContain('"unavailable_for_tester_build"');
-    expect(source("app/(app)/premium.tsx")).toContain("Assinaturas Premium estarão disponíveis em breve.");
+    expect(source("app/(app)/premium.tsx")).toContain(
+      "Assinaturas Premium estarão disponíveis em breve.",
+    );
   });
   test("subscription failure cannot invent Premium and backend owns free limits", () => {
     expect(isPremiumEntitlement("free")).toBe(false);
     expect(source("app/(app)/premium.tsx")).toContain("Não foi possível verificar seu plano.");
-    expect(source("../supabase/migrations/202608260002_monetization.sql")).toContain("enforce_free_creation_limits");
+    expect(source("../supabase/migrations/202608260002_monetization.sql")).toContain(
+      "enforce_free_creation_limits",
+    );
     expect(source("../supabase/functions/ai-chat/index.ts")).toContain("claim_assistant_usage");
   });
 });

@@ -1,6 +1,11 @@
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
-import { initialProfileValues, normalizeProfileIdentity, type ProfileIdentity, type ProfileRecord } from "@/lib/profile-identity";
+import {
+  initialProfileValues,
+  normalizeProfileIdentity,
+  type ProfileIdentity,
+  type ProfileRecord,
+} from "@/lib/profile-identity";
 
 export type MobileProfile = ProfileIdentity;
 
@@ -14,15 +19,24 @@ export async function getProfile(userId: string): Promise<MobileProfile | null> 
     .maybeSingle();
   if (error) throw error;
   if (!data) return null;
-  return { id: data.id, fullName: data.full_name, avatarUrl: data.avatar_url, onboarded: data.onboarded === true,
-    displayName: null, email: null, provider: "email" };
+  return {
+    id: data.id,
+    fullName: data.full_name,
+    avatarUrl: data.avatar_url,
+    onboarded: data.onboarded === true,
+    displayName: null,
+    email: null,
+    provider: "email",
+  };
 }
 
 export async function ensureAuthenticatedProfile(user: User): Promise<ProfileIdentity> {
   let profile = await getProfile(user.id);
   if (!profile) {
     const values = initialProfileValues(user);
-    const { error } = await supabase.from("profiles").upsert(values, { onConflict: "id", ignoreDuplicates: true });
+    const { error } = await supabase
+      .from("profiles")
+      .upsert(values, { onConflict: "id", ignoreDuplicates: true });
     if (error) throw error;
     profile = await getProfile(user.id);
   }

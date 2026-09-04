@@ -13,7 +13,8 @@ import {
   type FailedCommunitySend,
 } from "../lib/community-message";
 
-const source = (path: string) => readFileSync(fileURLToPath(new URL(path, import.meta.url)), "utf8");
+const source = (path: string) =>
+  readFileSync(fileURLToPath(new URL(path, import.meta.url)), "utf8");
 const conversation = source("../app/(app)/community/[channelId].tsx");
 const hooks = source("../hooks/use-community.ts");
 const service = source("../services/community-service.ts");
@@ -63,11 +64,21 @@ describe("NXR-029 Community delivery reliability", () => {
     expect(communityErrorMessage({ hint: "membership_required" })).toContain("Entre na comunidade");
     expect(communityErrorMessage({ message: "membership_restricted" })).toContain("restrita");
     expect(communityErrorMessage(new TypeError("Failed to fetch"))).toContain("Sem conexão");
-    expect(communityErrorMessage({ message: "select secret from public.table" })).not.toContain("select");
+    expect(communityErrorMessage({ message: "select secret from public.table" })).not.toContain(
+      "select",
+    );
   });
 
   test("malformed scalar RPC results never become successful message IDs", () => {
-    for (const value of [undefined, null, "", {}, { id: messageId }, [messageId], "[object Object]"])
+    for (const value of [
+      undefined,
+      null,
+      "",
+      {},
+      { id: messageId },
+      [messageId],
+      "[object Object]",
+    ])
       expect(() => normalizeCommunityMessageId(value)).toThrow("invalid_rpc_response");
     expect(normalizeCommunityMessageId(messageId)).toBe(messageId);
   });

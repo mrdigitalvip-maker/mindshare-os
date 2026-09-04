@@ -42,7 +42,7 @@ export default function CreatorMap() {
   useEffect(() => {
     void load();
     if (session?.user.id) void listCreatorAnalytics(session.user.id).then(setProviderRows);
-  }, [load]);
+  }, [load, session?.user.id]);
   // Keep NXR-037D provider observations available alongside, never merged into, manual data.
   const countries = providerRows.filter((x) => x.country && typeof x.metrics.views === "number");
   const postingRows = providerRows.filter(

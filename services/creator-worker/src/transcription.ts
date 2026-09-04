@@ -33,8 +33,12 @@ export class OpenAITranscriptionProvider implements TranscriptionProvider {
       throw Object.assign(new Error("Transcription provider rejected request"), {
         code: r.status >= 500 ? "TRANSCRIPTION_PROVIDER_UNAVAILABLE" : "TRANSCRIPTION_FAILED",
       });
-    const x: any = await r.json();
-    const segments = (x.segments ?? []).map((s: any) => ({
+    const x = (await r.json()) as {
+      language?: unknown;
+      text?: unknown;
+      segments?: Array<{ start?: unknown; end?: unknown; text?: unknown }>;
+    };
+    const segments = (x.segments ?? []).map((s) => ({
       startMs: Math.round(Number(s.start) * 1000),
       endMs: Math.round(Number(s.end) * 1000),
       text: String(s.text ?? "").trim(),

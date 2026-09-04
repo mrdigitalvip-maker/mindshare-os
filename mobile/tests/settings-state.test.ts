@@ -27,11 +27,20 @@ test("device readiness combines permission and registration", () => {
 test("notification routes are bounded and malformed payloads fall back safely", () => {
   assert.equal(notificationRoute(null), "/dashboard");
   assert.equal(notificationRoute({ kind: "task", resourceId: "task-1" }), "/tasks/task-1");
-  assert.equal(notificationRoute({ kind: "project", resourceId: "project-1" }), "/projects/project-1");
+  assert.equal(
+    notificationRoute({ kind: "project", resourceId: "project-1" }),
+    "/projects/project-1",
+  );
   assert.equal(notificationRoute({ kind: "study", resourceId: "study-1" }), "/studies/study-1");
-  assert.equal(notificationRoute({ kind: "journey", resourceId: "journey-1" }), "/journeys/journey-1");
+  assert.equal(
+    notificationRoute({ kind: "journey", resourceId: "journey-1" }),
+    "/journeys/journey-1",
+  );
   assert.equal(notificationRoute({ kind: "mission", resourceId: "mission-1" }), "/journeys");
-  assert.equal(notificationRoute({ kind: "task", resourceId: "https://evil.example" }), "/dashboard");
+  assert.equal(
+    notificationRoute({ kind: "task", resourceId: "https://evil.example" }),
+    "/dashboard",
+  );
 });
 test("push tokens are normalized without accepting arbitrary or malformed values", () => {
   assert.equal(normalizePushToken(" ExpoPushToken[abc_123] "), "ExpoPushToken[abc_123]");

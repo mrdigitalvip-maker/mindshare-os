@@ -234,19 +234,19 @@ export async function listCreatorConnections(userId: string): Promise<CreatorPla
   }));
 }
 
-const contentFromRow = (row: Record<string, any>): CreatorContentLog => ({
-  id: row.id,
-  platform: row.platform,
-  contentType: row.content_type,
-  title: row.title,
-  publishedAt: row.published_at,
-  timezone: row.timezone,
-  referenceUrl: row.reference_url ?? undefined,
-  contentPillar: row.content_pillar ?? undefined,
-  durationMs: row.duration_ms ?? undefined,
-  notes: row.notes ?? undefined,
-  createdAt: row.created_at,
-  updatedAt: row.updated_at,
+const contentFromRow = (row: Record<string, unknown>): CreatorContentLog => ({
+  id: String(row.id),
+  platform: String(row.platform) as CreatorContentLog["platform"],
+  contentType: String(row.content_type) as CreatorContentLog["contentType"],
+  title: String(row.title),
+  publishedAt: String(row.published_at),
+  timezone: String(row.timezone),
+  referenceUrl: typeof row.reference_url === "string" ? row.reference_url : undefined,
+  contentPillar: typeof row.content_pillar === "string" ? row.content_pillar : undefined,
+  durationMs: typeof row.duration_ms === "number" ? row.duration_ms : undefined,
+  notes: typeof row.notes === "string" ? row.notes : undefined,
+  createdAt: typeof row.created_at === "string" ? row.created_at : undefined,
+  updatedAt: typeof row.updated_at === "string" ? row.updated_at : undefined,
 });
 export async function listCreatorContent(userId: string): Promise<CreatorContentLog[]> {
   const { data, error } = await supabase
@@ -361,20 +361,18 @@ export async function saveCreatorManualCountry(
   userId: string,
   value: Omit<CreatorCountryObservation, "id" | "capturedAt" | "sourceType" | "enteredByUser">,
 ) {
-  const { error } = await supabase
-    .from("creator_manual_country_observations")
-    .insert({
-      user_id: userId,
-      platform: value.platform,
-      country_iso: value.countryIso?.toUpperCase() || null,
-      country_name: value.countryName.trim(),
-      metric_context: value.metricContext.trim(),
-      value: value.value,
-      period: value.period.trim(),
-      notes: value.notes?.trim() || null,
-      source_type: "manual",
-      entered_by_user: true,
-    });
+  const { error } = await supabase.from("creator_manual_country_observations").insert({
+    user_id: userId,
+    platform: value.platform,
+    country_iso: value.countryIso?.toUpperCase() || null,
+    country_name: value.countryName.trim(),
+    metric_context: value.metricContext.trim(),
+    value: value.value,
+    period: value.period.trim(),
+    notes: value.notes?.trim() || null,
+    source_type: "manual",
+    entered_by_user: true,
+  });
   if (error) throw error;
 }
 export async function startCreatorOAuth(

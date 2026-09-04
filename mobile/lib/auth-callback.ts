@@ -35,14 +35,26 @@ export function parseAuthLink(url: string): AuthLinkPayload {
   try {
     parsed = new URL(url);
   } catch {
-    return { code: null, accessToken: null, refreshToken: null, recovery: false, error: "invalid_redirect" };
+    return {
+      code: null,
+      accessToken: null,
+      refreshToken: null,
+      recovery: false,
+      error: "invalid_redirect",
+    };
   }
   const validCallback =
     parsed.protocol === "nexora:" &&
     ((parsed.hostname === "auth" && parsed.pathname === "/callback") ||
       (!parsed.hostname && parsed.pathname === "/auth/callback"));
   if (!validCallback)
-    return { code: null, accessToken: null, refreshToken: null, recovery: false, error: "invalid_redirect" };
+    return {
+      code: null,
+      accessToken: null,
+      refreshToken: null,
+      recovery: false,
+      error: "invalid_redirect",
+    };
   const hash = new URLSearchParams(parsed.hash.replace(/^#/, ""));
   const value = (name: string) => parsed.searchParams.get(name) ?? hash.get(name);
   return {

@@ -21,6 +21,7 @@ import { Route as ShellArenaRouteImport } from './routes/_shell.arena'
 import { Route as ShellAssistantRouteImport } from './routes/_shell.assistant'
 import { Route as ShellCommunityRouteImport } from './routes/_shell.community'
 import { Route as ShellContentRouteImport } from './routes/_shell.content'
+import { Route as ShellCreatorRouteImport } from './routes/_shell.creator'
 import { Route as ShellDashboardRouteImport } from './routes/_shell.dashboard'
 import { Route as ShellDocumentsRouteImport } from './routes/_shell.documents'
 import { Route as ShellFinanceRouteImport } from './routes/_shell.finance'
@@ -104,6 +105,11 @@ const ShellCommunityRoute = ShellCommunityRouteImport.update({
 const ShellContentRoute = ShellContentRouteImport.update({
   id: '/content',
   path: '/content',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellCreatorRoute = ShellCreatorRouteImport.update({
+  id: '/creator',
+  path: '/creator',
   getParentRoute: () => ShellRoute,
 } as any)
 const ShellDashboardRoute = ShellDashboardRouteImport.update({
@@ -248,6 +254,7 @@ export interface FileRoutesByFullPath {
   '/assistant': typeof ShellAssistantRoute
   '/community': typeof ShellCommunityRouteWithChildren
   '/content': typeof ShellContentRouteWithChildren
+  '/creator': typeof ShellCreatorRoute
   '/dashboard': typeof ShellDashboardRoute
   '/documents': typeof ShellDocumentsRouteWithChildren
   '/finance': typeof ShellFinanceRouteWithChildren
@@ -286,6 +293,7 @@ export interface FileRoutesByTo {
   '/assistant': typeof ShellAssistantRoute
   '/community': typeof ShellCommunityRouteWithChildren
   '/content': typeof ShellContentRouteWithChildren
+  '/creator': typeof ShellCreatorRoute
   '/dashboard': typeof ShellDashboardRoute
   '/documents': typeof ShellDocumentsRouteWithChildren
   '/finance': typeof ShellFinanceRouteWithChildren
@@ -326,6 +334,7 @@ export interface FileRoutesById {
   '/_shell/assistant': typeof ShellAssistantRoute
   '/_shell/community': typeof ShellCommunityRouteWithChildren
   '/_shell/content': typeof ShellContentRouteWithChildren
+  '/_shell/creator': typeof ShellCreatorRoute
   '/_shell/dashboard': typeof ShellDashboardRoute
   '/_shell/documents': typeof ShellDocumentsRouteWithChildren
   '/_shell/finance': typeof ShellFinanceRouteWithChildren
@@ -366,6 +375,7 @@ export interface FileRouteTypes {
     | '/assistant'
     | '/community'
     | '/content'
+    | '/creator'
     | '/dashboard'
     | '/documents'
     | '/finance'
@@ -404,6 +414,7 @@ export interface FileRouteTypes {
     | '/assistant'
     | '/community'
     | '/content'
+    | '/creator'
     | '/dashboard'
     | '/documents'
     | '/finance'
@@ -443,6 +454,7 @@ export interface FileRouteTypes {
     | '/_shell/assistant'
     | '/_shell/community'
     | '/_shell/content'
+    | '/_shell/creator'
     | '/_shell/dashboard'
     | '/_shell/documents'
     | '/_shell/finance'
@@ -564,6 +576,13 @@ declare module '@tanstack/react-router' {
       path: '/content'
       fullPath: '/content'
       preLoaderRoute: typeof ShellContentRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/creator': {
+      id: '/_shell/creator'
+      path: '/creator'
+      fullPath: '/creator'
+      preLoaderRoute: typeof ShellCreatorRouteImport
       parentRoute: typeof ShellRoute
     }
     '/_shell/dashboard': {
@@ -874,6 +893,7 @@ interface ShellRouteChildren {
   ShellAssistantRoute: typeof ShellAssistantRoute
   ShellCommunityRoute: typeof ShellCommunityRouteWithChildren
   ShellContentRoute: typeof ShellContentRouteWithChildren
+  ShellCreatorRoute: typeof ShellCreatorRoute
   ShellDashboardRoute: typeof ShellDashboardRoute
   ShellDocumentsRoute: typeof ShellDocumentsRouteWithChildren
   ShellFinanceRoute: typeof ShellFinanceRouteWithChildren
@@ -894,6 +914,7 @@ const ShellRouteChildren: ShellRouteChildren = {
   ShellAssistantRoute: ShellAssistantRoute,
   ShellCommunityRoute: ShellCommunityRouteWithChildren,
   ShellContentRoute: ShellContentRouteWithChildren,
+  ShellCreatorRoute: ShellCreatorRoute,
   ShellDashboardRoute: ShellDashboardRoute,
   ShellDocumentsRoute: ShellDocumentsRouteWithChildren,
   ShellFinanceRoute: ShellFinanceRouteWithChildren,
