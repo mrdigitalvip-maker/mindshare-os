@@ -68,7 +68,7 @@ export default function ProjectWorkspace() {
       />
     );
   if (query.isPending) return <LoadingState title="Carregando projeto…" />;
-  if (query.isError)
+  if (query.isError && !query.data)
     return (
       <ErrorState
         title="Não foi possível carregar este projeto."
@@ -220,6 +220,17 @@ export default function ProjectWorkspace() {
   }
   const header = (
     <View style={styles.headerContent}>
+      {query.isError ? (
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => void query.refetch()}
+          style={styles.refreshWarning}
+        >
+          <Text style={styles.refreshWarningText}>
+            Não foi possível atualizar o projeto. Toque para tentar novamente.
+          </Text>
+        </Pressable>
+      ) : null}
       <View style={styles.identityTop}>
         <Text accessibilityRole="header" style={styles.title}>
           {project.title}
@@ -662,6 +673,8 @@ const styles = StyleSheet.create({
   },
   description: { ...typography.body, color: colors.textMuted },
   objectiveMissing: { ...typography.body, color: colors.warning, fontStyle: "italic" },
+  refreshWarning: { padding: spacing.sm, borderRadius: radius.sm, backgroundColor: "#3A1D1D" },
+  refreshWarningText: { ...typography.caption, color: colors.danger },
   heroSignals: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: spacing.sm },
   healthBadge: {
     ...typography.eyebrow,

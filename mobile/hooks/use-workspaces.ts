@@ -6,6 +6,10 @@ import {
 } from "@/lib/query-keys";
 import { useAuth } from "@/providers/auth-provider";
 import * as service from "@/services/workspace-service";
+import {
+  prefetchProject as prefetchProjectQuery,
+  projectQueryOptions,
+} from "@/lib/project-query";
 
 function useUserId() {
   const { session } = useAuth();
@@ -19,13 +23,15 @@ export function useProjects() {
     enabled: Boolean(userId),
   });
 }
+export function useOpenProject() {
+  const userId = useUserId();
+  const client = useQueryClient();
+  return (projectId: string) =>
+    void prefetchProjectQuery(client, userId, projectId, service.getProject);
+}
 export function useProject(projectId: string) {
   const userId = useUserId();
-  return useQuery({
-    queryKey: projectId ? queryKeys.project(projectId) : ["projects", "invalid"],
-    queryFn: () => service.getProject(userId, projectId),
-    enabled: Boolean(userId && projectId),
-  });
+  return useQuery(projectQueryOptions(userId, projectId, service.getProject));
 }
 export function useTasks() {
   const userId = useUserId();

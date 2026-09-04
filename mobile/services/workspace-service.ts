@@ -295,18 +295,23 @@ export async function getProject(
 ): Promise<ProjectWorkspace | null> {
   const id = resource(projectId),
     user = owner(userId);
-  const { data, error } = await supabase
-    .from("projects")
-    .select("id,title,description,objective,status,due_date,updated_at")
-    .eq("id", id)
-    .eq("user_id", user)
-    .maybeSingle();
-  if (error) throw workspaceMutationError(error);
-  if (!data) return null;
-  const [tasksResult, checkInsResult] = await Promise.allSettled([
+  // These reads share only authenticated identifiers, so start them together.
+  // RLS/ownership remains authoritative, and child results are discarded when
+  // the project itself is absent.
+  const [projectResult, tasksResult, checkInsResult] = await Promise.allSettled([
+    supabase
+      .from("projects")
+      .select("id,title,description,objective,status,due_date,updated_at")
+      .eq("id", id)
+      .eq("user_id", user)
+      .maybeSingle(),
     listTasks(userId, id),
     listProjectCheckIns(userId, id),
   ]);
+  if (projectResult.status === "rejected") throw projectResult.reason;
+  const { data, error } = projectResult.value;
+  if (error) throw workspaceMutationError(error);
+  if (!data) return null;
   return {
     project: projectFrom(data),
     tasks: tasksResult.status === "fulfilled" ? tasksResult.value : [],

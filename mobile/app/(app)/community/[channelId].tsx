@@ -158,7 +158,7 @@ function CommunityConversationContent({ channelId }: { channelId: string }) {
         </View>
       </SafeAreaView>
     );
-  if (channels.isError || !channel || !membershipActive)
+  if ((channels.isError && !channels.data) || !channel || !membershipActive)
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.center}>
@@ -228,7 +228,14 @@ function CommunityConversationContent({ channelId }: { channelId: string }) {
             </Pressable>
           ))}
         </View>
-        {messages.isError ? (
+        {messages.isError && messages.data ? (
+          <Pressable style={styles.failure} onPress={() => void messages.refetch()}>
+            <Text style={styles.failureText}>
+              Não foi possível atualizar a conversa. Toque para tentar novamente.
+            </Text>
+          </Pressable>
+        ) : null}
+        {messages.isError && !messages.data ? (
           <View style={styles.center}>
             <Text style={styles.muted}>Não foi possível carregar a conversa.</Text>
             <Pressable onPress={() => messages.refetch()}>

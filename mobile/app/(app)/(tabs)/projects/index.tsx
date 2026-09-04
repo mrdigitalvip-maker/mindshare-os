@@ -5,7 +5,12 @@ import { NativeFormModal } from "@/components/native-form-modal";
 import { AppScreen } from "@/components/app-screen";
 import { StandardHeader } from "@/components/product-ui";
 import { EmptyState, ErrorState, LoadingState } from "@/components/screen-state";
-import { useProjects, useTasks, useWorkspaceMutations } from "@/hooks/use-workspaces";
+import {
+  useOpenProject,
+  useProjects,
+  useTasks,
+  useWorkspaceMutations,
+} from "@/hooks/use-workspaces";
 import {
   getProjectAttention,
   getProjectDeadlineState,
@@ -24,7 +29,15 @@ import {
 import { colors, radius, spacing, typography } from "@/lib/theme";
 import type { Project, Task } from "@/services/workspace-service";
 
-function ProjectCard({ project, tasks }: { project: Project; tasks: Task[] | null }) {
+function ProjectCard({
+  project,
+  tasks,
+  onOpen,
+}: {
+  project: Project;
+  tasks: Task[] | null;
+  onOpen: (projectId: string) => void;
+}) {
   const taskDataAvailable = tasks !== null;
   const canonicalTasks = tasks ?? [];
   const progress = taskDataAvailable ? getProjectProgress(canonicalTasks) : null;
@@ -43,7 +56,10 @@ function ProjectCard({ project, tasks }: { project: Project; tasks: Task[] | nul
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`Abrir projeto ${project.title}. ${healthLabel}`}
-      onPress={() => router.push(`/projects/${project.id}`)}
+      onPress={() => {
+        onOpen(project.id);
+        router.push(`/projects/${project.id}`);
+      }}
       style={({ pressed }) => [styles.card, subdued && styles.subdued, pressed && styles.pressed]}
     >
       <View style={styles.cardTop}>
@@ -114,6 +130,7 @@ function ProjectCard({ project, tasks }: { project: Project; tasks: Task[] | nul
 }
 
 export default function Projetos() {
+  const prefetchProject = useOpenProject();
   const projectsQuery = useProjects();
   const tasksQuery = useTasks();
   const { createProject } = useWorkspaceMutations();
@@ -235,6 +252,7 @@ export default function Projetos() {
           <ProjectCard
             project={item}
             tasks={taskDataAvailable ? (grouped.get(item.id) ?? []) : null}
+            onOpen={prefetchProject}
           />
         )}
       />
