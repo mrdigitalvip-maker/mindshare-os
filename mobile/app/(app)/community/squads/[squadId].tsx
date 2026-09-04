@@ -1,3 +1,4 @@
+import { LocalizedCopy } from "@/components/localized-copy";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { AppScreen } from "@/components/app-screen";
@@ -21,6 +22,7 @@ export default function Squad() {
         onAction={() => router.back()}
       />
     );
+
   const s = q.data;
   return (
     <AppScreen scroll contentContainerStyle={styles.page}>
@@ -29,7 +31,9 @@ export default function Squad() {
       <Text style={styles.muted}>
         {s.members.length} de {s.maxMembers} membros
       </Text>
-      <Text style={styles.heading}>Membros</Text>
+      <Text style={styles.heading}>
+        <LocalizedCopy copyKey="legacy.5d2f8ebe79f9" />
+      </Text>
       {s.members.map((m) => (
         <View key={m.userId} style={styles.member}>
           <Text style={styles.body}>{m.displayName}</Text>
@@ -39,7 +43,9 @@ export default function Squad() {
               accessibilityLabel={`Remover ${m.displayName} do Squad`}
               onPress={() => actions.remove.mutate(m.userId, { onError: fail })}
             >
-              <Text style={styles.danger}>Remover</Text>
+              <Text style={styles.danger}>
+                <LocalizedCopy copyKey="legacy.65d0ddab6dae" />
+              </Text>
             </Pressable>
           ) : null}
           {!m.isSelf ? (
@@ -54,13 +60,17 @@ export default function Squad() {
                   })
                 }
               >
-                <Text style={styles.secondary}>Reportar</Text>
+                <Text style={styles.secondary}>
+                  <LocalizedCopy copyKey="legacy.204e11eec5dc" />
+                </Text>
               </Pressable>
               <Pressable
                 accessibilityLabel={`Bloquear ${m.displayName}`}
                 onPress={() => actions.block.mutate(m.userId, { onError: fail })}
               >
-                <Text style={styles.danger}>Bloquear</Text>
+                <Text style={styles.danger}>
+                  <LocalizedCopy copyKey="legacy.7a05a46eecdc" />
+                </Text>
               </Pressable>
             </View>
           ) : null}
@@ -82,7 +92,9 @@ export default function Squad() {
               })
             }
           >
-            <Text style={styles.buttonText}>Criar código de convite</Text>
+            <Text style={styles.buttonText}>
+              <LocalizedCopy copyKey="legacy.740f053d2baa" />
+            </Text>
           </Pressable>
           <Pressable
             onPress={() =>
@@ -100,7 +112,9 @@ export default function Squad() {
               ])
             }
           >
-            <Text style={styles.danger}>Encerrar Squad</Text>
+            <Text style={styles.danger}>
+              <LocalizedCopy copyKey="legacy.01078b9122f9" />
+            </Text>
           </Pressable>
         </>
       ) : (
@@ -112,7 +126,9 @@ export default function Squad() {
             })
           }
         >
-          <Text style={styles.danger}>Sair do Squad</Text>
+          <Text style={styles.danger}>
+            <LocalizedCopy copyKey="legacy.05256bbc642c" />
+          </Text>
         </Pressable>
       )}
       <Pressable
@@ -124,7 +140,9 @@ export default function Squad() {
           })
         }
       >
-        <Text style={styles.secondary}>Reportar Squad</Text>
+        <Text style={styles.secondary}>
+          <LocalizedCopy copyKey="legacy.f4c5fcd5ad27" />
+        </Text>
       </Pressable>
     </AppScreen>
   );

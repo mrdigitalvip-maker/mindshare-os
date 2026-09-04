@@ -1,3 +1,4 @@
+import { LocalizedCopy } from "@/components/localized-copy";
 import type { ReactNode } from "react";
 import {
   KeyboardAvoidingView,
@@ -79,6 +80,7 @@ export function NativeFormModal({
             onChangeText={onChange}
             style={styles.input}
           />
+
           {secondaryValue !== undefined && onSecondaryChange ? (
             <TextInput
               multiline
@@ -106,7 +108,9 @@ export function NativeFormModal({
               onPress={onClose}
               style={styles.secondary}
             >
-              <Text style={styles.secondaryText}>Cancelar</Text>
+              <Text style={styles.secondaryText}>
+                <LocalizedCopy copyKey="legacy.e7203b8ff9df" />
+              </Text>
             </Pressable>
             <Pressable
               accessibilityRole="button"

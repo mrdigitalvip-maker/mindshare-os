@@ -1,3 +1,4 @@
+import { LocalizedCopy } from "@/components/localized-copy";
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "expo-router";
 import {
@@ -40,6 +41,7 @@ const filters: Filter[] = [
   "Concluídas",
   "Todas",
 ];
+
 const filterQueue: Record<Filter, TaskQueue> = {
   Agora: "now",
   Hoje: "today",
@@ -228,10 +230,13 @@ export default function Productivity() {
         title="Tarefas"
         action={
           <Pressable accessibilityRole="button" onPress={() => openEditor()} style={styles.add}>
-            <Text style={styles.addText}>Nova</Text>
+            <Text style={styles.addText}>
+              <LocalizedCopy copyKey="legacy.932badbdf1c9" />
+            </Text>
           </Pressable>
         }
       />
+
       <SectionList
         sections={sections}
         keyExtractor={(item) => item.id}
@@ -264,7 +269,9 @@ export default function Productivity() {
             </View>
             {focus ? (
               <View style={styles.next}>
-                <Text style={styles.eyebrow}>FOCO AGORA</Text>
+                <Text style={styles.eyebrow}>
+                  <LocalizedCopy copyKey="legacy.e3d1ba73d33d" />
+                </Text>
                 <Text numberOfLines={1} style={styles.nextTitle}>
                   {focus.title}
                 </Text>
@@ -280,28 +287,36 @@ export default function Productivity() {
                     onPress={() => router.push(`/tasks/${focus.id}`)}
                     style={styles.focusButton}
                   >
-                    <Text style={styles.focusButtonText}>Abrir</Text>
+                    <Text style={styles.focusButtonText}>
+                      <LocalizedCopy copyKey="legacy.b5aae5d66a64" />
+                    </Text>
                   </Pressable>
                   <Pressable
                     accessibilityRole="button"
                     onPress={() => void toggle(focus)}
                     style={styles.focusButton}
                   >
-                    <Text style={styles.focusButtonText}>Concluir</Text>
+                    <Text style={styles.focusButtonText}>
+                      <LocalizedCopy copyKey="legacy.11b76a20db5b" />
+                    </Text>
                   </Pressable>
                   <Pressable
                     accessibilityRole="button"
                     onPress={() => reschedule(focus)}
                     style={styles.quietButton}
                   >
-                    <Text style={styles.quietButtonText}>Adiar</Text>
+                    <Text style={styles.quietButtonText}>
+                      <LocalizedCopy copyKey="legacy.b2a740b511c6" />
+                    </Text>
                   </Pressable>
                 </View>
               </View>
             ) : null}
             {attention.length ? (
               <View style={styles.attention}>
-                <Text style={styles.eyebrow}>PRECISA DE ATENÇÃO</Text>
+                <Text style={styles.eyebrow}>
+                  <LocalizedCopy copyKey="legacy.5a295d1bbceb" />
+                </Text>
                 {attention.slice(0, 3).map((message) => (
                   <Text key={message} style={styles.attentionText}>
                     • {message}
@@ -317,7 +332,7 @@ export default function Productivity() {
             {projectsQuery.isError ? (
               <Pressable onPress={() => void projectsQuery.refetch()}>
                 <Text style={styles.error}>
-                  Não foi possível atualizar os projetos vinculados. Tentar novamente
+                  <LocalizedCopy copyKey="legacy.8bd8841f505d" />
                 </Text>
               </Pressable>
             ) : null}
@@ -368,6 +383,7 @@ export default function Productivity() {
           />
         )}
       />
+
       <NativeFormModal
         visible={modal}
         title={editing ? "Editar tarefa" : "Nova tarefa"}
@@ -415,6 +431,7 @@ export default function Productivity() {
             selected={!projectId}
             onPress={() => setProjectId(null)}
           />
+
           {(projectsQuery.data ?? []).map((project) => (
             <PickerChip
               key={project.id}

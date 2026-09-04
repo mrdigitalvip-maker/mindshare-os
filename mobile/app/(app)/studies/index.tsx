@@ -1,3 +1,4 @@
+import { LocalizedCopy } from "@/components/localized-copy";
 import { useMemo, useRef, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { router } from "expo-router";
@@ -29,6 +30,7 @@ export default function Estudos() {
         onAction={() => void query.refetch()}
       />
     );
+
   const workspaces = query.data ?? [];
   const allSessions = workspaces.flatMap((item) => item.sessions);
   async function save() {
@@ -50,9 +52,13 @@ export default function Estudos() {
   return (
     <View style={styles.page}>
       <View style={styles.header}>
-        <Text style={styles.title}>Estudos</Text>
+        <Text style={styles.title}>
+          <LocalizedCopy copyKey="legacy.ba6f58b7d44f" />
+        </Text>
         <Pressable onPress={() => setModal(true)} style={styles.add}>
-          <Text style={styles.addText}>Nova</Text>
+          <Text style={styles.addText}>
+            <LocalizedCopy copyKey="legacy.8a344124bcbf" />
+          </Text>
         </Pressable>
       </View>
       <FlatList
@@ -64,7 +70,9 @@ export default function Estudos() {
         ListHeaderComponent={
           workspaces.length ? (
             <View style={styles.top}>
-              <Text style={styles.eyebrow}>HOJE NOS ESTUDOS</Text>
+              <Text style={styles.eyebrow}>
+                <LocalizedCopy copyKey="legacy.2eefe7f57c93" />
+              </Text>
               {getTodayStudyMinutes(allSessions) > 0 ? (
                 <Text style={styles.signal}>
                   {getTodayStudyMinutes(allSessions)} min estudados hoje
@@ -72,7 +80,9 @@ export default function Estudos() {
               ) : null}
               {focus ? (
                 <View style={styles.focus}>
-                  <Text style={styles.eyebrow}>ESTUDAR AGORA</Text>
+                  <Text style={styles.eyebrow}>
+                    <LocalizedCopy copyKey="legacy.daf3ae9adb32" />
+                  </Text>
                   <Text style={styles.focusTitle}>{focus.subject.name}</Text>
                   <Text style={styles.copy}>
                     {focus.subject.nextAction
@@ -133,6 +143,7 @@ export default function Estudos() {
           );
         }}
       />
+
       <NativeFormModal
         visible={modal}
         title="Novo plano de estudo"

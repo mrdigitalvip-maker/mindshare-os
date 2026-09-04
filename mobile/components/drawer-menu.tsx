@@ -1,3 +1,4 @@
+import { LocalizedCopy } from "@/components/localized-copy";
 import { router, type Href, usePathname } from "expo-router";
 import { useRef, useState } from "react";
 import {
@@ -75,6 +76,7 @@ function DrawerIcon({ name, active = false }: { name: IconName; active?: boolean
             {...common}
             d="M12 3l1.3 4.2L17.5 8.5l-4.2 1.3L12 14l-1.3-4.2-4.2-1.3 4.2-1.3L12 3Z"
           />
+
           <Path {...common} d="m18 14 .8 2.2L21 17l-2.2.8L18 20l-.8-2.2L15 17l2.2-.8L18 14Z" />
         </>
       )}
@@ -180,7 +182,7 @@ export function DrawerMenu({ visible, onClose }: { visible: boolean; onClose(): 
           >
             <View style={styles.brandRow}>
               <Text accessibilityRole="header" style={styles.brand}>
-                N E X O R A
+                <LocalizedCopy copyKey="legacy.feff5d348e1b" />
               </Text>
               <Pressable
                 accessibilityRole="button"
@@ -189,7 +191,9 @@ export function DrawerMenu({ visible, onClose }: { visible: boolean; onClose(): 
                 onPress={onClose}
                 style={styles.closeButton}
               >
-                <Text style={styles.closeText}>×</Text>
+                <Text style={styles.closeText}>
+                  <LocalizedCopy copyKey="legacy.1261a8aa09a4" />
+                </Text>
               </Pressable>
             </View>
             <Pressable
@@ -204,6 +208,7 @@ export function DrawerMenu({ visible, onClose }: { visible: boolean; onClose(): 
                 email={email}
                 size={54}
               />
+
               <View style={styles.identityCopy}>
                 <Text numberOfLines={1} style={styles.identityName}>
                   {displayName}

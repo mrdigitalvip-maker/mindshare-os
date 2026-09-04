@@ -1,3 +1,4 @@
+import { LocalizedCopy } from "@/components/localized-copy";
 import { useMemo, useRef, useState } from "react";
 import {
   Alert,
@@ -67,6 +68,7 @@ export default function ProjectWorkspace() {
         onAction={() => router.replace("/projects")}
       />
     );
+
   if (query.isPending) return <LoadingState title="Carregando projeto…" />;
   if (query.isError && !query.data)
     return (
@@ -76,6 +78,7 @@ export default function ProjectWorkspace() {
         onAction={() => void query.refetch()}
       />
     );
+
   if (!query.data)
     return (
       <EmptyState
@@ -85,6 +88,7 @@ export default function ProjectWorkspace() {
         onAction={() => router.replace("/projects")}
       />
     );
+
   const { project } = query.data;
   const checkIns = query.data.checkIns;
   const tasksAvailable = !query.data.tasksUnavailable;
@@ -227,7 +231,7 @@ export default function ProjectWorkspace() {
           style={styles.refreshWarning}
         >
           <Text style={styles.refreshWarningText}>
-            Não foi possível atualizar o projeto. Toque para tentar novamente.
+            <LocalizedCopy copyKey="legacy.9529cfcb39d7" />
           </Text>
         </Pressable>
       ) : null}
@@ -246,7 +250,9 @@ export default function ProjectWorkspace() {
         <Text style={styles.description}>{project.objective || project.description}</Text>
       ) : null}
       {!project.objective && !project.description ? (
-        <Text style={styles.objectiveMissing}>Defina um objetivo para orientar este projeto.</Text>
+        <Text style={styles.objectiveMissing}>
+          <LocalizedCopy copyKey="legacy.1fcc83839468" />
+        </Text>
       ) : null}
       <View style={styles.heroSignals}>
         {tasksAvailable ? (
@@ -267,7 +273,9 @@ export default function ProjectWorkspace() {
           }}
           style={styles.secondaryButton}
         >
-          <Text style={styles.secondaryText}>Editar</Text>
+          <Text style={styles.secondaryText}>
+            <LocalizedCopy copyKey="legacy.b1a6b3426231" />
+          </Text>
         </Pressable>
         <Pressable
           accessibilityRole="button"
@@ -302,7 +310,9 @@ export default function ProjectWorkspace() {
       </View>
       {!completed && studioAction ? (
         <View style={styles.nextCard}>
-          <Text style={styles.eyebrow}>NEXORA AGORA</Text>
+          <Text style={styles.eyebrow}>
+            <LocalizedCopy copyKey="legacy.1fe543d8b14c" />
+          </Text>
           <Text style={styles.nextTitle}>{studioAction.message}</Text>
           {next ? (
             <Text style={[styles.meta, getDueLabel(next).startsWith("Atrasada") && styles.danger]}>
@@ -328,7 +338,9 @@ export default function ProjectWorkspace() {
         </View>
       ) : completed ? (
         <View style={styles.completedCard}>
-          <Text style={styles.eyebrow}>PROJETO CONCLUÍDO</Text>
+          <Text style={styles.eyebrow}>
+            <LocalizedCopy copyKey="legacy.e3624ae3abda" />
+          </Text>
           <Text style={styles.meta}>
             {progress
               ? `${progress.completed} de ${progress.total} tarefas concluídas.`
@@ -345,7 +357,9 @@ export default function ProjectWorkspace() {
           style={styles.overview}
         >
           <View style={styles.overviewTop}>
-            <Text style={styles.sectionTitle}>Progresso das tarefas</Text>
+            <Text style={styles.sectionTitle}>
+              <LocalizedCopy copyKey="legacy.a049ed347c52" />
+            </Text>
             <Text style={styles.progressCopy}>
               {progress.completed} de {progress.total}
             </Text>
@@ -362,7 +376,7 @@ export default function ProjectWorkspace() {
       ) : tasksAvailable ? (
         <View style={styles.overview}>
           <Text style={styles.meta}>
-            Adicione a primeira ação para começar a medir o progresso.
+            <LocalizedCopy copyKey="legacy.460cb0c09b39" />
           </Text>
         </View>
       ) : null}
@@ -377,7 +391,9 @@ export default function ProjectWorkspace() {
       ) : null}
       {health.length ? (
         <View style={styles.attentionCard}>
-          <Text style={styles.attentionTitle}>ATENÇÃO</Text>
+          <Text style={styles.attentionTitle}>
+            <LocalizedCopy copyKey="legacy.29c3bac53b69" />
+          </Text>
           {health.map((message) => (
             <Text key={message} style={styles.attentionCopy}>
               • {message}
@@ -387,7 +403,9 @@ export default function ProjectWorkspace() {
       ) : null}
       {blocked.length ? (
         <View style={styles.blockerCard}>
-          <Text style={styles.attentionTitle}>BLOQUEIOS</Text>
+          <Text style={styles.attentionTitle}>
+            <LocalizedCopy copyKey="legacy.60b0e9514fe9" />
+          </Text>
           {blocked.slice(0, 3).map((task) => (
             <Pressable
               key={task.id}
@@ -397,19 +415,25 @@ export default function ProjectWorkspace() {
             >
               <Text style={styles.nextTitle}>{task.title}</Text>
               {task.blockerNote ? <Text style={styles.meta}>“{task.blockerNote}”</Text> : null}
-              <Text style={styles.link}>Ver tarefa</Text>
+              <Text style={styles.link}>
+                <LocalizedCopy copyKey="legacy.5984797ed6b6" />
+              </Text>
             </Pressable>
           ))}
           <Pressable
             onPress={() => askNexora("Como destravo este projeto?")}
             style={styles.secondaryButton}
           >
-            <Text style={styles.secondaryText}>Pedir ajuda à NEXORA</Text>
+            <Text style={styles.secondaryText}>
+              <LocalizedCopy copyKey="legacy.a4a833bebe87" />
+            </Text>
           </Pressable>
         </View>
       ) : null}
       <View style={styles.activityCard}>
-        <Text style={styles.sectionTitle}>Atividade recente</Text>
+        <Text style={styles.sectionTitle}>
+          <LocalizedCopy copyKey="legacy.373fee33d0de" />
+        </Text>
         {latestActivity ? (
           <Pressable
             disabled={!latestActivity.task}
@@ -433,16 +457,21 @@ export default function ProjectWorkspace() {
           </Pressable>
         ) : query.data.checkInsUnavailable ? (
           <Text style={styles.meta}>
-            A atividade das tarefas está disponível; o histórico de check-ins não pôde ser
-            atualizado.
+            <LocalizedCopy copyKey="legacy.f25a5017b5fc" />
           </Text>
         ) : (
-          <Text style={styles.meta}>Nenhuma atividade de execução foi registrada ainda.</Text>
+          <Text style={styles.meta}>
+            <LocalizedCopy copyKey="legacy.78639b86c560" />
+          </Text>
         )}
       </View>
       <View style={styles.checkInCard}>
-        <Text style={styles.sectionTitle}>Check-in do projeto</Text>
-        <Text style={styles.meta}>Como está o andamento?</Text>
+        <Text style={styles.sectionTitle}>
+          <LocalizedCopy copyKey="legacy.38b5e469523a" />
+        </Text>
+        <Text style={styles.meta}>
+          <LocalizedCopy copyKey="legacy.8825fb31b958" />
+        </Text>
         <View style={styles.checkInOptions}>
           {(
             [
@@ -466,7 +495,9 @@ export default function ProjectWorkspace() {
         </View>
         {latestCheckIn ? (
           <View style={styles.memory}>
-            <Text style={styles.eyebrow}>ÚLTIMO CHECK-IN</Text>
+            <Text style={styles.eyebrow}>
+              <LocalizedCopy copyKey="legacy.08cbe48a7bcb" />
+            </Text>
             <Text style={styles.description}>{getProjectCheckInLabel(latestCheckIn.state)}</Text>
             {latestCheckIn.note ? <Text style={styles.meta}>{latestCheckIn.note}</Text> : null}
             <Text style={styles.meta}>
@@ -475,7 +506,9 @@ export default function ProjectWorkspace() {
           </View>
         ) : null}
         {activity.state === "today" ? (
-          <Text style={styles.today}>Você avançou este projeto hoje.</Text>
+          <Text style={styles.today}>
+            <LocalizedCopy copyKey="legacy.d74f25f268a9" />
+          </Text>
         ) : activity.state === "inactive" ? (
           <Text style={styles.meta}>
             Sem progresso significativo registrado há {activity.days} dias.
@@ -485,37 +518,50 @@ export default function ProjectWorkspace() {
       {query.data.tasksUnavailable ? (
         <View style={styles.attentionCard}>
           <Text style={styles.attentionCopy}>
-            Não foi possível atualizar as tarefas deste projeto.
+            <LocalizedCopy copyKey="legacy.85473edd0a0e" />
           </Text>
           <Pressable onPress={() => void query.refetch()}>
-            <Text style={styles.link}>Tentar novamente</Text>
+            <Text style={styles.link}>
+              <LocalizedCopy copyKey="legacy.196181a87a37" />
+            </Text>
           </Pressable>
         </View>
       ) : null}
       {query.data.checkInsUnavailable ? (
-        <Text style={styles.meta}>O histórico de check-ins está temporariamente indisponível.</Text>
+        <Text style={styles.meta}>
+          <LocalizedCopy copyKey="legacy.91d53290b2d6" />
+        </Text>
       ) : null}
       <View style={styles.assistantCard}>
-        <Text style={styles.eyebrow}>NEXORA</Text>
+        <Text style={styles.eyebrow}>
+          <LocalizedCopy copyKey="legacy.a66783d2dac7" />
+        </Text>
         <Text style={styles.description}>
-          Leve o contexto real deste projeto para a Assistente.
+          <LocalizedCopy copyKey="legacy.e7b979b26b7a" />
         </Text>
         <Pressable onPress={() => askNexora()} style={styles.primaryButton}>
-          <Text style={styles.primaryText}>Perguntar à NEXORA</Text>
+          <Text style={styles.primaryText}>
+            <LocalizedCopy copyKey="legacy.583ff152c5b8" />
+          </Text>
         </Pressable>
       </View>
       <View style={styles.tasksHeading}>
-        <Text style={styles.sectionTitle}>Tarefas</Text>
+        <Text style={styles.sectionTitle}>
+          <LocalizedCopy copyKey="legacy.9c2daf4fbafa" />
+        </Text>
         <Pressable
           accessibilityRole="button"
           onPress={() => openTask()}
           style={styles.compactAction}
         >
-          <Text style={styles.link}>Nova tarefa</Text>
+          <Text style={styles.link}>
+            <LocalizedCopy copyKey="legacy.bd3d2c99c622" />
+          </Text>
         </Pressable>
       </View>
     </View>
   );
+
   return (
     <View style={styles.page}>
       <Stack.Screen options={{ title: "Projeto" }} />
@@ -525,19 +571,25 @@ export default function ProjectWorkspace() {
         ListHeaderComponent={header}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Text style={styles.emptyTitle}>Este projeto ainda não tem um plano.</Text>
+            <Text style={styles.emptyTitle}>
+              <LocalizedCopy copyKey="legacy.93bd8f269d14" />
+            </Text>
             <Pressable
               accessibilityRole="button"
               onPress={() => openTask()}
               style={styles.primaryButton}
             >
-              <Text style={styles.primaryText}>Definir primeira ação</Text>
+              <Text style={styles.primaryText}>
+                <LocalizedCopy copyKey="legacy.ef92bfce7f77" />
+              </Text>
             </Pressable>
             <Pressable
               onPress={() => askNexora("Ajude a criar um plano para este projeto.")}
               style={styles.secondaryButton}
             >
-              <Text style={styles.secondaryText}>Pedir ajuda à NEXORA</Text>
+              <Text style={styles.secondaryText}>
+                <LocalizedCopy copyKey="legacy.a4a833bebe87" />
+              </Text>
             </Pressable>
           </View>
         }
@@ -593,14 +645,19 @@ export default function ProjectWorkspace() {
               onPress={confirmDelete}
               style={styles.deleteButton}
             >
-              <Text style={styles.deleteText}>Excluir projeto</Text>
+              <Text style={styles.deleteText}>
+                <LocalizedCopy copyKey="legacy.fc1b4eb6105e" />
+              </Text>
             </Pressable>
             {deleteProject.isError ? (
-              <Text style={styles.danger}>Não foi possível excluir o projeto.</Text>
+              <Text style={styles.danger}>
+                <LocalizedCopy copyKey="legacy.55d5dc6a3d4e" />
+              </Text>
             ) : null}
           </View>
         }
       />
+
       <NativeFormModal
         visible={Boolean(checkInState)}
         title="Registrar check-in"
@@ -617,6 +674,7 @@ export default function ProjectWorkspace() {
         onSave={() => void saveCheckIn()}
         valueMaxLength={1000}
       />
+
       <NativeFormModal
         visible={taskModal}
         title={editingTask ? "Editar tarefa" : "Nova tarefa"}
@@ -632,6 +690,7 @@ export default function ProjectWorkspace() {
         onClose={() => setTaskModal(false)}
         onSave={() => void saveTask()}
       />
+
       <NativeFormModal
         visible={projectModal}
         title="Editar projeto"

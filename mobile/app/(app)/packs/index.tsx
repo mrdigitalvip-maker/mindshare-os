@@ -1,3 +1,4 @@
+import { LocalizedCopy } from "@/components/localized-copy";
 import { router } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { AppScreen } from "@/components/app-screen";
@@ -26,10 +27,13 @@ export default function PacksCatalog() {
         onAction={() => void packs.refetch()}
       />
     );
+
   return (
     <AppScreen scroll contentContainerStyle={s.page}>
       <StandardHeader title="Journey Packs" />
-      <Text style={s.promise}>Escolha um resultado. A NEXORA transforma em execução.</Text>
+      <Text style={s.promise}>
+        <LocalizedCopy copyKey="legacy.1de4834d9ad6" />
+      </Text>
       {packs.data?.length ? (
         packs.data.map((pack) => (
           <Pressable
@@ -44,14 +48,18 @@ export default function PacksCatalog() {
             </Text>
             <Text style={s.title}>{pack.title}</Text>
             <Text style={s.body}>{pack.shortDescription}</Text>
-            <Text style={s.link}>Conhecer programa ›</Text>
+            <Text style={s.link}>
+              <LocalizedCopy copyKey="legacy.531347bd4d4d" />
+            </Text>
           </Pressable>
         ))
       ) : (
         <View style={s.card}>
-          <Text style={s.title}>Nenhum programa disponível agora.</Text>
+          <Text style={s.title}>
+            <LocalizedCopy copyKey="legacy.9ed8665593e5" />
+          </Text>
           <Text style={s.body}>
-            Volte mais tarde. A NEXORA não cria opções locais quando o catálogo está vazio.
+            <LocalizedCopy copyKey="legacy.f78d4e6fd439" />
           </Text>
         </View>
       )}

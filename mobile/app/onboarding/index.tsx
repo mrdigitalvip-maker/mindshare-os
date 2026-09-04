@@ -1,3 +1,4 @@
+import { LocalizedCopy } from "@/components/localized-copy";
 import { useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { Redirect, router } from "expo-router";
@@ -48,9 +49,15 @@ export default function Onboarding() {
   return (
     <AppScreen keyboard includeBottomInset contentContainerStyle={s.page}>
       <NexoraAgent size={160} state={name ? "attention" : "quiet"} />
-      <Text style={s.eyebrow}>BOAS-VINDAS À NEXORA</Text>
-      <Text style={s.title}>Como podemos chamar você?</Text>
-      <Text style={s.progress}>Organize tarefas, projetos e estudos em um só lugar.</Text>
+      <Text style={s.eyebrow}>
+        <LocalizedCopy copyKey="legacy.f0d0f712a8a3" />
+      </Text>
+      <Text style={s.title}>
+        <LocalizedCopy copyKey="legacy.058630664715" />
+      </Text>
+      <Text style={s.progress}>
+        <LocalizedCopy copyKey="legacy.10b65ea80386" />
+      </Text>
       <View style={s.composer}>
         <TextInput
           autoFocus
@@ -61,6 +68,7 @@ export default function Onboarding() {
           placeholderTextColor={colors.textMuted}
           style={s.input}
         />
+
         <Pressable disabled={!name.trim() || busy} onPress={() => void complete()} style={s.send}>
           <Text style={s.sendText}>{busy ? "Salvando…" : "Começar"}</Text>
         </Pressable>

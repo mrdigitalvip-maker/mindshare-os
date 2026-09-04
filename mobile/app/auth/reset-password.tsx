@@ -1,3 +1,4 @@
+import { LocalizedCopy } from "@/components/localized-copy";
 import { useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { router } from "expo-router";
@@ -39,15 +40,22 @@ export default function ResetPassword() {
   if (!session || !recoverySession)
     return (
       <View style={styles.page}>
-        <Text style={styles.title}>Link de recuperação inválido ou expirado</Text>
+        <Text style={styles.title}>
+          <LocalizedCopy copyKey="legacy.fa642a046b2f" />
+        </Text>
         <Pressable onPress={() => router.replace("/auth/recovery")} style={styles.button}>
-          <Text style={styles.buttonText}>Solicitar novo link</Text>
+          <Text style={styles.buttonText}>
+            <LocalizedCopy copyKey="legacy.e5cafba6aceb" />
+          </Text>
         </Pressable>
       </View>
     );
+
   return (
     <View style={styles.page}>
-      <Text style={styles.title}>Crie uma nova senha</Text>
+      <Text style={styles.title}>
+        <LocalizedCopy copyKey="legacy.53c6d3c6a1a3" />
+      </Text>
       <TextInput
         secureTextEntry
         value={password}
@@ -56,6 +64,7 @@ export default function ResetPassword() {
         placeholderTextColor={colors.textMuted}
         style={styles.input}
       />
+
       <TextInput
         secureTextEntry
         value={confirmation}
@@ -64,8 +73,11 @@ export default function ResetPassword() {
         placeholderTextColor={colors.textMuted}
         style={styles.input}
       />
+
       {confirmation && password !== confirmation ? (
-        <Text style={styles.message}>As senhas não coincidem.</Text>
+        <Text style={styles.message}>
+          <LocalizedCopy copyKey="legacy.f5731f1ae3e4" />
+        </Text>
       ) : null}
       {message ? <Text style={styles.message}>{message}</Text> : null}
       <Pressable

@@ -1,3 +1,4 @@
+import { LocalizedCopy } from "@/components/localized-copy";
 import { useRef, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router, Stack, useLocalSearchParams } from "expo-router";
@@ -25,6 +26,7 @@ export default function SubjectWorkspace() {
         onAction={() => router.replace("/studies")}
       />
     );
+
   if (query.isPending) return <LoadingState title="Carregando matéria…" />;
   if (query.isError)
     return (
@@ -34,6 +36,7 @@ export default function SubjectWorkspace() {
         onAction={() => void query.refetch()}
       />
     );
+
   if (!query.data) return <EmptyState title="Matéria não encontrada" />;
   const { subject, goals, sessions, notes } = query.data,
     progress = getStudyProgress(query.data),
@@ -111,7 +114,9 @@ export default function SubjectWorkspace() {
     <ScrollView contentContainerStyle={styles.page}>
       <Stack.Screen options={{ title: subject.name }} />
       <View style={styles.hero}>
-        <Text style={styles.eyebrow}>PLANO DE ESTUDO</Text>
+        <Text style={styles.eyebrow}>
+          <LocalizedCopy copyKey="legacy.2264040e0bae" />
+        </Text>
         <Text style={styles.title}>{subject.name}</Text>
         <Text style={styles.copy}>
           {subject.objective || "Defina o que você quer alcançar nesta matéria."}
@@ -134,30 +139,42 @@ export default function SubjectWorkspace() {
         <View style={styles.management}>
           {subject.status !== "active" ? (
             <Pressable disabled={study.isPending} onPress={() => void changeStatus("active")}>
-              <Text style={styles.link}>Retomar</Text>
+              <Text style={styles.link}>
+                <LocalizedCopy copyKey="legacy.d977bc4935cd" />
+              </Text>
             </Pressable>
           ) : null}
           {subject.status === "active" ? (
             <Pressable disabled={study.isPending} onPress={() => void changeStatus("paused")}>
-              <Text style={styles.link}>Pausar</Text>
+              <Text style={styles.link}>
+                <LocalizedCopy copyKey="legacy.fe8541bd1268" />
+              </Text>
             </Pressable>
           ) : null}
           {subject.status !== "completed" ? (
             <Pressable disabled={study.isPending} onPress={() => void changeStatus("completed")}>
-              <Text style={styles.link}>Concluir plano</Text>
+              <Text style={styles.link}>
+                <LocalizedCopy copyKey="legacy.e40a9b1e2ca6" />
+              </Text>
             </Pressable>
           ) : null}
           <Pressable disabled={study.isPending} onPress={confirmDelete}>
-            <Text style={styles.delete}>Excluir matéria</Text>
+            <Text style={styles.delete}>
+              <LocalizedCopy copyKey="legacy.e603ce51945e" />
+            </Text>
           </Pressable>
         </View>
       </Section>
       <View style={styles.focus}>
-        <Text style={styles.eyebrow}>ESTUDAR AGORA</Text>
+        <Text style={styles.eyebrow}>
+          <LocalizedCopy copyKey="legacy.2968493cbdb9" />
+        </Text>
         <Text style={styles.heading}>
           {subject.nextAction || active?.title || "Defina o próximo objetivo desta matéria."}
         </Text>
-        <Text style={styles.copy}>Sugestão: 25 minutos</Text>
+        <Text style={styles.copy}>
+          <LocalizedCopy copyKey="legacy.30036ff4aded" />
+        </Text>
         <Pressable
           style={styles.primary}
           onPress={() => router.push(`/studies/${subjectId}/session`)}
@@ -183,7 +200,9 @@ export default function SubjectWorkspace() {
           {progress.sessions === 1 ? "sessão" : "sessões"} nesta semana
         </Text>
         {progress.weeklyMinutes === 0 ? (
-          <Text style={styles.copy}>Sua próxima sessão inicia o progresso desta semana.</Text>
+          <Text style={styles.copy}>
+            <LocalizedCopy copyKey="legacy.c38de0c00c4e" />
+          </Text>
         ) : null}
       </Section>
       <Section title="METAS" action="Adicionar" onAction={() => setMode("goal")}>
@@ -209,7 +228,9 @@ export default function SubjectWorkspace() {
           </Pressable>
         ))}
         {!goals.length ? (
-          <Text style={styles.copy}>Transforme seu objetivo em uma próxima entrega concreta.</Text>
+          <Text style={styles.copy}>
+            <LocalizedCopy copyKey="legacy.edeacc331470" />
+          </Text>
         ) : null}
       </Section>
       {sessions.some((s) => s.status === "completed") ? (
@@ -257,17 +278,21 @@ export default function SubjectWorkspace() {
                   .catch(() => Alert.alert("Não foi possível excluir a nota."))
               }
             >
-              <Text style={styles.delete}>Excluir</Text>
+              <Text style={styles.delete}>
+                <LocalizedCopy copyKey="legacy.e9c74e08e8d2" />
+              </Text>
             </Pressable>
           </Pressable>
         ))}
         {!notes.length ? (
-          <Text style={styles.copy}>Registre resumos, conceitos e dúvidas reais.</Text>
+          <Text style={styles.copy}>
+            <LocalizedCopy copyKey="legacy.3f0469f3d8e7" />
+          </Text>
         ) : null}
       </Section>
       <Section title="NEXORA TUTOR">
         <Text style={styles.copy}>
-          Converse com a Assistente usando o contexto desta matéria, das metas e das notas recentes.
+          <LocalizedCopy copyKey="legacy.85d037f04ea1" />
         </Text>
         <Pressable
           style={styles.secondary}
@@ -278,7 +303,9 @@ export default function SubjectWorkspace() {
             })
           }
         >
-          <Text style={styles.link}>Perguntar à NEXORA</Text>
+          <Text style={styles.link}>
+            <LocalizedCopy copyKey="legacy.86beaf05d2c4" />
+          </Text>
         </Pressable>
       </Section>
       <NativeFormModal

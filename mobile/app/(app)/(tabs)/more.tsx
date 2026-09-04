@@ -1,3 +1,4 @@
+import { LocalizedCopy } from "@/components/localized-copy";
 import { StyleSheet, Text, View } from "react-native";
 import { ModuleCard } from "@/components/product-ui";
 import { AppScreen } from "@/components/app-screen";
@@ -9,9 +10,15 @@ export default function More() {
   return (
     <AppScreen scroll contentContainerStyle={styles.page}>
       <StandardHeader title="Mais" />
-      <Text style={styles.eyebrow}>MÓDULOS NEXORA</Text>
-      <Text style={styles.title}>Seu espaço, além da rotina</Text>
-      <Text style={styles.copy}>Continue sua execução ou cuide da sua experiência NEXORA.</Text>
+      <Text style={styles.eyebrow}>
+        <LocalizedCopy copyKey="legacy.4b6cd3850dd8" />
+      </Text>
+      <Text style={styles.title}>
+        <LocalizedCopy copyKey="legacy.803632c4cabb" />
+      </Text>
+      <Text style={styles.copy}>
+        <LocalizedCopy copyKey="legacy.dccd7a008db2" />
+      </Text>
       <ModuleGroup title="EXECUÇÃO">
         <ModuleCard
           icon="◇"
@@ -19,12 +26,14 @@ export default function More() {
           description="Desafios reais conectados ao seu progresso."
           href="/arena"
         />
+
         <ModuleCard
           icon="◈"
           title="Jornadas"
           description="Programas, missões e próximos passos."
           href="/journeys"
         />
+
         <ModuleCard
           icon="◎"
           title="Estudos"
@@ -39,18 +48,21 @@ export default function More() {
           description={t("creator.tagline")}
           href="/creator"
         />
+
         <ModuleCard
           icon="◉"
           title="Community"
           description="Canais oficiais e seus Squads privados."
           href="/community"
         />
+
         <ModuleCard
           icon="✦"
           title="Premium"
           description="Conheça seu plano e benefícios."
           href="/premium"
         />
+
         <ModuleCard
           icon="⚙"
           title="Configurações"
