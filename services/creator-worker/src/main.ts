@@ -34,6 +34,16 @@ process.on("SIGINT", () => {
 });
 const log = (event: string, details: Record<string, unknown> = {}) =>
   console.log(JSON.stringify({ time: new Date().toISOString(), event, ...details }));
+type CreatorJobRow = {
+  id: string;
+  user_id: string;
+  project_id: string;
+  source_path: string;
+  target_duration_seconds: number;
+  aspect_ratio: "9:16" | "1:1" | "16:9";
+  captions_enabled: boolean;
+  settings?: Record<string, unknown>;
+};
 async function stage(id: string, status: string) {
   const { error } = await db.rpc("creator_worker_stage", {
     p_job_id: id,
@@ -51,7 +61,7 @@ async function cancelled(id: string) {
     throw Object.assign(new Error("cancel check failed"), { code: "DATABASE_UNAVAILABLE" });
   return data === true;
 }
-async function processJob(job: any) {
+async function processJob(job: CreatorJobRow) {
   const dir = await mkdtemp(join(tmpdir(), "nexora-creator-"));
   active = new AbortController();
   let heartbeat: ReturnType<typeof setInterval> | undefined;
@@ -84,18 +94,17 @@ async function processJob(job: any) {
     await stage(job.id, "transcribing");
     const transcript = await new OpenAITranscriptionProvider().transcribe(audio);
     await stage(job.id, "selecting_clips");
-    const requested = job.settings?.rerender_clip_id
+    const settings = job.settings ?? {};
+    const requested = settings.rerender_clip_id
       ? [
           {
-            startMs: Number(job.settings.start_ms),
-            endMs: Number(job.settings.end_ms),
+            startMs: Number(settings.start_ms),
+            endMs: Number(settings.end_ms),
             text: transcript.segments
               .filter(
-                (s: any) =>
-                  s.endMs > Number(job.settings.start_ms) &&
-                  s.startMs < Number(job.settings.end_ms),
+                (s) => s.endMs > Number(settings.start_ms) && s.startMs < Number(settings.end_ms),
               )
-              .map((s: any) => s.text)
+              .map((s) => s.text)
               .join(" "),
           },
         ]
@@ -104,7 +113,7 @@ async function processJob(job: any) {
       ...c,
       ...scoreCandidate(c, transcript.segments, sceneCuts, transcript.language),
     }));
-    const selected = job.settings?.rerender_clip_id ? scored : diversify(scored, 3);
+    const selected = settings.rerender_clip_id ? scored : diversify(scored, 3);
     if (!selected.length)
       throw Object.assign(new Error("No complete candidate windows"), {
         code: "NO_CLIP_CANDIDATES",
@@ -141,27 +150,25 @@ async function processJob(job: any) {
         .upload(outputPath, bytes, { contentType: "video/mp4", upsert: false });
       if (uploaded.error)
         throw Object.assign(new Error("Output upload failed"), { code: "STORAGE_UPLOAD_FAILED" });
-      const inserted = await db
-        .from("creator_clips")
-        .insert({
-          id: clip,
-          user_id: job.user_id,
-          project_id: job.project_id,
-          job_id: job.id,
-          start_ms: c.startMs,
-          end_ms: c.endMs,
-          duration_ms: c.endMs - c.startMs,
-          rank,
-          score: c.score,
-          score_reason: c.reason,
-          transcript_excerpt: c.text.slice(0, 500),
-          render_status: "available",
-          output_path: outputPath,
-          aspect_ratio: job.aspect_ratio,
-          captions_enabled: job.captions_enabled,
-          render_version: job.settings?.rerender_clip_id ? 2 : 1,
-          replaces_clip_id: job.settings?.rerender_clip_id ?? null,
-        });
+      const inserted = await db.from("creator_clips").insert({
+        id: clip,
+        user_id: job.user_id,
+        project_id: job.project_id,
+        job_id: job.id,
+        start_ms: c.startMs,
+        end_ms: c.endMs,
+        duration_ms: c.endMs - c.startMs,
+        rank,
+        score: c.score,
+        score_reason: c.reason,
+        transcript_excerpt: c.text.slice(0, 500),
+        render_status: "available",
+        output_path: outputPath,
+        aspect_ratio: job.aspect_ratio,
+        captions_enabled: job.captions_enabled,
+        render_version: job.settings?.rerender_clip_id ? 2 : 1,
+        replaces_clip_id: job.settings?.rerender_clip_id ?? null,
+      });
       if (inserted.error)
         throw Object.assign(new Error("Result persistence failed"), {
           code: "DATABASE_UNAVAILABLE",
@@ -175,8 +182,10 @@ async function processJob(job: any) {
       p_clip_count: selected.length,
     });
     log("job_completed", { jobId: job.id, clips: selected.length });
-  } catch (e: any) {
-    const code = String(e?.code ?? "WORKER_FAILURE");
+  } catch (error: unknown) {
+    const code = String(
+      typeof error === "object" && error && "code" in error ? error.code : "WORKER_FAILURE",
+    );
     await db.rpc("creator_worker_fail", {
       p_job_id: job.id,
       p_lease_owner: worker,

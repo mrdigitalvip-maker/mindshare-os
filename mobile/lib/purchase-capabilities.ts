@@ -1,8 +1,6 @@
 export const ANDROID_PURCHASE_AVAILABILITY = "unavailable_for_tester_build" as const;
 
-export type AndroidPurchaseAvailability =
-  | typeof ANDROID_PURCHASE_AVAILABILITY
-  | "available";
+export type AndroidPurchaseAvailability = typeof ANDROID_PURCHASE_AVAILABILITY | "available";
 
 /**
  * Product capability only. This value must never be used to infer a user's

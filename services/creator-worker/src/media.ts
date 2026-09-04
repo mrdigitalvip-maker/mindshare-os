@@ -6,20 +6,24 @@ export async function run(bin: string, args: string[], signal?: AbortSignal) {
     const p = spawn(bin, args, { stdio: ["ignore", "pipe", "pipe"] });
     let stdout = "",
       stderr = "";
-    p.stdout.on("data", (d) => (stdout += d));
-    p.stderr.on("data", (d) => (stderr += d));
+    p.stdout.on("data", (d) => {
+      stdout += String(d);
+    });
+    p.stderr.on("data", (d) => {
+      stderr += String(d);
+    });
     const abort = () => p.kill("SIGTERM");
     signal?.addEventListener("abort", abort, { once: true });
     p.on("error", reject);
     p.on("close", (c) => {
       signal?.removeEventListener("abort", abort);
-      c === 0
-        ? resolve({ stdout, stderr })
-        : reject(
-            Object.assign(new Error(`${bin} exited ${c}`), {
-              code: signal?.aborted ? "CANCELLED" : "MEDIA_COMMAND_FAILED",
-            }),
-          );
+      if (c === 0) resolve({ stdout, stderr });
+      else
+        reject(
+          Object.assign(new Error(`${bin} exited ${c}`), {
+            code: signal?.aborted ? "CANCELLED" : "MEDIA_COMMAND_FAILED",
+          }),
+        );
     });
   });
 }

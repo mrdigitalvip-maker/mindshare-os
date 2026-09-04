@@ -16,6 +16,7 @@ import {
   Swords,
   Users,
   PackageOpen,
+  Clapperboard,
   Search,
   type LucideIcon,
 } from "lucide-react";
@@ -34,6 +35,16 @@ export type NexoraModule = {
 };
 
 export const MODULES: NexoraModule[] = [
+  {
+    id: "creator",
+    releaseReady: true,
+    label: "Creator Center",
+    path: "/creator",
+    icon: Clapperboard,
+    description: "Plan, publish, and improve with real evidence",
+    group: "modules",
+    category: "growth",
+  },
   {
     id: "journeys",
     releaseReady: true,

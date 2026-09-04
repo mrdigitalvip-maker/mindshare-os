@@ -23,9 +23,12 @@ export const ACTIVE_STATES = [
   "rendering",
 ] as const;
 export function parseProbe(raw: string): Probe {
-  const x = JSON.parse(raw),
+  const x = JSON.parse(raw) as {
+      streams?: Array<Record<string, unknown>>;
+      format?: Record<string, unknown>;
+    },
     streams = Array.isArray(x.streams) ? x.streams : [],
-    v = streams.find((s: any) => s.codec_type === "video");
+    v = streams.find((s) => s.codec_type === "video");
   if (!v)
     throw Object.assign(new Error("No usable video stream"), { code: "INVALID_MEDIA_NO_VIDEO" });
   const duration = Number(v.duration ?? x.format?.duration),
@@ -49,7 +52,7 @@ export function parseProbe(raw: string): Probe {
     width,
     height,
     fps,
-    hasAudio: streams.some((s: any) => s.codec_type === "audio"),
+    hasAudio: streams.some((s) => s.codec_type === "audio"),
     codec: String(v.codec_name ?? "unknown"),
     format: String(x.format?.format_name ?? ""),
   };

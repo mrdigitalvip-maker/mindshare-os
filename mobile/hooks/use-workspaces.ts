@@ -6,10 +6,7 @@ import {
 } from "@/lib/query-keys";
 import { useAuth } from "@/providers/auth-provider";
 import * as service from "@/services/workspace-service";
-import {
-  prefetchProject as prefetchProjectQuery,
-  projectQueryOptions,
-} from "@/lib/project-query";
+import { prefetchProject as prefetchProjectQuery, projectQueryOptions } from "@/lib/project-query";
 
 function useUserId() {
   const { session } = useAuth();

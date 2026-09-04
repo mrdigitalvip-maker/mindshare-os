@@ -22,10 +22,10 @@ test("returns an optimistic message when there is no persisted history", () => {
 });
 
 test("appends an optimistic message with a different request ID", () => {
-  assert.deepEqual(
-    reconcileAssistantMessages([message("persisted")], message("optimistic")),
-    [message("persisted"), message("optimistic")],
-  );
+  assert.deepEqual(reconcileAssistantMessages([message("persisted")], message("optimistic")), [
+    message("persisted"),
+    message("optimistic"),
+  ]);
 });
 
 test("prefers the server message when it reconciles the optimistic request ID", () => {
