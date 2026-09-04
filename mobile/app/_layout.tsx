@@ -7,7 +7,7 @@ import { AppErrorBoundary } from "@/components/app-error-boundary";
 import { colors } from "@/lib/theme";
 import { AuthProvider } from "@/providers/auth-provider";
 import { QueryProvider } from "@/providers/query-provider";
-import { useNotificationRouting } from "@/hooks/use-notification-routing";
+import { NotificationRoutingGate } from "@/hooks/use-notification-routing";
 import * as Notifications from "expo-notifications";
 
 Notifications.setNotificationHandler({
@@ -20,14 +20,13 @@ Notifications.setNotificationHandler({
 });
 
 export default function RootLayout() {
-  useNotificationRouting();
-
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <AppErrorBoundary>
           <QueryProvider>
             <AuthProvider>
+              <NotificationRoutingGate />
               <StatusBar style="light" backgroundColor={colors.background} translucent={false} />
               <Stack
                 screenOptions={{

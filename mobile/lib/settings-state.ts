@@ -1,13 +1,26 @@
 import type { Entitlement } from "@/lib/subscription";
 
 export type NotificationReadiness =
-  "active" | "needs-registration" | "denied" | "blocked" | "undetermined" | "unsupported";
+  | "active"
+  | "needs-registration"
+  | "channel-error"
+  | "project-config"
+  | "denied"
+  | "blocked"
+  | "undetermined"
+  | "unsupported";
 
 export function notificationReadiness(
   permission: "granted" | "denied" | "blocked" | "undetermined" | "unsupported",
   registered: boolean,
+  channelReady = true,
+  projectConfigAvailable = true,
 ): NotificationReadiness {
-  if (permission === "granted") return registered ? "active" : "needs-registration";
+  if (permission === "granted") {
+    if (!channelReady) return "channel-error";
+    if (!projectConfigAvailable) return "project-config";
+    return registered ? "active" : "needs-registration";
+  }
   return permission;
 }
 
@@ -23,6 +36,15 @@ export const notificationCopy: Record<
     title: "Permissão ativa",
     description: "A permissão está ativa, mas este aparelho ainda precisa ser registrado.",
     action: "Concluir ativação",
+  },
+  "channel-error": {
+    title: "Canal de notificações indisponível",
+    description: "Não foi possível preparar as notificações neste aparelho.",
+    action: "Tentar novamente",
+  },
+  "project-config": {
+    title: "Push remoto indisponível",
+    description: "A configuração do serviço remoto ainda não está disponível nesta versão.",
   },
   denied: {
     title: "Permissão não concedida",
