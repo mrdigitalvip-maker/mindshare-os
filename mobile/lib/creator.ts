@@ -155,6 +155,25 @@ export type HookLabOutput = {
 export type HookLabState =
   { status: "not_generated" } | { status: "generated"; output: HookLabOutput };
 
+export function acceptHookLabResponse(value: unknown): HookLabState {
+  if (!value || typeof value !== "object") return { status: "not_generated" };
+  const candidate = value as Partial<HookLabOutput>;
+  const stringList = (item: unknown): item is string[] =>
+    Array.isArray(item) && item.length > 0 && item.every((entry) => typeof entry === "string");
+  if (
+    !stringList(candidate.hooks) ||
+    !stringList(candidate.titles) ||
+    typeof candidate.caption !== "string" ||
+    typeof candidate.callToAction !== "string" ||
+    !stringList(candidate.keywords) ||
+    !stringList(candidate.hashtags) ||
+    typeof candidate.assistantMessageId !== "string" ||
+    typeof candidate.generatedAt !== "string"
+  )
+    return { status: "not_generated" };
+  return { status: "generated", output: candidate as HookLabOutput };
+}
+
 export const CREATOR_ACADEMY = {
   start: ["niche", "profile", "content_pillars", "hook_basics", "consistency"],
   growth: ["retention", "storytelling", "cta", "testing_formats", "analytics_interpretation"],
@@ -198,6 +217,33 @@ export type CreatorAnalyticsSnapshot = {
   hour?: number;
   contentType?: string;
 };
+
+export function presentCreatorMetrics(snapshot: CreatorAnalyticsSnapshot) {
+  return Object.entries(snapshot.metrics).filter(
+    (entry): entry is [keyof CreatorAnalyticsSnapshot["metrics"], number] =>
+      typeof entry[1] === "number",
+  );
+}
+
+export type CreatorGoal = {
+  id: string;
+  title: string;
+  milestones: { id: string; label: string; completed: boolean }[];
+};
+
+export function creatorCopilotContext(input: {
+  profile?: CreatorProfileDraft | null;
+  strategy?: CreatorStrategy | null;
+  analytics?: CreatorAnalyticsSnapshot[] | null;
+}) {
+  return Object.fromEntries(
+    Object.entries({
+      profile: input.profile || undefined,
+      strategy: input.strategy || undefined,
+      analytics: input.analytics?.length ? input.analytics : undefined,
+    }).filter(([, value]) => value !== undefined),
+  );
+}
 
 export type CreatorImportDecision = {
   source: "device_upload" | "authorized_platform" | "url_recognition";

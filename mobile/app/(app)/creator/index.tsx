@@ -24,11 +24,9 @@ export default function CreatorCenter() {
       <CreatorSection
         title={t("creator.create")}
         items={[
-          t("creator.studio"),
-          t("creator.hookLab"),
-          t("creator.captionSeo"),
-          t("creator.profileBuilder"),
-          t("creator.contentIdeas"),
+          { label: t("creator.studio"), href: "/creator/new" },
+          { label: t("creator.hookLab"), href: "/creator/hook-lab" },
+          { label: t("creator.profileBuilder"), href: "/creator/profile" },
         ]}
       />
       <Pressable
@@ -42,45 +40,40 @@ export default function CreatorCenter() {
       <CreatorSection
         title={t("creator.plan")}
         items={[
-          t("creator.setup"),
-          t("creator.strategy"),
-          t("creator.pillars"),
-          t("creator.postingPlan"),
-          t("creator.goals"),
+          { label: t("creator.setup"), href: "/creator/setup" },
+          { label: t("creator.strategy"), href: "/creator/strategy" },
+          { label: t("creator.pillars"), href: "/creator/pillars" },
+          { label: t("creator.goals"), href: "/creator/goals" },
         ]}
       />
       <CreatorSection
         title={t("creator.learn")}
-        items={[t("creator.academy"), t("creator.start"), t("creator.growth"), t("creator.pro")]}
+        items={[{ label: t("creator.academy"), href: "/creator/academy" }]}
       />
       <CreatorSection
         title={t("creator.analyze")}
-        items={[
-          t("creator.analytics"),
-          t("creator.contentScore"),
-          t("creator.retention"),
-          t("creator.history"),
-        ]}
+        items={[{ label: t("creator.analytics"), href: "/creator/analytics" }]}
         note={t("creator.noAnalytics")}
       />
       <CreatorSection
         title={t("creator.intelligence")}
-        items={[t("creator.map"), t("creator.globalBenchmark"), t("creator.yourAudience")]}
+        items={[{ label: t("creator.map"), href: "/creator/map" }]}
         note={t("creator.noBenchmarks")}
       />
       <CreatorSection
         title={t("creator.media")}
         items={[
-          t("creator.library"),
-          t("creator.upload"),
-          t("creator.authorizedImports"),
-          t("creator.sourceStatus"),
+          { label: t("creator.library"), href: "/creator/library" },
+          { label: t("creator.upload"), href: "/creator/import" },
         ]}
         note={t("creator.authImport")}
       />
       <CreatorSection
         title={t("creator.ai")}
-        items={[t("creator.copilot"), t("creator.hookLab")]}
+        items={[
+          { label: t("creator.copilot"), href: "/creator/copilot" },
+          { label: t("creator.hookLab"), href: "/creator/hook-lab" },
+        ]}
         note={t("creator.noGenerated")}
       />
       <Text style={s.heading}>{t("creator.recent")}</Text>
@@ -99,14 +92,26 @@ export default function CreatorCenter() {
     </AppScreen>
   );
 }
-function CreatorSection({ title, items, note }: { title: string; items: string[]; note?: string }) {
+function CreatorSection({
+  title,
+  items,
+  note,
+}: {
+  title: string;
+  items: { label: string; href: string }[];
+  note?: string;
+}) {
   return (
     <View style={s.card} accessibilityLabel={title}>
       <Text style={s.heading}>{title}</Text>
       {items.map((item) => (
-        <Text key={item} style={s.copy}>
-          • {item}
-        </Text>
+        <Pressable
+          accessibilityRole="link"
+          key={item.href}
+          onPress={() => router.push(item.href as never)}
+        >
+          <Text style={s.copy}>› {item.label}</Text>
+        </Pressable>
       ))}
       {note ? <Text style={s.notice}>{note}</Text> : null}
     </View>
