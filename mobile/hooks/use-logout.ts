@@ -5,6 +5,7 @@ import { router } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/providers/auth-provider";
 import { disableCurrentPushDevice } from "@/services/notification-service";
+import { clearPendingNotificationNavigation } from "@/hooks/use-notification-routing";
 
 /** The single logout path for authenticated mobile surfaces. */
 export function useLogout() {
@@ -17,10 +18,12 @@ export function useLogout() {
     logoutLock.current = true;
     try {
       if (session?.user.id) await disableCurrentPushDevice(session.user.id).catch(() => undefined);
+      clearPendingNotificationNavigation();
       await queryClient.cancelQueries();
       queryClient.clear();
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
+      if (router.canDismiss()) router.dismissAll();
       router.replace("/auth");
     } finally {
       logoutLock.current = false;

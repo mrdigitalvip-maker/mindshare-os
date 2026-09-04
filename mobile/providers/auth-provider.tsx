@@ -29,6 +29,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [initialized, setInitialized] = useState(false);
   const [recoverySession, setRecoverySession] = useState(false);
   const activeUserId = useRef<string | null>(null);
+  const sessionRef = useRef<Session | null>(null);
+  const recoveryUserId = useRef<string | null>(null);
   const authRevision = useRef(0);
 
   useEffect(() => {
@@ -50,6 +52,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
             queryClient.clear();
           }
           activeUserId.current = restoredUserId;
+          sessionRef.current = restored;
           setSession(restored);
         }
       })
@@ -60,6 +63,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
             queryClient.clear();
           }
           activeUserId.current = null;
+          sessionRef.current = null;
+          recoveryUserId.current = null;
+          setRecoverySession(false);
           setSession(null);
         }
       })
@@ -74,9 +80,18 @@ export function AuthProvider({ children }: PropsWithChildren) {
       if (activeUserId.current !== nextUserId) {
         void queryClient.cancelQueries();
         queryClient.clear();
+        recoveryUserId.current = null;
+        setRecoverySession(false);
       }
       activeUserId.current = nextUserId;
-      setRecoverySession(event === "PASSWORD_RECOVERY");
+      sessionRef.current = nextSession;
+      if (event === "PASSWORD_RECOVERY" && nextUserId) {
+        recoveryUserId.current = nextUserId;
+        setRecoverySession(true);
+      } else if (event === "SIGNED_OUT") {
+        recoveryUserId.current = null;
+        setRecoverySession(false);
+      }
       setSession(nextSession);
       setInitialized(true);
     });
@@ -88,17 +103,27 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, [queryClient]);
 
   const status = resolveAuthStatus(initialized, Boolean(session));
-  const markRecoverySession = useCallback(() => setRecoverySession(true), []);
-  const clearRecoverySession = useCallback(() => setRecoverySession(false), []);
+  const hasRecoverySession =
+    recoverySession && recoveryUserId.current === (session?.user.id ?? null);
+  const markRecoverySession = useCallback(() => {
+    const userId = sessionRef.current?.user.id;
+    if (!userId) return;
+    recoveryUserId.current = userId;
+    setRecoverySession(true);
+  }, []);
+  const clearRecoverySession = useCallback(() => {
+    recoveryUserId.current = null;
+    setRecoverySession(false);
+  }, []);
   const value = useMemo(
     () => ({
       session,
       status,
-      recoverySession,
+      recoverySession: hasRecoverySession,
       markRecoverySession,
       clearRecoverySession,
     }),
-    [session, status, recoverySession, markRecoverySession, clearRecoverySession],
+    [session, status, hasRecoverySession, markRecoverySession, clearRecoverySession],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

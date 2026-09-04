@@ -3,16 +3,19 @@ import * as Notifications from "expo-notifications";
 import { router } from "expo-router";
 import { notificationRoute } from "@/lib/notification-routing";
 import { useAuth } from "@/providers/auth-provider";
-import type { AuthStatus } from "@/lib/auth-state";
+import { canNavigateNotification } from "@/lib/auth-state";
 import { createNotificationResponseDedupe } from "@/lib/notification-contract";
 const dedupeNotificationResponse = createNotificationResponseDedupe();
+let clearPendingNotificationRoute: (() => void) | undefined;
+
+export function clearPendingNotificationNavigation() {
+  clearPendingNotificationRoute?.();
+}
 
 export function shouldHandleNotificationResponse(identifier: string) {
   return dedupeNotificationResponse(identifier);
 }
-export function canNavigateNotification(status: AuthStatus) {
-  return status === "authenticated";
-}
+export { canNavigateNotification } from "@/lib/auth-state";
 
 export function NotificationRoutingGate() {
   useNotificationRouting();
@@ -24,6 +27,16 @@ export function useNotificationRouting() {
   const statusRef = useRef(status);
   const pendingRoute = useRef<ReturnType<typeof notificationRoute> | undefined>(undefined);
   statusRef.current = status;
+  useEffect(() => {
+    const clearThisPendingRoute = () => {
+      pendingRoute.current = undefined;
+    };
+    clearPendingNotificationRoute = clearThisPendingRoute;
+    return () => {
+      if (clearPendingNotificationRoute === clearThisPendingRoute)
+        clearPendingNotificationRoute = undefined;
+    };
+  }, []);
   useEffect(() => {
     if (canNavigateNotification(status) && pendingRoute.current) {
       router.push(pendingRoute.current);
