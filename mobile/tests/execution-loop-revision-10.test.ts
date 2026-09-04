@@ -8,6 +8,7 @@ import {
   type Journey,
   type JourneyMission,
 } from "../lib/journeys";
+import { translations } from "../i18n";
 
 const read = (path: string) => readFileSync(fileURLToPath(new URL(path, import.meta.url)), "utf8");
 const service = read("../services/journey-service.ts");
@@ -32,8 +33,14 @@ describe("R10 truthful execution loop", () => {
   });
 
   test("mission failure is auxiliary and uses safe PT-BR copy", () => {
-    expect(overview).toContain("Não foi possível atualizar a missão de hoje.");
-    expect(overview).toContain("Suas Jornadas continuam disponíveis.");
+    expect(overview).toContain('copyKey="legacy.4745f50a1cb8"');
+    expect(overview).toContain('copyKey="legacy.2e478cac60e8"');
+    expect((translations["pt-BR"] as Record<string, string>)["legacy.4745f50a1cb8"]).toBe(
+      "Não foi possível atualizar a missão de hoje.",
+    );
+    expect((translations.en as Record<string, string>)["legacy.4745f50a1cb8"]).toBe(
+      "We couldn't update today's mission.",
+    );
     expect(overview.indexOf("if (journeys.isError)")).toBeGreaterThan(-1);
   });
 
@@ -76,7 +83,13 @@ describe("R10 truthful execution loop", () => {
   test("manual Journey fabricates neither roadmap nor next action", () => {
     expect(buildJourneyProgramState("manual", [])).toBeNull();
     expect(detail).toContain("Defina o próximo passo desta Jornada.");
-    expect(detail).toContain("Planejar com a NEXORA");
+    expect(detail).toContain('copyKey="legacy.48aa87243cf9"');
+    expect((translations["pt-BR"] as Record<string, string>)["legacy.48aa87243cf9"]).toBe(
+      "Planejar com a NEXORA",
+    );
+    expect((translations.en as Record<string, string>)["legacy.48aa87243cf9"]).toBe(
+      "Plan with NEXORA",
+    );
   });
 
   test("rapid completion has a synchronous guard and canonical RPC", () => {

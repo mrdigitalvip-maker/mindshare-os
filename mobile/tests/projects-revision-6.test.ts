@@ -12,7 +12,7 @@ const hooksSource = readFileSync("hooks/use-workspaces.ts", "utf8");
 test("project list treats tasks as recoverable auxiliary data", () => {
   assert.match(listSource, /if \(projectsQuery\.isError\)/);
   assert.doesNotMatch(listSource, /projectsQuery\.isError \|\| tasksQuery\.isError/);
-  assert.match(listSource, /Não foi possível atualizar o progresso das tarefas\./);
+  assert.match(listSource, /copyKey="legacy\.fec84e911a6c"/);
   assert.match(listSource, /tasksQuery\.refetch\(\)/);
   assert.match(listSource, /tasks=\{taskDataAvailable \?/);
 });

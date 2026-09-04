@@ -52,7 +52,7 @@ describe("Community Live server contract", () => {
     expect(layout).toContain('name="community" options={{ headerShown: false }}');
     expect(communityLayout).toContain('<Stack screenOptions={{ headerShown: false }}>');
     expect(communityLayout).toContain('<Stack.Screen name="[channelId]" />');
-    expect(conversation).toContain("NEXORA Community");
+    expect(conversation).toContain('copyKey="legacy.c252ba7e4fda"');
   });
   test("backend errors have specific human-readable messages", () => {
     expect(communityErrorMessage(new Error("membership_required"))).toContain("Entre");
@@ -178,7 +178,7 @@ describe("Community physical acceptance hotfix", () => {
   });
   test("Host identity and contextual actions replace technical alerts", () => {
     expect(conversation).toContain("NEXORA Host");
-    expect(conversation).toContain("AUTOMÁTICO");
+    expect(conversation).toContain('copyKey="legacy.5f89039a541b"');
     expect(conversation).not.toContain("Mensagem oficial automatizada — não é uma pessoa.");
     expect(conversation).toContain('label="Bloquear usuário"');
     expect(conversation).toContain("messageActions(message)");
