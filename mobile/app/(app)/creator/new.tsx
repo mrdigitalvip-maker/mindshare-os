@@ -3,6 +3,9 @@ import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { AppScreen } from "@/components/app-screen";
 import { useLanguage } from "@/providers/language-provider";
+import { useAuth } from "@/providers/auth-provider";
+import { useRouter } from "expo-router";
+import { createAndUploadCreatorVideo, enqueueCreatorProject } from "@/services/creator-service";
 import {
   CREATOR_ASPECT_RATIOS,
   CREATOR_CAPTION_MODES,
@@ -12,9 +15,18 @@ import {
 import { colors, radius, spacing, typography } from "@/lib/theme";
 export default function NewCreatorProject() {
   const { t } = useLanguage();
+  const { session } = useAuth();
+  const router = useRouter();
   const [title, setTitle] = useState("");
   const [url, setUrl] = useState("");
-  const [file, setFile] = useState<string>();
+  const [file, setFile] = useState<{
+    uri: string;
+    fileName?: string | null;
+    mimeType?: string;
+    fileSize?: number;
+  }>();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
   const pick = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) return;
@@ -22,8 +34,32 @@ export default function NewCreatorProject() {
       mediaTypes: ["videos"],
       allowsMultipleSelection: false,
     });
-    const uri = result.canceled ? undefined : result.assets[0]?.uri;
-    if (uri?.trim()) setFile(uri);
+    const asset = result.canceled ? undefined : result.assets[0];
+    if (asset?.uri.trim()) setFile(asset);
+  };
+  const submit = async () => {
+    if (!session?.user.id || !file || !title.trim()) return;
+    setBusy(true);
+    setError("");
+    try {
+      const id = await createAndUploadCreatorVideo({
+        userId: session.user.id,
+        title,
+        uri: file.uri,
+        fileName: file.fileName ?? `video-${Date.now()}.mp4`,
+        contentType: file.mimeType ?? "application/octet-stream",
+        fileSize: file.fileSize,
+        aspectRatio: "9:16",
+        targetDuration: 30,
+        captionsEnabled: true,
+      });
+      await enqueueCreatorProject(id);
+      router.replace({ pathname: "/(app)/creator/[projectId]", params: { projectId: id } });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "upload_failed");
+    } finally {
+      setBusy(false);
+    }
   };
   const recognized = url ? recognizeCreatorUrl(url) : null;
   return (
@@ -41,7 +77,7 @@ export default function NewCreatorProject() {
       <Pressable style={s.button} onPress={() => void pick()}>
         <Text style={s.buttonText}>{t("creator.local")}</Text>
       </Pressable>
-      {file ? <Text style={s.copy}>✓ {file.split("/").pop()}</Text> : null}
+      {file ? <Text style={s.copy}>✓ {file.fileName ?? file.uri.split("/").pop()}</Text> : null}
       <TextInput
         accessibilityLabel={t("creator.url")}
         autoCapitalize="none"
@@ -80,6 +116,16 @@ export default function NewCreatorProject() {
         ))}
       </View>
       <Text style={s.copy}>{t("creator.foundation")}</Text>
+      {error ? <Text style={s.error}>{error}</Text> : null}
+      <Pressable
+        disabled={busy || !file || !title.trim()}
+        style={[s.button, (busy || !file || !title.trim()) && s.disabled]}
+        onPress={() => void submit()}
+      >
+        <Text style={s.buttonText}>
+          {busy ? t("creator.uploading") : t("creator.processVideo")}
+        </Text>
+      </Pressable>
     </AppScreen>
   );
 }
@@ -112,4 +158,6 @@ const s = StyleSheet.create({
     padding: spacing.sm,
     borderRadius: radius.md,
   },
+  error: { ...typography.body, color: colors.danger },
+  disabled: { opacity: 0.5 },
 });
