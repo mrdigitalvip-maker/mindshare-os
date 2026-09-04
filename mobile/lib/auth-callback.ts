@@ -2,6 +2,7 @@ export type AuthLinkPayload = {
   code: string | null;
   accessToken: string | null;
   refreshToken: string | null;
+  recovery: boolean;
   error: string | null;
 };
 
@@ -34,20 +35,21 @@ export function parseAuthLink(url: string): AuthLinkPayload {
   try {
     parsed = new URL(url);
   } catch {
-    return { code: null, accessToken: null, refreshToken: null, error: "invalid_redirect" };
+    return { code: null, accessToken: null, refreshToken: null, recovery: false, error: "invalid_redirect" };
   }
   const validCallback =
     parsed.protocol === "nexora:" &&
     ((parsed.hostname === "auth" && parsed.pathname === "/callback") ||
       (!parsed.hostname && parsed.pathname === "/auth/callback"));
   if (!validCallback)
-    return { code: null, accessToken: null, refreshToken: null, error: "invalid_redirect" };
+    return { code: null, accessToken: null, refreshToken: null, recovery: false, error: "invalid_redirect" };
   const hash = new URLSearchParams(parsed.hash.replace(/^#/, ""));
   const value = (name: string) => parsed.searchParams.get(name) ?? hash.get(name);
   return {
     code: value("code"),
     accessToken: value("access_token"),
     refreshToken: value("refresh_token"),
+    recovery: value("type") === "recovery",
     error: value("error_description") ?? value("error"),
   };
 }

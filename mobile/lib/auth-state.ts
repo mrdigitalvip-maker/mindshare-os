@@ -1,5 +1,9 @@
 export type AuthStatus = "initializing" | "authenticated" | "unauthenticated";
 
+export function canNavigateNotification(status: AuthStatus): boolean {
+  return status === "authenticated";
+}
+
 export function resolveAuthStatus(initialized: boolean, hasSession: boolean): AuthStatus {
   if (!initialized) return "initializing";
   return hasSession ? "authenticated" : "unauthenticated";
