@@ -78,3 +78,144 @@ export type CreatorEditorDraft = {
   captions: boolean;
   captionStyle?: string;
 };
+
+export const CREATOR_EXPERIENCE_LEVELS = ["beginner", "creator", "professional"] as const;
+export const CREATOR_PLATFORMS = ["instagram", "tiktok", "youtube", "facebook"] as const;
+export const CREATOR_GOALS = [
+  "grow_followers",
+  "build_brand",
+  "monetize",
+  "sell_product_or_service",
+  "generate_leads",
+] as const;
+
+export type CreatorProfileDraft = {
+  experience: (typeof CREATOR_EXPERIENCE_LEVELS)[number];
+  platforms: (typeof CREATOR_PLATFORMS)[number][];
+  niche: string;
+  goal: (typeof CREATOR_GOALS)[number];
+  primaryAudienceRegion: string;
+  weeklyPostingCapacity: number;
+  displayName: string;
+  usernameIdeas: string[];
+  bio: string;
+  positioning: string;
+  category: string;
+  callToAction: string;
+  contentPillars: string[];
+  keywords: string[];
+  brandTone: string;
+  visualDirection: string;
+};
+
+/** Criteria contract only. A score must not be presented until a real scorer is implemented. */
+export const PROFILE_SCORE_CRITERIA = [
+  "identity_complete",
+  "positioning_clear",
+  "audience_defined",
+  "call_to_action_present",
+  "content_pillars_defined",
+  "discoverability_keywords_present",
+] as const;
+
+export type CreatorStrategy = {
+  platform: (typeof CREATOR_PLATFORMS)[number];
+  niche: string;
+  goal: (typeof CREATOR_GOALS)[number];
+  contentPillars: string[];
+  publishingFrequency: number;
+  targetMarkets: string[];
+  preferredContentFormats: string[];
+};
+export type CreatorWeeklyPlanItem = {
+  id: string;
+  weekday: number;
+  contentPillar: string;
+  format: string;
+  status: "planned" | "published" | "cancelled";
+};
+
+export type HookLabInput = {
+  topic: string;
+  platform: (typeof CREATOR_PLATFORMS)[number];
+  audience: string;
+  goal: string;
+  tone: string;
+};
+export type HookLabOutput = {
+  hooks: string[];
+  titles: string[];
+  caption: string;
+  callToAction: string;
+  keywords: string[];
+  hashtags: string[];
+  assistantMessageId: string;
+  generatedAt: string;
+};
+export type HookLabState =
+  { status: "not_generated" } | { status: "generated"; output: HookLabOutput };
+
+export const CREATOR_ACADEMY = {
+  start: ["niche", "profile", "content_pillars", "hook_basics", "consistency"],
+  growth: ["retention", "storytelling", "cta", "testing_formats", "analytics_interpretation"],
+  pro: ["content_systems", "experimentation", "repurposing", "distribution", "audience_analysis"],
+} as const;
+
+export type CreatorBenchmark = {
+  platform: string;
+  country: string;
+  timezone: string;
+  weekday: number;
+  hourWindow: string;
+  niche: string | null;
+  contentType: string | null;
+  sampleSize: number | null;
+  source: string;
+  sourceDate: string;
+  confidence: string | null;
+  benchmarkType: "global_benchmark" | "your_audience";
+};
+export type CreatorAnalyticsSnapshot = {
+  platform: string;
+  capturedAt: string;
+  metrics: Partial<
+    Record<
+      | "views"
+      | "reach"
+      | "watch_time"
+      | "average_view_duration"
+      | "retention"
+      | "likes"
+      | "comments"
+      | "shares"
+      | "saves"
+      | "followers_gained",
+      number
+    >
+  >;
+  country?: string;
+  weekday?: number;
+  hour?: number;
+  contentType?: string;
+};
+
+export type CreatorImportDecision = {
+  source: "device_upload" | "authorized_platform" | "url_recognition";
+  canImport: boolean;
+  requiresOriginalUpload: boolean;
+  reason: "original_file" | "authorized_connection_required" | "metadata_only";
+};
+export function decideCreatorImport(
+  source: CreatorImportDecision["source"],
+): CreatorImportDecision {
+  if (source === "device_upload")
+    return { source, canImport: true, requiresOriginalUpload: false, reason: "original_file" };
+  if (source === "authorized_platform")
+    return {
+      source,
+      canImport: false,
+      requiresOriginalUpload: false,
+      reason: "authorized_connection_required",
+    };
+  return { source, canImport: false, requiresOriginalUpload: true, reason: "metadata_only" };
+}
