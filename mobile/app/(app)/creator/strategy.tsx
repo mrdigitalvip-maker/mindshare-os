@@ -11,6 +11,8 @@ import { CREATOR_GOALS, CREATOR_PLATFORMS, type CreatorStrategy } from "@/lib/cr
 import { useAuth } from "@/providers/auth-provider";
 import { useLanguage } from "@/providers/language-provider";
 import { loadCreatorStrategy, saveCreatorStrategy } from "@/services/creator-service";
+import { router } from "expo-router";
+import { creatorAssistantPrompt } from "@/lib/creator";
 const initial: CreatorStrategy = {
   platform: "instagram",
   niche: "",
@@ -78,6 +80,20 @@ export default function Strategy() {
         onChangeText={(v) => p({ contentPillars: split(v) })}
       />
       <Text style={s.copy}>{t("creator.noSchedule")}</Text>
+      <CreatorButton
+        label={t("creator.suggestStrategy")}
+        onPress={() =>
+          router.push({
+            pathname: "/(app)/(tabs)/assistant-chat",
+            params: {
+              prompt: creatorAssistantPrompt(
+                "Suggest an editable content strategy; never overwrite persistence.",
+                { strategyDraft: f },
+              ),
+            },
+          })
+        }
+      />
       <CreatorButton
         disabled={!f.niche.trim() || f.publishingFrequency < 1}
         label={t("common.save")}

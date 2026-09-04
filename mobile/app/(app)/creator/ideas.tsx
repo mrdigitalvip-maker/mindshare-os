@@ -3,29 +3,29 @@ import { router } from "expo-router";
 import { CreatorButton, CreatorField, CreatorPage } from "@/components/creator-workspace";
 import { creatorAssistantPrompt } from "@/lib/creator";
 import { useLanguage } from "@/providers/language-provider";
-export default function HookLab() {
+export default function ContentIdeas() {
   const { t } = useLanguage();
-  const [form, setForm] = useState({ topic: "", platform: "", audience: "", goal: "", tone: "" });
+  const [form, setForm] = useState({ niche: "", platform: "", goal: "", pillar: "", format: "" });
   return (
-    <CreatorPage title={t("creator.hookLab")} description={t("creator.realAiOnly")}>
+    <CreatorPage title={t("creator.contentIdeas")} description={t("creator.realAiOnly")}>
       {Object.keys(form).map((key) => (
         <CreatorField
           key={key}
-          label={t(`creator.hook.${key}`)}
+          label={t(`creator.idea.${key}`)}
           value={form[key as keyof typeof form]}
           onChangeText={(value) => setForm((x) => ({ ...x, [key]: value }))}
         />
       ))}
       <CreatorButton
         label={t("creator.generate")}
-        disabled={!form.topic.trim()}
+        disabled={!form.niche.trim()}
         onPress={() =>
           router.push({
             pathname: "/(app)/(tabs)/assistant-chat",
             params: {
               prompt: creatorAssistantPrompt(
-                "Return valid structured hooks, titles, caption, callToAction, keywords, and hashtags.",
-                { hookRequest: form },
+                "Generate structured content ideas (ideas, rationale, format, CTA).",
+                { ideaRequest: form },
               ),
             },
           })

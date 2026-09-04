@@ -4,28 +4,72 @@ import { router } from "expo-router";
 import { AppScreen } from "@/components/app-screen";
 import { useAuth } from "@/providers/auth-provider";
 import { useLanguage } from "@/providers/language-provider";
-import { listCreatorProjects, type CreatorProject } from "@/services/creator-service";
+import {
+  listCreatorContent,
+  listCreatorManualSnapshots,
+  listCreatorProjects,
+  loadCreatorProfile,
+  loadCreatorStrategy,
+  type CreatorProject,
+} from "@/services/creator-service";
+import { creatorNextAction, type CreatorNextAction } from "@/lib/creator";
+import { createTask } from "@/services/workspace-service";
 import { colors, radius, spacing, typography } from "@/lib/theme";
 export default function CreatorCenter() {
   const { session } = useAuth();
   const { t } = useLanguage();
   const [projects, setProjects] = useState<CreatorProject[]>([]);
   const [error, setError] = useState(false);
+  const [nextAction, setNextAction] = useState<CreatorNextAction>("complete_setup");
   useEffect(() => {
     if (session?.user.id)
       void listCreatorProjects(session.user.id)
         .then(setProjects)
         .catch(() => setError(true));
   }, [session?.user.id]);
+  useEffect(() => {
+    if (session?.user.id)
+      void Promise.all([
+        loadCreatorProfile(session.user.id),
+        loadCreatorStrategy(session.user.id),
+        listCreatorContent(session.user.id),
+        listCreatorManualSnapshots(session.user.id),
+      ]).then(([profile, strategy, content, analytics]) =>
+        setNextAction(
+          creatorNextAction({
+            hasProfile: !!profile,
+            hasStrategy: !!strategy,
+            contentCount: content.length,
+            analyticsSampleCount: analytics.length,
+          }),
+        ),
+      );
+  }, [session?.user.id]);
   return (
     <AppScreen scroll contentContainerStyle={s.page}>
       <Text style={s.eyebrow}>{t("creator.title")}</Text>
       <Text style={s.title}>{t("creator.tagline")}</Text>
+      <View style={s.card}>
+        <Text style={s.heading}>{t("creator.nextAction")}</Text>
+        <Text style={s.copy}>{t(`creator.nextAction.${nextAction}`)}</Text>
+        <Pressable
+          onPress={() =>
+            session?.user.id &&
+            void createTask(session.user.id, {
+              title: t(`creator.nextAction.${nextAction}`),
+              description: t("creator.taskDescription"),
+            })
+          }
+        >
+          <Text style={s.copy}>＋ {t("creator.createTask")}</Text>
+        </Pressable>
+      </View>
       <CreatorSection
         title={t("creator.create")}
         items={[
           { label: t("creator.studio"), href: "/creator/new" },
           { label: t("creator.hookLab"), href: "/creator/hook-lab" },
+          { label: t("creator.contentIdeas"), href: "/creator/ideas" },
           { label: t("creator.profileBuilder"), href: "/creator/profile" },
         ]}
       />

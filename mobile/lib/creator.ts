@@ -1,4 +1,6 @@
 export const CREATOR_ACCESS_MODE = "closed_test_unlocked" as const;
+/** Provider connections are an automation upgrade, never a Creator Center prerequisite. */
+export const CREATOR_DOMAIN_MODE = "standalone" as const;
 export type CreatorAccessMode = typeof CREATOR_ACCESS_MODE | "premium_with_trial";
 export function decideCreatorAccess(input: {
   authenticated: boolean;
@@ -222,6 +224,150 @@ export type CreatorAnalyticsSnapshot = {
   grantedMetricNames?: string[];
 };
 
+export const CREATOR_CONTENT_PLATFORMS = [
+  "instagram",
+  "tiktok",
+  "youtube",
+  "facebook",
+  "other",
+] as const;
+export const CREATOR_CONTENT_TYPES = ["reel", "short", "video", "post", "story", "other"] as const;
+export const CREATOR_MANUAL_METRICS = [
+  "views",
+  "reach",
+  "watch_time_ms",
+  "average_view_duration_ms",
+  "retention_ratio",
+  "likes",
+  "comments",
+  "shares",
+  "saves",
+  "followers_gained",
+] as const;
+export type CreatorManualMetric = (typeof CREATOR_MANUAL_METRICS)[number];
+export type CreatorContentLog = {
+  id: string;
+  platform: (typeof CREATOR_CONTENT_PLATFORMS)[number];
+  contentType: (typeof CREATOR_CONTENT_TYPES)[number];
+  title: string;
+  publishedAt: string;
+  timezone: string;
+  referenceUrl?: string;
+  contentPillar?: string;
+  durationMs?: number;
+  notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+export type CreatorManualSnapshot = {
+  id: string;
+  contentId: string;
+  platform: CreatorContentLog["platform"];
+  capturedAt: string;
+  sourceType: "manual";
+  enteredByUser: true;
+  metrics: Partial<Record<CreatorManualMetric, number | null>>;
+};
+export type CreatorCountryObservation = {
+  id: string;
+  platform: CreatorContentLog["platform"];
+  countryIso?: string;
+  countryName: string;
+  metricContext: string;
+  value: number;
+  period: string;
+  notes?: string;
+  sourceType: "manual";
+  enteredByUser: true;
+  capturedAt: string;
+};
+
+/** Empty inputs stay null; importantly, an authoritative string/number zero survives. */
+export function parseOptionalMetric(value: string | number | null | undefined): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = typeof value === "number" ? value : Number(value.replace(",", "."));
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+}
+
+export type CreatorEvidence = {
+  source: "manual" | "provider_verified" | "global_benchmark";
+  sampleCount: number;
+};
+export const CREATOR_MINIMUM_SAMPLE = 5;
+export function creatorHistoricalPerformance(
+  content: CreatorContentLog[],
+  snapshots: CreatorManualSnapshot[],
+  metric: CreatorManualMetric = "views",
+) {
+  const latest = new Map<string, CreatorManualSnapshot>();
+  for (const snapshot of [...snapshots].sort((a, b) => a.capturedAt.localeCompare(b.capturedAt)))
+    latest.set(snapshot.contentId, snapshot);
+  const observations = content.flatMap((item) => {
+    const value = latest.get(item.id)?.metrics[metric];
+    if (typeof value !== "number") return [];
+    const date = new Date(item.publishedAt);
+    return [
+      {
+        contentId: item.id,
+        value,
+        weekday: date.getDay(),
+        hourWindow: `${String(Math.floor(date.getHours() / 4) * 4).padStart(2, "0")}:00–${String(Math.floor(date.getHours() / 4) * 4 + 4).padStart(2, "0")}:00`,
+        platform: item.platform,
+        contentType: item.contentType,
+        contentPillar: item.contentPillar,
+      },
+    ];
+  });
+  const group = (key: "weekday" | "hourWindow" | "platform" | "contentType" | "contentPillar") =>
+    Object.values(
+      observations.reduce<Record<string, { key: string; sampleCount: number; total: number }>>(
+        (all, row) => {
+          const value = String(row[key] ?? "");
+          if (!value) return all;
+          const entry = all[value] ?? { key: value, sampleCount: 0, total: 0 };
+          entry.sampleCount++;
+          entry.total += row.value;
+          all[value] = entry;
+          return all;
+        },
+        {},
+      ),
+    ).map((x) => ({ ...x, average: x.total / x.sampleCount }));
+  const byWeekday = group("weekday"),
+    byPostingWindow = group("hourWindow");
+  const strongest = (rows: ReturnType<typeof group>) =>
+    rows
+      .filter((x) => x.sampleCount >= CREATOR_MINIMUM_SAMPLE)
+      .sort((a, b) => b.average - a.average)[0] ?? null;
+  return {
+    metric,
+    observations,
+    byWeekday,
+    byPostingWindow,
+    byPlatform: group("platform"),
+    byContentType: group("contentType"),
+    byContentPillar: group("contentPillar"),
+    strongestWeekday: strongest(byWeekday),
+    strongestPostingWindow: strongest(byPostingWindow),
+    evidence: { source: "manual", sampleCount: observations.length } as CreatorEvidence,
+  };
+}
+
+export type CreatorNextAction =
+  "complete_setup" | "build_strategy" | "add_content" | "update_results" | "review_intelligence";
+export function creatorNextAction(input: {
+  hasProfile: boolean;
+  hasStrategy: boolean;
+  contentCount: number;
+  analyticsSampleCount: number;
+}): CreatorNextAction {
+  if (!input.hasProfile) return "complete_setup";
+  if (!input.hasStrategy) return "build_strategy";
+  if (!input.contentCount) return "add_content";
+  if (input.analyticsSampleCount < CREATOR_MINIMUM_SAMPLE) return "update_results";
+  return "review_intelligence";
+}
+
 export type CreatorConnectionStatus =
   "not_connected" | "authorizing" | "connected" | "expired" | "revoked" | "error";
 export type CreatorPlatformConnection = {
@@ -282,14 +428,41 @@ export function creatorCopilotContext(input: {
   profile?: CreatorProfileDraft | null;
   strategy?: CreatorStrategy | null;
   analytics?: CreatorAnalyticsSnapshot[] | null;
+  content?: CreatorContentLog[] | null;
+  manualSnapshots?: CreatorManualSnapshot[] | null;
+  goals?: CreatorGoal[] | null;
 }) {
+  const manualAnalytics = input.manualSnapshots?.length
+    ? {
+        observations: input.manualSnapshots,
+        evidence: { source: "manual", sampleCount: input.manualSnapshots.length },
+      }
+    : undefined;
   return Object.fromEntries(
     Object.entries({
       profile: input.profile || undefined,
       strategy: input.strategy || undefined,
-      analytics: input.analytics?.length ? input.analytics : undefined,
+      creatorGoals: input.goals?.length ? input.goals : undefined,
+      contentHistory: input.content?.length ? input.content : undefined,
+      manualAnalytics,
+      providerAnalytics: input.analytics?.length
+        ? {
+            observations: input.analytics,
+            evidence: { source: "provider_verified", sampleCount: input.analytics.length },
+          }
+        : undefined,
     }).filter(([, value]) => value !== undefined),
   );
+}
+
+export function creatorBestTimeGuard(sampleCount: number) {
+  return sampleCount < CREATOR_MINIMUM_SAMPLE
+    ? { available: false as const, action: "add_content_results" as const }
+    : { available: true as const };
+}
+
+export function creatorAssistantPrompt(action: string, context: Record<string, unknown>) {
+  return `[CREATOR_CONTEXT_V1]\n${JSON.stringify({ action, context })}\n[/CREATOR_CONTEXT_V1]\nUse only supplied evidence. Distinguish manual from provider-verified data and state sample counts. Never invent missing performance, benchmarks, or a best posting time.`;
 }
 
 export type CreatorImportDecision = {
