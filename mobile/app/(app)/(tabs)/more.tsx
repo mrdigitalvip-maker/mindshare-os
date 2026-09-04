@@ -3,7 +3,9 @@ import { ModuleCard } from "@/components/product-ui";
 import { AppScreen } from "@/components/app-screen";
 import { StandardHeader } from "@/components/product-ui";
 import { colors, spacing, typography } from "@/lib/theme";
+import { useLanguage } from "@/providers/language-provider";
 export default function More() {
+  const { t } = useLanguage();
   return (
     <AppScreen scroll contentContainerStyle={styles.page}>
       <StandardHeader title="Mais" />
@@ -31,6 +33,12 @@ export default function More() {
         />
       </ModuleGroup>
       <ModuleGroup title="CONTA & NEXORA">
+        <ModuleCard
+          icon="✂"
+          title={t("creator.title")}
+          description={t("creator.tagline")}
+          href="/creator"
+        />
         <ModuleCard
           icon="◉"
           title="Community"

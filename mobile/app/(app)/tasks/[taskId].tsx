@@ -31,6 +31,7 @@ import { getProjectHealthLabel, getProjectHealthState } from "@/lib/project-sele
 import { colors, radius, spacing, typography } from "@/lib/theme";
 import { cancelTaskReminder, scheduleTaskReminder } from "@/services/notification-service";
 import type { Task } from "@/services/workspace-service";
+import { useLanguage } from "@/providers/language-provider";
 
 const stateLabel = {
   not_started: "Não iniciada",
@@ -40,6 +41,7 @@ const stateLabel = {
 };
 
 export default function TaskWorkspace() {
+  const { resolvedLocale } = useLanguage();
   const { taskId = "" } = useLocalSearchParams<{ taskId: string }>();
   const taskQuery = useTask(taskId);
   const projects = useProjects();
@@ -193,7 +195,7 @@ export default function TaskWorkspace() {
     const apply = async (hours: number) => {
       const at = new Date(Date.now() + hours * 3_600_000).toISOString();
       try {
-        const result = await scheduleTaskReminder(currentTask, at);
+        const result = await scheduleTaskReminder(currentTask, at, resolvedLocale);
         if (!result.scheduled)
           return Alert.alert(
             "Notificações desativadas",

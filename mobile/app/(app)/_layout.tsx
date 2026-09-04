@@ -5,11 +5,13 @@ import { ErrorState, LoadingState } from "@/components/screen-state";
 import { useProfile } from "@/hooks/use-profile";
 import { colors } from "@/lib/theme";
 import { useAuth } from "@/providers/auth-provider";
+import { useLanguage } from "@/providers/language-provider";
 
 export default function AppLayout() {
   const insets = useSafeAreaInsets();
   const { status } = useAuth();
   const profile = useProfile();
+  const { t } = useLanguage();
   if (status === "initializing") return <LoadingState title="Preparando a NEXORA…" />;
   if (status === "unauthenticated") return <Redirect href="/auth" />;
   if (profile.isPending) return <LoadingState title="Preparando seu espaço…" />;
@@ -41,6 +43,9 @@ export default function AppLayout() {
       <Stack.Screen name="packs/[slug]" options={{ title: "Programa" }} />
       <Stack.Screen name="arena" options={{ headerShown: false }} />
       <Stack.Screen name="community" options={{ headerShown: false }} />
+      <Stack.Screen name="creator/index" options={{ title: t("creator.title") }} />
+      <Stack.Screen name="creator/new" options={{ title: t("creator.new") }} />
+      <Stack.Screen name="creator/[projectId]" options={{ title: t("creator.studio") }} />
       <Stack.Screen
         name="projects/[projectId]"
         options={{
