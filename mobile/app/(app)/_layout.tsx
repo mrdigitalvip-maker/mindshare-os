@@ -46,6 +46,19 @@ export default function AppLayout() {
       <Stack.Screen name="creator/index" options={{ title: t("creator.title") }} />
       <Stack.Screen name="creator/new" options={{ title: t("creator.new") }} />
       <Stack.Screen name="creator/[projectId]" options={{ title: t("creator.studio") }} />
+      <Stack.Screen name="creator/setup" options={{ title: t("creator.setup") }} />
+      <Stack.Screen name="creator/profile" options={{ title: t("creator.profileBuilder") }} />
+      <Stack.Screen name="creator/pillars" options={{ title: t("creator.pillars") }} />
+      <Stack.Screen name="creator/strategy" options={{ title: t("creator.strategy") }} />
+      <Stack.Screen name="creator/hook-lab" options={{ title: t("creator.hookLab") }} />
+      <Stack.Screen name="creator/academy/index" options={{ title: t("creator.academy") }} />
+      <Stack.Screen name="creator/academy/[lessonKey]" options={{ title: t("creator.academy") }} />
+      <Stack.Screen name="creator/library" options={{ title: t("creator.library") }} />
+      <Stack.Screen name="creator/import" options={{ title: t("creator.media") }} />
+      <Stack.Screen name="creator/map" options={{ title: t("creator.map") }} />
+      <Stack.Screen name="creator/analytics" options={{ title: t("creator.analytics") }} />
+      <Stack.Screen name="creator/copilot" options={{ title: t("creator.copilot") }} />
+      <Stack.Screen name="creator/goals" options={{ title: t("creator.goals") }} />
       <Stack.Screen
         name="projects/[projectId]"
         options={{
