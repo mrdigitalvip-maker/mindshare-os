@@ -1,11 +1,15 @@
 import { supabase } from "@/lib/supabase";
 import type {
   CreatorAnalyticsSnapshot,
+  CreatorContentLog,
+  CreatorCountryObservation,
+  CreatorManualSnapshot,
   CreatorPlatformConnection,
   CreatorGoal,
   CreatorProfileDraft,
   CreatorStrategy,
 } from "@/lib/creator";
+import { CREATOR_MANUAL_METRICS } from "@/lib/creator";
 export type CreatorProject = {
   id: string;
   title: string;
@@ -228,6 +232,150 @@ export async function listCreatorConnections(userId: string): Promise<CreatorPla
     lastSuccessAt: row.last_success_at ?? undefined,
     grantedMetrics: row.granted_metrics ?? [],
   }));
+}
+
+const contentFromRow = (row: Record<string, any>): CreatorContentLog => ({
+  id: row.id,
+  platform: row.platform,
+  contentType: row.content_type,
+  title: row.title,
+  publishedAt: row.published_at,
+  timezone: row.timezone,
+  referenceUrl: row.reference_url ?? undefined,
+  contentPillar: row.content_pillar ?? undefined,
+  durationMs: row.duration_ms ?? undefined,
+  notes: row.notes ?? undefined,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+});
+export async function listCreatorContent(userId: string): Promise<CreatorContentLog[]> {
+  const { data, error } = await supabase
+    .from("creator_content_log")
+    .select("*")
+    .eq("user_id", userId)
+    .order("published_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map(contentFromRow);
+}
+export async function saveCreatorContent(
+  userId: string,
+  content: Omit<CreatorContentLog, "id"> & { id?: string },
+) {
+  if (!userId.trim()) throw new Error("authentication_required");
+  const row = {
+    ...(content.id ? { id: content.id } : {}),
+    user_id: userId,
+    platform: content.platform,
+    content_type: content.contentType,
+    title: content.title.trim(),
+    published_at: content.publishedAt,
+    timezone: content.timezone,
+    reference_url: content.referenceUrl?.trim() || null,
+    content_pillar: content.contentPillar?.trim() || null,
+    duration_ms: content.durationMs ?? null,
+    notes: content.notes?.trim() || null,
+    source_type: "manual",
+    entered_by_user: true,
+    updated_at: new Date().toISOString(),
+  };
+  const { data, error } = await supabase
+    .from("creator_content_log")
+    .upsert(row)
+    .select("*")
+    .single();
+  if (error) throw error;
+  return contentFromRow(data);
+}
+export async function deleteCreatorContent(userId: string, contentId: string) {
+  const { error } = await supabase
+    .from("creator_content_log")
+    .delete()
+    .eq("user_id", userId)
+    .eq("id", contentId);
+  if (error) throw error;
+}
+export async function addCreatorMetricSnapshot(
+  userId: string,
+  content: CreatorContentLog,
+  metrics: CreatorManualSnapshot["metrics"],
+) {
+  const values = Object.fromEntries(
+    CREATOR_MANUAL_METRICS.map((key) => [key, metrics[key] ?? null]),
+  );
+  const { data, error } = await supabase
+    .from("creator_manual_metric_snapshots")
+    .insert({
+      user_id: userId,
+      content_id: content.id,
+      platform: content.platform,
+      ...values,
+      source_type: "manual",
+      entered_by_user: true,
+    })
+    .select("*")
+    .single();
+  if (error) throw error;
+  return data;
+}
+export async function listCreatorManualSnapshots(userId: string): Promise<CreatorManualSnapshot[]> {
+  const { data, error } = await supabase
+    .from("creator_manual_metric_snapshots")
+    .select("*")
+    .eq("user_id", userId)
+    .order("captured_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    contentId: row.content_id,
+    platform: row.platform,
+    capturedAt: row.captured_at,
+    sourceType: "manual",
+    enteredByUser: true,
+    metrics: Object.fromEntries(CREATOR_MANUAL_METRICS.map((key) => [key, row[key]])),
+  }));
+}
+export async function listCreatorManualCountries(
+  userId: string,
+): Promise<CreatorCountryObservation[]> {
+  const { data, error } = await supabase
+    .from("creator_manual_country_observations")
+    .select("*")
+    .eq("user_id", userId)
+    .order("captured_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    platform: row.platform,
+    countryIso: row.country_iso ?? undefined,
+    countryName: row.country_name,
+    metricContext: row.metric_context,
+    value: row.value,
+    period: row.period,
+    notes: row.notes ?? undefined,
+    sourceType: "manual",
+    enteredByUser: true,
+    capturedAt: row.captured_at,
+  }));
+}
+export async function saveCreatorManualCountry(
+  userId: string,
+  value: Omit<CreatorCountryObservation, "id" | "capturedAt" | "sourceType" | "enteredByUser">,
+) {
+  const { error } = await supabase
+    .from("creator_manual_country_observations")
+    .insert({
+      user_id: userId,
+      platform: value.platform,
+      country_iso: value.countryIso?.toUpperCase() || null,
+      country_name: value.countryName.trim(),
+      metric_context: value.metricContext.trim(),
+      value: value.value,
+      period: value.period.trim(),
+      notes: value.notes?.trim() || null,
+      source_type: "manual",
+      entered_by_user: true,
+    });
+  if (error) throw error;
 }
 export async function startCreatorOAuth(
   provider: CreatorPlatformConnection["platform"],

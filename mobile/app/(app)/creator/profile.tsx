@@ -10,6 +10,8 @@ import { type CreatorProfileDraft } from "@/lib/creator";
 import { useAuth } from "@/providers/auth-provider";
 import { useLanguage } from "@/providers/language-provider";
 import { loadCreatorProfile, saveCreatorProfile } from "@/services/creator-service";
+import { router } from "expo-router";
+import { creatorAssistantPrompt } from "@/lib/creator";
 const defaults: CreatorProfileDraft = {
   experience: "beginner",
   platforms: [],
@@ -77,6 +79,20 @@ export default function ProfileBuilder() {
         />
       ))}
       <Text style={s.copy}>{t("creator.manualIdeas")}</Text>
+      <CreatorButton
+        label={t("creator.improveWithNexora")}
+        onPress={() =>
+          router.push({
+            pathname: "/(app)/(tabs)/assistant-chat",
+            params: {
+              prompt: creatorAssistantPrompt(
+                "Suggest profile improvements for review; do not apply changes.",
+                { profile: form },
+              ),
+            },
+          })
+        }
+      />
       <CreatorButton label={t("common.save")} onPress={() => void save()} />
       {saved ? <Text style={s.success}>{t("creator.saved")}</Text> : null}
     </CreatorPage>

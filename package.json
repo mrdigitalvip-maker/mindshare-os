@@ -14,7 +14,8 @@
     "test:web": "node --test tests/web-parity.contract.test.mjs",
     "preview": "vite preview",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "test": "npm --prefix mobile test"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
