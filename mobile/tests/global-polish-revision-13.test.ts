@@ -17,8 +17,8 @@ const commandPaths = (output: string) =>
 
 describe("Revision 13 — acabamento global nativo", () => {
   test("as cinco abas primárias continuam canônicas e o chat permanece oculto", () => {
-    for (const title of ["Início", "Assistente", "Projetos", "Tarefas", "Mais"])
-      expect(tabs).toContain(`title: "${title}"`);
+    for (const key of ["nav.home", "nav.assistant", "nav.projects", "nav.productivity", "nav.more"])
+      expect(tabs).toContain(`title: t("${key}")`);
     expect(tabs.match(/options=\{\{ title:/g)).toHaveLength(5);
     expect(tabs).toContain('<Tabs.Screen name="assistant-chat" options={{ href: null }} />');
     expect(tabs).toContain("tabBarHideOnKeyboard: true");
@@ -27,7 +27,7 @@ describe("Revision 13 — acabamento global nativo", () => {
     expect(tabs).not.toMatch(/title:\s*["'](?:dashboard|productivity|assistant-chat|projects\/index)["']/i);
     expect(more).not.toMatch(/assistant-chat|projects\/index|\(tabs\)/);
   });
-  test("Mais organiza somente os seis módulos reais", () => {
+  test("Mais organiza os módulos reais, incluindo Creator Center", () => {
     expect(more).toContain('title="EXECUÇÃO"');
     expect(more).toContain('title="CONTA & NEXORA"');
     expect([...more.matchAll(/href="([^"]+)"/g)].map((match) => match[1])).toEqual([

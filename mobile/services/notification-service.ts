@@ -9,6 +9,7 @@ import {
   type NativePermission,
 } from "@/lib/notification-contract";
 import { supabase } from "@/lib/supabase";
+import { translate, type ResolvedLocale } from "@/i18n";
 
 export type { NativePermission } from "@/lib/notification-contract";
 export type NotificationDiagnostic =
@@ -45,9 +46,7 @@ async function deviceId() {
   return next;
 }
 const projectId = () =>
-  normalizeProjectId(
-    Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId,
-  );
+  normalizeProjectId(Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId);
 
 async function ensureAndroidChannel() {
   if (Platform.OS !== "android") return true;
@@ -199,6 +198,7 @@ export async function sendTestNotification(): Promise<{ accepted: number; failed
 export async function scheduleTaskReminder(
   task: { id: string; title: string },
   reminderAt: string,
+  locale: ResolvedLocale = "pt-BR",
 ) {
   const date = new Date(reminderAt);
   if (!Number.isFinite(date.getTime()) || date <= new Date())
@@ -212,7 +212,7 @@ export async function scheduleTaskReminder(
   const identifier = await Notifications.scheduleNotificationAsync({
     content: {
       title: task.title,
-      body: `Hora de avançar em “${task.title}”. Abra para revisar o próximo passo.`,
+      body: translate(locale, "notification.progress", { title: task.title }),
       data: { kind: "task", resourceId: task.id },
     },
     trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date },

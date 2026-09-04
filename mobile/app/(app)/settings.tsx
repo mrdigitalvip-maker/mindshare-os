@@ -36,8 +36,11 @@ import {
   sendTestNotification,
 } from "@/services/notification-service";
 import { updateProfileName } from "@/services/profile-service";
+import { useLanguage } from "@/providers/language-provider";
+import type { LanguagePreference } from "@/i18n";
 
 export default function Settings() {
+  const { languagePreference, setLanguagePreference, t } = useLanguage();
   const { session } = useAuth();
   const profile = useProfile();
   const subscription = useSubscription();
@@ -208,8 +211,19 @@ export default function Settings() {
       }
       contentContainerStyle={s.page}
     >
-      <Text style={s.title}>Configurações</Text>
+      <Text style={s.title}>{t("settings.title")}</Text>
       <Text style={s.help}>Sua conta, seu plano e os acessos deste dispositivo.</Text>
+      <Section title={t("settings.language").toUpperCase()}>
+        <Text style={s.help}>{t("settings.languageHelp")}</Text>
+        {(["system", "pt-BR", "en"] as LanguagePreference[]).map((value) => (
+          <Action
+            key={value}
+            label={`${languagePreference === value ? "✓ " : ""}${t(`language.${value}` as "language.system" | "language.pt-BR" | "language.en")}`}
+            disabled={false}
+            action={() => void setLanguagePreference(value)}
+          />
+        ))}
+      </Section>
       <Section title="CONTA">
         <View
           style={s.account}

@@ -3,6 +3,7 @@ import { Text } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { colors, layout, typography } from "@/lib/theme";
+import { useLanguage } from "@/providers/language-provider";
 
 const icons: Record<string, string> = {
   dashboard: "⌂",
@@ -14,6 +15,7 @@ const icons: Record<string, string> = {
 
 export default function MainTabs() {
   const insets = useSafeAreaInsets();
+  const { t } = useLanguage();
   return (
     <Tabs
       screenOptions={({ route }) => ({
@@ -36,12 +38,12 @@ export default function MainTabs() {
         ),
       })}
     >
-      <Tabs.Screen name="dashboard" options={{ title: "Início" }} />
-      <Tabs.Screen name="assistant" options={{ title: "Assistente" }} />
+      <Tabs.Screen name="dashboard" options={{ title: t("nav.home") }} />
+      <Tabs.Screen name="assistant" options={{ title: t("nav.assistant") }} />
       <Tabs.Screen name="assistant-chat" options={{ href: null }} />
-      <Tabs.Screen name="projects/index" options={{ title: "Projetos" }} />
-      <Tabs.Screen name="productivity" options={{ title: "Tarefas" }} />
-      <Tabs.Screen name="more" options={{ title: "Mais" }} />
+      <Tabs.Screen name="projects/index" options={{ title: t("nav.projects") }} />
+      <Tabs.Screen name="productivity" options={{ title: t("nav.productivity") }} />
+      <Tabs.Screen name="more" options={{ title: t("nav.more") }} />
     </Tabs>
   );
 }
