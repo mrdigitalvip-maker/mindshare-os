@@ -22,7 +22,9 @@ export const hasSupabaseCredentials =
  * Demo mode is deliberately opt-in. Missing credentials are a configuration
  * error, not permission to turn failed production operations into mock success.
  */
-export const DEMO_MODE = rawFlag === "true";
+// A production artifact must never manufacture an identity or workspace from
+// a stale deployment flag. Fixtures are restricted to Vite development mode.
+export const DEMO_MODE = import.meta.env.DEV && rawFlag === "true";
 
 export type IntegrationMode = "demo" | "live" | "misconfigured";
 export const INTEGRATION_MODE: IntegrationMode = DEMO_MODE

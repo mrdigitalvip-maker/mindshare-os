@@ -72,3 +72,26 @@ test("safe UI error fallback never exposes a raw backend message", async () => {
   assert.match(service, /Não foi possível concluir a solicitação/);
   assert.doesNotMatch(service, /return raw/);
 });
+
+test("web auth origin is isolated and production demo mode fails closed", async () => {
+  const [destinations, auth, demo] = await Promise.all([
+    read("src/lib/auth-destinations.ts"),
+    read("src/lib/auth-context.tsx"),
+    read("src/lib/demo/config.ts"),
+  ]);
+  assert.match(destinations, /oauth: "\/auth\/callback"/);
+  assert.match(destinations, /emailConfirmation: "\/confirm-email"/);
+  assert.match(destinations, /passwordRecovery: "\/reset-password"/);
+  assert.doesNotMatch(destinations, /searchParams/);
+  assert.match(auth, /webAuthDestination\("oauth", window\.location\.origin\)/);
+  assert.match(demo, /import\.meta\.env\.DEV && rawFlag === "true"/);
+});
+
+test("web and native read the same canonical profile table", async () => {
+  const [web, native] = await Promise.all([
+    read("src/services/profile-service.ts"),
+    read("mobile/services/profile-service.ts"),
+  ]);
+  assert.match(web, /\.from\("profiles"\)/);
+  assert.match(native, /\.from\("profiles"\)/);
+});

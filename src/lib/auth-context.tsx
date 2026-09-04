@@ -9,6 +9,7 @@ import type { Session, User } from "@supabase/supabase-js";
 import type { QueryClient } from "@tanstack/react-query";
 import { supabase } from "./supabase";
 import { DEMO_MODE } from "@/lib/demo/config";
+import { webAuthDestination } from "@/lib/auth-destinations";
 
 /** Temporary demo session used while the backend is unavailable. */
 const DEMO_USER: NexoraUser = {
@@ -154,7 +155,9 @@ export function AuthProvider({
         return { needsEmailConfirmation: false };
       }
       const emailRedirectTo =
-        typeof window !== "undefined" ? `${window.location.origin}/confirm-email` : undefined;
+        typeof window !== "undefined"
+          ? webAuthDestination("emailConfirmation", window.location.origin)
+          : undefined;
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -176,7 +179,9 @@ export function AuthProvider({
         return;
       }
       const redirectTo =
-        typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : undefined;
+        typeof window !== "undefined"
+          ? webAuthDestination("oauth", window.location.origin)
+          : undefined;
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: { redirectTo },
@@ -198,7 +203,9 @@ export function AuthProvider({
     const resetPassword: AuthContextValue["resetPassword"] = async (email) => {
       if (DEMO_MODE) return;
       const redirectTo =
-        typeof window !== "undefined" ? `${window.location.origin}/reset-password` : undefined;
+        typeof window !== "undefined"
+          ? webAuthDestination("passwordRecovery", window.location.origin)
+          : undefined;
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo,
       });
