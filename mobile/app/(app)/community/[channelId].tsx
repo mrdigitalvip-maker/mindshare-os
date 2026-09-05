@@ -16,6 +16,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
+import * as Clipboard from "expo-clipboard";
 import {
   useCommunityMessages,
   useMessageActions,
@@ -524,9 +525,7 @@ function MessageMenu({
             <MenuButton
               label="Copiar texto"
               onPress={async () => {
-                // expo-clipboard is the SDK 54 contract; dependency installation is required
-                // before enabling copy in a native build.
-                const copied = await copyCommunityText(message.body, message.removed, undefined);
+                const copied = await copyCommunityText(message.body, message.removed, Clipboard);
                 Alert.alert(copied ? "Mensagem copiada." : "Não foi possível copiar a mensagem.");
                 close();
               }}

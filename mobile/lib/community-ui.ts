@@ -93,7 +93,7 @@ export function messageActions(message: CommunityMessage) {
 export async function copyCommunityText(
   value: string,
   removed: boolean,
-  clipboard: { setStringAsync?: (text: string) => Promise<void> } | null | undefined,
+  clipboard: { setStringAsync?: (text: string) => Promise<boolean | void> } | null | undefined,
 ) {
   if (removed || !clipboard?.setStringAsync) return false;
   try {
