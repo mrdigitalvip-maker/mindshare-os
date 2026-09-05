@@ -12,7 +12,7 @@ export function PageHeader({
   actions?: ReactNode;
 }) {
   return (
-    <header className="flex flex-col gap-4 border-b border-border pb-5 md:flex-row md:items-end md:justify-between">
+    <header className="command-page-header flex flex-col gap-4 pb-6 md:flex-row md:items-end md:justify-between">
       <div className="min-w-0 flex-1">
         {eyebrow && (
           <p className="text-[10px] uppercase tracking-[0.28em] text-muted-foreground md:text-xs">
@@ -20,7 +20,9 @@ export function PageHeader({
           </p>
         )}
 
-        <h1 className="mt-2 font-display text-2xl leading-tight md:text-4xl">{title}</h1>
+        <h1 className="mt-2 font-display text-2xl font-semibold leading-tight md:text-[2.5rem]">
+          {title}
+        </h1>
 
         {description && (
           <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{description}</p>
@@ -46,7 +48,7 @@ export function EmptyState({
   return (
     <div
       role="status"
-      className="flex min-h-64 flex-col items-center justify-center rounded-3xl border border-dashed border-border bg-surface/40 px-5 py-10 text-center md:min-h-[45vh]"
+      className="command-empty-state flex min-h-64 flex-col items-center justify-center rounded-3xl bg-surface/40 px-5 py-10 text-center md:min-h-[45vh]"
     >
       <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-surface-elevated">
         <Icon className="h-7 w-7 text-muted-foreground" />
@@ -75,7 +77,7 @@ export function PageShell({ children }: { children: ReactNode }) {
         md:pt-8
         md:pb-10
         lg:mx-auto
-        lg:max-w-7xl
+        lg:max-w-[1480px]
       "
     >
       {children}

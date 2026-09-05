@@ -15,6 +15,8 @@ import { useSubscription } from "@/hooks/use-subscription";
 import { AIService } from "@/services";
 import { NotificationSettings, UsageSettings } from "@/components/settings-engagement";
 import { LEGAL_URLS } from "@/lib/legal";
+import { useLanguage } from "@/providers/language-provider";
+import type { LanguagePreference } from "@/i18n";
 
 export const Route = createFileRoute("/_shell/settings")({
   head: () => ({ meta: [{ title: "Settings — NEXORA" }] }),
@@ -27,6 +29,7 @@ function initials(name?: string | null) {
 }
 
 function Settings() {
+  const { languagePreference, resolvedLocale, setLanguagePreference, t } = useLanguage();
   const { user, signOut } = useAuth();
   const { data: profile } = useProfile();
   const updateProfile = useUpdateProfile();
@@ -92,6 +95,39 @@ function Settings() {
       <PageHeader eyebrow="Account" title="Settings" description="Personalize your NEXORA." />
 
       <div className="mt-8 mx-auto max-w-4xl space-y-6">
+        <Section title={t("settings.language")} description={t("settings.languageHelp")}>
+          <div
+            className="grid gap-3 sm:grid-cols-3"
+            role="radiogroup"
+            aria-label={t("settings.language")}
+          >
+            {(
+              [
+                [
+                  "system",
+                  t("language.resolved", {
+                    language:
+                      resolvedLocale === "pt-BR" ? t("language.portuguese") : t("language.english"),
+                  }),
+                ],
+                ["pt-BR", t("language.portuguese")],
+                ["en", t("language.english")],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                role="radio"
+                aria-checked={languagePreference === value}
+                onClick={() => setLanguagePreference(value as LanguagePreference)}
+                className={`min-h-12 rounded-xl px-4 py-3 text-left text-sm transition ${languagePreference === value ? "bg-primary text-primary-foreground shadow-lg" : "bg-surface hover:bg-surface-elevated"}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </Section>
+
         <Section title="Profile" description="Update your public info.">
           <div className="flex flex-col items-center gap-3 sm:flex-row sm:items-start">
             <Avatar className="h-20 w-20 border border-border">
