@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bot, Copy, Play, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { copyText } from "@/lib/clipboard";
 import { PageShell, EmptyState } from "@/components/page-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -127,7 +128,14 @@ function AgentWorkspace() {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => navigator.clipboard.writeText(output)}
+                    onClick={async () => {
+                      try {
+                        await copyText(output);
+                        toast.success("Copied");
+                      } catch {
+                        toast.error("Could not copy the result.");
+                      }
+                    }}
                   >
                     <Copy />
                     Copy

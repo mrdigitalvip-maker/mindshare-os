@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { copyText } from "@/lib/clipboard";
 import { TranslationService } from "@/services";
 
 const MAX_CHARACTERS = 12_000;
@@ -195,7 +196,7 @@ function Translate() {
                   className="mt-4 min-h-11 self-end"
                   onClick={async () => {
                     try {
-                      await navigator.clipboard.writeText(translated);
+                      await copyText(translated);
                       toast.success("Translation copied");
                     } catch {
                       toast.error("Translation could not be copied");

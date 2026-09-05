@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { PageHeader, PageShell } from "@/components/page-shell";
 import { RouteState } from "@/components/parity-state";
 import { Button } from "@/components/ui/button";
+import { copyText } from "@/lib/clipboard";
 import {
   createInvite,
   deleteSquad,
@@ -42,7 +43,7 @@ function SquadPage() {
   async function copy() {
     if (!invite) return;
     try {
-      await navigator.clipboard.writeText(invite.code);
+      await copyText(invite.code);
       toast.success("Código copiado.");
     } catch {
       toast.error("Não foi possível copiar. Selecione o código manualmente.");

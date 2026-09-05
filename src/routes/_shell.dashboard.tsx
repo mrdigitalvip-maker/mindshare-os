@@ -16,6 +16,7 @@ import {
   WifiOff,
 } from "lucide-react";
 import { toast } from "sonner";
+import { copyText } from "@/lib/clipboard";
 import { NexoraAvatar, type NexoraAvatarState } from "@/components/nexora/nexora-avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -549,9 +550,13 @@ function CommandCenter({ preferredName }: { preferredName: string }) {
                 variant="ghost"
                 size="icon"
                 className="mt-1 h-7 w-7"
-                onClick={() => {
-                  void navigator.clipboard.writeText(m.content);
-                  toast.success("Copiado");
+                onClick={async () => {
+                  try {
+                    await copyText(m.content);
+                    toast.success("Copiado");
+                  } catch {
+                    toast.error("Não foi possível copiar.");
+                  }
                 }}
                 aria-label="Copiar resposta"
               >
