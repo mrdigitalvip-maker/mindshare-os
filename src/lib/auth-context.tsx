@@ -4,7 +4,15 @@
  * Public interface is intentionally preserved so no UI/component needs to
  * change. State is kept in sync via `supabase.auth.onAuthStateChange`.
  */
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import type { QueryClient } from "@tanstack/react-query";
 import { supabase } from "./supabase";
@@ -40,11 +48,13 @@ type AuthContextValue = {
   isAuthenticated: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, name?: string) => Promise<SignUpResult>;
+  resendConfirmation: (email: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   updatePassword: (newPassword: string) => Promise<void>;
   updateUser: (patch: Partial<NexoraUser>) => Promise<void>;
+  recoverySession: boolean;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -81,6 +91,8 @@ export function AuthProvider({
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<NexoraUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [recoverySession, setRecoverySession] = useState(false);
+  const recoveryUserId = useRef<string | null>(null);
   const identityRef = useState<{ current: string | null }>(() => ({ current: null }))[0];
 
   useEffect(() => {
@@ -103,6 +115,15 @@ export function AuthProvider({
         // flash protected data from the previous identity.
         void queryClient?.cancelQueries().then(() => queryClient.clear());
         identityRef.current = nextIdentity;
+        recoveryUserId.current = null;
+        setRecoverySession(false);
+      }
+      if (event === "PASSWORD_RECOVERY" && nextIdentity) {
+        recoveryUserId.current = nextIdentity;
+        setRecoverySession(true);
+      } else if (event === "SIGNED_OUT") {
+        recoveryUserId.current = null;
+        setRecoverySession(false);
       }
       setSession(nextSession);
       setUser(mapUser(nextSession?.user ?? null));
@@ -170,6 +191,20 @@ export function AuthProvider({
       // With "Confirm email" enabled, Supabase creates the user but returns
       // no active session until the confirmation link is clicked.
       return { needsEmailConfirmation: !data.session };
+    };
+
+    const resendConfirmation: AuthContextValue["resendConfirmation"] = async (email) => {
+      if (DEMO_MODE) return;
+      const emailRedirectTo =
+        typeof window !== "undefined"
+          ? webAuthDestination("emailConfirmation", window.location.origin)
+          : undefined;
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email: email.trim().toLowerCase(),
+        options: { emailRedirectTo },
+      });
+      if (error) throw error;
     };
 
     const signInWithGoogle: AuthContextValue["signInWithGoogle"] = async () => {
@@ -243,13 +278,15 @@ export function AuthProvider({
       isAuthenticated: !!session && !!user,
       signIn,
       signUp,
+      resendConfirmation,
       signInWithGoogle,
       signOut,
       resetPassword,
       updatePassword,
       updateUser,
+      recoverySession: recoverySession && recoveryUserId.current === (session?.user.id ?? null),
     };
-  }, [user, loading, session]);
+  }, [user, loading, recoverySession, session]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

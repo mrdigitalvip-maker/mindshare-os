@@ -16,6 +16,9 @@ describe("NXR-036 cross-platform authentication", () => {
     expect(screen).toContain("redirectTo: authCallbackUrl");
     expect(recovery).toContain("redirectTo: passwordRecoveryUrl");
     expect(screen).not.toContain('/auth/callback"');
+    expect(screen).toContain("supabase.auth.resend");
+    expect(screen).toContain("resendCooldown");
+    expect(screen).toContain("submitLock.current");
   });
 
   test("native callback is strict, PKCE-capable, once-only, and recovery typed", () => {

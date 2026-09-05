@@ -18,6 +18,12 @@ function ConfirmEmailPage() {
   const [status, setStatus] = useState<"checking" | "success" | "error">("checking");
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const authError = params.get("error_description") ?? params.get("error");
+    if (authError) {
+      setStatus("error");
+      return;
+    }
     if (loading) return;
     setStatus(user ? "success" : "error");
   }, [loading, user]);

@@ -104,6 +104,28 @@ test("web auth origin is isolated and production demo mode fails closed", async 
   assert.match(demo, /import\.meta\.env\.DEV && rawFlag === "true"/);
 });
 
+test("V7 R1 web mail flows are fixed, duplicate-safe, and delivery-honest", async () => {
+  const [auth, page, confirmation, reset, callback] = await Promise.all([
+    read("src/lib/auth-context.tsx"),
+    read("src/routes/auth.tsx"),
+    read("src/routes/confirm-email.tsx"),
+    read("src/routes/reset-password.tsx"),
+    read("src/routes/auth.callback.tsx"),
+  ]);
+  assert.match(auth, /emailRedirectTo[\s\S]*webAuthDestination\("emailConfirmation"/);
+  assert.match(auth, /resetPasswordForEmail[\s\S]*redirectTo/);
+  assert.match(auth, /auth\.resend\(\{[\s\S]*type: "signup"/);
+  assert.match(auth, /event === "PASSWORD_RECOVERY"/);
+  assert.match(page, /submitLock\.current/);
+  assert.match(page, /resendCooldown/);
+  assert.match(page, /request was accepted/i);
+  assert.doesNotMatch(page, /We sent a (confirmation|password reset) link/);
+  assert.match(confirmation, /error_description/);
+  assert.match(reset, /recoverySession/);
+  assert.doesNotMatch(reset, /AuthService\.hasRecoverySession/);
+  assert.match(callback, /exchangeCodeOnce\(code\)/);
+});
+
 test("web and native read the same canonical profile table", async () => {
   const [web, native] = await Promise.all([
     read("src/services/profile-service.ts"),

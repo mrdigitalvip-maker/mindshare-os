@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -32,6 +32,7 @@ function AuthPage() {
   const {
     signIn,
     signUp,
+    resendConfirmation,
     signInWithGoogle,
     resetPassword,
     loading: authLoading,
@@ -43,6 +44,9 @@ function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [sent, setSent] = useState<"signup" | "forgot" | null>(null);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const submitLock = useRef(false);
+  const resendLock = useRef(false);
 
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
@@ -52,6 +56,8 @@ function AuthPage() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (submitLock.current) return;
+    submitLock.current = true;
     setLoading(true);
     try {
       if (mode === "signup") {
@@ -73,7 +79,31 @@ function AuthPage() {
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong");
     } finally {
+      submitLock.current = false;
       setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!resendCooldown) return;
+    const timer = window.setInterval(
+      () => setResendCooldown((seconds) => Math.max(0, seconds - 1)),
+      1000,
+    );
+    return () => window.clearInterval(timer);
+  }, [resendCooldown]);
+
+  async function onResendConfirmation() {
+    if (resendLock.current || resendCooldown) return;
+    resendLock.current = true;
+    try {
+      await resendConfirmation(email);
+      setResendCooldown(60);
+      toast.success("Confirmation request accepted. Check your inbox and spam folder.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't request another email");
+    } finally {
+      resendLock.current = false;
     }
   }
 
@@ -135,9 +165,22 @@ function AuthPage() {
               <h1 className="font-display text-3xl">Check your email</h1>
               <p className="mt-3 text-sm text-muted-foreground">
                 {sent === "signup"
-                  ? `We sent a confirmation link to ${email}. Click it to activate your account.`
-                  : `We sent a password reset link to ${email}. Click it to choose a new password.`}
+                  ? `Your confirmation request was accepted for ${email}. If the message arrives, click its link to activate your account.`
+                  : "If an account exists for this email, its recovery request was accepted. Check your inbox and spam folder."}
               </p>
+              {sent === "signup" ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="mt-6 w-full rounded-full"
+                  disabled={resendCooldown > 0}
+                  onClick={() => void onResendConfirmation()}
+                >
+                  {resendCooldown > 0
+                    ? `Request again in ${resendCooldown}s`
+                    : "Request another confirmation email"}
+                </Button>
+              ) : null}
               <button
                 onClick={() => {
                   setSent(null);
