@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Pencil, Plus, Search, Trash2, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { PageShell, PageHeader, EmptyState } from "@/components/page-shell";
+import { useLanguage } from "@/providers/language-provider";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -17,9 +18,12 @@ export const Route = createFileRoute("/_shell/finance")({
 type Account = Awaited<ReturnType<typeof FinanceService.listAccounts>>[number];
 type Transaction = Awaited<ReturnType<typeof FinanceService.listTransactions>>[number];
 type Editor = { kind: "account"; value?: Account } | { kind: "transaction"; value?: Transaction };
-const money = new Intl.NumberFormat(undefined, { style: "currency", currency: "USD" });
-
 function Finance() {
+  const { t, resolvedLocale } = useLanguage();
+  const money = useMemo(
+    () => new Intl.NumberFormat(resolvedLocale, { style: "currency", currency: "USD" }),
+    [resolvedLocale],
+  );
   const client = useQueryClient();
   const navigate = useNavigate();
   const [editor, setEditor] = useState<Editor>();
@@ -65,8 +69,8 @@ function Finance() {
     <PageShell>
       <PageHeader
         eyebrow="Personal"
-        title="Finance"
-        description="Accounts and transactions from your private workspace."
+        title={t("page.finance.title")}
+        description={t("page.finance.description")}
         actions={
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setEditor({ kind: "account" })}>
@@ -180,8 +184,8 @@ function Finance() {
         {!transactions.isLoading && !visible.length ? (
           <EmptyState
             icon={Wallet}
-            title="No transactions"
-            description="Add income or an expense to start your history."
+            title={t("finance.empty")}
+            description={t("finance.emptyHelp")}
           />
         ) : (
           <div className="mt-4 space-y-2">

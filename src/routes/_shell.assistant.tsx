@@ -182,7 +182,7 @@ function Assistant() {
 
   return (
     <PageShell>
-      <div className="grid min-h-[calc(100dvh-9rem)] gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
+      <div className="assistant-workspace grid min-h-[calc(100dvh-9rem)] gap-4 lg:grid-cols-[280px_minmax(0,1fr)] 2xl:grid-cols-[280px_minmax(0,1fr)_260px]">
         <aside className="glass hidden min-h-0 flex-col rounded-3xl p-3 lg:flex">
           <ConversationList
             {...{
@@ -366,6 +366,16 @@ function Assistant() {
             </p>
           </div>
         </section>
+        <aside className="glass hidden rounded-3xl p-5 2xl:block" aria-label="NEXORA intelligence">
+          <p className="text-xs uppercase tracking-[0.24em] text-violet-300">NEXORA</p>
+          <h2 className="mt-2 font-display text-xl">Intelligence layer</h2>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            Conversation context is drawn only from the messages and attachments you provide.
+          </p>
+          <div className="mt-6 rounded-2xl border border-violet-400/20 bg-violet-400/5 p-4 text-sm">
+            No additional workspace context is attached to this conversation.
+          </div>
+        </aside>
       </div>
       <Sheet open={historyOpen} onOpenChange={setHistoryOpen}>
         <SheetContent side="left" className="flex w-[min(90vw,22rem)] flex-col p-4">

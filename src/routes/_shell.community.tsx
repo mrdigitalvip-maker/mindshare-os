@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { PageHeader, PageShell } from "@/components/page-shell";
+import { useLanguage } from "@/providers/language-provider";
 import { RouteState } from "@/components/parity-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +23,7 @@ import {
 } from "@/services/parity-service";
 export const Route = createFileRoute("/_shell/community")({ component: Community });
 function Community() {
+  const { t } = useLanguage();
   const qc = useQueryClient(),
     nav = useNavigate(),
     q = useQuery({ queryKey: parityKeys.community, queryFn: communityHome });
@@ -68,10 +70,7 @@ function Community() {
   }
   return (
     <PageShell>
-      <PageHeader
-        title="Comunidade"
-        description="Squads privados e atividade verificada, com controles de privacidade."
-      />
+      <PageHeader title={t("page.community.title")} description={t("page.community.description")} />
       <RouteState
         loading={q.isLoading}
         error={q.isError}

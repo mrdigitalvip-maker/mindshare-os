@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { PageHeader, PageShell } from "@/components/page-shell";
+import { useLanguage } from "@/providers/language-provider";
 import { RouteState } from "@/components/parity-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +18,7 @@ import {
 } from "@/services/parity-service";
 export const Route = createFileRoute("/_shell/journeys")({ component: Journeys });
 function Journeys() {
+  const { t } = useLanguage();
   const qc = useQueryClient(),
     nav = useNavigate();
   const [open, setOpen] = useState(false);
@@ -63,10 +65,7 @@ function Journeys() {
   }
   return (
     <PageShell>
-      <PageHeader
-        title="Jornadas"
-        description="Missões e Jornadas canônicas, compartilhadas com o Android."
-      />
+      <PageHeader title={t("page.journeys.title")} description={t("page.journeys.description")} />
       <div className="mb-6 flex flex-wrap gap-2">
         <Button onClick={() => setOpen((v) => !v)} aria-expanded={open}>
           Nova Jornada

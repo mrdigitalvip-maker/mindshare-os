@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, Check, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { PageShell, PageHeader, EmptyState } from "@/components/page-shell";
+import { useLanguage } from "@/providers/language-provider";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -32,6 +33,7 @@ const localDay = (value: string | Date) => {
 };
 
 function Productivity() {
+  const { t } = useLanguage();
   const client = useQueryClient();
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
@@ -135,8 +137,8 @@ function Productivity() {
     <PageShell>
       <PageHeader
         eyebrow="Execução diária"
-        title="Produtividade"
-        description="Decida o que fazer agora, conclua e veja o progresso refletido nos projetos."
+        title={t("page.tasks.title")}
+        description={t("page.tasks.description")}
         actions={
           <Button onClick={() => setEditing(null)}>
             <Plus /> Nova tarefa
@@ -201,13 +203,13 @@ function Productivity() {
       ) : tasksQuery.isError ? (
         <EmptyState
           icon={Search}
-          title="Tarefas indisponíveis"
+          title={t("tasks.error")}
           description={(tasksQuery.error as Error).message}
         />
       ) : tasks.length === 0 ? (
         <EmptyState
           icon={Check}
-          title="Nada nesta lista"
+          title={t("tasks.empty")}
           description={
             view === "today"
               ? "Seu dia está livre. Capture uma tarefa acima ou abra outra lista."

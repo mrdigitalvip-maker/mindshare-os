@@ -3,6 +3,7 @@ import { useState } from "react";
 import { ArrowRightLeft, Copy, Languages, Loader2, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader, PageShell } from "@/components/page-shell";
+import { useLanguage } from "@/providers/language-provider";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -35,6 +36,7 @@ export const Route = createFileRoute("/_shell/translate")({
 });
 
 function Translate() {
+  const { t } = useLanguage();
   const [source, setSource] = useState("auto");
   const [target, setTarget] = useState("pt");
   const [text, setText] = useState("");
@@ -82,8 +84,8 @@ function Translate() {
     <PageShell>
       <PageHeader
         eyebrow="Language workspace"
-        title="Translate"
-        description="Translate with the configured AI provider. Results are persisted only after a successful response."
+        title={t("page.translate.title")}
+        description={t("page.translate.description")}
       />
 
       <section
