@@ -1,7 +1,7 @@
 FROM oven/bun:1.3.10-alpine AS deps
 WORKDIR /app
 COPY package.json ./
-RUN bun install --production --frozen-lockfile=false
+RUN bun install --production
 FROM oven/bun:1.3.10-alpine
 RUN apk add --no-cache ffmpeg tini
 WORKDIR /app
