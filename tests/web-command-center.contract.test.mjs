@@ -58,3 +58,56 @@ test("language changes update document metadata without reload", async () => {
   assert.match(provider, /window\.localStorage\.setItem\(LANGUAGE_STORAGE_KEY, value\)/);
   assert.doesNotMatch(provider, /window\.location\.reload/);
 });
+
+test("phase two keeps a substantial bilingual product vocabulary", async () => {
+  const source = await read("src/i18n/index.ts");
+  const en = source.match(/en: \{([\s\S]*?)\n  \},\n  "pt-BR"/)?.[1] ?? "";
+  const keys = [...en.matchAll(/^    "([^"]+)":/gm)].map((match) => match[1]);
+  assert.ok(keys.length >= 100, `expected at least 100 keys, received ${keys.length}`);
+  for (const namespace of ["auth", "assistant", "creator", "projects", "tasks", "studies"])
+    assert.ok(
+      keys.some((key) => key.startsWith(`${namespace}.`)),
+      namespace,
+    );
+});
+
+test("critical route workspaces use the shared language provider", async () => {
+  for (const path of [
+    "src/routes/auth.tsx",
+    "src/routes/_shell.projects.tsx",
+    "src/routes/_shell.productivity.tsx",
+    "src/routes/_shell.studies.tsx",
+    "src/routes/_shell.journeys.tsx",
+    "src/routes/_shell.creator.tsx",
+    "src/routes/_shell.community.tsx",
+    "src/routes/_shell.documents.tsx",
+    "src/routes/_shell.finance.tsx",
+    "src/routes/_shell.translate.tsx",
+    "src/routes/_shell.settings.tsx",
+  ]) {
+    const source = await read(path);
+    assert.match(source, /useLanguage/, path);
+  }
+});
+
+test("Creator remains wired to real resources without analytics fixtures", async () => {
+  const creator = await read("src/routes/_shell.creator.tsx");
+  assert.match(creator, /listCreatorResources/);
+  assert.match(creator, /creator_manual_metric_snapshots/);
+  assert.match(creator, /createCreatorVideoProject/);
+  assert.doesNotMatch(creator, /fakeAnalytics|demoAnalytics|mockAnalytics/i);
+});
+
+test("the route audit covers auth, detail routes and truthful data states", async () => {
+  const matrix = await read("docs/web-route-matrix.md");
+  for (const route of [
+    "`/dashboard`",
+    "`/assistant`",
+    "`/projects/:projectId`",
+    "`/creator`",
+    "`/auth`",
+  ]) {
+    assert.ok(matrix.includes(route), route);
+  }
+  assert.match(matrix, /no route below introduces synthetic product data/i);
+});

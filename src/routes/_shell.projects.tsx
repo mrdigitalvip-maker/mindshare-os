@@ -11,6 +11,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Textarea } from "@/components/ui/textarea";
 import { ProjectService, TaskService, workspaceQueryKeys } from "@/services";
 import { useAuth } from "@/lib/auth-context";
+import { useLanguage } from "@/providers/language-provider";
 
 export const Route = createFileRoute("/_shell/projects")({
   head: () => ({ meta: [{ title: "Projetos — NEXORA" }] }),
@@ -18,6 +19,7 @@ export const Route = createFileRoute("/_shell/projects")({
 });
 
 function Projects() {
+  const { t } = useLanguage();
   const [creating, setCreating] = useState(false);
   const [search, setSearch] = useState("");
   const { user, isAuthenticated } = useAuth();
@@ -49,10 +51,8 @@ function Projects() {
     <PageShell>
       <header className="flex items-end justify-between gap-4 border-b border-border pb-5">
         <div className="min-w-0">
-          <h1 className="font-display text-3xl md:text-4xl">Projetos</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Retome o resultado que precisa da sua atenção.
-          </p>
+          <h1 className="font-display text-3xl md:text-4xl">{t("page.projects.title")}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{t("page.projects.description")}</p>
         </div>
         <Button className="shrink-0" onClick={() => setCreating(true)}>
           <Plus /> <span className="hidden min-[360px]:inline">Novo projeto</span>

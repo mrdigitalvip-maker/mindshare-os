@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Copy, FileText, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { PageShell, PageHeader, EmptyState } from "@/components/page-shell";
+import { useLanguage } from "@/providers/language-provider";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -16,6 +17,7 @@ export const Route = createFileRoute("/_shell/documents")({
 });
 type Document = Awaited<ReturnType<typeof DocumentService.list>>[number];
 function Documents() {
+  const { t } = useLanguage();
   const client = useQueryClient();
   const navigate = useNavigate();
   const [editing, setEditing] = useState<Document | null>();
@@ -47,8 +49,8 @@ function Documents() {
     <PageShell>
       <PageHeader
         eyebrow="Work"
-        title="Documents"
-        description="Create, find and manage your workspace documents."
+        title={t("page.documents.title")}
+        description={t("page.documents.description")}
         actions={
           <Button onClick={() => setEditing(null)}>
             <Plus /> New document
@@ -87,8 +89,8 @@ function Documents() {
       ) : !visible.length ? (
         <EmptyState
           icon={FileText}
-          title="No documents found"
-          description="Create a document or change your search."
+          title={t("documents.empty")}
+          description={t("documents.emptyHelp")}
           action={<Button onClick={() => setEditing(null)}>Create document</Button>}
         />
       ) : (

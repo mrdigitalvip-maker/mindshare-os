@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Crown, Check, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { PageShell, PageHeader } from "@/components/page-shell";
+import { useLanguage } from "@/providers/language-provider";
 import { Button } from "@/components/ui/button";
 import { subscriptionQueryKey, useSubscription } from "@/hooks/use-subscription";
 import { useAuth } from "@/lib/auth-context";
@@ -30,6 +31,7 @@ const PRO = [
 ];
 
 function Premium() {
+  const { t } = useLanguage();
   const [checkingOut, setCheckingOut] = useState(false);
   const [openingPortal, setOpeningPortal] = useState(false);
   const { user } = useAuth();
@@ -86,8 +88,8 @@ function Premium() {
     <PageShell>
       <PageHeader
         eyebrow="Plans"
-        title="Choose your NEXORA"
-        description="Use the connected workspace for free. Upgrade when higher AI usage and advanced workflows improve your routine."
+        title={t("page.premium.title")}
+        description={t("page.premium.description")}
       />
       <div className="mt-4 text-sm text-muted-foreground">
         Current status:{" "}

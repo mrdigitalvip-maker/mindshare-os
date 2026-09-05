@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { EmptyState, PageHeader, PageShell } from "@/components/page-shell";
+import { useLanguage } from "@/providers/language-provider";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -30,6 +31,7 @@ import { StudyService, workspaceQueryKeys } from "@/services";
 export const Route = createFileRoute("/_shell/studies")({ component: Studies });
 
 function Studies() {
+  const { t } = useLanguage();
   const nav = useNavigate();
   const client = useQueryClient();
   const { user, isAuthenticated } = useAuth();
@@ -134,8 +136,8 @@ function Studies() {
     <PageShell>
       <PageHeader
         eyebrow="Learning workspace"
-        title="Studies"
-        description="Keep every subject, focused session and AI study tool in one clear workspace."
+        title={t("page.studies.title")}
+        description={t("page.studies.description")}
         actions={
           <Button className="min-h-11" onClick={() => setOpen(true)}>
             <Plus />
@@ -314,8 +316,8 @@ function Studies() {
       ) : studyPlans.length === 0 ? (
         <EmptyState
           icon={BookOpen}
-          title="No subjects yet"
-          description="Create a subject to organize sessions and study with focused AI tools."
+          title={t("studies.empty")}
+          description={t("studies.emptyHelp")}
         />
       ) : (
         <section className="mt-8" aria-labelledby="subjects-title">

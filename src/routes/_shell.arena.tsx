@@ -2,11 +2,13 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { PageHeader, PageShell } from "@/components/page-shell";
+import { useLanguage } from "@/providers/language-provider";
 import { RouteState } from "@/components/parity-state";
 import { Button } from "@/components/ui/button";
 import { joinArena, listArena, parityKeys, safeBackendError } from "@/services/parity-service";
 export const Route = createFileRoute("/_shell/arena")({ component: Arena });
 function Arena() {
+  const { t } = useLanguage();
   const qc = useQueryClient(),
     q = useQuery({ queryKey: parityKeys.arena, queryFn: listArena });
   const join = useMutation({
@@ -19,10 +21,7 @@ function Arena() {
   });
   return (
     <PageShell>
-      <PageHeader
-        title="Arena"
-        description="Verified challenges. No rankings or participant counts are fabricated."
-      />
+      <PageHeader title={t("page.arena.title")} description={t("page.arena.description")} />
       <RouteState
         loading={q.isLoading}
         error={q.isError}

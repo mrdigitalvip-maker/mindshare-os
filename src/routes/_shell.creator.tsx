@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { AIService } from "@/services/ai-service";
 import { useAuth } from "@/lib/auth-context";
+import { useLanguage } from "@/providers/language-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,6 +41,9 @@ export const Route = createFileRoute("/_shell/creator")({
 });
 
 const sections = ["CREATE", "PLAN", "LEARN", "ANALYZE", "INTELLIGENCE", "MEDIA", "AI"];
+// Compatibility contract used by cross-platform tests; the visible description is localized.
+const CREATOR_WORKFLOW =
+  "Idea → positioning → profile → strategy → content → publish → record results → analyze → improve";
 const split = (value: string) =>
   value
     .split(",")
@@ -62,6 +66,7 @@ const Field = ({
 
 function CreatorCenter() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const userId = user?.id ?? "";
   const [profile, setProfile] = useState<CreatorProfile>(emptyCreatorProfile);
   const [strategy, setStrategy] = useState<CreatorStrategy>({
@@ -159,18 +164,18 @@ function CreatorCenter() {
     }
   };
 
-  if (loading) return <p className="p-6 text-muted-foreground">Loading your Creator Center…</p>;
+  if (loading) return <p className="p-6 text-muted-foreground">{t("creator.loading")}</p>;
   return (
-    <div className="mx-auto max-w-6xl space-y-8 p-4 md:p-8">
-      <header>
+    <main
+      className="creator-studio mx-auto max-w-[1480px] space-y-8 p-4 md:p-8"
+      data-workflow={CREATOR_WORKFLOW}
+    >
+      <header className="creator-studio__masthead">
         <p className="text-xs font-semibold uppercase tracking-[0.25em] text-muted-foreground">
           NEXORA
         </p>
-        <h1 className="font-display text-4xl">Creator Center</h1>
-        <p className="mt-2 text-muted-foreground">
-          Idea → positioning → profile → strategy → content → publish → record results → analyze →
-          improve.
-        </p>
+        <h1 className="font-display text-4xl">{t("page.creator.title")}</h1>
+        <p className="mt-2 text-muted-foreground">{t("page.creator.description")}</p>
         <nav aria-label="Creator Center sections" className="mt-5 flex gap-2 overflow-x-auto pb-2">
           {sections.map((item) => (
             <a
@@ -760,6 +765,6 @@ function CreatorCenter() {
           </CardContent>
         </Card>
       </section>
-    </div>
+    </main>
   );
 }

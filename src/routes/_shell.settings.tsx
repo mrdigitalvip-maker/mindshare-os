@@ -92,7 +92,11 @@ function Settings() {
 
   return (
     <PageShell>
-      <PageHeader eyebrow="Account" title="Settings" description="Personalize your NEXORA." />
+      <PageHeader
+        eyebrow={t("settings.account")}
+        title={t("page.settings.title")}
+        description={t("page.settings.description")}
+      />
 
       <div className="mt-8 mx-auto max-w-4xl space-y-6">
         <Section title={t("settings.language")} description={t("settings.languageHelp")}>

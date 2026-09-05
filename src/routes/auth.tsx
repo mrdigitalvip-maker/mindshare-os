@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LEGAL_URLS } from "@/lib/legal";
+import { useLanguage } from "@/providers/language-provider";
 
 const searchSchema = z.object({
   mode: z.enum(["signin", "signup", "forgot"]).optional(),
@@ -27,6 +28,7 @@ export const Route = createFileRoute("/auth")({
 });
 
 function AuthPage() {
+  const { t } = useLanguage();
   const { mode = "signin" } = Route.useSearch();
   const navigate = useNavigate();
   const {
@@ -137,11 +139,10 @@ function AuthPage() {
             <span className="font-display text-2xl">NEXORA</span>
           </Link>
           <div>
-            <p className="font-display text-4xl leading-tight">
-              "The first workspace that <span className="text-gold italic">actually</span> feels
-              personal."
+            <p className="max-w-xl font-display text-4xl leading-tight">{t("auth.heroTitle")}</p>
+            <p className="mt-4 max-w-lg text-sm leading-6 text-muted-foreground">
+              {t("auth.heroDescription")}
             </p>
-            <p className="mt-4 text-sm text-muted-foreground">— early access user</p>
           </div>
         </div>
       </div>
