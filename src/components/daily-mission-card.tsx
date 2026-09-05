@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { dailyMission, parityKeys } from "@/services/parity-service";
 export function DailyMissionCard() {
   const q = useQuery({ queryKey: parityKeys.mission, queryFn: dailyMission });
+  const sourceLabel = q.data?.source_type.replaceAll("_", " ");
   return (
     <section
       className="mx-auto mb-4 w-full max-w-3xl rounded-xl border bg-background/80 p-4"
@@ -25,8 +26,7 @@ export function DailyMissionCard() {
         <>
           <p className="mt-1 text-sm">{q.data.title}</p>
           <p className="text-xs text-muted-foreground">
-            {q.data.source_type.replace("_", " ")} ·{" "}
-            {q.data.status === "completed" ? "verificada" : "pendente"}
+            {sourceLabel} · {q.data.status === "completed" ? "verificada" : "pendente"}
           </p>
           <Link to="/journeys" className="mt-2 inline-block text-sm underline">
             Abrir execução

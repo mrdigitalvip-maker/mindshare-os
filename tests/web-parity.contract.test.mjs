@@ -71,6 +71,18 @@ test("browser copy actions use the permission-safe clipboard adapter", async () 
   }
 });
 
+test("dashboard validates the delayed daily mission RPC before rendering it", async () => {
+  const [card, service] = await Promise.all([
+    read("src/components/daily-mission-card.tsx"),
+    read("src/services/parity-service.ts"),
+  ]);
+  assert.match(service, /normalizeMissionPayload\(payload: unknown\)/);
+  assert.match(service, /Array\.isArray\(payload\) \? payload\[0\] : payload/);
+  assert.match(service, /throw new Error\("invalid_daily_mission_response"\)/);
+  assert.match(card, /q\.data\?\.source_type\.replaceAll/);
+  assert.doesNotMatch(card, /q\.data\.source_type\.replace\(/);
+});
+
 test("Journey and Pack creation are server persisted and duplicate-safe", async () => {
   const [journeys, pack, service] = await Promise.all([
     read("src/routes/_shell.journeys.tsx"),

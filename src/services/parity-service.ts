@@ -128,10 +128,39 @@ export const parityKeys = {
   packs: ["canonical-parity", "packs"] as const,
   pack: (slug: string) => ["canonical-parity", "packs", slug] as const,
 };
-export async function dailyMission() {
-  return rpc<Mission | null>("ensure_daily_journey_mission", {
+
+function isMission(value: unknown): value is Mission {
+  if (!value || typeof value !== "object") return false;
+  const mission = value as Partial<Mission>;
+  return (
+    typeof mission.id === "string" &&
+    typeof mission.title === "string" &&
+    typeof mission.source_type === "string" &&
+    typeof mission.source_id === "string" &&
+    typeof mission.status === "string" &&
+    typeof mission.scheduled_date === "string" &&
+    typeof mission.momentum_value === "number"
+  );
+}
+
+/**
+ * PostgREST may encode a function returning a named row type either as that
+ * row or as a one-item rowset, depending on the deployed function metadata.
+ * Normalize both forms before React receives the value, and keep malformed
+ * live data in the query's explicit error state instead of crashing render.
+ */
+export function normalizeMissionPayload(payload: unknown): Mission | null {
+  const candidate = Array.isArray(payload) ? payload[0] : payload;
+  if (candidate == null) return null;
+  if (!isMission(candidate)) throw new Error("invalid_daily_mission_response");
+  return candidate;
+}
+
+export async function dailyMission(): Promise<Mission | null> {
+  const payload = await rpc<unknown>("ensure_daily_journey_mission", {
     p_local_date: new Date().toLocaleDateString("en-CA"),
   });
+  return normalizeMissionPayload(payload);
 }
 export async function listJourneys() {
   const { data, error } = await client
