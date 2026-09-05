@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/dialog";
 import { useChat, type ChatMessage } from "@/hooks/use-chat";
 import { useAuth } from "@/lib/auth-context";
+import { copyText } from "@/lib/clipboard";
 import { createClientId } from "@/lib/utils";
 import {
   AIService,
@@ -522,9 +523,13 @@ function Message({
 }) {
   const [copied, setCopied] = useState(false);
   async function copy() {
-    await navigator.clipboard.writeText(message.content);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1500);
+    try {
+      await copyText(message.content);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      toast.error("Não foi possível copiar esta mensagem.");
+    }
   }
   return (
     <div className={`group flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
@@ -795,9 +800,13 @@ function CodeBlock({ code, language }: { code: string; language: string }) {
         <span>{language || "code"}</span>
         <button
           onClick={async () => {
-            await navigator.clipboard.writeText(code);
-            setCopied(true);
-            window.setTimeout(() => setCopied(false), 1500);
+            try {
+              await copyText(code);
+              setCopied(true);
+              window.setTimeout(() => setCopied(false), 1500);
+            } catch {
+              toast.error("Não foi possível copiar este código.");
+            }
           }}
           className="flex items-center gap-1 hover:text-foreground"
         >

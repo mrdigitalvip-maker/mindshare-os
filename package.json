@@ -12,7 +12,7 @@
     "check:pwa": "node scripts/check-pwa.mjs",
     "check:nexora-actions": "node scripts/check-nexora-actions.mjs",
     "test:web": "node --test tests/web-parity.contract.test.mjs",
-    "preview": "vite preview",
+    "preview": "nitro preview --prebuilt",
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "npm --prefix mobile test"

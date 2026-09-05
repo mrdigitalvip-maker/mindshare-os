@@ -54,6 +54,23 @@ test("Community forms and server mutation contracts remain accessible", async ()
     assert.ok(service.includes(rpc), rpc);
 });
 
+test("browser copy actions use the permission-safe clipboard adapter", async () => {
+  const [adapter, ...routes] = await Promise.all([
+    read("src/lib/clipboard.ts"),
+    read("src/routes/_shell.assistant.tsx"),
+    read("src/routes/_shell.dashboard.tsx"),
+    read("src/routes/_shell.translate.tsx"),
+    read("src/routes/_shell.agents.$agentId.tsx"),
+    read("src/routes/_shell.community.squads.$squadId.tsx"),
+  ]);
+  assert.match(adapter, /navigator\.clipboard\?\.writeText/);
+  assert.match(adapter, /document\.execCommand\("copy"\)/);
+  for (const route of routes) {
+    assert.match(route, /copyText/);
+    assert.doesNotMatch(route, /navigator\.clipboard/);
+  }
+});
+
 test("Journey and Pack creation are server persisted and duplicate-safe", async () => {
   const [journeys, pack, service] = await Promise.all([
     read("src/routes/_shell.journeys.tsx"),
