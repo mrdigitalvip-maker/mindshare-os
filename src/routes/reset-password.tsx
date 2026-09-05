@@ -4,7 +4,6 @@ import { motion } from "framer-motion";
 import { toast } from "sonner";
 
 import { useAuth } from "@/lib/auth-context";
-import { AuthService } from "@/services";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,7 +17,7 @@ export const Route = createFileRoute("/reset-password")({
 });
 
 function ResetPasswordPage() {
-  const { updatePassword } = useAuth();
+  const { updatePassword, recoverySession, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -27,15 +26,10 @@ function ResetPasswordPage() {
   const [invalidLink, setInvalidLink] = useState(false);
 
   useEffect(() => {
-    // By the time this route mounts, the Supabase client (detectSessionInUrl:
-    // true) has already parsed the recovery token from the email link and
-    // created a temporary session. We just confirm it exists before showing
-    // the form; if not, the link was invalid or expired.
-    AuthService.hasRecoverySession().then((hasSession) => {
-      if (hasSession) setReady(true);
-      else setInvalidLink(true);
-    });
-  }, []);
+    if (authLoading) return;
+    setReady(recoverySession);
+    setInvalidLink(!recoverySession);
+  }, [authLoading, recoverySession]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();

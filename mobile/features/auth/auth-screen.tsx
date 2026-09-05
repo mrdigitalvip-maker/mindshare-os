@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -52,9 +52,17 @@ export function AuthScreen() {
   const [visible, setVisible] = useState(false);
   const [busy, setBusy] = useState<"form" | "google" | null>(null);
   const [message, setMessage] = useState<string>();
+  const [confirmationAccepted, setConfirmationAccepted] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
   const passwordRef = useRef<TextInput>(null);
   const submitLock = useRef(false);
   const googleLock = useRef(false);
+  const resendLock = useRef(false);
+  useEffect(() => {
+    if (!resendCooldown) return;
+    const timer = setInterval(() => setResendCooldown((seconds) => Math.max(0, seconds - 1)), 1000);
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
   async function finish(user: Parameters<typeof ensureAuthenticatedProfile>[0]) {
     const profile = await ensureAuthenticatedProfile(user);
     router.replace(profile.onboarded ? "/dashboard" : "/onboarding");
@@ -86,12 +94,37 @@ export function AuthScreen() {
             });
       if (result.error) throw result.error;
       if (result.data.session && result.data.user) await finish(result.data.user);
-      else setMessage("Confira seu e-mail para confirmar sua conta.");
+      else {
+        setConfirmationAccepted(true);
+        setMessage(
+          "A solicitação de confirmação foi aceita. Confira sua caixa de entrada e o spam.",
+        );
+      }
     } catch (error) {
       setMessage(presentAuthError(error).message);
     } finally {
       submitLock.current = false;
       setBusy(null);
+    }
+  }
+  async function resendConfirmation() {
+    if (resendLock.current || resendCooldown) return;
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!emailPattern.test(normalizedEmail)) return setMessage("Informe um e-mail válido.");
+    resendLock.current = true;
+    try {
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email: normalizedEmail,
+        options: { emailRedirectTo: authCallbackUrl },
+      });
+      if (error) throw error;
+      setResendCooldown(60);
+      setMessage("Nova solicitação aceita. Confira sua caixa de entrada e o spam.");
+    } catch (error) {
+      setMessage(presentAuthError(error).message);
+    } finally {
+      resendLock.current = false;
     }
   }
   async function google() {
@@ -206,6 +239,20 @@ export function AuthScreen() {
               {message}
             </Text>
           )}
+          {isSignup && confirmationAccepted ? (
+            <Pressable
+              accessibilityRole="button"
+              disabled={resendCooldown > 0}
+              onPress={() => void resendConfirmation()}
+              style={styles.link}
+            >
+              <Text style={styles.switch}>
+                {resendCooldown > 0
+                  ? `Solicitar novamente em ${resendCooldown}s`
+                  : "Solicitar outro e-mail de confirmação"}
+              </Text>
+            </Pressable>
+          ) : null}
           <Pressable
             accessibilityRole="button"
             accessibilityState={{ disabled: Boolean(busy) }}
@@ -230,6 +277,7 @@ export function AuthScreen() {
             onPress={() => {
               setMode(isSignup ? "login" : "signup");
               setMessage(undefined);
+              setConfirmationAccepted(false);
             }}
           >
             <Text style={styles.switch}>
