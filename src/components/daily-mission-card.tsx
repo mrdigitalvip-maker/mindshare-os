@@ -1,39 +1,40 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { dailyMission, parityKeys } from "@/services/parity-service";
+import { useLanguage } from "@/providers/language-provider";
 export function DailyMissionCard() {
+  const { t } = useLanguage();
   const q = useQuery({ queryKey: parityKeys.mission, queryFn: dailyMission });
-  const sourceLabel = q.data?.source_type.replaceAll("_", " ");
   return (
     <section
-      className="mx-auto mb-4 w-full max-w-3xl rounded-xl border bg-background/80 p-4"
+      className="command-home__mission"
       aria-labelledby="home-mission"
       aria-busy={q.isLoading}
     >
       <h2 id="home-mission" className="font-semibold">
-        Missão diária
+        {t("workspace.dailyMission")}
       </h2>
       {q.isLoading ? (
-        <p className="text-sm text-muted-foreground">Carregando missão…</p>
+        <p className="text-sm text-muted-foreground">{t("home.missionLoading")}</p>
       ) : q.isError ? (
         <p className="text-sm text-destructive">
-          Não foi possível carregar.{" "}
+          {t("home.missionError")}{" "}
           <button className="underline" onClick={() => void q.refetch()}>
-            Tentar novamente
+            {t("common.retry")}
           </button>
         </p>
       ) : q.data ? (
         <>
           <p className="mt-1 text-sm">{q.data.title}</p>
           <p className="text-xs text-muted-foreground">
-            {sourceLabel} · {q.data.status === "completed" ? "verificada" : "pendente"}
+            {q.data.status === "completed" ? t("home.missionCompleted") : t("home.missionActive")}
           </p>
           <Link to="/journeys" className="mt-2 inline-block text-sm underline">
-            Abrir execução
+            {t("home.openMission")}
           </Link>
         </>
       ) : (
-        <p className="text-sm text-muted-foreground">Nenhuma missão elegível hoje.</p>
+        <p className="text-sm text-muted-foreground">{t("home.missionEmpty")}</p>
       )}
     </section>
   );

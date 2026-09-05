@@ -58,7 +58,6 @@ test("browser copy actions use the permission-safe clipboard adapter", async () 
   const [adapter, ...routes] = await Promise.all([
     read("src/lib/clipboard.ts"),
     read("src/routes/_shell.assistant.tsx"),
-    read("src/routes/_shell.dashboard.tsx"),
     read("src/routes/_shell.translate.tsx"),
     read("src/routes/_shell.agents.$agentId.tsx"),
     read("src/routes/_shell.community.squads.$squadId.tsx"),
@@ -79,8 +78,8 @@ test("dashboard validates the delayed daily mission RPC before rendering it", as
   assert.match(service, /normalizeMissionPayload\(payload: unknown\)/);
   assert.match(service, /Array\.isArray\(payload\) \? payload\[0\] : payload/);
   assert.match(service, /throw new Error\("invalid_daily_mission_response"\)/);
-  assert.match(card, /q\.data\?\.source_type\.replaceAll/);
-  assert.doesNotMatch(card, /q\.data\.source_type\.replace\(/);
+  assert.match(card, /q\.data\.status === "completed"/);
+  assert.doesNotMatch(card, /source_type/);
 });
 
 test("Journey and Pack creation are server persisted and duplicate-safe", async () => {
