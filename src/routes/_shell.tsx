@@ -1,5 +1,14 @@
 import { createFileRoute, Outlet, Link, useRouterState, useNavigate } from "@tanstack/react-router";
-import { Home, LogOut, Menu, MoreHorizontal, Search, User } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Home,
+  LogOut,
+  Menu,
+  MoreHorizontal,
+  Search,
+  User,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -21,6 +30,18 @@ import {
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { GlobalSearch } from "@/components/global-search";
 import { NotificationCenter } from "@/components/notification-center";
+import { useLanguage } from "@/providers/language-provider";
+import type { TranslationKey } from "@/i18n";
+
+const SIDEBAR_STORAGE_KEY = "nexora.web.sidebar.v1";
+const navigationGroups = [
+  { id: "command", modules: ["dashboard", "assistant", "search"] },
+  { id: "execute", modules: ["projects", "productivity"] },
+  { id: "learn", modules: ["studies", "journeys", "packs"] },
+  { id: "create", modules: ["creator"] },
+  { id: "connect", modules: ["community", "arena"] },
+  { id: "system", modules: ["premium", "settings"] },
+] as const;
 
 export const Route = createFileRoute("/_shell")({
   ssr: false,
@@ -33,6 +54,7 @@ function initials(name?: string | null) {
 }
 
 function ShellLayout() {
+  const { t } = useLanguage();
   const { user, loading: authLoading, isAuthenticated, signOut } = useAuth();
   const {
     data: profile,
@@ -45,6 +67,11 @@ function ShellLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [compact, setCompact] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      window.localStorage.getItem(SIDEBAR_STORAGE_KEY) === "compact",
+  );
 
   // Guard 1: real Supabase session (replaces the old "nexora.session"
   // localStorage flag, which was never written anywhere).
@@ -69,12 +96,10 @@ function ShellLayout() {
     return (
       <div className="grid min-h-dvh place-items-center bg-background px-6">
         <div className="max-w-sm text-center">
-          <h1 className="font-display text-3xl">Não foi possível carregar seu perfil</h1>
-          <p className="mt-3 text-sm text-muted-foreground">
-            Verifique sua conexão e tente novamente. Seus dados continuam seguros.
-          </p>
+          <h1 className="font-display text-3xl">{t("shell.profileError")}</h1>
+          <p className="mt-3 text-sm text-muted-foreground">{t("shell.profileErrorHelp")}</p>
           <Button className="mt-6 rounded-full" onClick={() => void retryProfile()}>
-            Tentar novamente
+            {t("common.retry")}
           </Button>
         </div>
       </div>
@@ -87,41 +112,45 @@ function ShellLayout() {
 
   const displayName = profile?.full_name ?? user?.name ?? undefined;
 
-  const groups = {
-    main: RELEASE_MODULES.filter((m) => m.category === "main"),
-    workspace: RELEASE_MODULES.filter((m) => m.category === "workspace"),
-    growth: RELEASE_MODULES.filter((m) => m.category === "growth"),
-    intelligence: RELEASE_MODULES.filter((m) => m.category === "intelligence"),
-    money: RELEASE_MODULES.filter((m) => m.category === "money"),
-    account: RELEASE_MODULES.filter((m) => m.category === "account"),
-  };
-
   async function handleSignOut() {
     try {
       await signOut();
       queryClient.clear();
       navigate({ to: "/auth", search: { mode: "signin" }, replace: true });
     } catch {
-      toast.error("Não foi possível sair. Verifique sua conexão e tente novamente.");
+      toast.error(t("shell.signOutError"));
     }
   }
 
   const Sidebar = (
-    <aside className="flex h-full w-full flex-col bg-sidebar text-sidebar-foreground">
+    <aside className="command-sidebar flex h-full w-full flex-col bg-sidebar text-sidebar-foreground">
       <div className="flex h-16 shrink-0 items-center gap-2 px-5">
         <img src="/nexora-icon.png" alt="" width={26} height={26} className="rounded-md" />
-        <span className="font-display text-xl">NEXORA</span>
+        {!compact && (
+          <div>
+            <span className="block font-display text-xl leading-none">NEXORA</span>
+            <span className="text-[9px] uppercase tracking-[.22em] text-muted-foreground">
+              {t("shell.commandCenter")}
+            </span>
+          </div>
+        )}
       </div>
       <nav className="scrollbar-hidden flex-1 space-y-6 overflow-y-auto px-3 pb-6">
-        {(["main", "workspace", "growth", "intelligence", "money", "account"] as const).map(
-          (g) =>
-            groups[g].length > 0 && (
-              <div key={g}>
-                <p className="mb-2 px-3 text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
-                  {g}
-                </p>
+        {navigationGroups.map((group) => {
+          const groupModules = group.modules
+            .map((id) => RELEASE_MODULES.find((module) => module.id === id))
+            .filter(Boolean);
+          return (
+            groupModules.length > 0 && (
+              <div key={group.id}>
+                {!compact && (
+                  <p className="mb-2 px-3 text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
+                    {t(`nav.group.${group.id}` as TranslationKey)}
+                  </p>
+                )}
                 <ul className="space-y-0.5">
-                  {groups[g].map((m) => {
+                  {groupModules.map((m) => {
+                    if (!m) return null;
                     const active = pathname.startsWith(m.path);
                     if (m.id === "search") {
                       return (
@@ -132,10 +161,12 @@ function ShellLayout() {
                               setMobileOpen(false);
                               setSearchOpen(true);
                             }}
-                            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground transition hover:bg-sidebar-accent hover:text-foreground"
+                            title={compact ? t(`nav.${m.id}` as TranslationKey) : undefined}
+                            aria-label={t(`nav.${m.id}` as TranslationKey)}
+                            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-muted-foreground transition hover:bg-sidebar-accent hover:text-foreground"
                           >
                             <m.icon className="h-4 w-4" />
-                            <span>{m.label}</span>
+                            {!compact && <span>{t(`nav.${m.id}` as TranslationKey)}</span>}
                           </button>
                         </li>
                       );
@@ -144,6 +175,7 @@ function ShellLayout() {
                       <li key={m.id}>
                         <Link
                           to={m.path}
+                          title={compact ? t(`nav.${m.id}` as TranslationKey) : undefined}
                           onClick={() => setMobileOpen(false)}
                           className={`group flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
                             active
@@ -152,8 +184,10 @@ function ShellLayout() {
                           }`}
                         >
                           <m.icon className="h-4 w-4 shrink-0" />
-                          <span className="flex-1">{m.label}</span>
-                          {m.premium && (
+                          {!compact && (
+                            <span className="flex-1">{t(`nav.${m.id}` as TranslationKey)}</span>
+                          )}
+                          {!compact && m.premium && (
                             <span className="rounded-full bg-[color:var(--gold)]/15 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider text-gold">
                               Pro
                             </span>
@@ -164,16 +198,40 @@ function ShellLayout() {
                   })}
                 </ul>
               </div>
-            ),
-        )}
+            )
+          );
+        })}
       </nav>
+      <button
+        type="button"
+        className="mx-3 mb-4 hidden items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs text-muted-foreground hover:bg-sidebar-accent hover:text-foreground md:flex"
+        onClick={() => {
+          const next = !compact;
+          setCompact(next);
+          window.localStorage.setItem(SIDEBAR_STORAGE_KEY, next ? "compact" : "expanded");
+        }}
+        aria-label={compact ? t("shell.expand") : t("shell.collapse")}
+      >
+        {compact ? (
+          <ChevronRight className="h-4 w-4" />
+        ) : (
+          <>
+            <ChevronLeft className="h-4 w-4" />
+            <span>{t("shell.collapse")}</span>
+          </>
+        )}
+      </button>
     </aside>
   );
 
   return (
     <div className="flex min-h-dvh w-full bg-background">
       {/* Desktop sidebar */}
-      <div className="hidden w-64 shrink-0 border-r border-sidebar-border md:block">{Sidebar}</div>
+      <div
+        className={`hidden shrink-0 border-r border-sidebar-border transition-[width] duration-200 md:block ${compact ? "w-[76px]" : "w-64"}`}
+      >
+        {Sidebar}
+      </div>
 
       {/* Main */}
       <div className="flex min-w-0 flex-1 flex-col">
@@ -200,10 +258,11 @@ function ShellLayout() {
 
             <button
               onClick={() => setSearchOpen(true)}
+              aria-label={t("shell.searchLabel")}
               className="flex flex-1 items-center gap-2 rounded-full border border-border bg-surface px-4 py-2 text-left text-sm text-muted-foreground transition hover:border-foreground/20 md:max-w-md"
             >
               <Search className="h-4 w-4" />
-              <span className="flex-1">Search or ask NEXORA…</span>
+              <span className="flex-1">{t("shell.search")}</span>
               <kbd className="hidden rounded border border-border bg-background px-1.5 py-0.5 text-[10px] md:inline">
                 ⌘K
               </kbd>
@@ -215,7 +274,7 @@ function ShellLayout() {
                 <DropdownMenuTrigger asChild>
                   <button
                     className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-surface-elevated text-sm font-medium"
-                    aria-label="Account menu"
+                    aria-label={t("shell.accountMenu")}
                   >
                     <Avatar className="h-9 w-9">
                       <AvatarImage src={profile?.avatar_url ?? undefined} alt="" />
@@ -234,10 +293,10 @@ function ShellLayout() {
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => navigate({ to: "/settings" })}>
-                    <User className="mr-2 h-4 w-4" /> Profile & settings
+                    <User className="mr-2 h-4 w-4" /> {t("shell.profileSettings")}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={handleSignOut}>
-                    <LogOut className="mr-2 h-4 w-4" /> Sign out
+                    <LogOut className="mr-2 h-4 w-4" /> {t("shell.signOut")}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -257,12 +316,12 @@ function ShellLayout() {
         >
           <div className="grid grid-cols-5">
             {[
-              { id: "dashboard", label: "Home", path: "/dashboard", icon: Home },
+              { id: "dashboard", label: t("nav.dashboard"), path: "/dashboard", icon: Home },
               RELEASE_MODULES.find((module) => module.id === "assistant")!,
               RELEASE_MODULES.find((module) => module.id === "projects")!,
               {
                 ...RELEASE_MODULES.find((module) => module.id === "productivity")!,
-                label: "Tasks",
+                label: t("nav.productivity"),
               },
             ].map((m) => {
               const active = pathname.startsWith(m.path);
@@ -283,10 +342,10 @@ function ShellLayout() {
               type="button"
               onClick={() => setMobileOpen(true)}
               className="flex flex-col items-center gap-1 py-2.5 text-[10px] text-muted-foreground"
-              aria-label="Open more modules"
+              aria-label={t("shell.moreLabel")}
             >
               <MoreHorizontal className="h-5 w-5" />
-              <span>More</span>
+              <span>{t("shell.more")}</span>
             </button>
           </div>
         </nav>
