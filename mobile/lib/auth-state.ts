@@ -17,6 +17,6 @@ export function resolveAppDestination(input: {
 }): AppDestination {
   if (input.authStatus === "initializing") return null;
   if (input.authStatus === "unauthenticated") return "/auth";
-  if (input.onboarding === "loading" || input.onboarding === "error") return null;
-  return input.onboarding === "complete" ? "/dashboard" : "/onboarding";
+  if (input.onboarding === "incomplete") return "/onboarding";
+  return "/dashboard";
 }
