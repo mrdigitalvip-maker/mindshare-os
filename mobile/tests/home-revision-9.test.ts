@@ -24,6 +24,12 @@ const task = (id: string, dueDate: string | null, completed = false): Task => ({
   completed,
 });
 
+test("assistant action stays in document flow instead of covering dashboard content", () => {
+  const quickStyle = dashboard.slice(dashboard.indexOf("quickNexora:"));
+  assert.doesNotMatch(quickStyle, /position:\s*"absolute"/);
+  assert.match(quickStyle, /alignSelf:\s*"flex-end"/);
+});
+
 test("primary command is deterministic and opens the exact task", () => {
   assert.equal(
     getNextAction([task("later", "2026-09-03"), task("now", "2026-09-02")], new Date(2026, 8, 2))

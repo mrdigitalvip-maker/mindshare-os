@@ -16,6 +16,7 @@ import Svg, { Path } from "react-native-svg";
 
 import { presentAuthError } from "@/lib/auth-errors";
 import { authCallbackUrl } from "@/lib/auth-links";
+import { LEGAL_URLS } from "@/lib/legal";
 import { hasSupabaseConfig, supabase } from "@/lib/supabase";
 import { colors, radius, spacing, typography } from "@/lib/theme";
 import { ensureAuthenticatedProfile } from "@/services/profile-service";
@@ -285,9 +286,23 @@ export function AuthScreen() {
             </Text>
           </Pressable>
         </View>
-        <Text style={styles.legal}>
-          Termos de Uso e Política de Privacidade estarão disponíveis antes do lançamento.
-        </Text>
+        <View accessibilityRole="text" style={styles.legalRow}>
+          <Text style={styles.legal}>Ao continuar, você concorda com os </Text>
+          <Pressable
+            accessibilityRole="link"
+            onPress={() => void Linking.openURL(LEGAL_URLS.termsOfService)}
+          >
+            <Text style={styles.legalLink}>Termos de Serviço</Text>
+          </Pressable>
+          <Text style={styles.legal}> e a </Text>
+          <Pressable
+            accessibilityRole="link"
+            onPress={() => void Linking.openURL(LEGAL_URLS.privacyPolicy)}
+          >
+            <Text style={styles.legalLink}>Política de Privacidade</Text>
+          </Pressable>
+          <Text style={styles.legal}>.</Text>
+        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -373,5 +388,11 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
   },
   switch: { ...typography.label, color: colors.text, textAlign: "center", padding: spacing.sm },
+  legalRow: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center" },
   legal: { ...typography.caption, color: colors.textMuted, textAlign: "center" },
+  legalLink: {
+    ...typography.caption,
+    color: colors.primaryBright,
+    textDecorationLine: "underline",
+  },
 });
