@@ -29,6 +29,14 @@ describe("NXR-036 cross-platform authentication", () => {
     expect(parser).toContain("consumedCallbacks.has(fingerprint)");
     expect(parser).toContain('value === "/auth/reset-password"');
     expect(read("mobile/lib/auth-links.ts")).toContain("exchangeCodeForSession(code)");
+    expect(read("mobile/lib/supabase.ts")).toContain('flowType: "pkce"');
+  });
+
+  test("native auth links to the published legal documents", () => {
+    const screen = read("mobile/features/auth/auth-screen.tsx");
+    expect(screen).toContain("LEGAL_URLS.termsOfService");
+    expect(screen).toContain("LEGAL_URLS.privacyPolicy");
+    expect(screen).not.toContain("estarão disponíveis antes do lançamento");
   });
 
   test("cold/warm callback routing has no browser or ordinary-login recovery dependency", () => {

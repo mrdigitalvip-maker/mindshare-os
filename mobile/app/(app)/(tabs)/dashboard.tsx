@@ -551,19 +551,19 @@ export default function Dashboard() {
             ) : null}
           </View>
         ) : null}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Conversar com a NEXORA"
+          accessibilityHint="Abre o Assistente"
+          onPress={() => router.push("/assistant")}
+          style={({ pressed }) => [styles.quickNexora, pressed && styles.quickNexoraPressed]}
+        >
+          <Text style={styles.quickChatSpark}>✦</Text>
+          <Text style={styles.quickNexoraText}>
+            <LocalizedCopy copyKey="legacy.6196c3814041" />
+          </Text>
+        </Pressable>
       </ScrollView>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Conversar com a NEXORA"
-        accessibilityHint="Abre o Assistente"
-        onPress={() => router.push("/assistant")}
-        style={({ pressed }) => [styles.quickNexora, pressed && styles.quickNexoraPressed]}
-      >
-        <Text style={styles.quickChatSpark}>✦</Text>
-        <Text style={styles.quickNexoraText}>
-          <LocalizedCopy copyKey="legacy.6196c3814041" />
-        </Text>
-      </Pressable>
     </AppScreen>
   );
 }
@@ -720,10 +720,8 @@ const styles = StyleSheet.create({
   },
   subjectColor: { width: 4, height: 38, borderRadius: 2 },
   quickNexora: {
-    position: "absolute",
-    right: spacing.md,
-    bottom: spacing.md,
     minHeight: 44,
+    alignSelf: "flex-end",
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
