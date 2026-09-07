@@ -1,6 +1,7 @@
 {
   "expo": {
     "name": "NEXORA",
+    "owner": "brunobrandao",
     "slug": "nexora-native",
     "version": "0.1.0",
     "orientation": "portrait",
@@ -53,6 +54,11 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "307c1e13-5eb2-41fc-99ea-27f2ef392ff7"
+      }
     },
     "icon": "./assets/branding/nexora-app-icon-master.png"
   }
