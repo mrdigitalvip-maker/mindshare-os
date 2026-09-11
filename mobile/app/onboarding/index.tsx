@@ -4,17 +4,18 @@ import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { Redirect, router } from "expo-router";
 import { NexoraAgent } from "@/components/nexora-agent";
 import { AppScreen } from "@/components/app-screen";
-import { LoadingState } from "@/components/screen-state";
+import { ErrorState, LoadingState } from "@/components/screen-state";
 import { colors, radius, spacing, typography } from "@/lib/theme";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/providers/auth-provider";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
-import { useProfile } from "@/hooks/use-profile";
+import { useAccountLifecycle, useProfile } from "@/hooks/use-profile";
 export default function Onboarding() {
   const { session, status } = useAuth();
   const client = useQueryClient();
   const profile = useProfile();
+  const lifecycle = useAccountLifecycle();
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>();
@@ -24,6 +25,17 @@ export default function Onboarding() {
   }, [name, profile.data?.displayName]);
   if (status === "initializing") return <LoadingState title="Preparando seu espaço…" />;
   if (status === "unauthenticated") return <Redirect href="/auth" />;
+  if (lifecycle.state === "provisioning") return <LoadingState title="Preparando seu espaço…" />;
+  if (lifecycle.state === "recoverable_error")
+    return (
+      <ErrorState
+        title="Não foi possível preparar seu espaço."
+        message="Verifique sua conexão e tente novamente."
+        actionLabel="Tentar novamente"
+        onAction={() => void lifecycle.retry()}
+      />
+    );
+  if (lifecycle.state === "ready") return <Redirect href="/dashboard" />;
   async function complete() {
     const normalizedName = name.trim();
     if (!session || !normalizedName || normalizedName.length > 80 || submitLock.current) return;

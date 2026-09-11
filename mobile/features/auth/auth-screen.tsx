@@ -19,7 +19,6 @@ import { authCallbackUrl } from "@/lib/auth-links";
 import { LEGAL_URLS } from "@/lib/legal";
 import { hasSupabaseConfig, supabase } from "@/lib/supabase";
 import { colors, radius, spacing, typography } from "@/lib/theme";
-import { ensureAuthenticatedProfile } from "@/services/profile-service";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 function GoogleMark() {
@@ -64,10 +63,6 @@ export function AuthScreen() {
     const timer = setInterval(() => setResendCooldown((seconds) => Math.max(0, seconds - 1)), 1000);
     return () => clearInterval(timer);
   }, [resendCooldown]);
-  async function finish(user: Parameters<typeof ensureAuthenticatedProfile>[0]) {
-    const profile = await ensureAuthenticatedProfile(user);
-    router.replace(profile.onboarded ? "/dashboard" : "/onboarding");
-  }
   async function submit() {
     if (submitLock.current) return;
     const normalizedEmail = email.trim().toLowerCase();
@@ -94,7 +89,7 @@ export function AuthScreen() {
               options: { emailRedirectTo: authCallbackUrl, data: { full_name: name.trim() } },
             });
       if (result.error) throw result.error;
-      if (result.data.session && result.data.user) await finish(result.data.user);
+      if (result.data.session && result.data.user) router.replace("/");
       else {
         setConfirmationAccepted(true);
         setMessage(
@@ -157,7 +152,7 @@ export function AuthScreen() {
     >
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
         <View>
-          <Text style={styles.brand}>N E X O R A</Text>
+          <Text style={styles.brand}>K I V R Y N</Text>
           <Text accessibilityRole="header" style={styles.title}>
             {isSignup ? "Crie seu espaço KIVRYN." : "Seu espaço começa aqui."}
           </Text>
