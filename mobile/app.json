@@ -2,7 +2,7 @@
   "expo": {
     "name": "KIVRYN",
     "owner": "brunobrandao",
-    "slug": "nexora-native",
+    "slug": "kivryn",
     "version": "0.1.0",
     "orientation": "portrait",
     "scheme": "kivryn",
@@ -16,7 +16,8 @@
       "package": "kivryn.app",
       "versionCode": 1,
       "permissions": [
-        "POST_NOTIFICATIONS"
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.RECORD_AUDIO"
       ],
       "intentFilters": [
         {
@@ -57,8 +58,9 @@
     },
     "extra": {
       "eas": {
-        "projectId": "307c1e13-5eb2-41fc-99ea-27f2ef392ff7"
-      }
+        "projectId": "4912bde3-e229-49c6-a9ae-aa529af24fd3"
+      },
+      "router": {}
     },
     "icon": "./assets/branding/nexora-app-icon-master.png"
   }
