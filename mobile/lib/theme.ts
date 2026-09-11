@@ -1,18 +1,26 @@
 import type { TextStyle, ViewStyle } from "react-native";
 
 export const colors = {
-  background: "#070706",
-  surface: "#11110F",
-  surfaceRaised: "#1A1916",
-  primary: "#B9854B",
-  primaryBright: "#E3B978",
-  accentMuted: "#4B3520",
-  text: "#F5F2EC",
-  textMuted: "#99968F",
-  border: "#2B2924",
-  danger: "#D77B76",
-  success: "#7EAA8D",
-  warning: "#D5A45D",
+  background: "#05080F",
+  canvasElevated: "#080D17",
+  surface: "#0D1420",
+  surfaceRaised: "#121C2A",
+  overlay: "#182333",
+  primary: "#00B8D9",
+  primaryBright: "#52E5FF",
+  blue: "#3B82F6",
+  violet: "#8B7CF6",
+  accentMuted: "#123344",
+  text: "#F4F9FC",
+  textSecondary: "#B4C2CF",
+  textMuted: "#718293",
+  textDisabled: "#4A5866",
+  border: "#1C2A39",
+  borderActive: "#28566B",
+  focus: "#52E5FF",
+  danger: "#FF7B86",
+  success: "#54D6A0",
+  warning: "#F6C76E",
 } as const;
 
 export const spacing = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32, xxl: 48 } as const;
@@ -51,5 +59,16 @@ export const shadows = {
     shadowOffset: { width: 0, height: 8 },
     elevation: 7,
   } satisfies ViewStyle,
+  illuminated: {
+    shadowColor: colors.primaryBright,
+    shadowOpacity: 0.12,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 5,
+  } satisfies ViewStyle,
+} as const;
+export const effects = {
+  focusGlow: "rgba(82, 229, 255, 0.22)",
+  activeGlow: "rgba(0, 184, 217, 0.14)",
 } as const;
 export const motion = { quick: 160, standard: 260, calm: 420 } as const;

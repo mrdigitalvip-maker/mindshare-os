@@ -56,7 +56,7 @@
   --font-display: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 
-  --shadow-glow: 0 0 40px -8px color-mix(in oklab, var(--gold) 40%, transparent);
+  --shadow-glow: 0 0 40px -10px color-mix(in oklab, var(--intelligence) 32%, transparent);
   --shadow-elevated:
     0 1px 0 0 color-mix(in oklab, white 4%, transparent) inset,
     0 12px 40px -12px color-mix(in oklab, black 60%, transparent);
@@ -78,13 +78,13 @@
   --radius: 0.875rem;
 
   /* Dark by default — KIVRYN is a dark-first OS */
-  --background: oklch(0.14 0.005 260);
+  --background: oklch(0.105 0.018 255);
   --foreground: oklch(0.97 0.005 260);
 
-  --surface: oklch(0.17 0.006 260);
-  --surface-elevated: oklch(0.21 0.007 260);
+  --surface: oklch(0.15 0.022 255);
+  --surface-elevated: oklch(0.19 0.026 255);
 
-  --card: oklch(0.18 0.006 260);
+  --card: oklch(0.16 0.022 255);
   --card-foreground: oklch(0.97 0.005 260);
   --popover: oklch(0.19 0.006 260);
   --popover-foreground: oklch(0.97 0.005 260);
@@ -101,8 +101,11 @@
   --accent: oklch(0.28 0.01 260);
   --accent-foreground: oklch(0.97 0.005 260);
 
-  --gold: oklch(0.78 0.12 72);
-  --gold-foreground: oklch(0.16 0.02 60);
+  --gold: oklch(0.84 0.14 210);
+  --intelligence: oklch(0.84 0.14 210);
+  --intelligence-blue: oklch(0.66 0.18 255);
+  --intelligence-violet: oklch(0.65 0.13 290);
+  --gold-foreground: oklch(0.12 0.025 250);
 
   --destructive: oklch(0.62 0.21 25);
   --destructive-foreground: oklch(0.98 0 0);
@@ -115,7 +118,7 @@
 
   --sidebar: oklch(0.13 0.005 260);
   --sidebar-foreground: oklch(0.92 0.005 260);
-  --sidebar-primary: oklch(0.76 0.13 225);
+  --sidebar-primary: var(--intelligence);
   --sidebar-primary-foreground: oklch(0.16 0.02 60);
   --sidebar-accent: oklch(0.22 0.007 260);
   --sidebar-accent-foreground: oklch(0.97 0.005 260);
@@ -618,8 +621,8 @@
   background: radial-gradient(circle at 85% 5%, rgba(194, 139, 78, 0.08), transparent 28%);
 }
 .command-home {
-  margin: 0 auto;
   width: min(100%, 96rem);
+  margin: 0 auto;
   padding: clamp(1.25rem, 3vw, 3rem);
 }
 .command-home__header {
@@ -630,41 +633,55 @@
   margin-bottom: 2rem;
 }
 .command-home__header h1 {
-  margin: 0.35rem 0;
+  max-width: 14ch;
+  margin: 0.4rem 0;
   font-family: var(--font-display);
-  font-size: clamp(2rem, 4vw, 4.5rem);
-  line-height: 1;
-  letter-spacing: -0.035em;
+  font-size: clamp(2.15rem, 4vw, 4.25rem);
+  font-weight: 650;
+  line-height: 0.98;
+  letter-spacing: -0.045em;
 }
 .command-home__header > div > p:last-child {
+  max-width: 38rem;
   color: var(--muted-foreground);
 }
 .command-home__eyebrow,
 .command-home__section-heading span,
 .command-home__nexora > span {
-  color: var(--gold);
+  color: var(--intelligence);
   font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.2em;
+  font-weight: 750;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
 }
 .command-home__primary {
   display: grid;
-  grid-template-columns: minmax(0, 1.75fr) minmax(19rem, 0.85fr);
+  grid-template-columns: minmax(0, 1.7fr) minmax(19rem, 0.78fr);
   gap: 1rem;
 }
 .command-home__today,
 .command-home__nexora,
 .command-home__active,
-.command-home__mission {
+.command-home__mission,
+.command-surface {
   border: 1px solid var(--border);
-  border-radius: 1.5rem;
-  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  border-radius: 1.35rem;
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--surface-elevated) 42%, var(--surface)),
+    var(--surface)
+  );
+  box-shadow:
+    inset 0 1px rgb(255 255 255 / 0.035),
+    0 18px 50px rgb(0 0 0 / 0.16);
 }
 .command-home__today,
 .command-home__active,
 .command-home__mission {
-  padding: clamp(1.1rem, 2vw, 1.75rem);
+  padding: clamp(1.1rem, 2vw, 1.65rem);
+}
+.command-home__today {
+  border-color: color-mix(in srgb, var(--intelligence) 22%, var(--border));
 }
 .command-home__section-heading {
   display: flex;
@@ -673,11 +690,26 @@
   gap: 1rem;
   margin-bottom: 1rem;
 }
+.command-home__section-heading > div {
+  position: relative;
+  padding-left: 0.7rem;
+}
+.command-home__section-heading > div::before {
+  position: absolute;
+  top: 0.2rem;
+  bottom: 0.2rem;
+  left: 0;
+  width: 2px;
+  border-radius: 2px;
+  content: "";
+  background: var(--intelligence);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--intelligence) 40%, transparent);
+}
 .command-home__section-heading h2,
 .command-home__nexora h2 {
-  margin-top: 0.2rem;
+  margin-top: 0.18rem;
   font-family: var(--font-display);
-  font-size: 1.5rem;
+  font-size: 1.45rem;
 }
 .command-home__task-list {
   display: grid;
@@ -688,16 +720,21 @@
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 0.85rem;
-  min-height: 3.6rem;
-  padding: 0.65rem 0.75rem;
-  border-radius: 1rem;
+  min-height: 3.85rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid transparent;
+  border-radius: 0.9rem;
+  transition:
+    background-color 160ms,
+    border-color 160ms;
 }
 .command-home__task-list li:hover {
-  background: var(--accent);
+  border-color: var(--border);
+  background: color-mix(in srgb, var(--surface-elevated) 70%, transparent);
 }
 .command-home__task-list svg {
   width: 1rem;
-  color: var(--muted-foreground);
+  color: var(--intelligence);
 }
 .command-home__task-list div {
   display: flex;
@@ -714,14 +751,17 @@
   font-size: 0.75rem;
 }
 .command-home__priority {
+  border: 1px solid var(--border);
   border-radius: 999px;
-  padding: 0.25rem 0.55rem;
+  padding: 0.24rem 0.55rem;
+  color: var(--muted-foreground);
   background: var(--accent);
   font-size: 0.68rem;
 }
 .command-home__priority.is-high {
-  color: #ef9a8f;
-  background: rgba(239, 68, 68, 0.1);
+  border-color: rgb(255 123 134 / 0.2);
+  color: #ff9ba3;
+  background: rgb(255 123 134 / 0.08);
 }
 .command-home__priority.is-low {
   color: var(--muted-foreground);
@@ -735,8 +775,17 @@
   overflow: hidden;
   padding: 1.75rem;
   background:
-    radial-gradient(circle at 70% 15%, rgba(194, 139, 78, 0.24), transparent 42%),
-    color-mix(in srgb, var(--surface) 92%, black);
+    radial-gradient(
+      circle at 72% 14%,
+      color-mix(in srgb, var(--intelligence) 15%, transparent),
+      transparent 38%
+    ),
+    radial-gradient(
+      circle at 100% 0%,
+      color-mix(in srgb, var(--intelligence-violet) 8%, transparent),
+      transparent 48%
+    ),
+    var(--surface);
 }
 .command-home__nexora p {
   margin: 0.6rem 0 1.25rem;
@@ -748,12 +797,14 @@
   height: 4rem;
   place-items: center;
   margin-bottom: auto;
-  border: 1px solid rgba(194, 139, 78, 0.3);
-  border-radius: 50%;
-  color: var(--gold);
-  box-shadow: 0 0 50px rgba(194, 139, 78, 0.15);
+  border: 1px solid color-mix(in srgb, var(--intelligence) 35%, transparent);
+  border-radius: 1.15rem;
+  color: var(--intelligence);
+  background: color-mix(in srgb, var(--intelligence) 7%, transparent);
+  box-shadow: 0 0 42px color-mix(in srgb, var(--intelligence) 13%, transparent);
 }
-.command-home__active {
+.command-home__active,
+.command-home__mission {
   margin-top: 1rem;
 }
 .command-home__work-list {
@@ -766,13 +817,22 @@
   grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 0.75rem;
+  min-height: 4.5rem;
   padding: 1rem;
+  border: 1px solid transparent;
   border-radius: 1rem;
-  background: var(--accent);
+  background: color-mix(in srgb, var(--surface-elevated) 70%, transparent);
+  transition:
+    border-color 160ms,
+    transform 160ms;
+}
+.command-home__work-item:hover {
+  border-color: color-mix(in srgb, var(--intelligence) 22%, var(--border));
+  transform: translateY(-1px);
 }
 .command-home__work-item > svg {
   width: 1.1rem;
-  color: var(--gold);
+  color: var(--intelligence);
 }
 .command-home__work-item div {
   min-width: 0;
@@ -789,22 +849,35 @@
   font-size: 0.72rem;
 }
 .command-home__count {
+  color: var(--intelligence);
   font-variant-numeric: tabular-nums;
 }
-.command-home__mission {
-  margin-top: 1rem;
-}
 .command-home__state {
-  padding: 2rem;
-  text-align: center;
+  display: grid;
+  min-height: 9rem;
+  place-items: center;
+  align-content: center;
+  gap: 0.65rem;
   color: var(--muted-foreground);
+  text-align: center;
+}
+.command-home__state > span {
+  width: 2rem;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--intelligence);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--intelligence) 45%, transparent);
+}
+.command-home__state.is-error > span {
+  background: var(--destructive);
+  box-shadow: none;
 }
 @media (max-width: 900px) {
   .command-home__primary {
     grid-template-columns: 1fr;
   }
   .command-home__nexora {
-    min-height: 18rem;
+    min-height: 17rem;
   }
   .command-home__work-list {
     grid-template-columns: 1fr;

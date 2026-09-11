@@ -3,6 +3,12 @@ import { router } from "expo-router";
 import { useMemo, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { AppScreen } from "@/components/app-screen";
+import {
+  PremiumSurface,
+  V2Progress,
+  V2SectionHeader,
+  V2SectionState,
+} from "@/components/v2/premium-ui";
 import { NexoraAgent } from "@/components/nexora-agent";
 import { AppHeader, DrawerMenu } from "@/components/product-ui";
 import { useProfile } from "@/hooks/use-profile";
@@ -28,59 +34,6 @@ import { getMissionExecutionTarget, getTodayMission } from "@/lib/journeys";
 import type { Project, Subject, Task } from "@/services/workspace-service";
 
 // Daily Mission calm-state contract: Seu espaço está livre agora.
-function SectionHeader({
-  title,
-  action,
-  onAction,
-}: {
-  title: string;
-  action?: string;
-  onAction?: () => void;
-}) {
-  return (
-    <View style={styles.sectionHeader}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      {action && onAction ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`${action}: ${title}`}
-          hitSlop={8}
-          onPress={onAction}
-        >
-          <Text style={styles.link}>{action}</Text>
-        </Pressable>
-      ) : null}
-    </View>
-  );
-}
-
-function SectionState({
-  loading,
-  error,
-  retry,
-}: {
-  loading: boolean;
-  error: boolean;
-  retry: () => void;
-}) {
-  if (loading) return <View accessibilityLabel="Carregando seção" style={styles.skeleton} />;
-  if (error)
-    return (
-      <View style={styles.inlineState}>
-        <Text style={styles.muted}>
-          <LocalizedCopy copyKey="legacy.db7ae91b77a0" />
-        </Text>
-        <Pressable accessibilityRole="button" onPress={retry}>
-          <Text style={styles.link}>
-            <LocalizedCopy copyKey="legacy.da2574475ed7" />
-          </Text>
-        </Pressable>
-      </View>
-    );
-
-  return null;
-}
-
 function ProjectCard({ project, tasks }: { project: Project; tasks?: Task[] }) {
   const progress = tasks ? getProjectProgress(project.id, tasks) : null;
   const nextProjectTask = tasks?.find((task) => !task.completed);
@@ -112,14 +65,11 @@ function ProjectCard({ project, tasks }: { project: Project; tasks?: Task[] }) {
           <LocalizedCopy copyKey="legacy.c4cd930f29a4" />
         </Text>
       ) : progress ? (
-        <View
-          accessible
-          accessibilityLabel={`${progress.completed} de ${progress.total} tarefas concluídas`}
-          accessibilityValue={{ min: 0, max: 100, now: progress.percentage }}
-        >
-          <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: `${progress.percentage}%` }]} />
-          </View>
+        <View>
+          <V2Progress
+            value={progress.percentage}
+            label={`${progress.completed} de ${progress.total} tarefas concluídas`}
+          />
           <Text style={styles.meta}>
             {progress.completed} de {progress.total} tarefas
           </Text>
@@ -281,11 +231,11 @@ export default function Dashboard() {
         </View>
         {!tasksQuery.isPending && !tasksQuery.isError && nextAction ? (
           <View style={styles.section}>
-            <SectionHeader
+            <V2SectionHeader
               title={nextAction.executionStatus === "blocked" ? "ATENÇÃO" : "SEU PRÓXIMO PASSO"}
             />
 
-            <View style={styles.commandCard}>
+            <PremiumSurface illuminated style={styles.commandCard}>
               <Text style={styles.nextLabel}>
                 {nextAction.executionStatus === "blocked"
                   ? "Há algo travando seu avanço"
@@ -307,11 +257,11 @@ export default function Dashboard() {
                   {nextAction.executionStatus === "blocked" ? "Resolver" : "Abrir tarefa"}
                 </Text>
               </Pressable>
-            </View>
+            </PremiumSurface>
           </View>
         ) : !tasksQuery.isPending && !tasksQuery.isError && dailyMission.isError ? (
           <View style={styles.section}>
-            <SectionHeader title="MISSÃO DE HOJE" />
+            <V2SectionHeader title="MISSÃO DE HOJE" />
             <View style={styles.commandCard}>
               <Text style={styles.nextTitle}>
                 <LocalizedCopy copyKey="legacy.f8957f63a358" />
@@ -332,7 +282,7 @@ export default function Dashboard() {
           </View>
         ) : !tasksQuery.isPending && !tasksQuery.isError && todayMission && missionTarget ? (
           <View style={styles.section}>
-            <SectionHeader title="MISSÃO DE HOJE" />
+            <V2SectionHeader title="MISSÃO DE HOJE" />
             <Pressable
               accessibilityRole="button"
               onPress={() => router.push(missionTarget.href)}
@@ -369,7 +319,7 @@ export default function Dashboard() {
         missionTarget &&
         shouldShowSecondaryMission(`/tasks/${nextAction.id}`, missionTarget.href) ? (
           <View style={styles.section}>
-            <SectionHeader
+            <V2SectionHeader
               title="MISSÃO DE HOJE"
               action="Ver Jornada"
               onAction={() => router.push("/journeys")}
@@ -396,13 +346,13 @@ export default function Dashboard() {
         ) : null}
 
         <View style={styles.section}>
-          <SectionHeader
+          <V2SectionHeader
             title="SEU DIA"
             action="Ver tarefas"
             onAction={() => router.push("/productivity")}
           />
 
-          <SectionState
+          <V2SectionState
             loading={tasksQuery.isPending}
             error={tasksQuery.isError}
             retry={() => void tasksQuery.refetch()}
@@ -456,7 +406,7 @@ export default function Dashboard() {
 
         {weeklyChallenge ? (
           <View style={styles.section}>
-            <SectionHeader title="DESAFIO DA SEMANA" />
+            <V2SectionHeader title="DESAFIO DA SEMANA" />
             <View style={styles.challengeCard}>
               <Text style={styles.challengeTitle}>{weeklyChallenge.title}</Text>
               <View
@@ -497,13 +447,13 @@ export default function Dashboard() {
         ) : null}
 
         <View style={styles.section}>
-          <SectionHeader
+          <V2SectionHeader
             title="PROJETOS EM MOVIMENTO"
             action="Ver todos"
             onAction={() => router.push("/projects")}
           />
 
-          <SectionState
+          <V2SectionState
             loading={projectsQuery.isPending}
             error={projectsQuery.isError}
             retry={() => void projectsQuery.refetch()}
@@ -530,13 +480,13 @@ export default function Dashboard() {
 
         {subjectsQuery.isPending || subjectsQuery.isError || subjects.length > 0 ? (
           <View style={styles.section}>
-            <SectionHeader
+            <V2SectionHeader
               title="CONTINUAR"
               action="Ver estudos"
               onAction={() => router.push("/studies")}
             />
 
-            <SectionState
+            <V2SectionState
               loading={subjectsQuery.isPending}
               error={subjectsQuery.isError}
               retry={() => void subjectsQuery.refetch()}
