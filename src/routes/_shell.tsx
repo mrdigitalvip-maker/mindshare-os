@@ -128,7 +128,7 @@ function ShellLayout() {
         <img src="/nexora-icon.png" alt="" width={26} height={26} className="rounded-md" />
         {!compact && (
           <div>
-            <span className="block font-display text-xl leading-none">NEXORA</span>
+            <span className="block font-display text-xl leading-none">KIVRYN</span>
             <span className="text-[9px] uppercase tracking-[.22em] text-muted-foreground">
               {t("shell.commandCenter")}
             </span>

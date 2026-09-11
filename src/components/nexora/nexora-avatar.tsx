@@ -6,7 +6,7 @@ export type NexoraAvatarState =
 
 export type LegacyNexoraIdentity = "nexora" | "nova" | "atlas" | "lyra" | "orion";
 
-/** Read-time compatibility for preferences saved before NEXORA became one permanent identity. */
+/** Read-time compatibility for preferences saved before KIVRYN became one permanent identity. */
 export function normalizeNexoraIdentity(_value: unknown): "nexora" {
   return "nexora";
 }

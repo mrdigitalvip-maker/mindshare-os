@@ -15,7 +15,7 @@ export function RouteState({
   if (loading)
     return (
       <p role="status" className="py-16 text-center text-muted-foreground">
-        Loading your NEXORA data…
+        Loading your KIVRYN data…
       </p>
     );
   if (error)

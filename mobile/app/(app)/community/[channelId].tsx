@@ -443,7 +443,7 @@ function MessageRow({
       >
         <View style={styles.identity}>
           <Text style={[styles.sender, host && styles.hostText]}>
-            {host ? "NEXORA Host" : message.displayName}
+            {host ? "KIVRYN Host" : message.displayName}
           </Text>
           {host ? (
             <Text style={styles.badge}>

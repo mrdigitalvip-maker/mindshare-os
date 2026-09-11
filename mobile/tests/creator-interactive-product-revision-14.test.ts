@@ -92,7 +92,7 @@ describe("NXR-037B2 interactive Creator product", () => {
   test("copilot omits unavailable context", () => {
     expect(creatorCopilotContext({ profile: null, strategy: null, analytics: [] })).toEqual({});
     expect((translations.en as Record<string, string>)["creator.openAssistant"]).toContain(
-      "NEXORA",
+      "KIVRYN",
     );
   });
   test("goals use only manual milestones", () => {

@@ -67,11 +67,11 @@ export function useNotificationRouting() {
           void Notifications.clearLastNotificationResponseAsync().catch(() => undefined);
         })
         .catch(() => {
-          console.info("NEXORA could not read the initial notification response.");
+          console.info("KIVRYN could not read the initial notification response.");
         });
     } catch {
       // Notification routing is optional and must not replace the core application UI.
-      console.info("NEXORA notification routing is unavailable on this device.");
+      console.info("KIVRYN notification routing is unavailable on this device.");
     }
     return () => {
       received?.remove();

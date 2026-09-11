@@ -20,11 +20,11 @@ import { Button } from "@/components/ui/button";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "NEXORA — Your Personal AI Operating System" },
+      { title: "KIVRYN — Your Personal AI Operating System" },
       {
         name: "description",
         content:
-          "One intelligent workspace for productivity, projects, learning, content and translation. Meet NEXORA.",
+          "One intelligent workspace for productivity, projects, learning, content and translation. Meet KIVRYN.",
       },
     ],
   }),
@@ -41,7 +41,7 @@ const FEATURES = [
   { icon: FileText, title: "Documents", copy: "Read, summarize and question any file." },
   { icon: Languages, title: "Translate", copy: "Seamless multilingual writing and speech." },
   { icon: Bot, title: "Agents", copy: "Build your own AI workers, without code." },
-  { icon: Zap, title: "Automations", copy: "Let NEXORA handle the busywork for you." },
+  { icon: Zap, title: "Automations", copy: "Let KIVRYN handle the busywork for you." },
 ];
 
 export default function Landing() {
@@ -80,7 +80,7 @@ export default function Landing() {
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
           <Link to="/" className="flex items-center gap-2">
             <img src="/nexora-icon.png" alt="" width={28} height={28} className="rounded-md" />
-            <span className="font-display text-xl tracking-tight">NEXORA</span>
+            <span className="font-display text-xl tracking-tight">KIVRYN</span>
           </Link>
           <nav className="hidden items-center gap-8 text-sm text-muted-foreground md:flex">
             <a href="#features" className="hover:text-foreground">
@@ -119,7 +119,7 @@ export default function Landing() {
           >
             <span className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 text-xs uppercase tracking-[0.2em] text-muted-foreground">
               <span className="h-1.5 w-1.5 rounded-full bg-gold" />
-              Introducing NEXORA
+              Introducing KIVRYN
             </span>
             <h1 className="mt-6 font-display text-4xl leading-[1.05] sm:text-5xl md:text-7xl">
               Your Personal <span className="text-gold italic">AI</span>
@@ -128,7 +128,7 @@ export default function Landing() {
             </h1>
             <p className="mx-auto mt-6 max-w-xl text-lg text-muted-foreground">
               One intelligent workspace for productivity, projects, learning, content and
-              translation. NEXORA works with you — every day.
+              translation. KIVRYN works with you — every day.
             </p>
             <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
               <Link to="/auth" search={{ mode: "signup" }}>
@@ -241,7 +241,7 @@ export default function Landing() {
           </p>
           <Link to="/auth" search={{ mode: "signup" }} className="mt-8 inline-block">
             <Button size="lg" className="rounded-full px-8">
-              Create your NEXORA <ArrowRight className="ml-1 h-4 w-4" />
+              Create your KIVRYN <ArrowRight className="ml-1 h-4 w-4" />
             </Button>
           </Link>
         </div>
@@ -249,7 +249,7 @@ export default function Landing() {
 
       <footer className="border-t border-border">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 py-8 text-xs text-muted-foreground md:flex-row">
-          <p>© {new Date().getFullYear()} NEXORA. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} KIVRYN. All rights reserved.</p>
           <p>Your Personal AI Operating System.</p>
         </div>
       </footer>

@@ -17,7 +17,7 @@ import { Progress } from "@/components/ui/progress";
 import { StudioService, type StudioCategory } from "@/services/studio-service";
 
 export const Route = createFileRoute("/_shell/studio")({
-  head: () => ({ meta: [{ title: "Studio — NEXORA" }] }),
+  head: () => ({ meta: [{ title: "Studio — KIVRYN" }] }),
   component: Studio,
 });
 
@@ -112,7 +112,7 @@ function Studio() {
             </span>
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-[.3em] text-cyan-200/70">
-                NEXORA learning system
+                KIVRYN learning system
               </p>
               <h1 className="text-xl font-semibold tracking-tight">
                 Studio <span className="font-normal text-white/40">/ 2.0</span>

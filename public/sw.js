@@ -65,7 +65,7 @@ self.addEventListener("push", (event) => {
     payload = { body: event.data?.text() };
   }
 
-  const title = typeof payload.title === "string" ? payload.title : "NEXORA";
+  const title = typeof payload.title === "string" ? payload.title : "KIVRYN";
   const requestedUrl = typeof payload.url === "string" ? payload.url : "/dashboard";
   const target = new URL(requestedUrl, self.location.origin);
   const safeUrl =

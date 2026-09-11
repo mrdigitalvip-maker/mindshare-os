@@ -72,10 +72,10 @@ export default function AssistantHome() {
                 <Text style={styles.attachText}>＋</Text>
               </Pressable>
               <TextInput
-                accessibilityLabel="Mensagem para a NEXORA"
+                accessibilityLabel="Mensagem para a KIVRYN"
                 multiline
                 maxLength={12000}
-                placeholder="Pergunte à NEXORA…"
+                placeholder="Pergunte à KIVRYN…"
                 placeholderTextColor={colors.textMuted}
                 value={draft}
                 onChangeText={setDraft}
@@ -133,7 +133,7 @@ export default function AssistantHome() {
         }
         renderItem={({ item }) => {
           const title = isGenericConversationTitle(item.title)
-            ? "Conversa com a NEXORA"
+            ? "Conversa com a KIVRYN"
             : item.title!;
           const date = new Date(item.updatedAt).toLocaleDateString("pt-BR", {
             day: "2-digit",

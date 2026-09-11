@@ -17,12 +17,12 @@ const FREE = [
 ];
 
 const PREMIUM = [
-  "NEXORA Assistant avançado — 100 mensagens/dia",
+  "KIVRYN Assistant avançado — 100 mensagens/dia",
   "20 análises de imagens/arquivos por dia",
   "Project Intelligence",
   "Execução inteligente em Tarefas",
-  "NEXORA Tutor / Estudos avançados",
-  "Limites ampliados para o Core NEXORA",
+  "KIVRYN Tutor / Estudos avançados",
+  "Limites ampliados para o Core KIVRYN",
 ];
 
 export default function Premium() {
@@ -59,7 +59,7 @@ export default function Premium() {
                 ? "Google Play"
                 : subscription.data?.provider === "stripe"
                   ? "Stripe"
-                  : "NEXORA"}
+                  : "KIVRYN"}
             </Text>
           )}
           {subscription.data?.currentPeriodEnd && (

@@ -23,13 +23,13 @@ const stateColors: Record<NexoraState, string> = {
   quiet: "#6E7890",
 };
 const stateLabels: Record<NexoraState, string> = {
-  idle: "NEXORA disponível",
-  listening: "NEXORA ouvindo",
-  thinking: "NEXORA pensando",
-  speaking: "NEXORA respondendo",
-  attention: "NEXORA precisa da sua atenção",
-  success: "NEXORA confirmou a ação",
-  quiet: "NEXORA em modo silencioso",
+  idle: "KIVRYN disponível",
+  listening: "KIVRYN ouvindo",
+  thinking: "KIVRYN pensando",
+  speaking: "KIVRYN respondendo",
+  attention: "KIVRYN precisa da sua atenção",
+  success: "KIVRYN confirmou a ação",
+  quiet: "KIVRYN em modo silencioso",
 };
 const AnimatedG = Animated.createAnimatedComponent(G);
 

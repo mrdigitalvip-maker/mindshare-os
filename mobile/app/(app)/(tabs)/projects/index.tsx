@@ -260,7 +260,7 @@ export default function Projetos() {
         ListEmptyComponent={
           <EmptyState
             title="Transforme objetivos em progresso."
-            message="Crie um projeto e organize o que precisa acontecer até a conclusão. A NEXORA acompanha tarefas, progresso e próximos passos."
+            message="Crie um projeto e organize o que precisa acontecer até a conclusão. A KIVRYN acompanha tarefas, progresso e próximos passos."
             actionLabel="Criar primeiro projeto"
             onAction={() => setOpen(true)}
           />

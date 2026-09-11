@@ -30,7 +30,7 @@ export function conversationTitleFromMessage(message: string, maxLength = 56): s
     .replace(/\s+/g, " ")
     .replace(/["'“”]/g, "")
     .trim();
-  const fallback = "Conversa com a NEXORA";
+  const fallback = "Conversa com a KIVRYN";
   if (!cleaned) return fallback;
   if (cleaned.length <= maxLength) return cleaned.replace(/[.!?,;:]+$/, "");
   const clipped = cleaned.slice(0, maxLength + 1);

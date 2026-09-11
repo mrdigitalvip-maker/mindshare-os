@@ -14,7 +14,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useLanguage } from "@/providers/language-provider";
 
 export const Route = createFileRoute("/_shell/projects")({
-  head: () => ({ meta: [{ title: "Projetos — NEXORA" }] }),
+  head: () => ({ meta: [{ title: "Projetos — KIVRYN" }] }),
   component: Projects,
 });
 

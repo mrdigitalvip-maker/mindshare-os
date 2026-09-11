@@ -30,7 +30,7 @@ export function mapNexoraActionError(error: unknown): ActionErrorCopy {
   if (raw.includes("unsupported_action"))
     return {
       kind: "unsupported",
-      message: "Essa alteração não é compatível com a NEXORA.",
+      message: "Essa alteração não é compatível com a KIVRYN.",
       retry: false,
     };
   if (raw.includes("idempotency_conflict"))
@@ -54,13 +54,13 @@ export function mapNexoraActionError(error: unknown): ActionErrorCopy {
   if (raw.includes("invalid_payload") || raw.includes("invalid result"))
     return {
       kind: "invalid",
-      message: "A proposta está incompleta. Peça à NEXORA para prepará-la novamente.",
+      message: "A proposta está incompleta. Peça à KIVRYN para prepará-la novamente.",
       retry: false,
     };
   if (raw.includes("stale_or_not_found"))
     return {
       kind: "stale",
-      message: "Esse item mudou desde que a NEXORA preparou a alteração.",
+      message: "Esse item mudou desde que a KIVRYN preparou a alteração.",
       retry: false,
     };
   if (raw.includes("project_not_found") || raw.includes("subject_not_found"))
@@ -93,7 +93,7 @@ export function mapNexoraActionError(error: unknown): ActionErrorCopy {
       retry: false,
     };
   if (raw.includes("network") || raw.includes("fetch") || raw.includes("unavailable") || !raw)
-    return { kind: "network", message: "Sem conexão com a NEXORA. Tente novamente.", retry: true };
+    return { kind: "network", message: "Sem conexão com a KIVRYN. Tente novamente.", retry: true };
   return {
     kind: "unexpected",
     message: "Não foi possível aplicar a alteração. Tente novamente.",

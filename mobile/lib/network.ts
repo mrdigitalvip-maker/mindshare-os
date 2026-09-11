@@ -58,7 +58,7 @@ export async function requestJson<T>(
     if (error instanceof Error && error.name === "AbortError")
       throw new NetworkError("timeout", "The request timed out.");
     if (error instanceof TypeError)
-      throw new NetworkError("offline", "NEXORA could not reach the network.");
+      throw new NetworkError("offline", "KIVRYN could not reach the network.");
     throw new NetworkError("unknown", "An unexpected network error occurred.");
   } finally {
     clearTimeout(timer);

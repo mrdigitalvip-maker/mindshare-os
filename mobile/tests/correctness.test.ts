@@ -53,8 +53,8 @@ test("verified execution refreshes every dependent read model with targeted keys
   ]);
 });
 test("capabilities and subscriptions default conservatively", () => {
-  assert.equal(resolveCapabilityTier("pro", "active"), "NEXORA ADVANCED");
-  assert.equal(resolveCapabilityTier(undefined, "active"), "NEXORA BASIC");
+  assert.equal(resolveCapabilityTier("pro", "active"), "KIVRYN ADVANCED");
+  assert.equal(resolveCapabilityTier(undefined, "active"), "KIVRYN BASIC");
   assert.equal(normalizeEntitlement("past_due"), "expired");
   assert.equal(normalizeEntitlement(undefined), "free");
 });
@@ -68,7 +68,7 @@ test("push token and notification routes reject malformed data", () => {
   assert.equal(notificationRoute({ kind: "task", resourceId: "task-1" }), "/tasks/task-1");
   assert.equal(notificationRoute({ kind: "study", resourceId: "../bad" }), "/dashboard");
 });
-test("NEXORA visual inputs are guarded", () => {
+test("KIVRYN visual inputs are guarded", () => {
   assert.equal(normalizeNexoraState("unknown"), "idle");
   assert.equal(normalizeAmplitude(Number.NaN), 0);
   assert.equal(normalizeAmplitude(2), 1);

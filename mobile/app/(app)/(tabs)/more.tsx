@@ -41,7 +41,7 @@ export default function More() {
           href="/studies"
         />
       </ModuleGroup>
-      <ModuleGroup title="CONTA & NEXORA">
+      <ModuleGroup title="CONTA & KIVRYN">
         <ModuleCard
           icon="✂"
           title={t("creator.title")}

@@ -52,7 +52,7 @@ async function ensureAndroidChannel() {
   if (Platform.OS !== "android") return true;
   try {
     await Notifications.setNotificationChannelAsync("default", {
-      name: "NEXORA",
+      name: "KIVRYN",
       importance: Notifications.AndroidImportance.DEFAULT,
     });
     return Boolean(await Notifications.getNotificationChannelAsync("default"));
@@ -170,7 +170,7 @@ export async function scheduleLocalNotificationTest(): Promise<string> {
   await ensureAndroidChannel();
   return Notifications.scheduleNotificationAsync({
     content: {
-      title: "Teste NEXORA",
+      title: "Teste KIVRYN",
       body: "As notificações locais estão funcionando neste aparelho.",
       data: { kind: "general" },
     },
@@ -185,8 +185,8 @@ export async function sendTestNotification(): Promise<{ accepted: number; failed
     error?: string;
   }>("push-send", {
     body: {
-      title: "Teste remoto NEXORA",
-      body: "Teste remoto enviado pela NEXORA.",
+      title: "Teste remoto KIVRYN",
+      body: "Teste remoto enviado pela KIVRYN.",
       url: "/dashboard",
     },
   });

@@ -23,7 +23,7 @@ import { webAuthDestination } from "@/lib/auth-destinations";
 const DEMO_USER: NexoraUser = {
   id: "demo-user",
   email: "demo@nexora.os",
-  name: "Alex Nexora",
+  name: "Alex Kivryn",
   onboarded: true,
   plan: "free",
 };

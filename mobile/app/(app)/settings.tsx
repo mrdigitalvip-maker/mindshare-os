@@ -232,7 +232,7 @@ export default function Settings() {
         <View
           style={s.account}
           accessible
-          accessibilityLabel={`${profile.data?.displayName ?? "Conta NEXORA"}, ${session?.user.email ?? "email indisponível"}, plano ${plan}`}
+          accessibilityLabel={`${profile.data?.displayName ?? "Conta KIVRYN"}, ${session?.user.email ?? "email indisponível"}, plano ${plan}`}
         >
           <ProfileAvatar
             imageUrl={profile.data?.avatarUrl}
@@ -339,7 +339,7 @@ export default function Settings() {
                     action={() =>
                       Alert.alert(
                         "Desativar neste dispositivo",
-                        "A NEXORA deixará de usar o registro deste aparelho. A permissão do Android poderá continuar ativa.",
+                        "A KIVRYN deixará de usar o registro deste aparelho. A permissão do Android poderá continuar ativa.",
                         [
                           { text: "Cancelar", style: "cancel" },
                           {

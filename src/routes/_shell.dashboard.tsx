@@ -16,7 +16,7 @@ import { listJourneys, parityKeys } from "@/services/parity-service";
 import { ProductivityService, ProjectService, StudyService } from "@/services/workspace-services";
 
 export const Route = createFileRoute("/_shell/dashboard")({
-  head: () => ({ meta: [{ title: "Command Center — NEXORA" }] }),
+  head: () => ({ meta: [{ title: "Command Center — KIVRYN" }] }),
   component: Dashboard,
 });
 
@@ -117,7 +117,7 @@ function Dashboard() {
           <div className="command-home__orb">
             <Bot aria-hidden="true" />
           </div>
-          <span>NEXORA</span>
+          <span>KIVRYN</span>
           <h2 id="nexora-heading">{t("home.nexoraTitle")}</h2>
           <p>
             {priorityTasks.length

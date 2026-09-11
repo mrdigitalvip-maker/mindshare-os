@@ -198,7 +198,7 @@ export default function Journeys() {
               </Text>
               <Text style={s.muted}>
                 {active.length
-                  ? "Adicione uma ação real a uma tarefa ou estudo ativo. A NEXORA não inventa trabalho para preencher esta tela."
+                  ? "Adicione uma ação real a uma tarefa ou estudo ativo. A KIVRYN não inventa trabalho para preencher esta tela."
                   : "Crie sua primeira Jornada para organizar o que você quer alcançar."}
               </Text>
               <Pressable

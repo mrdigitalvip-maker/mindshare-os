@@ -59,7 +59,7 @@ export const RuntimeErrorService = {
       timestamp: new Date().toISOString(),
     };
 
-    if (import.meta.env.DEV) console.error("[NEXORA runtime]", { ...detail, ...safeContext });
+    if (import.meta.env.DEV) console.error("[KIVRYN runtime]", { ...detail, ...safeContext });
 
     // Telemetry is deliberately best-effort. It must never replace the original
     // failure or keep a boundary from rendering.

@@ -31,7 +31,7 @@ const LANGS = [
 ];
 
 export const Route = createFileRoute("/_shell/translate")({
-  head: () => ({ meta: [{ title: "Translate — NEXORA" }] }),
+  head: () => ({ meta: [{ title: "Translate — KIVRYN" }] }),
   component: Translate,
 });
 

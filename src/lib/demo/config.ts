@@ -1,5 +1,5 @@
 /**
- * TEMPORARY DEVELOPMENT FALLBACK LAYER — NEXORA OS
+ * TEMPORARY DEVELOPMENT FALLBACK LAYER — KIVRYN OS
  * ------------------------------------------------
  * This module is the single switch for the demo/fallback mode used while the
  * real APIs (Supabase project, OpenAI, Stripe) are not fully available.

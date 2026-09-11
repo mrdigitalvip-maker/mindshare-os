@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { DocumentService, workspaceQueryKeys } from "@/services";
 
 export const Route = createFileRoute("/_shell/documents")({
-  head: () => ({ meta: [{ title: "Documents — NEXORA" }] }),
+  head: () => ({ meta: [{ title: "Documents — KIVRYN" }] }),
   component: Documents,
 });
 type Document = Awaited<ReturnType<typeof DocumentService.list>>[number];

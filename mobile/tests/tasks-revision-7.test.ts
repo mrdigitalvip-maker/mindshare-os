@@ -97,8 +97,8 @@ test("reminder persistence failure compensates local scheduling", () => {
 });
 
 test("task copy is natural PT-BR and native dates are shared", () => {
-  assert.doesNotMatch(detail, /NEXORA NOW|replaceAll\("_"/);
-  assert.match(detail, /NEXORA AGORA/);
+  assert.doesNotMatch(detail, /KIVRYN NOW|replaceAll\("_"/);
+  assert.match(detail, /KIVRYN AGORA/);
   assert.equal(getTaskRhythmLabel("active_recently"), "Avanço recente");
   assert.doesNotMatch(detail + list, /AAAA-MM-DD/);
   assert.match(detail + list, /NativeFormModal/);

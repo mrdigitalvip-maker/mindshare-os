@@ -13,7 +13,7 @@ import { FullPageLoader } from "@/components/full-page-loader";
 
 export const Route = createFileRoute("/onboarding")({
   ssr: false,
-  head: () => ({ meta: [{ title: "Welcome — NEXORA" }, { name: "robots", content: "noindex" }] }),
+  head: () => ({ meta: [{ title: "Welcome — KIVRYN" }, { name: "robots", content: "noindex" }] }),
   component: Onboarding,
 });
 
@@ -36,7 +36,7 @@ const STEPS = [
   },
   {
     key: "goal",
-    title: "What's your main goal with NEXORA?",
+    title: "What's your main goal with KIVRYN?",
     hint: "Pick the one that fits best.",
   },
   {
@@ -243,7 +243,7 @@ function Onboarding() {
         onboarded: true,
       });
 
-      toast.success("Welcome to NEXORA");
+      toast.success("Welcome to KIVRYN");
       navigate({ to: "/dashboard", replace: true });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Couldn't save your profile");
@@ -264,7 +264,7 @@ function Onboarding() {
       <header className="mx-auto flex w-full max-w-2xl items-center justify-between px-6 pt-8">
         <div className="flex items-center gap-2">
           <img src="/nexora-icon.png" alt="" width={24} height={24} className="rounded" />
-          <span className="font-display text-lg">NEXORA</span>
+          <span className="font-display text-lg">KIVRYN</span>
         </div>
         <span className="text-xs text-muted-foreground">
           Step {step + 1} of {STEPS.length}
@@ -461,7 +461,7 @@ function Onboarding() {
           disabled={submitting || !canContinue}
           aria-busy={submitting}
         >
-          {submitting ? "Saving…" : step === STEPS.length - 1 ? "Enter NEXORA" : "Continue"}
+          {submitting ? "Saving…" : step === STEPS.length - 1 ? "Enter KIVRYN" : "Continue"}
           {!submitting && <ArrowRight className="ml-1 h-4 w-4" />}
         </Button>
       </div>

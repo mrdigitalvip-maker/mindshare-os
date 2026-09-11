@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "NEXORA",
+    "name": "KIVRYN",
     "owner": "brunobrandao",
     "slug": "nexora-native",
     "version": "0.1.0",
@@ -46,8 +46,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Permita que a NEXORA acesse a foto escolhida para análise.",
-          "cameraPermission": "Permita que a NEXORA use a câmera para fotografar."
+          "photosPermission": "Permita que a KIVRYN acesse a foto escolhida para análise.",
+          "cameraPermission": "Permita que a KIVRYN use a câmera para fotografar."
         }
       ],
       "expo-document-picker"

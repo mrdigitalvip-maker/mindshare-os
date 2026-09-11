@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { FinanceService, workspaceQueryKeys } from "@/services";
 
 export const Route = createFileRoute("/_shell/finance")({
-  head: () => ({ meta: [{ title: "Finance — NEXORA" }] }),
+  head: () => ({ meta: [{ title: "Finance — KIVRYN" }] }),
   component: Finance,
 });
 type Account = Awaited<ReturnType<typeof FinanceService.listAccounts>>[number];

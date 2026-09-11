@@ -14,7 +14,7 @@ import { ProjectService, TaskService, workspaceQueryKeys, type Task } from "@/se
 import { useAuth } from "@/lib/auth-context";
 
 export const Route = createFileRoute("/_shell/productivity")({
-  head: () => ({ meta: [{ title: "Produtividade — NEXORA" }] }),
+  head: () => ({ meta: [{ title: "Produtividade — KIVRYN" }] }),
   component: Productivity,
 });
 type View = "inbox" | "today" | "upcoming" | "overdue" | "done";

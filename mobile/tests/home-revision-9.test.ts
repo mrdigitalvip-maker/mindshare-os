@@ -99,7 +99,7 @@ test("one state-ready agent identity is used on Home and Assistant", () => {
     "quiet",
   ])
     assert.match(agent, new RegExp(`${state}:`));
-  assert.match(agent, /NEXORA disponível/);
+  assert.match(agent, /KIVRYN disponível/);
   assert.match(agent, /AccessibilityInfo\.isReduceMotionEnabled/);
   assert.match(agent, /2800 \+ Math\.floor\(Math\.random\(\) \* 3600\)/);
   assert.match(agent, /clearTimeout\(timer\.current\)/);

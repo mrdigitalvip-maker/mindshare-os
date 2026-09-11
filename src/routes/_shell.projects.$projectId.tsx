@@ -659,7 +659,7 @@ function Copilot({
     <section className="rounded-2xl border border-gold/25 p-5" aria-busy={ask.isPending}>
       <div className="flex items-center gap-2">
         <Sparkles className="h-4 w-4 text-gold" />
-        <h2 className="font-display text-lg">NEXORA Copilot</h2>
+        <h2 className="font-display text-lg">KIVRYN Copilot</h2>
       </div>
       <p className="mt-2 text-sm leading-6 text-muted-foreground">{deterministic}</p>
       <div className="mt-4 flex flex-wrap gap-2">
@@ -732,7 +732,7 @@ function Copilot({
       {!tasks.length && (
         <Button className="mt-4" size="sm" onClick={plan}>
           <Sparkles />
-          Planejar com NEXORA
+          Planejar com KIVRYN
         </Button>
       )}
     </section>
@@ -1023,7 +1023,7 @@ function PlanDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="text-gold" />
-            Planejar com NEXORA
+            Planejar com KIVRYN
           </DialogTitle>
         </DialogHeader>
         <div className="rounded-xl border border-border bg-surface/50 p-4">
