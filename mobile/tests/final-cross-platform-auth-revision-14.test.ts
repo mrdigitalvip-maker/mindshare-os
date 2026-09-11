@@ -42,7 +42,8 @@ describe("NXR-036 cross-platform authentication", () => {
   test("cold/warm callback routing has no browser or ordinary-login recovery dependency", () => {
     const callback = read("mobile/app/auth/callback.tsx");
     expect(callback).toContain("useURL()");
-    expect(callback).toContain('router.replace(profile.onboarded ? "/dashboard" : "/onboarding")');
+    expect(callback).toContain('else router.replace("/")');
+    expect(callback).not.toContain("profile.onboarded");
     expect(callback).toContain('router.replace("/auth/reset-password")');
     expect(callback).toContain("isRecoveryLink || recoverySession");
     expect(read("mobile/lib/auth-callback.ts")).toContain('recovery: value("type") === "recovery"');

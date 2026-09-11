@@ -1,26 +1,24 @@
 import { Redirect } from "expo-router";
 
-import { LoadingState } from "@/components/screen-state";
+import { ErrorState, LoadingState } from "@/components/screen-state";
 import { hasSupabaseConfig } from "@/lib/supabase";
-import { useAuth } from "@/providers/auth-provider";
-import { useProfile } from "@/hooks/use-profile";
-import { resolveAppDestination } from "@/lib/auth-state";
+import { useAccountLifecycle } from "@/hooks/use-profile";
+import { lifecycleDestination } from "@/lib/auth-state";
 
 export default function Index() {
-  const { status } = useAuth();
-  const profile = useProfile();
-  if (status === "initializing") return <LoadingState title="Restaurando sua sessão…" />;
+  const lifecycle = useAccountLifecycle();
   if (!hasSupabaseConfig) return <Redirect href="/auth" />;
-  const destination = resolveAppDestination({
-    authStatus: status,
-    onboarding: profile.isPending
-      ? "loading"
-      : profile.isError
-        ? "error"
-        : profile.data?.onboarded
-          ? "complete"
-          : "incomplete",
-  });
+  if (lifecycle.state === "authenticating") return <LoadingState title="Restaurando sua sessão…" />;
+  if (lifecycle.state === "recoverable_error")
+    return (
+      <ErrorState
+        title="Não foi possível preparar seu espaço."
+        message="Verifique sua conexão e tente novamente. Seus dados não serão duplicados."
+        actionLabel="Tentar novamente"
+        onAction={() => void lifecycle.retry()}
+      />
+    );
+  const destination = lifecycleDestination(lifecycle.state);
   if (!destination) return <LoadingState title="Preparando seu espaço…" />;
   return <Redirect href={destination} />;
 }

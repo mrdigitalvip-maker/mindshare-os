@@ -5,25 +5,24 @@ import { resolveAppDestination } from "../lib/auth-state";
 
 const appLayout = readFileSync("app/(app)/_layout.tsx", "utf8");
 
-describe("Android post-login fast path", () => {
-  test("authenticated users enter dashboard while profile is still loading", () => {
+describe("Android post-login provisioning gate", () => {
+  test("authenticated users wait while required profile data is loading", () => {
     expect(
       resolveAppDestination({ authStatus: "authenticated", onboarding: "loading" }),
-    ).toBe("/dashboard");
+    ).toBeNull();
   });
 
-  test("profile errors never trap authenticated users on a loading screen", () => {
+  test("profile errors cannot bypass provisioning into the application", () => {
     expect(
       resolveAppDestination({ authStatus: "authenticated", onboarding: "error" }),
-    ).toBe("/dashboard");
-    expect(appLayout).not.toContain("if (profile.isPending)");
-    expect(appLayout).not.toContain("if (profile.isError)");
+    ).toBeNull();
+    expect(appLayout).toContain('lifecycle.state !== "ready"');
   });
 
   test("a confirmed incomplete profile still goes through onboarding", () => {
     expect(
       resolveAppDestination({ authStatus: "authenticated", onboarding: "incomplete" }),
     ).toBe("/onboarding");
-    expect(appLayout).toContain("profile.isSuccess && !profile.data?.onboarded");
+    expect(appLayout).toContain('return <Redirect href="/" />');
   });
 });

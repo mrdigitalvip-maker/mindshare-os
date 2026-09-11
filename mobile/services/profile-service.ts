@@ -8,6 +8,23 @@ import {
 } from "@/lib/profile-identity";
 
 export type MobileProfile = ProfileIdentity;
+export const PROFILE_BOOTSTRAP_TIMEOUT_MS = 15_000;
+
+function withTimeout<T>(operation: PromiseLike<T>, timeoutMs: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("Account provisioning timed out.")), timeoutMs);
+    Promise.resolve(operation).then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
 
 export async function getProfile(userId: string): Promise<MobileProfile | null> {
   const id = userId.trim();
@@ -31,15 +48,16 @@ export async function getProfile(userId: string): Promise<MobileProfile | null> 
 }
 
 export async function ensureAuthenticatedProfile(user: User): Promise<ProfileIdentity> {
-  let profile = await getProfile(user.id);
-  if (!profile) {
-    const values = initialProfileValues(user);
-    const { error } = await supabase
-      .from("profiles")
-      .upsert(values, { onConflict: "id", ignoreDuplicates: true });
-    if (error) throw error;
-    profile = await getProfile(user.id);
-  }
+  const values = initialProfileValues(user);
+  const { error } = await withTimeout(
+    supabase.rpc("bootstrap_authenticated_user", {
+      p_full_name: values.full_name,
+      p_avatar_url: values.avatar_url,
+    }),
+    PROFILE_BOOTSTRAP_TIMEOUT_MS,
+  );
+  if (error) throw error;
+  const profile = await withTimeout(getProfile(user.id), PROFILE_BOOTSTRAP_TIMEOUT_MS);
   if (!profile) throw new Error("Profile could not be ensured.");
   return normalizeProfileIdentity(user, profile as ProfileRecord);
 }

@@ -3,7 +3,6 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useURL } from "expo-linking";
 import { ErrorState, LoadingState } from "@/components/screen-state";
 import { useAuth } from "@/providers/auth-provider";
-import { ensureAuthenticatedProfile } from "@/services/profile-service";
 import { consumeAuthLink } from "@/lib/auth-links";
 import { claimAuthCallback, safeAuthDestination } from "@/lib/auth-callback";
 export default function Callback() {
@@ -28,20 +27,15 @@ export default function Callback() {
       .catch(() => setFailed(true));
   }, [incomingUrl, linkHandled]);
   useEffect(() => {
-    if (status === "initializing" || !linkHandled || !session) return;
-    let active = true;
-    void ensureAuthenticatedProfile(session.user)
-      .then((profile) => {
-        if (!active) return;
-        if ((isRecoveryLink || recoverySession) && safeAuthDestination(next)) {
-          markRecoverySession();
-          router.replace("/auth/reset-password");
-        } else router.replace(profile.onboarded ? "/dashboard" : "/onboarding");
-      })
-      .catch(() => active && setFailed(true));
-    return () => {
-      active = false;
-    };
+    if (status === "initializing" || !linkHandled) return;
+    if (status === "unauthenticated" || !session) {
+      setFailed(true);
+      return;
+    }
+    if ((isRecoveryLink || recoverySession) && safeAuthDestination(next)) {
+      markRecoverySession();
+      router.replace("/auth/reset-password");
+    } else router.replace("/");
   }, [isRecoveryLink, linkHandled, markRecoverySession, next, recoverySession, session, status]);
   if (failed)
     return (

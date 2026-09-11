@@ -2,7 +2,7 @@ import { Redirect, Stack } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { LoadingState } from "@/components/screen-state";
-import { useProfile } from "@/hooks/use-profile";
+import { useAccountLifecycle } from "@/hooks/use-profile";
 import { colors } from "@/lib/theme";
 import { useAuth } from "@/providers/auth-provider";
 import { useLanguage } from "@/providers/language-provider";
@@ -10,11 +10,11 @@ import { useLanguage } from "@/providers/language-provider";
 export default function AppLayout() {
   const insets = useSafeAreaInsets();
   const { status } = useAuth();
-  const profile = useProfile();
+  const lifecycle = useAccountLifecycle();
   const { t } = useLanguage();
   if (status === "initializing") return <LoadingState title="Preparando a KIVRYN…" />;
   if (status === "unauthenticated") return <Redirect href="/auth" />;
-  if (profile.isSuccess && !profile.data?.onboarded) return <Redirect href="/onboarding" />;
+  if (lifecycle.state !== "ready") return <Redirect href="/" />;
   return (
     <Stack
       screenOptions={{
