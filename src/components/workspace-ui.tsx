@@ -3,12 +3,12 @@ import type { LucideIcon } from "lucide-react";
 import { LoaderCircle, Sparkles } from "lucide-react";
 
 export function WorkspaceShell({ children }: { children: ReactNode }) {
-  return <div className="mx-auto min-w-0 max-w-7xl space-y-6">{children}</div>;
+  return <div className="v2-workspace mx-auto min-w-0 max-w-7xl space-y-6">{children}</div>;
 }
 
 export function ActionBar({ children }: { children: ReactNode }) {
   return (
-    <div className="flex max-w-full flex-wrap items-center gap-2 rounded-2xl border bg-surface/40 p-2">
+    <div className="v2-surface flex max-w-full flex-wrap items-center gap-2 rounded-2xl p-2">
       {children}
     </div>
   );
@@ -24,7 +24,7 @@ export function MetricCard({
   hint?: string;
 }) {
   return (
-    <div className="min-w-0 rounded-2xl border bg-surface/40 p-4">
+    <div className="v2-surface min-w-0 rounded-2xl p-4">
       <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</p>
       <p className="mt-2 text-2xl font-semibold">{value}</p>
       {hint && <p className="mt-1 truncate text-xs text-muted-foreground">{hint}</p>}
@@ -69,6 +69,8 @@ export function AIAction({
 
 export function PremiumGate({ children }: { children: ReactNode }) {
   return (
-    <aside className="rounded-2xl border border-gold/30 bg-gold/5 p-4 text-sm">{children}</aside>
+    <aside className="rounded-2xl border border-intelligence/30 bg-intelligence/5 p-4 text-sm">
+      {children}
+    </aside>
   );
 }

@@ -135,145 +135,147 @@ function Productivity() {
   ];
   return (
     <PageShell>
-      <PageHeader
-        eyebrow="Execução diária"
-        title={t("page.tasks.title")}
-        description={t("page.tasks.description")}
-        actions={
-          <Button onClick={() => setEditing(null)}>
-            <Plus /> Nova tarefa
-          </Button>
-        }
-      />
-      <form
-        className="mt-6 flex gap-2 rounded-2xl border bg-surface/60 p-2"
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (quickTitle.trim()) quickAdd.mutate();
-        }}
-      >
-        <Input
-          aria-label="Adicionar tarefa rapidamente"
-          className="border-0 bg-transparent shadow-none"
-          value={quickTitle}
-          onChange={(event) => setQuickTitle(event.target.value)}
-          placeholder={view === "today" ? "Adicionar ao meu dia…" : "Capturar uma tarefa…"}
-        />
-        <Button type="submit" disabled={!quickTitle.trim() || quickAdd.isPending}>
-          <Plus />
-          <span className="hidden sm:inline">Adicionar</span>
-        </Button>
-      </form>
-      <div className="mt-4 flex gap-2 overflow-x-auto pb-1" aria-label="Listas de tarefas">
-        {(Object.keys(viewLabels) as View[]).map((item) => (
-          <Button
-            key={item}
-            size="sm"
-            variant={view === item ? "default" : "outline"}
-            onClick={() => setView(item)}
-          >
-            {viewLabels[item]}
-          </Button>
-        ))}
-      </div>
-      <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-          <Input
-            className="pl-9"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Buscar por título ou descrição"
-          />
-        </div>
-        <select
-          aria-label="Filtrar prioridade"
-          className="h-11 rounded-md border border-input bg-background px-3"
-          value={priority}
-          onChange={(event) => setPriority(event.target.value as Priority)}
-        >
-          <option value="all">Todas as prioridades</option>
-          <option value="high">Alta</option>
-          <option value="medium">Média</option>
-          <option value="low">Baixa</option>
-        </select>
-      </div>
-      {tasksQuery.isLoading ? (
-        <p className="mt-10 text-center text-muted-foreground">Carregando tarefas…</p>
-      ) : tasksQuery.isError ? (
-        <EmptyState
-          icon={Search}
-          title={t("tasks.error")}
-          description={(tasksQuery.error as Error).message}
-        />
-      ) : tasks.length === 0 ? (
-        <EmptyState
-          icon={Check}
-          title={t("tasks.empty")}
-          description={
-            view === "today"
-              ? "Seu dia está livre. Capture uma tarefa acima ou abra outra lista."
-              : "Crie uma tarefa ou ajuste os filtros."
+      <div className="v2-workspace">
+        <PageHeader
+          eyebrow="Execução diária"
+          title={t("page.tasks.title")}
+          description={t("page.tasks.description")}
+          actions={
+            <Button onClick={() => setEditing(null)}>
+              <Plus /> Nova tarefa
+            </Button>
           }
-          action={<Button onClick={() => setEditing(null)}>Criar tarefa</Button>}
         />
-      ) : view === "today" ? (
-        <div className="mt-7 space-y-8">
-          {todayGroups
-            .filter((group) => group.tasks.length)
-            .map((group) => (
-              <section key={group.title}>
-                <div className="mb-3">
-                  <h2 className="text-xs font-semibold uppercase tracking-[0.2em]">
-                    {group.title}
-                  </h2>
-                  <p className="mt-1 text-xs text-muted-foreground">{group.description}</p>
-                </div>
-                <div className="space-y-3">
-                  {group.tasks.map((task) => (
-                    <TaskRow
-                      key={task.id}
-                      task={task}
-                      project={projects.find((project) => project.id === task.projectId)}
-                      onToggle={() => toggle.mutate(task.id)}
-                      onEdit={() => setEditing(task)}
-                      onRemove={() => remove.mutate(task.id)}
-                      onProject={(id) =>
-                        navigate({ to: "/projects/$projectId", params: { projectId: id } })
-                      }
-                    />
-                  ))}
-                </div>
-              </section>
-            ))}
-        </div>
-      ) : (
-        <div className="mt-6 space-y-3">
-          {tasks.map((task) => (
-            <TaskRow
-              key={task.id}
-              task={task}
-              project={projects.find((project) => project.id === task.projectId)}
-              onToggle={() => toggle.mutate(task.id)}
-              onEdit={() => setEditing(task)}
-              onRemove={() => remove.mutate(task.id)}
-              onProject={(id) =>
-                navigate({ to: "/projects/$projectId", params: { projectId: id } })
-              }
-            />
+        <form
+          className="v2-surface mt-6 flex gap-2 rounded-2xl p-2 focus-within:border-intelligence/50"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (quickTitle.trim()) quickAdd.mutate();
+          }}
+        >
+          <Input
+            aria-label="Adicionar tarefa rapidamente"
+            className="border-0 bg-transparent shadow-none"
+            value={quickTitle}
+            onChange={(event) => setQuickTitle(event.target.value)}
+            placeholder={view === "today" ? "Adicionar ao meu dia…" : "Capturar uma tarefa…"}
+          />
+          <Button type="submit" disabled={!quickTitle.trim() || quickAdd.isPending}>
+            <Plus />
+            <span className="hidden sm:inline">Adicionar</span>
+          </Button>
+        </form>
+        <div className="mt-4 flex gap-2 overflow-x-auto pb-1" aria-label="Listas de tarefas">
+          {(Object.keys(viewLabels) as View[]).map((item) => (
+            <Button
+              key={item}
+              size="sm"
+              variant={view === item ? "default" : "outline"}
+              onClick={() => setView(item)}
+            >
+              {viewLabels[item]}
+            </Button>
           ))}
         </div>
-      )}
-      <TaskDialog
-        key={editing?.id ?? (editing === null ? "new" : "closed")}
-        task={editing}
-        projects={projects}
-        onClose={() => setEditing(undefined)}
-        onSaved={() => {
-          setEditing(undefined);
-          void refresh();
-        }}
-      />
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <Input
+              className="pl-9"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Buscar por título ou descrição"
+            />
+          </div>
+          <select
+            aria-label="Filtrar prioridade"
+            className="h-11 rounded-md border border-input bg-background px-3"
+            value={priority}
+            onChange={(event) => setPriority(event.target.value as Priority)}
+          >
+            <option value="all">Todas as prioridades</option>
+            <option value="high">Alta</option>
+            <option value="medium">Média</option>
+            <option value="low">Baixa</option>
+          </select>
+        </div>
+        {tasksQuery.isLoading ? (
+          <p className="mt-10 text-center text-muted-foreground">Carregando tarefas…</p>
+        ) : tasksQuery.isError ? (
+          <EmptyState
+            icon={Search}
+            title={t("tasks.error")}
+            description={(tasksQuery.error as Error).message}
+          />
+        ) : tasks.length === 0 ? (
+          <EmptyState
+            icon={Check}
+            title={t("tasks.empty")}
+            description={
+              view === "today"
+                ? "Seu dia está livre. Capture uma tarefa acima ou abra outra lista."
+                : "Crie uma tarefa ou ajuste os filtros."
+            }
+            action={<Button onClick={() => setEditing(null)}>Criar tarefa</Button>}
+          />
+        ) : view === "today" ? (
+          <div className="mt-7 space-y-8">
+            {todayGroups
+              .filter((group) => group.tasks.length)
+              .map((group) => (
+                <section key={group.title}>
+                  <div className="mb-3">
+                    <h2 className="text-xs font-semibold uppercase tracking-[0.2em]">
+                      {group.title}
+                    </h2>
+                    <p className="mt-1 text-xs text-muted-foreground">{group.description}</p>
+                  </div>
+                  <div className="space-y-3">
+                    {group.tasks.map((task) => (
+                      <TaskRow
+                        key={task.id}
+                        task={task}
+                        project={projects.find((project) => project.id === task.projectId)}
+                        onToggle={() => toggle.mutate(task.id)}
+                        onEdit={() => setEditing(task)}
+                        onRemove={() => remove.mutate(task.id)}
+                        onProject={(id) =>
+                          navigate({ to: "/projects/$projectId", params: { projectId: id } })
+                        }
+                      />
+                    ))}
+                  </div>
+                </section>
+              ))}
+          </div>
+        ) : (
+          <div className="mt-6 space-y-3">
+            {tasks.map((task) => (
+              <TaskRow
+                key={task.id}
+                task={task}
+                project={projects.find((project) => project.id === task.projectId)}
+                onToggle={() => toggle.mutate(task.id)}
+                onEdit={() => setEditing(task)}
+                onRemove={() => remove.mutate(task.id)}
+                onProject={(id) =>
+                  navigate({ to: "/projects/$projectId", params: { projectId: id } })
+                }
+              />
+            ))}
+          </div>
+        )}
+        <TaskDialog
+          key={editing?.id ?? (editing === null ? "new" : "closed")}
+          task={editing}
+          projects={projects}
+          onClose={() => setEditing(undefined)}
+          onSaved={() => {
+            setEditing(undefined);
+            void refresh();
+          }}
+        />
+      </div>
     </PageShell>
   );
 }
@@ -294,7 +296,7 @@ function TaskRow({
   onProject: (id: string) => void;
 }) {
   return (
-    <article className="glass flex min-w-0 items-start gap-3 rounded-2xl p-4">
+    <article className="v2-surface v2-interactive flex min-w-0 items-start gap-3 rounded-2xl p-4">
       <button
         aria-label={task.status === "done" ? "Reabrir tarefa" : "Concluir tarefa"}
         onClick={onToggle}
@@ -318,7 +320,7 @@ function TaskRow({
           <span>{task.due}</span>
           {project && (
             <button
-              className="inline-flex min-h-8 items-center gap-1 rounded-full px-2 text-gold hover:bg-surface-elevated"
+              className="inline-flex min-h-8 items-center gap-1 rounded-full px-2 text-intelligence hover:bg-surface-elevated"
               onClick={() => onProject(project.id)}
             >
               {project.title}

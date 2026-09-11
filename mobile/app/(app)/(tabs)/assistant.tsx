@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { AppScreen } from "@/components/app-screen";
 import { NexoraAgent } from "@/components/nexora-agent";
+import { PremiumSurface } from "@/components/v2/premium-ui";
 import { useConversations } from "@/hooks/use-chat";
 import { isGenericConversationTitle } from "@/lib/assistant-conversations";
 import { colors, radius, spacing, typography } from "@/lib/theme";
@@ -57,7 +58,7 @@ export default function AssistantHome() {
             <Text style={styles.invitation}>
               <LocalizedCopy copyKey="legacy.45d84682a4c4" />
             </Text>
-            <View style={styles.composer}>
+            <PremiumSurface illuminated style={styles.composer}>
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Adicionar anexo"
@@ -92,7 +93,7 @@ export default function AssistantHome() {
               >
                 <Text style={styles.sendText}>↑</Text>
               </Pressable>
-            </View>
+            </PremiumSurface>
             <View style={styles.sectionHeading}>
               <Text style={styles.sectionTitle}>
                 <LocalizedCopy copyKey="legacy.fad69074185e" />

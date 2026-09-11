@@ -182,8 +182,8 @@ function Assistant() {
 
   return (
     <PageShell>
-      <div className="assistant-workspace grid min-h-[calc(100dvh-9rem)] gap-4 lg:grid-cols-[280px_minmax(0,1fr)] 2xl:grid-cols-[280px_minmax(0,1fr)_260px]">
-        <aside className="glass hidden min-h-0 flex-col rounded-3xl p-3 lg:flex">
+      <div className="v2-workspace assistant-workspace grid min-h-[calc(100dvh-9rem)] gap-4 lg:grid-cols-[280px_minmax(0,1fr)] 2xl:grid-cols-[280px_minmax(0,1fr)_260px]">
+        <aside className="v2-surface hidden min-h-0 flex-col rounded-3xl p-3 lg:flex">
           <ConversationList
             {...{
               activeId,
@@ -198,10 +198,10 @@ function Assistant() {
             loading={conversations.isLoading}
           />
         </aside>
-        <section className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-3xl border border-border bg-surface/40">
+        <section className="v2-surface flex min-h-0 min-w-0 flex-col overflow-hidden rounded-3xl">
           <header className="flex items-center justify-between border-b border-border px-4 py-3">
             <div className="flex items-center gap-2 text-xs uppercase tracking-[0.25em] text-muted-foreground">
-              <Sparkles className="h-4 w-4 text-gold" /> Assistant
+              <Sparkles className="h-4 w-4 text-intelligence" /> KIVRYN Intelligence
             </div>
             <div className="flex gap-2 lg:hidden">
               <Button
@@ -232,7 +232,7 @@ function Assistant() {
             {!messages.length && !isSending ? (
               <div className="mx-auto flex h-full max-w-2xl flex-col items-center justify-center py-12 text-center">
                 <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-surface-elevated">
-                  <Sparkles className="h-7 w-7 text-gold" />
+                  <Sparkles className="h-7 w-7 text-intelligence" />
                 </div>
                 <h1 className="mt-6 font-display text-3xl md:text-4xl">Como posso ajudar hoje?</h1>
                 <p className="mt-3 max-w-md text-muted-foreground">
@@ -243,7 +243,7 @@ function Assistant() {
                     <button
                       key={suggestion}
                       onClick={() => void send(suggestion)}
-                      className="glass rounded-xl p-4 text-left text-sm transition hover:border-gold/40"
+                      className="v2-surface v2-interactive rounded-xl p-4 text-left text-sm"
                     >
                       {suggestion}
                     </button>
@@ -293,9 +293,9 @@ function Assistant() {
                     role="status"
                   >
                     <span className="flex gap-1" aria-hidden="true">
-                      <i className="h-2 w-2 animate-bounce rounded-full bg-gold" />
-                      <i className="h-2 w-2 animate-bounce rounded-full bg-gold [animation-delay:120ms]" />
-                      <i className="h-2 w-2 animate-bounce rounded-full bg-gold [animation-delay:240ms]" />
+                      <i className="h-2 w-2 animate-bounce rounded-full bg-intelligence" />
+                      <i className="h-2 w-2 animate-bounce rounded-full bg-intelligence [animation-delay:120ms]" />
+                      <i className="h-2 w-2 animate-bounce rounded-full bg-intelligence [animation-delay:240ms]" />
                     </span>
                     KIVRYN is thinking
                   </div>
@@ -327,7 +327,7 @@ function Assistant() {
                 </Button>
               </div>
             )}
-            <div className="glass mx-auto flex max-w-3xl items-end gap-2 rounded-2xl p-2">
+            <div className="v2-surface mx-auto flex max-w-3xl items-end gap-2 rounded-2xl p-2 focus-within:border-intelligence/50">
               <Textarea
                 ref={inputRef}
                 value={input}
@@ -366,7 +366,10 @@ function Assistant() {
             </p>
           </div>
         </section>
-        <aside className="glass hidden rounded-3xl p-5 2xl:block" aria-label="KIVRYN intelligence">
+        <aside
+          className="v2-surface hidden rounded-3xl p-5 2xl:block"
+          aria-label="KIVRYN intelligence"
+        >
           <p className="text-xs uppercase tracking-[0.24em] text-violet-300">KIVRYN</p>
           <h2 className="mt-2 font-display text-xl">Intelligence layer</h2>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
@@ -544,7 +547,7 @@ function Message({
   return (
     <div className={`group flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
       <div
-        className={`min-w-0 max-w-[92%] rounded-2xl px-4 py-3 text-sm md:max-w-[85%] ${message.role === "user" ? "bg-primary text-primary-foreground" : "glass"}`}
+        className={`min-w-0 max-w-[92%] rounded-2xl px-4 py-3 text-sm md:max-w-[85%] ${message.role === "user" ? "border border-intelligence/20 bg-intelligence/10 text-foreground" : "v2-surface"}`}
       >
         {message.role === "assistant" ? (
           <Markdown content={message.content} />
@@ -705,7 +708,7 @@ function Markdown({ content }: { content: string }) {
           return (
             <blockquote
               key={index}
-              className="border-l-2 border-gold pl-4 italic text-muted-foreground"
+              className="border-l-2 border-intelligence pl-4 italic text-muted-foreground"
             >
               {inline(block.replace(/^> ?/gm, ""))}
             </blockquote>
@@ -791,7 +794,7 @@ function inline(text: string): ReactNode {
     part.startsWith("`") ? (
       <code
         key={index}
-        className="rounded bg-background/70 px-1 py-0.5 font-mono text-[0.9em] text-gold"
+        className="rounded bg-background/70 px-1 py-0.5 font-mono text-[0.9em] text-intelligence"
       >
         {part.slice(1, -1)}
       </code>
