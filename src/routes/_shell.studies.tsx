@@ -27,6 +27,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/lib/auth-context";
 import { StudyService, workspaceQueryKeys } from "@/services";
+import { WorkspaceProgress } from "@/components/workspace-ui";
 
 export const Route = createFileRoute("/_shell/studies")({ component: Studies });
 
@@ -147,7 +148,7 @@ function Studies() {
       />
       {!plans.isPending && !plans.isError && studyPlans.length > 0 && (
         <section
-          className="relative mt-8 overflow-hidden rounded-3xl border bg-card p-6 shadow-sm sm:p-8"
+          className="v2-surface relative mt-8 overflow-hidden rounded-3xl p-6 sm:p-8"
           aria-labelledby="learning-overview-title"
         >
           <div
@@ -156,10 +157,10 @@ function Studies() {
           />
           <div className="relative grid gap-6 lg:grid-cols-[1fr_auto] lg:items-end">
             <div>
-              <div className="mb-4 grid h-12 w-12 place-items-center rounded-2xl bg-violet-500/12 text-violet-300">
+              <div className="mb-4 grid h-12 w-12 place-items-center rounded-2xl bg-violet-500/12 text-intelligence">
                 <Sparkles className="h-5 w-5" />
               </div>
-              <p className="text-xs font-semibold uppercase tracking-[.22em] text-violet-300">
+              <p className="text-xs font-semibold uppercase tracking-[.22em] text-intelligence">
                 Learning pulse
               </p>
               <h2
@@ -194,10 +195,10 @@ function Studies() {
       )}
       {!plans.isPending && !plans.isError && studyPlans.length > 0 && (
         <div className="mt-8 grid gap-6 xl:grid-cols-[1.35fr_.65fr]">
-          <section className="rounded-2xl border bg-card p-5" aria-labelledby="study-today">
+          <section className="v2-surface rounded-2xl p-5" aria-labelledby="study-today">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[.2em] text-violet-300">
+                <p className="text-xs font-semibold uppercase tracking-[.2em] text-intelligence">
                   Today
                 </p>
                 <h2 id="study-today" className="mt-1 text-xl font-semibold">
@@ -242,7 +243,7 @@ function Studies() {
               )}
             </div>
           </section>
-          <section className="rounded-2xl border bg-card p-5" aria-labelledby="study-progress">
+          <section className="v2-surface rounded-2xl p-5" aria-labelledby="study-progress">
             <p className="text-xs font-semibold uppercase tracking-[.2em] text-muted-foreground">
               Progress
             </p>
@@ -336,11 +337,11 @@ function Studies() {
             {studyPlans.map((plan) => (
               <button
                 key={plan.id}
-                className="group min-h-40 rounded-2xl border bg-card p-5 text-left transition hover:-translate-y-0.5 hover:border-foreground/20 hover:shadow-lg motion-reduce:transform-none"
+                className="v2-surface group min-h-40 rounded-2xl p-5 text-left transition hover:-translate-y-0.5 hover:border-intelligence/35 motion-reduce:transform-none"
                 onClick={() => nav({ to: "/studies/$subjectId", params: { subjectId: plan.id } })}
               >
                 <div className="flex items-center justify-between">
-                  <span className="grid h-10 w-10 place-items-center rounded-xl bg-violet-500/10 text-violet-300">
+                  <span className="grid h-10 w-10 place-items-center rounded-xl bg-violet-500/10 text-intelligence">
                     <BookOpen className="h-5 w-5" />
                   </span>
                   <TrendingUp className="h-4 w-4 text-muted-foreground transition group-hover:text-foreground" />
@@ -350,18 +351,8 @@ function Studies() {
                   <Clock3 className="h-4 w-4" />
                   <span>{plan.progress}% sessions completed</span>
                 </div>
-                <div
-                  className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted"
-                  role="progressbar"
-                  aria-valuenow={plan.progress}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-label={`${plan.title} progress`}
-                >
-                  <div
-                    className="h-full rounded-full bg-violet-400 transition-[width] motion-reduce:transition-none"
-                    style={{ width: `${plan.progress}%` }}
-                  />
+                <div className="mt-3">
+                  <WorkspaceProgress value={plan.progress} label={`${plan.title} progress`} />
                 </div>
               </button>
             ))}
@@ -377,7 +368,7 @@ function Studies() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-[.18em] text-violet-300">
+            <p className="text-xs font-semibold uppercase tracking-[.18em] text-intelligence">
               1 · Matéria
             </p>
             <Label htmlFor="subject-name">O que você quer aprender?</Label>
@@ -391,7 +382,7 @@ function Studies() {
             />
           </div>
           <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-[.18em] text-violet-300">
+            <p className="text-xs font-semibold uppercase tracking-[.18em] text-intelligence">
               2 · Objetivo
             </p>
             <Label htmlFor="subject-goal">O que você quer alcançar?</Label>
@@ -404,7 +395,7 @@ function Studies() {
             />
           </div>
           <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-[.18em] text-violet-300">
+            <p className="text-xs font-semibold uppercase tracking-[.18em] text-intelligence">
               3 · Ritmo
             </p>
             <Label htmlFor="subject-rhythm">Com que frequência você quer estudar?</Label>

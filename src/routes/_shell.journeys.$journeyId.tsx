@@ -13,7 +13,10 @@ function JourneyDetail() {
   const mission = useQuery({ queryKey: parityKeys.mission, queryFn: dailyMission });
   return (
     <PageShell>
-      <Link to="/journeys" className="text-sm underline">
+      <Link
+        to="/journeys"
+        className="inline-flex min-h-11 items-center text-sm text-intelligence underline underline-offset-4"
+      >
         ← Jornadas
       </Link>
       <PageHeader
@@ -31,7 +34,7 @@ function JourneyDetail() {
       >
         {q.data && (
           <div className="grid gap-5 lg:grid-cols-2">
-            <section className="rounded-xl border p-5">
+            <section className="v2-surface rounded-2xl p-5">
               <h2 className="font-semibold">Objetivo</h2>
               <p className="mt-2 text-muted-foreground">{q.data.objective}</p>
               <dl className="mt-4 grid gap-2 text-sm">
@@ -53,7 +56,7 @@ function JourneyDetail() {
                 )}
               </dl>
             </section>
-            <section className="rounded-xl border p-5">
+            <section className="v2-surface rounded-2xl p-5">
               <h2 className="font-semibold">Ação atual</h2>
               {mission.data?.journey_id === journeyId ? (
                 <>

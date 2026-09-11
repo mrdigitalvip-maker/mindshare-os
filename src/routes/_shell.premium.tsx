@@ -98,7 +98,7 @@ function Premium() {
         </span>
       </div>
       {checkoutResult === "success" && !subscription?.isPremium && (
-        <div className="mt-4 rounded-xl border border-gold/30 bg-gold/5 p-4 text-sm">
+        <div className="mt-4 rounded-xl border border-intelligence/30 bg-intelligence/5 p-4 text-sm">
           Payment received. Your subscription is still syncing; access is granted only after Stripe
           confirms it.
           <Button
@@ -118,7 +118,7 @@ function Premium() {
         </p>
       )}
       {subscription?.status === "trialing" && (
-        <p className="mt-3 text-sm text-gold">
+        <p className="mt-3 text-sm text-intelligence">
           Your Stripe trial is active{endDate ? ` until ${endDate}` : ""}.
         </p>
       )}
@@ -228,21 +228,27 @@ function Card({
     <div
       className={`relative rounded-3xl border p-8 ${
         highlight
-          ? "border-[color:var(--gold)]/40 bg-[radial-gradient(120%_80%_at_50%_-20%,oklch(0.78_0.12_72/0.15),transparent_60%)]"
+          ? "border-intelligence/40 bg-[radial-gradient(120%_80%_at_50%_-20%,oklch(0.79_0.14_210/0.12),transparent_60%)]"
           : "border-border bg-surface"
       }`}
     >
       {badge && (
         <span
           className={`absolute right-6 top-6 rounded-full px-2.5 py-0.5 text-[10px] uppercase tracking-widest ${
-            highlight ? "bg-gold text-gold-foreground" : "bg-surface-elevated text-muted-foreground"
+            highlight
+              ? "bg-intelligence/15 text-intelligence"
+              : "bg-surface-elevated text-muted-foreground"
           }`}
         >
           {badge}
         </span>
       )}
       <div className="flex items-center gap-2">
-        {highlight ? <Crown className="h-5 w-5 text-gold" /> : <Sparkles className="h-5 w-5" />}
+        {highlight ? (
+          <Crown className="h-5 w-5 text-intelligence" />
+        ) : (
+          <Sparkles className="h-5 w-5" />
+        )}
         <h3 className="font-display text-2xl">{name}</h3>
       </div>
       <p className="mt-6 flex items-baseline gap-2">
@@ -252,7 +258,7 @@ function Card({
       <ul className="mt-8 space-y-3 text-sm">
         {features.map((f) => (
           <li key={f} className="flex items-center gap-2">
-            <Check className="h-4 w-4 text-gold" /> {f}
+            <Check className="h-4 w-4 text-intelligence" /> {f}
           </li>
         ))}
       </ul>
