@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://nexora.app/sitemap.xml
+Sitemap: https://kivryn.app/sitemap.xml
