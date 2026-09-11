@@ -290,7 +290,7 @@ export function StudioWorkspace({ category }: { category: StudioCategory }) {
                               aria-label="Premium"
                             />
                           ) : (
-                            <Sparkles className="shrink-0 text-gold" />
+                            <Sparkles className="shrink-0 text-intelligence" />
                           )}
                         </div>
                         <div className="mt-4 flex flex-wrap gap-2 text-xs text-muted-foreground">
@@ -412,7 +412,7 @@ function Metric({
   return (
     <Card>
       <CardContent className="flex items-center gap-3 p-5">
-        <Icon className="h-5 w-5 text-gold" />
+        <Icon className="h-5 w-5 text-intelligence" />
         <div className="min-w-0">
           <p className="text-xs text-muted-foreground">{label}</p>
           <p className="truncate text-lg font-semibold">{value}</p>

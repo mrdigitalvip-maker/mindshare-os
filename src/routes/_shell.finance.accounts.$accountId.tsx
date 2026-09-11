@@ -57,7 +57,7 @@ function AccountWorkspace() {
           ["Income", income],
           ["Expenses", expenses],
         ].map(([l, v]) => (
-          <div className="glass rounded-2xl p-5" key={l}>
+          <div className="v2-surface rounded-2xl p-5" key={l}>
             <p className="text-sm text-muted-foreground">{l}</p>
             <p className="mt-2 text-2xl font-semibold">{money.format(Number(v))}</p>
           </div>
@@ -66,7 +66,7 @@ function AccountWorkspace() {
       <h2 className="mt-8 text-xl font-semibold">Recent activity</h2>
       <div className="mt-3 space-y-2">
         {transactions.data?.map((t) => (
-          <div className="glass flex justify-between gap-3 rounded-xl p-4" key={t.id}>
+          <div className="v2-surface flex justify-between gap-3 rounded-2xl p-4" key={t.id}>
             <span className="min-w-0 truncate">{t.title || t.category || "Transaction"}</span>
             <strong>
               {t.type === "expense" ? "−" : "+"}

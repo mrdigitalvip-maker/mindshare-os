@@ -88,7 +88,7 @@ function Finance() {
           { label: "Income", value: summary.data?.income },
           { label: "Expenses", value: summary.data?.expenses },
         ].map((item) => (
-          <div className="glass rounded-2xl p-5" key={item.label}>
+          <div className="v2-surface rounded-2xl p-5" key={item.label}>
             <p className="text-sm text-muted-foreground">{item.label}</p>
             <p className="mt-2 text-2xl font-semibold">
               {summary.isLoading ? "…" : money.format(item.value ?? 0)}
@@ -105,7 +105,7 @@ function Finance() {
         <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {accounts.data?.map((account) => (
             <article
-              className="glass cursor-pointer rounded-2xl p-5"
+              className="v2-surface v2-interactive cursor-pointer rounded-2xl p-5"
               key={account.id}
               onClick={() =>
                 navigate({ to: "/finance/accounts/$accountId", params: { accountId: account.id } })
@@ -113,7 +113,7 @@ function Finance() {
             >
               <div className="flex items-start justify-between">
                 <div>
-                  <Wallet className="h-5 w-5 text-gold" />
+                  <Wallet className="h-5 w-5 text-intelligence" />
                   <h3 className="mt-3 text-lg font-medium">{account.name}</h3>
                   <p className="text-sm text-muted-foreground">{account.type} · Open account</p>
                 </div>
@@ -190,7 +190,7 @@ function Finance() {
         ) : (
           <div className="mt-4 space-y-2">
             {visible.map((item) => (
-              <article className="glass flex items-center gap-3 rounded-xl p-4" key={item.id}>
+              <article className="v2-surface flex items-center gap-3 rounded-2xl p-4" key={item.id}>
                 <div className="min-w-0 flex-1">
                   <h3 className="truncate font-medium">
                     {item.title || item.category || "Transaction"}

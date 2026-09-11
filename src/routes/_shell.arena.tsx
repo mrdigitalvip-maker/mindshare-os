@@ -5,6 +5,7 @@ import { PageHeader, PageShell } from "@/components/page-shell";
 import { useLanguage } from "@/providers/language-provider";
 import { RouteState } from "@/components/parity-state";
 import { Button } from "@/components/ui/button";
+import { StatusChip, WorkspaceProgress, WorkspaceShell } from "@/components/workspace-ui";
 import { joinArena, listArena, parityKeys, safeBackendError } from "@/services/parity-service";
 export const Route = createFileRoute("/_shell/arena")({ component: Arena });
 function Arena() {
@@ -22,38 +23,53 @@ function Arena() {
   return (
     <PageShell>
       <PageHeader title={t("page.arena.title")} description={t("page.arena.description")} />
-      <RouteState
-        loading={q.isLoading}
-        error={q.isError}
-        empty={!q.data?.length}
-        onRetry={() => void q.refetch()}
-      >
-        <div className="grid gap-4 lg:grid-cols-2">
-          {q.data?.map((c) => {
-            const expired = Date.now() >= new Date(c.ends_at).getTime();
-            return (
-              <article key={c.id} className="rounded-xl border p-5">
-                <h2 className="text-lg font-semibold">{c.title}</h2>
-                <p className="mt-1 text-sm text-muted-foreground">{c.description}</p>
-                <p className="mt-4 text-sm">
-                  Verified progress: {Math.min(c.progress, c.target_value)} / {c.target_value}
-                </p>
-                <p className="text-sm">Reward: {c.reward_points} Momentum</p>
-                {!c.joined_at && !expired && (
-                  <Button
-                    className="mt-4"
-                    disabled={join.isPending}
-                    onClick={() => join.mutate(c.id)}
-                  >
-                    Join challenge
-                  </Button>
-                )}
-                {expired && <p className="mt-4 text-sm text-muted-foreground">Challenge ended.</p>}
-              </article>
-            );
-          })}
-        </div>
-      </RouteState>
+      <WorkspaceShell>
+        <RouteState
+          loading={q.isLoading}
+          error={q.isError}
+          empty={!q.data?.length}
+          onRetry={() => void q.refetch()}
+        >
+          <div className="grid gap-4 lg:grid-cols-2">
+            {q.data?.map((c) => {
+              const expired = Date.now() >= new Date(c.ends_at).getTime();
+              return (
+                <article key={c.id} className="v2-surface rounded-2xl p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <h2 className="text-lg font-semibold">{c.title}</h2>
+                    <StatusChip tone={expired ? "neutral" : c.joined_at ? "active" : "positive"}>
+                      {expired ? "Ended" : c.joined_at ? "Active" : "Open"}
+                    </StatusChip>
+                  </div>
+                  <p className="mt-1 text-sm text-muted-foreground">{c.description}</p>
+                  <p className="mt-4 text-sm">
+                    Verified progress: {Math.min(c.progress, c.target_value)} / {c.target_value}
+                  </p>
+                  <div className="mt-2">
+                    <WorkspaceProgress
+                      label={`${c.title} verified progress`}
+                      value={c.target_value > 0 ? (c.progress / c.target_value) * 100 : 0}
+                    />
+                  </div>
+                  <p className="text-sm">Reward: {c.reward_points} Momentum</p>
+                  {!c.joined_at && !expired && (
+                    <Button
+                      className="mt-4"
+                      disabled={join.isPending}
+                      onClick={() => join.mutate(c.id)}
+                    >
+                      Join challenge
+                    </Button>
+                  )}
+                  {expired && (
+                    <p className="mt-4 text-sm text-muted-foreground">Challenge ended.</p>
+                  )}
+                </article>
+              );
+            })}
+          </div>
+        </RouteState>
+      </WorkspaceShell>
     </PageShell>
   );
 }

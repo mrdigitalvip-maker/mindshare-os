@@ -61,7 +61,7 @@ function PackPage() {
               <h2 className="mt-6 text-xl font-semibold">Etapas</h2>
               <ol className="mt-3 space-y-3">
                 {q.data.steps.slice(0, 8).map((s) => (
-                  <li className="rounded-xl border p-4" key={s.id}>
+                  <li className="v2-surface rounded-2xl p-4" key={s.id}>
                     <strong>
                       {s.sequence}. {s.title}
                     </strong>
@@ -72,7 +72,7 @@ function PackPage() {
             </section>
             <form
               onSubmit={submit}
-              className="grid content-start gap-3 rounded-xl border p-5"
+              className="v2-surface grid content-start gap-3 rounded-2xl p-5"
               aria-label="Iniciar Journey Pack"
             >
               <h2 className="text-xl font-semibold">{preview ? "Confirmar" : "Personalizar"}</h2>
