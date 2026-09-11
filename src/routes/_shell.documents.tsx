@@ -17,7 +17,7 @@ export const Route = createFileRoute("/_shell/documents")({
 });
 type Document = Awaited<ReturnType<typeof DocumentService.list>>[number];
 function Documents() {
-  const { t } = useLanguage();
+  const { t, resolvedLocale } = useLanguage();
   const client = useQueryClient();
   const navigate = useNavigate();
   const [editing, setEditing] = useState<Document | null>();
@@ -32,8 +32,12 @@ function Documents() {
   });
   const duplicate = useMutation({
     mutationFn: (document: Document) =>
-      DocumentService.createUploadRecord(`${document.title} copy`, document.type, document.summary),
-    onSuccess: refresh,
+      DocumentService.createUploadRecord(
+        `${document.title} ${t("documents.copySuffix")}`,
+        document.type,
+        document.summary,
+      ),
+    onSuccess: () => void refresh(),
     onError: (e: Error) => toast.error(e.message),
   });
   const visible = useMemo(
@@ -48,12 +52,12 @@ function Documents() {
   return (
     <PageShell>
       <PageHeader
-        eyebrow="Work"
+        eyebrow={t("documents.eyebrow")}
         title={t("page.documents.title")}
         description={t("page.documents.description")}
         actions={
           <Button onClick={() => setEditing(null)}>
-            <Plus /> New document
+            <Plus /> {t("documents.new")}
           </Button>
         }
       />
@@ -62,7 +66,7 @@ function Documents() {
           <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input
             className="pl-9"
-            placeholder="Search documents"
+            placeholder={t("documents.search")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -72,18 +76,18 @@ function Documents() {
           value={sort}
           onChange={(e) => setSort(e.target.value)}
         >
-          <option value="updated">Recently updated</option>
-          <option value="name">Name</option>
+          <option value="updated">{t("documents.recentlyUpdated")}</option>
+          <option value="name">{t("documents.name")}</option>
         </select>
       </div>
       {query.isLoading ? (
-        <p className="mt-10 text-center text-muted-foreground">Loading documents…</p>
+        <p className="mt-10 text-center text-muted-foreground">{t("documents.loading")}</p>
       ) : query.isError ? (
         <div role="alert" className="mt-6 rounded-2xl border border-destructive/30 p-6">
-          <h2 className="font-semibold">We couldn't load your documents.</h2>
-          <p className="mt-2 text-sm text-muted-foreground">Your saved work is unchanged.</p>
+          <h2 className="font-semibold">{t("documents.loadError")}</h2>
+          <p className="mt-2 text-sm text-muted-foreground">{t("documents.loadErrorHelp")}</p>
           <Button className="mt-4" variant="outline" onClick={() => query.refetch()}>
-            Try again
+            {t("common.retry")}
           </Button>
         </div>
       ) : !visible.length ? (
@@ -91,16 +95,20 @@ function Documents() {
           icon={FileText}
           title={t("documents.empty")}
           description={t("documents.emptyHelp")}
-          action={<Button onClick={() => setEditing(null)}>Create document</Button>}
+          action={<Button onClick={() => setEditing(null)}>{t("documents.new")}</Button>}
         />
       ) : (
         <section className="mt-6">
           <div className="mb-3 flex items-end justify-between">
             <div>
-              <p className="text-xs uppercase tracking-wider text-muted-foreground">Recent</p>
-              <h2 className="text-xl font-semibold">All documents</h2>
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">
+                {t("documents.recent")}
+              </p>
+              <h2 className="text-xl font-semibold">{t("documents.all")}</h2>
             </div>
-            <span className="text-sm text-muted-foreground">{visible.length} documents</span>
+            <span className="text-sm text-muted-foreground">
+              {t("documents.count", { count: visible.length })}
+            </span>
           </div>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {visible.map((document) => (
@@ -108,16 +116,19 @@ function Documents() {
                 <FileText className="h-5 w-5 text-intelligence" />
                 <h2 className="mt-3 truncate text-lg font-medium">{document.title}</h2>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {document.type} · Updated {new Date(document.updatedAt).toLocaleDateString()}
+                  {document.type} ·{" "}
+                  {t("documents.updated", {
+                    date: new Date(document.updatedAt).toLocaleDateString(resolvedLocale),
+                  })}
                 </p>
                 <p className="mt-3 line-clamp-3 min-h-12 text-sm text-muted-foreground">
-                  {document.summary || "No summary yet."}
+                  {document.summary || t("documents.noSummary")}
                 </p>
                 <div className="mt-4 flex justify-end">
                   <Button
                     size="icon"
                     variant="ghost"
-                    aria-label={`Open ${document.title}`}
+                    aria-label={t("documents.open", { title: document.title })}
                     onClick={() =>
                       navigate({
                         to: "/documents/$documentId",
@@ -130,7 +141,8 @@ function Documents() {
                   <Button
                     size="icon"
                     variant="ghost"
-                    aria-label={`Duplicate ${document.title}`}
+                    aria-label={t("documents.duplicate", { title: document.title })}
+                    disabled={duplicate.isPending}
                     onClick={() => duplicate.mutate(document)}
                   >
                     <Copy />
@@ -138,9 +150,11 @@ function Documents() {
                   <Button
                     size="icon"
                     variant="ghost"
-                    aria-label={`Delete ${document.title}`}
+                    aria-label={t("documents.delete", { title: document.title })}
+                    disabled={remove.isPending}
                     onClick={() =>
-                      confirm(`Delete ${document.title}?`) && remove.mutate(document.id)
+                      confirm(t("documents.deleteConfirm", { title: document.title })) &&
+                      remove.mutate(document.id)
                     }
                   >
                     <Trash2 />
@@ -152,6 +166,7 @@ function Documents() {
         </section>
       )}
       <DocumentDialog
+        key={editing === undefined ? "closed" : (editing?.id ?? "new")}
         value={editing}
         close={() => setEditing(undefined)}
         saved={async (id) => {
@@ -172,12 +187,13 @@ function DocumentDialog({
   close: () => void;
   saved: (id: string) => void;
 }) {
+  const { t } = useLanguage();
   const [title, setTitle] = useState(value?.title ?? "");
   const [type, setType] = useState(value?.type ?? "text");
   const [content, setContent] = useState(value?.summary ?? "");
   const save = useMutation({
     mutationFn: async () => {
-      if (!title.trim()) throw new Error("Title is required");
+      if (!title.trim()) throw new Error(t("documents.titleRequired"));
       if (value) {
         await DocumentService.update(value.id, { title: title.trim(), file_type: type, content });
         return value;
@@ -186,7 +202,7 @@ function DocumentDialog({
       }
     },
     onSuccess: (document) => {
-      toast.success(value ? "Document updated" : "Document created");
+      toast.success(value ? t("documents.updatedSuccess") : t("documents.created"));
       saved(document.id);
     },
     onError: (e: Error) => toast.error(e.message),
@@ -195,11 +211,11 @@ function DocumentDialog({
     <Dialog open={value !== undefined} onOpenChange={(open) => !open && close()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{value ? "Edit document" : "New document"}</DialogTitle>
+          <DialogTitle>{value ? t("documents.edit") : t("documents.new")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div>
-            <Label htmlFor="document-title">Title</Label>
+            <Label htmlFor="document-title">{t("documents.title")}</Label>
             <Input
               id="document-title"
               value={title}
@@ -208,7 +224,7 @@ function DocumentDialog({
             />
           </div>
           <div>
-            <Label htmlFor="document-content">Initial content (optional)</Label>
+            <Label htmlFor="document-content">{t("documents.initialContent")}</Label>
             <textarea
               id="document-content"
               className="mt-1 min-h-32 w-full rounded-md border bg-background p-3"
@@ -217,19 +233,16 @@ function DocumentDialog({
             />
           </div>
           <div>
-            <Label htmlFor="document-type">Type</Label>
+            <Label htmlFor="document-type">{t("documents.type")}</Label>
             <Input id="document-type" value={type} onChange={(e) => setType(e.target.value)} />
           </div>
-          <p className="text-sm text-muted-foreground">
-            This creates an editable database document. File attachments are not available because
-            the existing files table has no document relationship.
-          </p>
+          <p className="text-sm text-muted-foreground">{t("documents.databaseHelp")}</p>
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={close}>
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button disabled={save.isPending || !title.trim()} onClick={() => save.mutate()}>
-              {save.isPending ? "Saving…" : "Save"}
+              {save.isPending ? t("common.saving") : t("common.save")}
             </Button>
           </div>
         </div>
