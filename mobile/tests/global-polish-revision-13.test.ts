@@ -36,7 +36,7 @@ describe("Revision 13 — acabamento global nativo", () => {
   });
   test("Mais organiza os módulos reais, incluindo Creator Center", () => {
     expect(more).toContain('title="EXECUÇÃO"');
-    expect(more).toContain('title="CONTA & NEXORA"');
+    expect(more).toContain('title="CONTA & KIVRYN"');
     expect([...more.matchAll(/href="([^"]+)"/g)].map((match) => match[1])).toEqual([
       "/arena",
       "/journeys",
@@ -73,9 +73,9 @@ describe("Revision 13 — acabamento global nativo", () => {
     );
   });
   test("Agent anuncia estados em PT-BR, respeita movimento reduzido e limpa animações", () => {
-    expect(agent).toContain('idle: "NEXORA disponível"');
-    expect(agent).toContain('thinking: "NEXORA pensando"');
-    expect(agent).toContain('listening: "NEXORA ouvindo"');
+    expect(agent).toContain('idle: "KIVRYN disponível"');
+    expect(agent).toContain('thinking: "KIVRYN pensando"');
+    expect(agent).toContain('listening: "KIVRYN ouvindo"');
     expect(agent).toContain("AccessibilityInfo.isReduceMotionEnabled");
     expect(agent).toContain("clearTimeout(timer.current)");
     expect(agent).toContain("breathing.stop()");

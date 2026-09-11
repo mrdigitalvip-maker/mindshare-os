@@ -1,4 +1,4 @@
-# NEXORA Mobile
+# KIVRYN Mobile
 
 True native Expo/React Native client. It does not embed or import the web application.
 

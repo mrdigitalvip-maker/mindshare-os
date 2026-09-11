@@ -19,8 +19,8 @@ export const Route = createFileRoute("/auth")({
   validateSearch: searchSchema,
   head: () => ({
     meta: [
-      { title: "Sign in — NEXORA" },
-      { name: "description", content: "Access your NEXORA workspace." },
+      { title: "Sign in — KIVRYN" },
+      { name: "description", content: "Access your KIVRYN workspace." },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -67,7 +67,7 @@ function AuthPage() {
         if (needsEmailConfirmation) {
           setSent("signup");
         } else {
-          toast.success("Welcome to NEXORA");
+          toast.success("Welcome to KIVRYN");
           navigate({ to: "/onboarding" });
         }
       } else if (mode === "forgot") {
@@ -122,7 +122,7 @@ function AuthPage() {
 
   const title =
     mode === "signup"
-      ? "Create your NEXORA"
+      ? "Create your KIVRYN"
       : mode === "forgot"
         ? "Reset your password"
         : "Welcome back";
@@ -136,7 +136,7 @@ function AuthPage() {
         <div className="relative flex h-full flex-col justify-between p-12">
           <Link to="/" className="flex items-center gap-2">
             <img src="/nexora-icon.png" alt="" width={32} height={32} className="rounded-lg" />
-            <span className="font-display text-2xl">NEXORA</span>
+            <span className="font-display text-2xl">KIVRYN</span>
           </Link>
           <div>
             <p className="max-w-xl font-display text-4xl leading-tight">{t("auth.heroTitle")}</p>
@@ -157,7 +157,7 @@ function AuthPage() {
           <div className="mb-8 lg:hidden">
             <Link to="/" className="inline-flex items-center gap-2">
               <img src="/nexora-icon.png" alt="" width={28} height={28} className="rounded-md" />
-              <span className="font-display text-xl">NEXORA</span>
+              <span className="font-display text-xl">KIVRYN</span>
             </Link>
           </div>
 
@@ -224,7 +224,7 @@ function AuthPage() {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@nexora.app"
+                    placeholder="you@kivryn.app"
                     autoComplete="email"
                     required
                   />
@@ -299,7 +299,7 @@ function AuthPage() {
                   </>
                 ) : (
                   <>
-                    New to NEXORA?{" "}
+                    New to KIVRYN?{" "}
                     <Link
                       to="/auth"
                       search={{ mode: "signup" }}

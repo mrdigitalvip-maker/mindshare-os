@@ -85,10 +85,10 @@ describe("R10 truthful execution loop", () => {
     expect(detail).toContain("Defina o próximo passo desta Jornada.");
     expect(detail).toContain('copyKey="legacy.48aa87243cf9"');
     expect((translations["pt-BR"] as Record<string, string>)["legacy.48aa87243cf9"]).toBe(
-      "Planejar com a NEXORA",
+      "Planejar com a KIVRYN",
     );
     expect((translations.en as Record<string, string>)["legacy.48aa87243cf9"]).toBe(
-      "Plan with NEXORA",
+      "Plan with KIVRYN",
     );
   });
 

@@ -18,7 +18,7 @@ export class AppErrorBoundary extends Component<PropsWithChildren, State> {
     if (this.state.error)
       return (
         <ErrorState
-          title="NEXORA hit an unexpected error"
+          title="KIVRYN hit an unexpected error"
           message="Restart this view or try again."
           diagnosticId={this.state.diagnosticId}
           actionLabel="Try again"

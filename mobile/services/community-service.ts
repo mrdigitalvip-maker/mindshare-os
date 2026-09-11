@@ -53,7 +53,7 @@ export async function getCommunityHome(userId: string): Promise<CommunityHome> {
       actorUserId: String(a.actor_user_id),
       eventType: a.event_type as "mission_completed" | "challenge_completed",
       occurredAt: String(a.occurred_at),
-      displayName: String(a.display_name),
+      displayName: String(a.display_name).replace(/NEXORA/g, "KIVRYN"),
       avatarUrl: a.avatar_url as string | null,
       reactions: (a.reactions ?? {}) as Partial<Record<CommunityReaction, number>>,
       myReaction: a.my_reaction as CommunityReaction | null,
@@ -107,7 +107,7 @@ export async function getSquad(userId: string, squadId: string): Promise<SquadDe
       userId: String(m.user_id),
       role: m.role as "owner" | "member",
       joinedAt: String(m.joined_at),
-      displayName: String(m.display_name),
+      displayName: String(m.display_name).replace(/NEXORA/g, "KIVRYN"),
       avatarUrl: m.avatar_url as string | null,
       isSelf: Boolean(m.is_self),
     })),
@@ -162,7 +162,9 @@ export async function getOfficialChannels(userId: string): Promise<OfficialChann
   return rows.map((r) => ({
     id: String(r.id),
     slug: r.slug as OfficialChannel["slug"],
-    name: String(r.name),
+    // Deployed rows keep their compatibility-sensitive legacy slugs, while the
+    // product label presented by current clients follows the KIVRYN brand.
+    name: String(r.name).replace(/NEXORA/g, "KIVRYN"),
     premium: Boolean(r.premium),
     joined: Boolean(r.joined),
     eligible: Boolean(r.eligible),
@@ -195,7 +197,7 @@ const mapMessage = (r: Record<string, unknown>): CommunityMessage => ({
   createdAt: String(r.created_at),
   actorType: r.actor_type as CommunityMessage["actorType"],
   senderPublicId: r.sender_public_id as string | null,
-  displayName: String(r.display_name),
+  displayName: String(r.display_name).replace(/NEXORA/g, "KIVRYN"),
   avatarUrl: r.avatar_url as string | null,
   isSelf: Boolean(r.is_self),
   removed: Boolean(r.removed),

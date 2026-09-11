@@ -7,13 +7,13 @@ import { formatDateLabel, translations } from "../i18n";
 // Brand names, locale names, symbols, and internationally established product terms are
 // intentionally shared. Every other identical value is treated as an untranslated regression.
 const localeNeutralValues = new Set([
-  "NEXORA",
+  "KIVRYN",
   "N E X O R A",
-  "NEXORA Community",
-  "NEXORA PREMIUM",
+  "KIVRYN Community",
+  "KIVRYN PREMIUM",
   "PREMIUM",
   "Momentum",
-  "NEXORA CREATOR CENTER",
+  "KIVRYN CREATOR CENTER",
   "VIRAL CLIPS STUDIO",
   "Bio",
   "PRO",

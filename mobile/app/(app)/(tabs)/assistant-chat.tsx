@@ -488,7 +488,7 @@ export default function Assistant() {
               {item.role === "assistant" && (
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel={`${speakingId === item.id ? "Parar" : "Ouvir"} resposta da NEXORA`}
+                  accessibilityLabel={`${speakingId === item.id ? "Parar" : "Ouvir"} resposta da KIVRYN`}
                   onPress={() => void toggleSpeech(item)}
                   style={styles.listen}
                 >
@@ -501,7 +501,7 @@ export default function Assistant() {
           )}
           ListFooterComponent={
             <>
-              {send.isPending && <Text style={styles.thinking}>✦ NEXORA está pensando…</Text>}
+              {send.isPending && <Text style={styles.thinking}>✦ KIVRYN está pensando…</Text>}
               {proposal && (
                 <View style={styles.actionCard}>
                   <Text style={styles.actionEyebrow}>
@@ -701,12 +701,12 @@ export default function Assistant() {
             <Text style={styles.attachText}>＋</Text>
           </Pressable>
           <TextInput
-            accessibilityLabel="Mensagem para a NEXORA"
+            accessibilityLabel="Mensagem para a KIVRYN"
             multiline
             scrollEnabled
             blurOnSubmit={false}
             maxLength={12000}
-            placeholder="Mensagem para a NEXORA…"
+            placeholder="Mensagem para a KIVRYN…"
             placeholderTextColor={colors.textMuted}
             value={draft}
             onChangeText={(v) => {

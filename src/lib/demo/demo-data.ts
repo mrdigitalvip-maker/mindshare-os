@@ -1,5 +1,5 @@
 /**
- * TEMPORARY DEMO DATASET — NEXORA OS
+ * TEMPORARY DEMO DATASET — KIVRYN OS
  * Coherent, product-accurate sample data used only while the real APIs are
  * unavailable. See `src/lib/demo/config.ts` for how to disable/remove.
  */
@@ -21,7 +21,7 @@ export const demoCounters: DemoCounters = {
 };
 
 export const demoProjects = [
-  { id: "demo-project-1", title: "NEXORA Launch Plan", progress: 72, color: "bg-emerald-500" },
+  { id: "demo-project-1", title: "KIVRYN Launch Plan", progress: 72, color: "bg-emerald-500" },
   { id: "demo-project-2", title: "Q3 Study Roadmap", progress: 45, color: "bg-sky-500" },
   { id: "demo-project-3", title: "Personal Finance Reset", progress: 28, color: "bg-amber-500" },
 ];
@@ -30,7 +30,7 @@ export const demoSuggestions = [
   {
     id: "demo-suggestion-1",
     title: "Continue your active workspace",
-    description: "Pick up NEXORA Launch Plan and move it closer to completion.",
+    description: "Pick up KIVRYN Launch Plan and move it closer to completion.",
     action: "Continue",
   },
   {
@@ -61,16 +61,16 @@ export const demoActivity = [
     title: "Task completed: Outline launch checklist",
     time: clockOffset(75),
   },
-  { id: "demo-activity-3", title: "Project updated: NEXORA Launch Plan", time: clockOffset(180) },
+  { id: "demo-activity-3", title: "Project updated: KIVRYN Launch Plan", time: clockOffset(180) },
   { id: "demo-activity-4", title: "New note added to Q3 Study Roadmap", time: clockOffset(320) },
 ];
 
 export const demoProfile = {
   id: "demo-user",
-  full_name: "Alex Nexora",
+  full_name: "Alex Kivryn",
   username: "alex",
   avatar_url: null,
-  bio: "Building with NEXORA OS.",
+  bio: "Building with KIVRYN OS.",
   language: "pt-BR",
   country: "BR",
   timezone: "America/Sao_Paulo",
@@ -92,7 +92,7 @@ export function demoAssistantReply(prompt: string): string {
     return [
       "Here's a focused week built around 3 goals:",
       "",
-      "1. Ship the NEXORA launch checklist — 2 deep-work blocks (Mon, Wed).",
+      "1. Ship the KIVRYN launch checklist — 2 deep-work blocks (Mon, Wed).",
       "2. Advance the Q3 Study Roadmap — 45 min daily review.",
       "3. Reset personal finance — one 60 min planning block on Friday.",
       "",
@@ -104,7 +104,7 @@ export function demoAssistantReply(prompt: string): string {
     return [
       "Summary of your latest document:",
       "",
-      "• Core idea: NEXORA is a personal AI operating system unifying projects, study, finance and content.",
+      "• Core idea: KIVRYN is a personal AI operating system unifying projects, study, finance and content.",
       "• Next step: validate onboarding flow with 5 users.",
       "• Risk: scope creep across modules — prioritise Dashboard and Assistant first.",
       "",
@@ -115,10 +115,10 @@ export function demoAssistantReply(prompt: string): string {
   if (text.includes("email") || text.includes("client") || text.includes("cliente")) {
     return [
       "Draft (EN):",
-      "Hi Marina, quick update — the NEXORA workspace is ready for your review...",
+      "Hi Marina, quick update — the KIVRYN workspace is ready for your review...",
       "",
       "Rascunho (PT):",
-      "Olá Marina, uma atualização rápida — o workspace NEXORA está pronto para revisão...",
+      "Olá Marina, uma atualização rápida — o workspace KIVRYN está pronto para revisão...",
       "",
       "(Demo mode: simulated response.)",
     ].join("\n");

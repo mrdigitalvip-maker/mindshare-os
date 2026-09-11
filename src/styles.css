@@ -5,7 +5,7 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * NEXORA Design System
+ * KIVRYN Design System
  * Inspired by Apple, OpenAI, Linear, Notion, Arc, Raycast.
  * Command Center: graphite depth with restrained intelligence accents.
  */
@@ -77,7 +77,7 @@
 :root {
   --radius: 0.875rem;
 
-  /* Dark by default — NEXORA is a dark-first OS */
+  /* Dark by default — KIVRYN is a dark-first OS */
   --background: oklch(0.14 0.005 260);
   --foreground: oklch(0.97 0.005 260);
 
@@ -473,7 +473,7 @@
   }
 }
 
-/* NEXORA presence — media is swappable; transform-only motion keeps Android/TWA light. */
+/* KIVRYN presence — media is swappable; transform-only motion keeps Android/TWA light. */
 .nexora-intro {
   position: fixed;
   inset: 0;

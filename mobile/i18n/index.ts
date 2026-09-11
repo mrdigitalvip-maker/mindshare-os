@@ -55,13 +55,13 @@ const creatorInteractive: Record<ResolvedLocale, Record<string, string>> = {
     "creator.moveUp": "Mover para cima",
     "creator.moveDown": "Mover para baixo",
     "creator.hookUnavailable":
-      "A geração aguarda integração segura com o Assistente NEXORA. Nenhum resultado fictício será exibido.",
+      "A geração aguarda integração segura com o Assistente KIVRYN. Nenhum resultado fictício será exibido.",
     "creator.hook.topic": "Tema",
     "creator.hook.platform": "Plataforma",
     "creator.hook.audience": "Público",
     "creator.hook.goal": "Objetivo",
     "creator.hook.tone": "Tom",
-    "creator.generate": "Gerar com o Assistente NEXORA",
+    "creator.generate": "Gerar com o Assistente KIVRYN",
     "creator.notGenerated": "Estado: não gerado",
     "creator.academy.start": "COMEÇAR",
     "creator.academy.growth": "CRESCIMENTO",
@@ -79,7 +79,7 @@ const creatorInteractive: Record<ResolvedLocale, Record<string, string>> = {
     "creator.copilotHelp": "Use somente contexto de Criador que realmente existe.",
     "creator.contextReady": "Contexto disponível: {items}",
     "creator.noContext": "Nenhum contexto está disponível ainda.",
-    "creator.openAssistant": "Abrir Assistente NEXORA",
+    "creator.openAssistant": "Abrir Assistente KIVRYN",
     "creator.mediaImport": "Importar mídia",
     "creator.importHelp": "Selecione um vídeo original. URLs apenas identificam a origem.",
     "creator.selectVideo": "Selecionar vídeo do dispositivo",
@@ -110,7 +110,7 @@ const creatorInteractive: Record<ResolvedLocale, Record<string, string>> = {
       "Tendências mostram apenas observações reais persistidas; pontos ausentes não são estimados.",
     "creator.instagramRequirement": "Requer conta profissional e aprovação do aplicativo Meta.",
     "creator.privacy":
-      "A NEXORA lê somente identidade, conteúdo e métricas autorizadas para analisar seu desempenho. Sua senha social nunca é recebida.",
+      "A KIVRYN lê somente identidade, conteúdo e métricas autorizadas para analisar seu desempenho. Sua senha social nunca é recebida.",
     "creator.historyRetention":
       "Desconectar interrompe futuras sincronizações e mantém o histórico. Excluir dados remove a conexão, credenciais e analytics.",
   },
@@ -155,13 +155,13 @@ const creatorInteractive: Record<ResolvedLocale, Record<string, string>> = {
     "creator.moveUp": "Move up",
     "creator.moveDown": "Move down",
     "creator.hookUnavailable":
-      "Generation awaits safe NEXORA Assistant integration. No fabricated result will be shown.",
+      "Generation awaits safe KIVRYN Assistant integration. No fabricated result will be shown.",
     "creator.hook.topic": "Topic",
     "creator.hook.platform": "Platform",
     "creator.hook.audience": "Audience",
     "creator.hook.goal": "Goal",
     "creator.hook.tone": "Tone",
-    "creator.generate": "Generate with NEXORA Assistant",
+    "creator.generate": "Generate with KIVRYN Assistant",
     "creator.notGenerated": "Status: not generated",
     "creator.academy.start": "START",
     "creator.academy.growth": "GROWTH",
@@ -179,7 +179,7 @@ const creatorInteractive: Record<ResolvedLocale, Record<string, string>> = {
     "creator.copilotHelp": "Use only Creator context that actually exists.",
     "creator.contextReady": "Available context: {items}",
     "creator.noContext": "No context is available yet.",
-    "creator.openAssistant": "Open NEXORA Assistant",
+    "creator.openAssistant": "Open KIVRYN Assistant",
     "creator.mediaImport": "Media Import",
     "creator.importHelp": "Select an original video. URLs only identify source intent.",
     "creator.selectVideo": "Select video from device",
@@ -209,7 +209,7 @@ const creatorInteractive: Record<ResolvedLocale, Record<string, string>> = {
       "Trends show only persisted real observations; missing points are not estimated.",
     "creator.instagramRequirement": "Requires a professional account and Meta app approval.",
     "creator.privacy":
-      "NEXORA reads only authorized identity, content, and metrics to analyze your performance. Your social password is never received.",
+      "KIVRYN reads only authorized identity, content, and metrics to analyze your performance. Your social password is never received.",
     "creator.historyRetention":
       "Disconnecting stops future sync and retains history. Deleting data removes the connection, credentials, and analytics.",
   },
@@ -255,8 +255,8 @@ for (const [key, pt, en] of [
   creatorInteractive.en[`creator.metric.${key}`] = en;
 }
 Object.assign(creatorInteractive["pt-BR"], {
-  "creator.improveWithNexora": "Melhorar com a NEXORA",
-  "creator.suggestStrategy": "Sugerir plano com a NEXORA",
+  "creator.improveWithNexora": "Melhorar com a KIVRYN",
+  "creator.suggestStrategy": "Sugerir plano com a KIVRYN",
   "creator.createTask": "Criar tarefa",
   "creator.taskDescription": "Ação do ciclo de execução do Creator Center.",
   "creator.nextAction": "PRÓXIMA AÇÃO",
@@ -295,7 +295,7 @@ Object.assign(creatorInteractive["pt-BR"], {
   "creator.manualAudienceSource": "Dados de público inseridos manualmente",
   "creator.addAudiencePrompt": "Adicione dados de público",
   "creator.realAiOnly":
-    "A resposta será criada pelo Assistente NEXORA. Nenhum resultado fictício é usado.",
+    "A resposta será criada pelo Assistente KIVRYN. Nenhum resultado fictício é usado.",
   "creator.copilotAction.plan": "Planejar meu conteúdo",
   "creator.copilotAction.profile": "Melhorar meu perfil",
   "creator.copilotAction.ideas": "Criar ideias",
@@ -309,8 +309,8 @@ Object.assign(creatorInteractive["pt-BR"], {
   "creator.idea.format": "Formato",
 });
 Object.assign(creatorInteractive.en, {
-  "creator.improveWithNexora": "Improve with NEXORA",
-  "creator.suggestStrategy": "Suggest a plan with NEXORA",
+  "creator.improveWithNexora": "Improve with KIVRYN",
+  "creator.suggestStrategy": "Suggest a plan with KIVRYN",
   "creator.createTask": "Create task",
   "creator.taskDescription": "Creator Center execution-loop action.",
   "creator.nextAction": "NEXT ACTION",
@@ -348,7 +348,7 @@ Object.assign(creatorInteractive.en, {
   "creator.manualAudienceSource": "Manually entered audience data",
   "creator.addAudiencePrompt": "Add audience data",
   "creator.realAiOnly":
-    "The response will come from NEXORA Assistant. No fabricated result is used.",
+    "The response will come from KIVRYN Assistant. No fabricated result is used.",
   "creator.copilotAction.plan": "Plan my content",
   "creator.copilotAction.profile": "Improve my profile",
   "creator.copilotAction.ideas": "Create ideas",
@@ -406,7 +406,7 @@ export const translations = {
     "language.system": "Automático — usar idioma do dispositivo",
     "language.pt-BR": "Português (Brasil)",
     "language.en": "English",
-    "creator.title": "NEXORA CREATOR CENTER",
+    "creator.title": "KIVRYN CREATOR CENTER",
     "creator.tagline": "Crie. Corte. Publique.",
     "creator.studio": "VIRAL CLIPS STUDIO",
     "creator.ideas": "Ideias e Hooks",
@@ -434,7 +434,7 @@ export const translations = {
     "creator.processVideo": "Enviar e processar vídeo",
     "creator.cancelProcessing": "Solicitar cancelamento",
     "creator.highestPotential": "Maior potencial",
-    "creator.clipScore": "Pontuação de Clipe NEXORA",
+    "creator.clipScore": "Pontuação de Clipe KIVRYN",
     "creator.invalidRoute": "Este projeto de criação não está disponível.",
     "creator.loadError": "Não foi possível carregar seus projetos.",
     "creator.create": "CRIAR",
@@ -474,7 +474,7 @@ export const translations = {
     "creator.noAnalytics":
       "Conecte uma conta autorizada futuramente para ver métricas fornecidas pela plataforma.",
     "creator.noGenerated":
-      "Nada foi gerado. Use o Assistente NEXORA quando a integração estiver disponível.",
+      "Nada foi gerado. Use o Assistente KIVRYN quando a integração estiver disponível.",
     "creator.authImport":
       "Importações exigem uma conexão OAuth autorizada. Downloads arbitrários não são permitidos.",
     "notification.progress": "Hora de avançar em “{title}”.",
@@ -504,7 +504,7 @@ export const translations = {
     "language.system": "Automatic — use device language",
     "language.pt-BR": "Português (Brasil)",
     "language.en": "English",
-    "creator.title": "NEXORA CREATOR CENTER",
+    "creator.title": "KIVRYN CREATOR CENTER",
     "creator.tagline": "Create. Cut. Publish.",
     "creator.studio": "VIRAL CLIPS STUDIO",
     "creator.ideas": "Ideas & Hooks",
@@ -531,7 +531,7 @@ export const translations = {
     "creator.processVideo": "Upload and process video",
     "creator.cancelProcessing": "Request cancellation",
     "creator.highestPotential": "Highest potential",
-    "creator.clipScore": "NEXORA Clip Score",
+    "creator.clipScore": "KIVRYN Clip Score",
     "creator.invalidRoute": "This creator project is not available.",
     "creator.loadError": "We couldn't load your projects.",
     "creator.create": "CREATE",
@@ -571,7 +571,7 @@ export const translations = {
     "creator.noAnalytics":
       "Connect an authorized account in the future to see metrics provided by that platform.",
     "creator.noGenerated":
-      "Nothing has been generated. Use the NEXORA Assistant when integration is available.",
+      "Nothing has been generated. Use the KIVRYN Assistant when integration is available.",
     "creator.authImport":
       "Imports require an authorized OAuth connection. Arbitrary downloads are not permitted.",
     "notification.progress": "Time to make progress on “{title}”.",

@@ -35,7 +35,7 @@ export function presentAuthError(
   if (value.includes("network") || value.includes("fetch") || value.includes("timeout"))
     return {
       category: "NETWORK",
-      message: "Sem conexão com a NEXORA. Verifique sua internet e tente novamente.",
+      message: "Sem conexão com a KIVRYN. Verifique sua internet e tente novamente.",
     };
   if (value.includes("cancel"))
     return { category: "AUTH_CANCELLED", message: "A entrada com Google foi cancelada." };

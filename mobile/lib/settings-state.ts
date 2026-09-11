@@ -30,7 +30,7 @@ export const notificationCopy: Record<
 > = {
   active: {
     title: "Notificações prontas neste dispositivo",
-    description: "Este aparelho está pronto para receber lembretes da NEXORA.",
+    description: "Este aparelho está pronto para receber lembretes da KIVRYN.",
   },
   "needs-registration": {
     title: "Permissão ativa",

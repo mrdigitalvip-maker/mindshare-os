@@ -7,7 +7,7 @@ import { useAuth } from "@/lib/auth-context";
 export const Route = createFileRoute("/confirm-email")({
   ssr: false,
   head: () => ({
-    meta: [{ title: "Email confirmed — NEXORA" }, { name: "robots", content: "noindex" }],
+    meta: [{ title: "Email confirmed — KIVRYN" }, { name: "robots", content: "noindex" }],
   }),
   component: ConfirmEmailPage,
 });

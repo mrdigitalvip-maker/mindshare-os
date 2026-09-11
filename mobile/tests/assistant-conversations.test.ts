@@ -34,7 +34,7 @@ test("title comes from the first meaningful message without links or quotes", ()
     conversationTitleFromMessage("  “Organizar minhas tarefas da semana?”  "),
     "Organizar minhas tarefas da semana",
   );
-  assert.equal(conversationTitleFromMessage("https://example.com"), "Conversa com a NEXORA");
+  assert.equal(conversationTitleFromMessage("https://example.com"), "Conversa com a KIVRYN");
 });
 test("title truncates at a word boundary", () => {
   const title = conversationTitleFromMessage(

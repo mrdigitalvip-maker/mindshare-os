@@ -24,7 +24,7 @@ export function AppHeader({ onMenu }: { onMenu(): void }) {
       </Pressable>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Pergunte à NEXORA"
+        accessibilityLabel="Pergunte à KIVRYN"
         accessibilityHint="Abre o Assistente"
         onPress={() => router.push("/assistant")}
         style={({ pressed }) => [styles.search, pressed && styles.pressed]}

@@ -65,7 +65,7 @@ describe("Community Live server contract", () => {
     const base = {
       id: "channel",
       slug: "nexora-community" as const,
-      name: "NEXORA Community",
+      name: "KIVRYN Community",
       premium: false,
       notificationMode: "highlights" as const,
       recentBody: null,
@@ -104,7 +104,7 @@ describe("Community Live server contract", () => {
       createdAt: "2026-01-01T00:00:00Z",
       actorType: "system" as const,
       senderPublicId: null,
-      displayName: "NEXORA Host",
+      displayName: "KIVRYN Host",
       avatarUrl: null,
       isSelf: false,
       removed: false,
@@ -114,7 +114,7 @@ describe("Community Live server contract", () => {
     };
     expect(reconcileCommunityMessages([[message], [message]])).toEqual([message]);
     expect(message.actorType).toBe("system");
-    expect(message.displayName).toBe("NEXORA Host");
+    expect(message.displayName).toBe("KIVRYN Host");
   });
   test("official access is server authoritative", () => {
     expect(sql).toContain("'nexora-community','nexora community',false");
@@ -177,7 +177,7 @@ describe("Community physical acceptance hotfix", () => {
     expect(conversation).toContain("value={body}");
   });
   test("Host identity and contextual actions replace technical alerts", () => {
-    expect(conversation).toContain("NEXORA Host");
+    expect(conversation).toContain("KIVRYN Host");
     expect(conversation).toContain('copyKey="legacy.5f89039a541b"');
     expect(conversation).not.toContain("Mensagem oficial automatizada — não é uma pessoa.");
     expect(conversation).toContain('label="Bloquear usuário"');

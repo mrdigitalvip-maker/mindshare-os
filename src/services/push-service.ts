@@ -101,7 +101,7 @@ export const PushService = {
   async sendTest(): Promise<number> {
     const { data, error } = await supabase.functions.invoke("push-send", {
       body: {
-        title: "NEXORA notifications are ready",
+        title: "KIVRYN notifications are ready",
         body: "This test used your registered Web Push subscription.",
         url: "/settings",
       },

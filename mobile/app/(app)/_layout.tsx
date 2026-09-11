@@ -12,7 +12,7 @@ export default function AppLayout() {
   const { status } = useAuth();
   const profile = useProfile();
   const { t } = useLanguage();
-  if (status === "initializing") return <LoadingState title="Preparando a NEXORA…" />;
+  if (status === "initializing") return <LoadingState title="Preparando a KIVRYN…" />;
   if (status === "unauthenticated") return <Redirect href="/auth" />;
   if (profile.isSuccess && !profile.data?.onboarded) return <Redirect href="/onboarding" />;
   return (
@@ -81,7 +81,7 @@ export default function AppLayout() {
       <Stack.Screen
         name="premium"
         options={{
-          title: "NEXORA Premium",
+          title: "KIVRYN Premium",
           contentStyle: { backgroundColor: colors.background, paddingBottom: insets.bottom },
         }}
       />

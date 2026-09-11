@@ -183,7 +183,7 @@ function conversationTitle(message: string, maxLength = 56) {
     .replace(/https?:\/\/\S+/gi, "")
     .replace(/\s+/g, " ")
     .trim();
-  if (!cleaned) return "Conversa com a NEXORA";
+  if (!cleaned) return "Conversa com a KIVRYN";
   const plain = cleaned.replace(/[\"'“”]/g, "").replace(/[.!?,;:]+$/, "");
   if (plain.length <= maxLength) return plain;
   const clipped = plain.slice(0, maxLength + 1);

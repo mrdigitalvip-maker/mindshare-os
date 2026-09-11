@@ -256,7 +256,14 @@ export async function joinArena(id: string) {
   await rpc("join_arena_challenge", { p_challenge: id });
 }
 export async function communityHome() {
-  return rpc<CommunityHome>("get_community_home", { p_limit: 20 });
+  const home = await rpc<CommunityHome>("get_community_home", { p_limit: 20 });
+  return {
+    ...home,
+    activity: home.activity.map((item) => ({
+      ...item,
+      display_name: item.display_name.replace(/NEXORA/g, "KIVRYN"),
+    })),
+  };
 }
 export async function saveCommunityProfile(p: CommunityProfile) {
   await rpc("upsert_community_profile", {
@@ -280,7 +287,15 @@ export async function acceptInvite(code: string) {
   return rpc<string>("accept_squad_invite", { p_code: code.trim() });
 }
 export async function getSquad(id: string) {
-  return rpc<SquadDetail | null>("get_squad_detail", { p_squad: id });
+  const squad = await rpc<SquadDetail | null>("get_squad_detail", { p_squad: id });
+  if (!squad) return null;
+  return {
+    ...squad,
+    members: squad.members.map((member) => ({
+      ...member,
+      display_name: member.display_name.replace(/NEXORA/g, "KIVRYN"),
+    })),
+  };
 }
 export async function createInvite(id: string) {
   const code = await rpc<string>("create_squad_invite", { p_squad: id });

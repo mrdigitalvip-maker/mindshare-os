@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 export const Route = createFileRoute("/reset-password")({
   ssr: false,
   head: () => ({
-    meta: [{ title: "Reset password — NEXORA" }, { name: "robots", content: "noindex" }],
+    meta: [{ title: "Reset password — KIVRYN" }, { name: "robots", content: "noindex" }],
   }),
   component: ResetPasswordPage,
 });
@@ -82,7 +82,7 @@ function ResetPasswordPage() {
       >
         <h1 className="font-display text-3xl">Set a new password</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Choose a new password for your NEXORA account.
+          Choose a new password for your KIVRYN account.
         </p>
         <form className="mt-8 space-y-4" onSubmit={onSubmit}>
           <div className="space-y-1.5">

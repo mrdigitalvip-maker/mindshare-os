@@ -22,7 +22,7 @@ function NotFoundComponent() {
         <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Error 404</p>
         <h1 className="mt-4 font-display text-7xl">Lost in space</h1>
         <p className="mt-3 text-sm text-muted-foreground">
-          That page isn't part of your NEXORA yet.
+          That page isn't part of your KIVRYN yet.
         </p>
         <a
           href="/"
@@ -60,8 +60,8 @@ function ErrorComponent({ error, reset }: { error: unknown; reset: () => void })
         </h1>
         <p className="mt-3 text-sm text-muted-foreground">
           {portuguese
-            ? "A NEXORA não conseguiu concluir isso. Tente novamente ou volte ao início."
-            : "NEXORA couldn't finish that. Try again or head home."}
+            ? "A KIVRYN não conseguiu concluir isso. Tente novamente ou volte ao início."
+            : "KIVRYN couldn't finish that. Try again or head home."}
         </p>
         <p className="mt-3 font-mono text-xs text-muted-foreground">Reference: {reference}</p>
         <div className="mt-8 flex justify-center gap-2">
@@ -94,31 +94,31 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         name: "viewport",
         content: "width=device-width, initial-scale=1, viewport-fit=cover",
       },
-      { title: "NEXORA — Your Personal AI Operating System" },
+      { title: "KIVRYN — Your Personal AI Operating System" },
       {
         name: "description",
         content:
-          "One intelligent workspace for productivity, projects, learning, content and translation. Meet NEXORA.",
+          "One intelligent workspace for productivity, projects, learning, content and translation. Meet KIVRYN.",
       },
       { name: "theme-color", content: "#0a0a0b" },
-      { name: "author", content: "NEXORA" },
-      { property: "og:title", content: "NEXORA — Your Personal AI Operating System" },
+      { name: "author", content: "KIVRYN" },
+      { property: "og:title", content: "KIVRYN — Your Personal AI Operating System" },
       {
         property: "og:description",
         content:
-          "One intelligent workspace for productivity, projects, learning, content and translation. Meet NEXORA.",
+          "One intelligent workspace for productivity, projects, learning, content and translation. Meet KIVRYN.",
       },
       { property: "og:type", content: "website" },
-      { property: "og:site_name", content: "NEXORA" },
+      { property: "og:site_name", content: "KIVRYN" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "NEXORA — Your Personal AI Operating System" },
+      { name: "twitter:title", content: "KIVRYN — Your Personal AI Operating System" },
       {
         name: "twitter:description",
         content:
-          "One intelligent workspace for productivity, projects, learning, content and translation. Meet NEXORA.",
+          "One intelligent workspace for productivity, projects, learning, content and translation. Meet KIVRYN.",
       },
       { name: "apple-mobile-web-app-capable", content: "yes" },
-      { name: "apple-mobile-web-app-title", content: "NEXORA" },
+      { name: "apple-mobile-web-app-title", content: "KIVRYN" },
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
       {
         property: "og:image",

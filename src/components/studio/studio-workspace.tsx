@@ -313,7 +313,7 @@ export function StudioWorkspace({ category }: { category: StudioCategory }) {
                           }}
                         >
                           {locked
-                            ? "Unlock with NEXORA Premium"
+                            ? "Unlock with KIVRYN Premium"
                             : completed.has(lesson.id)
                               ? "Review lesson"
                               : "Open lesson"}

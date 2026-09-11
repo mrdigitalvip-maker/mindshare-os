@@ -159,7 +159,7 @@ export function AuthScreen() {
         <View>
           <Text style={styles.brand}>N E X O R A</Text>
           <Text accessibilityRole="header" style={styles.title}>
-            {isSignup ? "Crie seu espaço NEXORA." : "Seu espaço começa aqui."}
+            {isSignup ? "Crie seu espaço KIVRYN." : "Seu espaço começa aqui."}
           </Text>
           <Text style={styles.copy}>Organize. Execute. Avance.</Text>
         </View>

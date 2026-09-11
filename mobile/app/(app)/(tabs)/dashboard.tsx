@@ -239,7 +239,7 @@ export default function Dashboard() {
   );
   const greeting = homeGreeting(profile.data?.displayName);
   const tier = subscription.isError
-    ? "NEXORA BASIC"
+    ? "KIVRYN BASIC"
     : resolveCapabilityTier(subscription.data?.plan, subscription.data?.status);
 
   async function refresh() {
@@ -553,7 +553,7 @@ export default function Dashboard() {
         ) : null}
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Conversar com a NEXORA"
+          accessibilityLabel="Conversar com a KIVRYN"
           accessibilityHint="Abre o Assistente"
           onPress={() => router.push("/assistant")}
           style={({ pressed }) => [styles.quickNexora, pressed && styles.quickNexoraPressed]}

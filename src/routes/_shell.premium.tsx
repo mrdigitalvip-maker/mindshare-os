@@ -12,7 +12,7 @@ import { SubscriptionService } from "@/services";
 import { LEGAL_URLS } from "@/lib/legal";
 
 export const Route = createFileRoute("/_shell/premium")({
-  head: () => ({ meta: [{ title: "Premium — NEXORA" }] }),
+  head: () => ({ meta: [{ title: "Premium — KIVRYN" }] }),
   component: Premium,
 });
 
@@ -185,7 +185,7 @@ function Premium() {
         Premium route.
       </p>
       <p className="mt-2 flex flex-wrap items-center justify-center gap-x-4 text-center text-xs text-muted-foreground">
-        <span>By upgrading, you agree to NEXORA's policies:</span>
+        <span>By upgrading, you agree to KIVRYN's policies:</span>
         <a
           href={LEGAL_URLS.termsOfService}
           target="_blank"

@@ -25,7 +25,7 @@ function clearOAuthParams(url: URL) {
 
 export const Route = createFileRoute("/auth/callback")({
   head: () => ({
-    meta: [{ title: "Completing sign in — NEXORA" }, { name: "robots", content: "noindex" }],
+    meta: [{ title: "Completing sign in — KIVRYN" }, { name: "robots", content: "noindex" }],
   }),
   component: AuthCallbackPage,
 });

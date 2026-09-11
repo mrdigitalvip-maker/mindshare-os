@@ -1,5 +1,5 @@
 /**
- * TEMPORARY FALLBACK HELPER — NEXORA OS
+ * TEMPORARY FALLBACK HELPER — KIVRYN OS
  * Selects mock data only in explicit demo mode. Live integration failures are
  * intentionally propagated so production can never report simulated success.
  */

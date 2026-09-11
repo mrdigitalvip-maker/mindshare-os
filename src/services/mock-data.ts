@@ -58,7 +58,7 @@ export const mockDatabase: MockDatabase = {
   projects: [
     {
       id: "project-launch",
-      title: "NEXORA Launch Plan",
+      title: "KIVRYN Launch Plan",
       progress: 72,
       color: "bg-emerald-500",
       updatedAt: "2026-08-05T09:00:00.000Z",
@@ -100,7 +100,7 @@ export const mockDatabase: MockDatabase = {
       title: "Product Brief v2",
       type: "Brief",
       summary:
-        "NEXORA unifies projects, study, finance, content, translation, and AI assistance into one workspace.",
+        "KIVRYN unifies projects, study, finance, content, translation, and AI assistance into one workspace.",
       updatedAt: "2026-08-05T07:15:00.000Z",
     },
   ],
@@ -117,7 +117,7 @@ export const mockDatabase: MockDatabase = {
       id: "draft-welcome",
       title: "Welcome email",
       format: "Email",
-      body: "Hi there — welcome to NEXORA. Here are three ways to start your workspace today...",
+      body: "Hi there — welcome to KIVRYN. Here are three ways to start your workspace today...",
     },
   ],
   studies: [

@@ -114,7 +114,7 @@ async function invocationError(error: unknown): Promise<ChatServiceError> {
     };
     return new ChatServiceError(
       payload?.error?.code ?? statusCodes[context.status] ?? "unavailable",
-      payload?.error?.message ?? "NEXORA is temporarily unavailable.",
+      payload?.error?.message ?? "KIVRYN is temporarily unavailable.",
       payload?.error?.requestId,
       classifyAssistantError(payload?.error?.code ?? statusCodes[context.status] ?? "unavailable"),
       context.status,
@@ -123,7 +123,7 @@ async function invocationError(error: unknown): Promise<ChatServiceError> {
   }
   return new ChatServiceError(
     "unavailable",
-    "NEXORA is temporarily unavailable.",
+    "KIVRYN is temporarily unavailable.",
     undefined,
     "NETWORK",
     undefined,
@@ -214,7 +214,7 @@ export async function sendChat(
     if (!data?.ok)
       throw new ChatServiceError(
         data?.error.code ?? "provider_error",
-        data?.error.message ?? "NEXORA could not respond.",
+        data?.error.message ?? "KIVRYN could not respond.",
         data?.error.requestId,
       );
     let normalized: ReturnType<typeof validateAssistantSendData>;
@@ -223,7 +223,7 @@ export async function sendChat(
     } catch {
       throw new ChatServiceError(
         "invalid_response",
-        "NEXORA returned an invalid response.",
+        "KIVRYN returned an invalid response.",
         undefined,
         "VALIDATION",
         undefined,
@@ -238,6 +238,6 @@ export async function sendChat(
     };
   } catch (error) {
     if (error instanceof ChatServiceError) throw error;
-    throw new ChatServiceError("unavailable", "NEXORA is temporarily unavailable.");
+    throw new ChatServiceError("unavailable", "KIVRYN is temporarily unavailable.");
   }
 }

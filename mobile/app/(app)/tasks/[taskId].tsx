@@ -211,7 +211,7 @@ export default function TaskWorkspace() {
           await cancelTaskReminder(currentTask.id).catch(() => undefined);
           throw persistError;
         }
-        Alert.alert("Lembrete definido", "A NEXORA lembrará você no horário escolhido.");
+        Alert.alert("Lembrete definido", "A KIVRYN lembrará você no horário escolhido.");
       } catch {
         setError("Não foi possível agendar o lembrete.");
       }
@@ -324,12 +324,12 @@ export default function TaskWorkspace() {
             · {getTaskPriorityLabel(task.priority)} · {getTaskDuePresentation(task)}
           </Text>
           <Text style={styles.state}>{stateLabel[workState]}</Text>
-          <Card label="NEXORA AGORA">
+          <Card label="KIVRYN AGORA">
             <Text style={styles.body}>{getTaskNudge(task)}</Text>
             <Text style={styles.muted}>Ritmo: {getTaskRhythmLabel(rhythm)}</Text>
             {(rhythm === "stale" || rhythm === "overdue") && (
               <Button
-                label="Reorganizar com a NEXORA"
+                label="Reorganizar com a KIVRYN"
                 onPress={() =>
                   router.push({
                     pathname: "/assistant-chat",
@@ -441,7 +441,7 @@ export default function TaskWorkspace() {
                   />
                 ) : null}
                 <Button
-                  label="Pedir ajuda à NEXORA"
+                  label="Pedir ajuda à KIVRYN"
                   onPress={() =>
                     router.push({
                       pathname: "/assistant-chat",

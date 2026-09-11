@@ -44,7 +44,7 @@ import {
 } from "@/services";
 
 export const Route = createFileRoute("/_shell/assistant")({
-  head: () => ({ meta: [{ title: "Assistente — NEXORA" }] }),
+  head: () => ({ meta: [{ title: "Assistente — KIVRYN" }] }),
   validateSearch: (search: Record<string, unknown>) => ({
     conversation: typeof search.conversation === "string" ? search.conversation : undefined,
   }),
@@ -297,7 +297,7 @@ function Assistant() {
                       <i className="h-2 w-2 animate-bounce rounded-full bg-gold [animation-delay:120ms]" />
                       <i className="h-2 w-2 animate-bounce rounded-full bg-gold [animation-delay:240ms]" />
                     </span>
-                    NEXORA is thinking
+                    KIVRYN is thinking
                   </div>
                 )}
                 <div ref={endRef} />
@@ -341,10 +341,10 @@ function Assistant() {
                     void send(input);
                   }
                 }}
-                placeholder="Message NEXORA…"
+                placeholder="Message KIVRYN…"
                 rows={1}
                 disabled={isSending}
-                aria-label="Message NEXORA"
+                aria-label="Message KIVRYN"
                 className="max-h-40 min-h-10 resize-none border-0 bg-transparent focus-visible:ring-0"
               />
               <Button
@@ -366,8 +366,8 @@ function Assistant() {
             </p>
           </div>
         </section>
-        <aside className="glass hidden rounded-3xl p-5 2xl:block" aria-label="NEXORA intelligence">
-          <p className="text-xs uppercase tracking-[0.24em] text-violet-300">NEXORA</p>
+        <aside className="glass hidden rounded-3xl p-5 2xl:block" aria-label="KIVRYN intelligence">
+          <p className="text-xs uppercase tracking-[0.24em] text-violet-300">KIVRYN</p>
           <h2 className="mt-2 font-display text-xl">Intelligence layer</h2>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
             Conversation context is drawn only from the messages and attachments you provide.

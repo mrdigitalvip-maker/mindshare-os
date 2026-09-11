@@ -2,14 +2,14 @@ import type { SubscriptionStatus } from "@/services/subscription-status-service"
 
 export type NexoraCapabilities = {
   tier: "basic" | "advanced";
-  label: "NEXORA BASIC" | "NEXORA ADVANCED";
+  label: "KIVRYN BASIC" | "KIVRYN ADVANCED";
   advancedVoice: boolean;
   proactiveSuggestions: boolean;
 };
 
 const BASIC: NexoraCapabilities = {
   tier: "basic",
-  label: "NEXORA BASIC",
+  label: "KIVRYN BASIC",
   advancedVoice: false,
   proactiveSuggestions: false,
 };
@@ -21,7 +21,7 @@ export function resolveNexoraCapabilities(
   if (!subscription?.isPremium) return BASIC;
   return {
     tier: "advanced",
-    label: "NEXORA ADVANCED",
+    label: "KIVRYN ADVANCED",
     advancedVoice: true,
     proactiveSuggestions: true,
   };

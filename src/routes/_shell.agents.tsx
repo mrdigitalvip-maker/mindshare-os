@@ -14,7 +14,7 @@ import { AgentService, workspaceQueryKeys } from "@/services";
 import { useSubscription } from "@/hooks/use-subscription";
 import { MetricCard, PremiumGate, WorkspaceShell } from "@/components/workspace-ui";
 export const Route = createFileRoute("/_shell/agents")({
-  head: () => ({ meta: [{ title: "Agentes — NEXORA" }] }),
+  head: () => ({ meta: [{ title: "Agentes — KIVRYN" }] }),
   component: Agents,
 });
 const capabilities = [

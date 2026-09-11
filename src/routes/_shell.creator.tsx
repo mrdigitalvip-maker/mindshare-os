@@ -36,7 +36,7 @@ import {
 } from "@/services/creator-service";
 
 export const Route = createFileRoute("/_shell/creator")({
-  head: () => ({ meta: [{ title: "Creator Center — NEXORA" }] }),
+  head: () => ({ meta: [{ title: "Creator Center — KIVRYN" }] }),
   component: CreatorCenter,
 });
 
@@ -160,7 +160,7 @@ function CreatorCenter() {
       });
       setAssistantResult(result.assistantMessage.content);
     } catch {
-      setAssistantResult("NEXORA Assistant is unavailable right now. Please retry later.");
+      setAssistantResult("KIVRYN Assistant is unavailable right now. Please retry later.");
     }
   };
 
@@ -172,7 +172,7 @@ function CreatorCenter() {
     >
       <header className="creator-studio__masthead">
         <p className="text-xs font-semibold uppercase tracking-[0.25em] text-muted-foreground">
-          NEXORA
+          KIVRYN
         </p>
         <h1 className="font-display text-4xl">{t("page.creator.title")}</h1>
         <p className="mt-2 text-muted-foreground">{t("page.creator.description")}</p>
@@ -738,7 +738,7 @@ function CreatorCenter() {
         <h2 className="font-display text-3xl">AI</h2>
         <Card>
           <CardHeader>
-            <CardTitle>NEXORA Assistant for Creators</CardTitle>
+            <CardTitle>KIVRYN Assistant for Creators</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <Label htmlFor="creator-ai">Topic, audience, goal and tone</Label>

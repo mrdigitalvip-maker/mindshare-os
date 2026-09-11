@@ -290,7 +290,7 @@ export default function SubjectWorkspace() {
           </Text>
         ) : null}
       </Section>
-      <Section title="NEXORA TUTOR">
+      <Section title="KIVRYN TUTOR">
         <Text style={styles.copy}>
           <LocalizedCopy copyKey="legacy.85d037f04ea1" />
         </Text>

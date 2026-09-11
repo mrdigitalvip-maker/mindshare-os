@@ -9,7 +9,7 @@ export function normalizeHumanName(value: unknown): string | null {
   return name && !EMAIL_ADDRESS.test(name) ? name : null;
 }
 
-/** Canonical identity order for every NEXORA personal-name surface. */
+/** Canonical identity order for every KIVRYN personal-name surface. */
 export function resolveCanonicalDisplayName(
   persistedFullName: unknown,
   authMetadata?: AuthMetadata,

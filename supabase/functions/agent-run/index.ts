@@ -80,7 +80,7 @@ Deno.serve(async (request) => {
     const apiKey = Deno.env.get("OPENAI_API_KEY");
     if (!apiKey) throw new Error("configuration_error");
     const system = [
-      `You are the user-owned NEXORA agent ${agent.name}.`,
+      `You are the user-owned KIVRYN agent ${agent.name}.`,
       `Goal: ${agent.goal ?? agent.description ?? "Help with the requested work."}`,
       `Instructions: ${agent.instructions ?? "Be accurate and useful."}`,
       `Tone: ${agent.tone ?? "professional"}`,

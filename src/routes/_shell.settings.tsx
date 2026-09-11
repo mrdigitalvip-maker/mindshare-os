@@ -19,7 +19,7 @@ import { useLanguage } from "@/providers/language-provider";
 import type { LanguagePreference } from "@/i18n";
 
 export const Route = createFileRoute("/_shell/settings")({
-  head: () => ({ meta: [{ title: "Settings — NEXORA" }] }),
+  head: () => ({ meta: [{ title: "Settings — KIVRYN" }] }),
   component: Settings,
 });
 
@@ -160,7 +160,7 @@ function Settings() {
             </div>
             <div className="mt-4 flex items-center justify-between gap-4 rounded-xl border border-border p-4">
               <div>
-                <Label htmlFor="proactive-reminders">Proactive NEXORA reminders</Label>
+                <Label htmlFor="proactive-reminders">Proactive KIVRYN reminders</Label>
                 <p className="mt-1 text-xs text-muted-foreground">
                   Allow the assistant to surface relevant follow-ups. Browser delivery is managed
                   below.
@@ -202,7 +202,7 @@ function Settings() {
           <UsageSettings />
         </Section>
 
-        <Section title="Plan" description="Manage your NEXORA subscription.">
+        <Section title="Plan" description="Manage your KIVRYN subscription.">
           <div className="flex items-center justify-between rounded-xl border border-border bg-surface p-4">
             <div>
               <p className="font-medium">
@@ -275,7 +275,7 @@ function Settings() {
           </p>
         </Section>
 
-        <Section title="Privacy & Legal" description="Review NEXORA's public legal policies.">
+        <Section title="Privacy & Legal" description="Review KIVRYN's public legal policies.">
           <div className="divide-y divide-border rounded-xl border border-border bg-surface">
             <LegalLink label="Privacy Policy" href={LEGAL_URLS.privacyPolicy} />
             <LegalLink label="Terms of Service" href={LEGAL_URLS.termsOfService} />
