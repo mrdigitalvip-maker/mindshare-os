@@ -4,7 +4,7 @@ export const PLAY_BILLING_CONFIG = Object.freeze({
   productId: process.env.EXPO_PUBLIC_GOOGLE_PLAY_SUBSCRIPTION_ID ?? "",
   basePlanId: process.env.EXPO_PUBLIC_GOOGLE_PLAY_BASE_PLAN_ID ?? "",
   // Must remain identical to expo.android.package and the Play Console app.
-  packageName: "app.vercel.nexora_os_eosin.twa",
+  packageName: "kivryn.app",
 });
 export type PlayProduct = { productId: string; localizedPrice: string; offerToken?: string };
 

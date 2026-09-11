@@ -3,7 +3,7 @@ import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { parseAuthLink } from "@/lib/auth-callback";
 
-export const authCallbackUrl = "nexora://auth/callback";
+export const authCallbackUrl = "kivryn://auth/callback";
 export const passwordRecoveryUrl = `${authCallbackUrl}?next=${encodeURIComponent("/auth/reset-password")}`;
 
 export type ConsumedAuthLink = { session: Session | null; recovery: boolean };

@@ -10,7 +10,7 @@ describe("NXR-036 cross-platform authentication", () => {
     const screen = read("mobile/features/auth/auth-screen.tsx");
     const recovery = read("mobile/app/auth/recovery.tsx");
     const links = read("mobile/lib/auth-links.ts");
-    expect(links).toContain('authCallbackUrl = "nexora://auth/callback"');
+    expect(links).toContain('authCallbackUrl = "kivryn://auth/callback"');
     expect(links).toContain("passwordRecoveryUrl");
     expect(screen).toContain("emailRedirectTo: authCallbackUrl");
     expect(screen).toContain("redirectTo: authCallbackUrl");
@@ -22,10 +22,10 @@ describe("NXR-036 cross-platform authentication", () => {
   });
 
   test("native callback is strict, PKCE-capable, once-only, and recovery typed", () => {
-    const url = "nexora://auth/callback?code=nxr036&type=recovery&next=%2Fauth%2Freset-password";
+    const url = "kivryn://auth/callback?code=nxr036&type=recovery&next=%2Fauth%2Freset-password";
     const parser = read("mobile/lib/auth-callback.ts");
     expect(url).toContain("type=recovery");
-    expect(parser).toContain('parsed.protocol === "nexora:"');
+    expect(parser).toContain('parsed.protocol === "kivryn:"');
     expect(parser).toContain("consumedCallbacks.has(fingerprint)");
     expect(parser).toContain('value === "/auth/reset-password"');
     expect(read("mobile/lib/auth-links.ts")).toContain("exchangeCodeForSession(code)");

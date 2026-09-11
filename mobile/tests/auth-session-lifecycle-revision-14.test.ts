@@ -69,7 +69,7 @@ describe("NXR-034 Android auth and session lifecycle", () => {
   });
 
   test("9 recovery callback is identified and claimed once", () => {
-    const url = "nexora://auth/callback?next=%2Fauth%2Freset-password&type=recovery&code=nxr034";
+    const url = "kivryn://auth/callback?next=%2Fauth%2Freset-password&type=recovery&code=nxr034";
     expect(parseAuthLink(url).recovery).toBeTrue();
     expect(claimAuthCallback(url)).toBeTrue();
     expect(claimAuthCallback(url)).toBeFalse();
@@ -77,7 +77,7 @@ describe("NXR-034 Android auth and session lifecycle", () => {
 
   test("10 an ordinary callback cannot become password recovery", () => {
     expect(
-      parseAuthLink("nexora://auth/callback?next=%2Fauth%2Freset-password&code=ordinary").recovery,
+      parseAuthLink("kivryn://auth/callback?next=%2Fauth%2Freset-password&code=ordinary").recovery,
     ).toBeFalse();
     expect(callback).toContain("isRecoveryLink || recoverySession");
   });
@@ -86,7 +86,7 @@ describe("NXR-034 Android auth and session lifecycle", () => {
     expect(parseAuthLink("https://example.com/auth/callback?code=secret").error).toBe(
       "invalid_redirect",
     );
-    expect(parseAuthLink("nexora://auth/other?code=secret").error).toBe("invalid_redirect");
+    expect(parseAuthLink("kivryn://auth/other?code=secret").error).toBe("invalid_redirect");
     expect(safeAuthDestination("/dashboard")).toBeNull();
   });
 
