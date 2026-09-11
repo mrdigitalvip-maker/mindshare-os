@@ -9,6 +9,7 @@ import {
   Route as RouteIcon,
 } from "lucide-react";
 import { DailyMissionCard } from "@/components/daily-mission-card";
+import { CommandSectionHeading, CommandState } from "@/components/dashboard/v2-command-ui";
 import { Button } from "@/components/ui/button";
 import { useProfile } from "@/hooks/use-profile";
 import { useLanguage } from "@/providers/language-provider";
@@ -67,22 +68,23 @@ function Dashboard() {
           aria-labelledby="today-heading"
           aria-busy={tasks.isLoading}
         >
-          <div className="command-home__section-heading">
-            <div>
-              <span>{t("workspace.today")}</span>
-              <h2 id="today-heading">{t("home.nextActions")}</h2>
-            </div>
-            <Button asChild size="sm" variant="ghost">
-              <Link to="/productivity">
-                {t("home.viewAll")}
-                <ArrowRight />
-              </Link>
-            </Button>
-          </div>
+          <CommandSectionHeading
+            eyebrow={t("workspace.today")}
+            title={t("home.nextActions")}
+            id="today-heading"
+            action={
+              <Button asChild size="sm" variant="ghost">
+                <Link to="/productivity">
+                  {t("home.viewAll")}
+                  <ArrowRight />
+                </Link>
+              </Button>
+            }
+          />
           {tasks.isLoading ? (
-            <State text={t("common.loading")} />
+            <CommandState text={t("common.loading")} />
           ) : tasks.isError ? (
-            <State text={t("tasks.error")} error />
+            <CommandState text={t("tasks.error")} error />
           ) : priorityTasks.length ? (
             <ol className="command-home__task-list">
               {priorityTasks.map((task) => (
@@ -109,7 +111,7 @@ function Dashboard() {
               ))}
             </ol>
           ) : (
-            <State text={t("home.noActions")} />
+            <CommandState text={t("home.noActions")} />
           )}
         </section>
 
@@ -134,16 +136,15 @@ function Dashboard() {
       </div>
 
       <section className="command-home__active" aria-labelledby="active-heading">
-        <div className="command-home__section-heading">
-          <div>
-            <span>{t("home.workspace")}</span>
-            <h2 id="active-heading">{t("workspace.activeWork")}</h2>
-          </div>
-        </div>
+        <CommandSectionHeading
+          eyebrow={t("home.workspace")}
+          title={t("workspace.activeWork")}
+          id="active-heading"
+        />
         {loading ? (
-          <State text={t("common.loading")} />
+          <CommandState text={t("common.loading")} />
         ) : error ? (
-          <State text={t("common.error")} error />
+          <CommandState text={t("common.error")} error />
         ) : (
           <div className="command-home__work-list">
             <WorkLink
@@ -176,12 +177,6 @@ function Dashboard() {
 
       <DailyMissionCard />
     </main>
-  );
-}
-
-function State({ text, error = false }: { text: string; error?: boolean }) {
-  return (
-    <p className={error ? "command-home__state text-destructive" : "command-home__state"}>{text}</p>
   );
 }
 

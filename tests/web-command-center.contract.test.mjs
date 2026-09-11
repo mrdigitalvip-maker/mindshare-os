@@ -111,3 +111,21 @@ test("the route audit covers auth, detail routes and truthful data states", asyn
   }
   assert.match(matrix, /no route below introduces synthetic product data/i);
 });
+
+test("KIVRYN V2 command center uses shared semantic visual foundations", async () => {
+  const [styles, dashboard, webFoundation, nativeTheme, nativeFoundation] = await Promise.all([
+    read("src/styles.css"),
+    read("src/routes/_shell.dashboard.tsx"),
+    read("src/components/dashboard/v2-command-ui.tsx"),
+    read("mobile/lib/theme.ts"),
+    read("mobile/components/v2/premium-ui.tsx"),
+  ]);
+  for (const token of ["--intelligence", "--intelligence-blue", "--intelligence-violet"])
+    assert.ok(styles.includes(token), token);
+  assert.match(dashboard, /CommandSectionHeading/);
+  assert.match(webFoundation, /role=\{error \? "alert" : "status"\}/);
+  for (const token of ["canvasElevated", "surfaceRaised", "borderActive", "textSecondary"])
+    assert.ok(nativeTheme.includes(token), token);
+  assert.match(nativeFoundation, /accessibilityRole="progressbar"/);
+  assert.match(nativeFoundation, /LocalizedCopy/);
+});
