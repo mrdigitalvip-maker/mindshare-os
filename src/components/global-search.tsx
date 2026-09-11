@@ -13,6 +13,7 @@ import {
 import { useAuth } from "@/lib/auth-context";
 import { RELEASE_MODULES } from "@/lib/modules";
 import { SearchService, workspaceQueryKeys, type SearchCategory } from "@/services";
+import { useLanguage } from "@/providers/language-provider";
 
 export function GlobalSearch({
   open,
@@ -21,6 +22,7 @@ export function GlobalSearch({
   open: boolean;
   onOpenChange: (value: boolean) => void;
 }) {
+  const { t } = useLanguage();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
@@ -75,26 +77,24 @@ export function GlobalSearch({
     <CommandDialog open={open} onOpenChange={onOpenChange}>
       <div className="flex items-center justify-between border-b px-4 py-2 text-xs text-muted-foreground">
         <span className="flex items-center gap-2">
-          <Search className="h-3.5 w-3.5" /> Command center
+          <Search className="h-3.5 w-3.5" /> {t("shell.commandCenter")}
         </span>
         <kbd className="rounded border px-1.5 py-0.5">⌘ K</kbd>
       </div>
-      <CommandInput placeholder="Search your workspace…" value={query} onValueChange={setQuery} />
+      <CommandInput placeholder={t("search.workspace")} value={query} onValueChange={setQuery} />
       <CommandList>
         {isFetching && (
           <div className="flex items-center justify-center gap-2 p-6 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" /> Searching your workspace
+            <Loader2 className="h-4 w-4 animate-spin" /> {t("search.searching")}
           </div>
         )}
         {isError && (
-          <div className="p-6 text-center text-sm text-destructive">
-            Search could not be completed. Please try again.
-          </div>
+          <div className="p-6 text-center text-sm text-destructive">{t("search.error")}</div>
         )}
         {!isFetching &&
           normalized.length < 2 &&
           (recent.length ? (
-            <CommandGroup heading="Recent searches">
+            <CommandGroup heading={t("search.recent")}>
               {recent.map((item) => (
                 <CommandItem key={item} onSelect={() => setQuery(item)}>
                   <Clock3 className="mr-2 h-4 w-4" />
@@ -103,13 +103,9 @@ export function GlobalSearch({
               ))}
             </CommandGroup>
           ) : (
-            <div className="p-6 text-center text-sm text-muted-foreground">
-              Search projects, studies, finance, conversations and more.
-            </div>
+            <div className="p-6 text-center text-sm text-muted-foreground">{t("search.help")}</div>
           ))}
-        {!isFetching && normalized.length >= 2 && (
-          <CommandEmpty>No results found in your workspace.</CommandEmpty>
-        )}
+        {!isFetching && normalized.length >= 2 && <CommandEmpty>{t("search.empty")}</CommandEmpty>}
         {Object.entries(grouped).map(([category, items]) => (
           <CommandGroup key={category} heading={category as SearchCategory}>
             {items.map((result) => {

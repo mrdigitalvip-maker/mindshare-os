@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 
 import { useAuth } from "@/lib/auth-context";
+import { useLanguage } from "@/providers/language-provider";
 
 export const Route = createFileRoute("/confirm-email")({
   ssr: false,
@@ -13,6 +14,7 @@ export const Route = createFileRoute("/confirm-email")({
 });
 
 function ConfirmEmailPage() {
+  const { t } = useLanguage();
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const [status, setStatus] = useState<"checking" | "success" | "error">("checking");
@@ -45,31 +47,26 @@ function ConfirmEmailPage() {
       >
         {status === "checking" && (
           <>
-            <h1 className="font-display text-3xl">Confirming your email…</h1>
-            <p className="mt-3 text-sm text-muted-foreground">One moment.</p>
+            <h1 className="font-display text-3xl">{t("auth.confirming")}</h1>
+            <p className="mt-3 text-sm text-muted-foreground">{t("auth.oneMoment")}</p>
           </>
         )}
         {status === "success" && (
           <>
-            <h1 className="font-display text-3xl">Email confirmed</h1>
-            <p className="mt-3 text-sm text-muted-foreground">
-              Your account is ready. Taking you to your workspace…
-            </p>
+            <h1 className="font-display text-3xl">{t("auth.confirmed")}</h1>
+            <p className="mt-3 text-sm text-muted-foreground">{t("auth.confirmedHelp")}</p>
           </>
         )}
         {status === "error" && (
           <>
-            <h1 className="font-display text-3xl">Confirmation link invalid</h1>
-            <p className="mt-3 text-sm text-muted-foreground">
-              This link may have expired or already been used. Try signing in — if your email still
-              isn't confirmed, request a new link.
-            </p>
+            <h1 className="font-display text-3xl">{t("auth.confirmInvalid")}</h1>
+            <p className="mt-3 text-sm text-muted-foreground">{t("auth.confirmInvalidHelp")}</p>
             <Link
               to="/auth"
               search={{ mode: "signin" }}
               className="mt-8 inline-flex items-center justify-center rounded-full bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition hover:opacity-90"
             >
-              Go to sign in
+              {t("auth.goToSignIn")}
             </Link>
           </>
         )}

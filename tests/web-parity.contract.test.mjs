@@ -129,7 +129,8 @@ test("V7 R1 web mail flows are fixed, duplicate-safe, and delivery-honest", asyn
   assert.match(auth, /event === "PASSWORD_RECOVERY"/);
   assert.match(page, /submitLock\.current/);
   assert.match(page, /resendCooldown/);
-  assert.match(page, /request was accepted/i);
+  assert.match(page, /t\("auth\.(?:signupSent|recoverySent)"/);
+  assert.match(await read("src/i18n/index.ts"), /request was accepted/i);
   assert.doesNotMatch(page, /We sent a (confirmation|password reset) link/);
   assert.match(confirmation, /error_description/);
   assert.match(reset, /recoverySession/);

@@ -1,5 +1,6 @@
 import { AlertCircle, Inbox, LoaderCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useLanguage } from "@/providers/language-provider";
 export function RouteState({
   loading,
   error,
@@ -13,6 +14,7 @@ export function RouteState({
   onRetry: () => void;
   children: React.ReactNode;
 }) {
+  const { t } = useLanguage();
   if (loading)
     return (
       <div
@@ -24,16 +26,16 @@ export function RouteState({
           className="h-4 w-4 animate-spin motion-reduce:animate-none"
           aria-hidden="true"
         />{" "}
-        Loading your KIVRYN data…
+        {t("state.loadingData")}
       </div>
     );
   if (error)
     return (
       <div role="alert" className="v2-surface min-h-48 rounded-2xl p-8 text-center">
         <AlertCircle className="mx-auto mb-3 h-7 w-7 text-destructive" aria-hidden="true" />
-        <p>We couldn't load this page.</p>
+        <p>{t("state.loadPageError")}</p>
         <Button variant="outline" className="mt-4" onClick={onRetry}>
-          Try again
+          {t("common.retry")}
         </Button>
       </div>
     );
@@ -44,8 +46,8 @@ export function RouteState({
         className="v2-surface min-h-48 rounded-2xl p-8 text-center text-muted-foreground"
       >
         <Inbox className="mx-auto mb-3 h-7 w-7" aria-hidden="true" />
-        <p>Nothing here yet.</p>
-        <p className="mt-1 text-sm">New verified activity will appear here.</p>
+        <p>{t("state.empty")}</p>
+        <p className="mt-1 text-sm">{t("state.emptyVerified")}</p>
       </div>
     );
   return <>{children}</>;
