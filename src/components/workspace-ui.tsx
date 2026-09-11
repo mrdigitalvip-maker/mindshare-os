@@ -32,6 +32,26 @@ export function MetricCard({
   );
 }
 
+/** A single semantic progress treatment shared by every V2 workspace. */
+export function WorkspaceProgress({ value, label }: { value: number; label: string }) {
+  const normalized = Math.min(100, Math.max(0, value));
+  return (
+    <div
+      className="h-1.5 overflow-hidden rounded-full bg-muted"
+      role="progressbar"
+      aria-label={label}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={normalized}
+    >
+      <div
+        className="h-full rounded-full bg-intelligence transition-[width] motion-reduce:transition-none"
+        style={{ width: `${normalized}%` }}
+      />
+    </div>
+  );
+}
+
 export function LoadingState({ label = "Loading workspace…" }: { label?: string }) {
   return (
     <div className="flex min-h-48 items-center justify-center gap-2 text-sm text-muted-foreground">

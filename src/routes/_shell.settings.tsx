@@ -331,8 +331,11 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="glass rounded-2xl p-6">
-      <h2 className="font-display text-xl">{title}</h2>
+    <section className="v2-surface rounded-2xl p-6">
+      <div className="flex items-center gap-2">
+        <span className="h-4 w-0.5 rounded-full bg-intelligence" aria-hidden="true" />
+        <h2 className="font-display text-xl">{title}</h2>
+      </div>
       {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
       <div className="mt-5 space-y-4">{children}</div>
     </section>

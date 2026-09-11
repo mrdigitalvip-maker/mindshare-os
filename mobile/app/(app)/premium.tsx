@@ -1,6 +1,7 @@
 import { LocalizedCopy } from "@/components/localized-copy";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { NexoraAgent } from "@/components/nexora-agent";
+import { PremiumSurface, V2SectionHeader, V2SectionState } from "@/components/v2/premium-ui";
 import { useSubscription } from "@/hooks/use-subscription";
 import { isPremiumEntitlement } from "@/lib/subscription";
 import { colors, radius, spacing, typography } from "@/lib/theme";
@@ -32,19 +33,20 @@ export default function Premium() {
   return (
     <ScrollView contentContainerStyle={s.page}>
       <NexoraAgent size={76} state="attention" />
+      <V2SectionHeader title="KIVRYN PREMIUM" />
       <Text style={s.eyebrow}>
         <LocalizedCopy copyKey="legacy.07b331094b6f" />
       </Text>
       <Text style={s.title}>
         Seu plano: {subscription.isError ? "Indisponível" : premium ? "Premium" : "Gratuito"}
       </Text>
-      {subscription.isError && (
-        <Text style={s.error}>
-          <LocalizedCopy copyKey="legacy.19b76a2e67a2" />
-        </Text>
-      )}
+      <V2SectionState
+        loading={subscription.isPending}
+        error={subscription.isError}
+        retry={() => void subscription.refetch()}
+      />
       {!subscription.isError && !subscription.isPending && subscription.data && (
-        <View style={[s.card, s.highlight]}>
+        <PremiumSurface illuminated style={s.card}>
           <Text style={s.cardTitle}>
             <LocalizedCopy copyKey="legacy.2de92a66404b" />
           </Text>
@@ -73,9 +75,9 @@ export default function Premium() {
               <LocalizedCopy copyKey="legacy.889935710dd7" />
             </Text>
           )}
-        </View>
+        </PremiumSurface>
       )}
-      <View style={s.card}>
+      <PremiumSurface style={s.card}>
         <Text style={s.cardTitle}>GRATUITO {!premium && "· Plano atual"}</Text>
         <Text style={s.item}>
           <LocalizedCopy copyKey="legacy.06654ed8ea9e" />
@@ -85,8 +87,8 @@ export default function Premium() {
             ✓ {x}
           </Text>
         ))}
-      </View>
-      <View style={[s.card, s.highlight]}>
+      </PremiumSurface>
+      <PremiumSurface illuminated style={s.card}>
         <Text style={s.cardTitle}>
           <LocalizedCopy copyKey="legacy.1db0c4bef0db" />
         </Text>
@@ -100,7 +102,7 @@ export default function Premium() {
             <LocalizedCopy copyKey="legacy.3119000e25c3" />
           </Text>
         )}
-      </View>
+      </PremiumSurface>
       <Text style={s.note}>
         <LocalizedCopy copyKey="legacy.02185852e7fc" />
       </Text>

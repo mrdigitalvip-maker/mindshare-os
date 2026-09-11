@@ -11,6 +11,7 @@ import {
   selectStudyFocus,
 } from "@/lib/study-selectors";
 import { colors, radius, spacing, typography } from "@/lib/theme";
+import { PremiumSurface, V2Progress } from "@/components/v2/premium-ui";
 
 export default function Estudos() {
   const query = useStudyOverview();
@@ -79,7 +80,7 @@ export default function Estudos() {
                 </Text>
               ) : null}
               {focus ? (
-                <View style={styles.focus}>
+                <PremiumSurface illuminated style={styles.focus}>
                   <Text style={styles.eyebrow}>
                     <LocalizedCopy copyKey="legacy.daf3ae9adb32" />
                   </Text>
@@ -99,7 +100,7 @@ export default function Estudos() {
                         : "Continuar"}
                     </Text>
                   </Pressable>
-                </View>
+                </PremiumSurface>
               ) : null}
             </View>
           ) : null
@@ -118,6 +119,8 @@ export default function Estudos() {
             <Pressable
               onPress={() => router.push(`/studies/${item.subject.id}`)}
               style={styles.card}
+              accessibilityRole="button"
+              accessibilityHint="Abre o plano de estudo"
             >
               <View style={[styles.color, { backgroundColor: item.subject.color }]} />
               <View style={styles.flex}>
@@ -137,6 +140,12 @@ export default function Estudos() {
                 ) : null}
                 {weeklyMinutes ? (
                   <Text style={styles.meta}>{weeklyMinutes} min esta semana</Text>
+                ) : null}
+                {item.subject.weeklyTargetMinutes ? (
+                  <V2Progress
+                    value={(weeklyMinutes / item.subject.weeklyTargetMinutes) * 100}
+                    label={`Progresso semanal de ${item.subject.name}`}
+                  />
                 ) : null}
               </View>
             </Pressable>
@@ -218,6 +227,8 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     borderRadius: radius.md,
     backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   color: { width: 5, borderRadius: radius.pill },
   flex: { flex: 1, gap: spacing.xs },

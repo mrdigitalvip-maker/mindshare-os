@@ -176,6 +176,7 @@ function ShellLayout() {
                         <Link
                           to={m.path}
                           title={compact ? t(`nav.${m.id}` as TranslationKey) : undefined}
+                          aria-current={active ? "page" : undefined}
                           onClick={() => setMobileOpen(false)}
                           className={`group flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
                             active
@@ -188,7 +189,7 @@ function ShellLayout() {
                             <span className="flex-1">{t(`nav.${m.id}` as TranslationKey)}</span>
                           )}
                           {!compact && m.premium && (
-                            <span className="rounded-full bg-[color:var(--gold)]/15 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider text-gold">
+                            <span className="rounded-full border border-intelligence/25 bg-intelligence/10 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider text-intelligence">
                               Pro
                             </span>
                           )}
@@ -329,8 +330,9 @@ function ShellLayout() {
                 <Link
                   key={m.id}
                   to={m.path}
+                  aria-current={active ? "page" : undefined}
                   className={`flex flex-col items-center gap-1 py-2.5 text-[10px] ${
-                    active ? "text-gold" : "text-muted-foreground"
+                    active ? "text-intelligence" : "text-muted-foreground"
                   }`}
                 >
                   <m.icon className="h-5 w-5" />
