@@ -54,6 +54,9 @@ export function LanguageProvider({ children }: PropsWithChildren) {
     }),
     [languagePreference, resolvedLocale, ready, setLanguagePreference],
   );
+  // Do not mount visible routes with the temporary system locale while the persisted
+  // preference is loading; this prevents a flash of the wrong language on restart.
+  if (!ready) return null;
   return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
 }
 export function useLanguage() {

@@ -8,12 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { DocumentService, workspaceQueryKeys } from "@/services";
+import { useLanguage } from "@/providers/language-provider";
 
 export const Route = createFileRoute("/_shell/documents/$documentId")({
   component: DocumentWorkspace,
 });
 
 function DocumentWorkspace() {
+  const { t, resolvedLocale } = useLanguage();
   const { documentId } = Route.useParams();
   const navigate = useNavigate();
   const client = useQueryClient();
@@ -44,7 +46,7 @@ function DocumentWorkspace() {
     onSuccess: async () => {
       await refresh();
       setDirty(false);
-      toast.success("Document saved");
+      toast.success(t("documents.saved"));
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -56,7 +58,7 @@ function DocumentWorkspace() {
   if (query.isLoading)
     return (
       <PageShell>
-        <p>Loading document…</p>
+        <p>{t("documents.loading")}</p>
       </PageShell>
     );
   if (!query.data)
@@ -64,8 +66,8 @@ function DocumentWorkspace() {
       <PageShell>
         <EmptyState
           icon={Trash2}
-          title="Document not found"
-          description="It does not exist or does not belong to you."
+          title={t("documents.notFound")}
+          description={t("documents.notFoundHelp")}
         />
       </PageShell>
     );
@@ -75,7 +77,7 @@ function DocumentWorkspace() {
       <div className="mx-auto max-w-4xl min-w-0">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <Button variant="ghost" onClick={() => navigate({ to: "/documents" })}>
-            <ArrowLeft /> Documents
+            <ArrowLeft /> {t("documents.back")}
           </Button>
           <div className="flex flex-wrap gap-2">
             <Button
@@ -83,13 +85,13 @@ function DocumentWorkspace() {
               disabled={save.isPending || !title.trim()}
               onClick={() => save.mutate()}
             >
-              {save.isPending ? "Saving…" : "Save"}
+              {save.isPending ? t("common.saving") : t("common.save")}
             </Button>
             <Button
               variant="outline"
               onClick={async () => {
                 const copy = await DocumentService.createUploadRecord(
-                  `${title} copy`,
+                  `${title} ${t("documents.copySuffix")}`,
                   document.type,
                   content,
                 );
@@ -97,24 +99,24 @@ function DocumentWorkspace() {
                 navigate({ to: "/documents/$documentId", params: { documentId: copy.id } });
               }}
             >
-              <Copy /> Duplicate
+              <Copy /> {t("documents.duplicateAction")}
             </Button>
             <Button
               variant="destructive"
               onClick={async () => {
-                if (confirm("Delete this document permanently?")) {
+                if (confirm(t("documents.deletePermanent"))) {
                   await DocumentService.remove(documentId);
                   navigate({ to: "/documents" });
                 }
               }}
             >
-              <Trash2 /> Delete
+              <Trash2 /> {t("documents.deleteAction")}
             </Button>
           </div>
         </div>
         <Input
           className="mt-6 h-auto border-0 px-0 text-3xl font-semibold shadow-none focus-visible:ring-0"
-          aria-label="Document title"
+          aria-label={t("documents.documentTitle")}
           value={title}
           onChange={(e) => {
             setTitle(e.target.value);
@@ -123,35 +125,40 @@ function DocumentWorkspace() {
         />
         <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
           <span aria-live="polite">
-            {save.isPending ? "Saving changes…" : dirty ? "Unsaved changes" : "Saved"}
+            {save.isPending
+              ? t("documents.savingChanges")
+              : dirty
+                ? t("documents.unsavedChanges")
+                : t("documents.savedState")}
           </span>
-          <span>Updated {new Date(document.updatedAt).toLocaleString()}</span>
+          <span>
+            {t("documents.updated", {
+              date: new Date(document.updatedAt).toLocaleString(resolvedLocale),
+            })}
+          </span>
         </div>
         <Textarea
           className="mt-6 min-h-[55vh] resize-y text-base leading-7"
-          aria-label="Document content"
+          aria-label={t("documents.documentContent")}
           value={content}
           onChange={(e) => {
             setContent(e.target.value);
             setDirty(true);
           }}
-          placeholder="Start writing…"
+          placeholder={t("documents.startWriting")}
         />
         <section className="v2-surface mt-6 rounded-2xl p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <h2 className="font-semibold">AI document analysis</h2>
-              <p className="text-sm text-muted-foreground">
-                Premium entitlement is enforced by the backend. Attachments are unavailable because
-                files have no document relationship.
-              </p>
+              <h2 className="font-semibold">{t("documents.analysis")}</h2>
+              <p className="text-sm text-muted-foreground">{t("documents.analysisHelp")}</p>
             </div>
             <div className="flex max-w-full gap-2 overflow-x-auto pb-1">
               {[
-                ["Summary", "Summarize this document"],
-                ["Key points", "List the key points"],
-                ["Questions", "Create study questions"],
-                ["Explain", "Explain this document clearly"],
+                [t("documents.summary"), "Summarize this document"],
+                [t("documents.keyPoints"), "List the key points"],
+                [t("documents.questions"), "Create study questions"],
+                [t("documents.explain"), "Explain this document clearly"],
               ].map(([label, instruction]) => (
                 <Button
                   key={label}
@@ -166,7 +173,7 @@ function DocumentWorkspace() {
               ))}
             </div>
           </div>
-          {analyze.isPending && <p className="mt-4 text-sm">Analyzing…</p>}
+          {analyze.isPending && <p className="mt-4 text-sm">{t("documents.analyzing")}</p>}
           {analysis && (
             <div className="mt-4 whitespace-pre-wrap rounded-xl bg-background/60 p-4 text-sm">
               {analysis}

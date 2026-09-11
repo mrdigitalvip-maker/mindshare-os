@@ -29,13 +29,24 @@ const validPreference = (value: unknown): value is LanguagePreference =>
 
 function initialPreference(): LanguagePreference {
   if (typeof window === "undefined") return "system";
-  const stored = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
+  let stored: string | null = null;
+  try {
+    stored = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
+  } catch {
+    // Storage may be unavailable in hardened/private browser contexts.
+  }
   return validPreference(stored) ? stored : "system";
 }
 
 export function LanguageProvider({ children }: PropsWithChildren) {
   const [languagePreference, setPreference] = useState<LanguagePreference>(initialPreference);
-  const [browserLocales, setBrowserLocales] = useState<readonly string[]>(["en"]);
+  const [browserLocales, setBrowserLocales] = useState<readonly string[]>(() =>
+    typeof navigator === "undefined"
+      ? ["en"]
+      : navigator.languages?.length
+        ? navigator.languages
+        : [navigator.language],
+  );
 
   useEffect(
     () =>
@@ -49,7 +60,11 @@ export function LanguageProvider({ children }: PropsWithChildren) {
 
   const setLanguagePreference = useCallback((value: LanguagePreference) => {
     setPreference(value);
-    window.localStorage.setItem(LANGUAGE_STORAGE_KEY, value);
+    try {
+      window.localStorage.setItem(LANGUAGE_STORAGE_KEY, value);
+    } catch {
+      // Keep the in-memory selection usable if persistence is unavailable.
+    }
   }, []);
 
   const value = useMemo(
