@@ -44,7 +44,7 @@ export function parseAuthLink(url: string): AuthLinkPayload {
     };
   }
   const validCallback =
-    parsed.protocol === "nexora:" &&
+    parsed.protocol === "kivryn:" &&
     ((parsed.hostname === "auth" && parsed.pathname === "/callback") ||
       (!parsed.hostname && parsed.pathname === "/auth/callback"));
   if (!validCallback)

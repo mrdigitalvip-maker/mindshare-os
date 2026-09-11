@@ -112,9 +112,9 @@ test("auth callbacks accept only the native callback and parse code or hash toke
     parseAuthLink("https://evil.example/auth/callback?code=x").error,
     "invalid_redirect",
   );
-  assert.equal(parseAuthLink("nexora://auth/callback?code=abc").code, "abc");
+  assert.equal(parseAuthLink("kivryn://auth/callback?code=abc").code, "abc");
   assert.equal(
-    parseAuthLink("nexora://auth/callback#access_token=a&refresh_token=r").refreshToken,
+    parseAuthLink("kivryn://auth/callback#access_token=a&refresh_token=r").refreshToken,
     "r",
   );
 });

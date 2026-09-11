@@ -66,8 +66,11 @@ describe("NXR-036 final product contracts", () => {
   });
   test("release identity and notification safety stay canonical", () => {
     const app = JSON.parse(read("mobile/app.json"));
-    expect(app.expo.scheme).toBe("nexora");
-    expect(app.expo.android.package).toBe("app.vercel.nexora_os_eosin.twa");
+    expect(app.expo.scheme).toBe("kivryn");
+    expect(app.expo.android.package).toBe("kivryn.app");
+    expect(app.expo.android.intentFilters[0].data[0].scheme).toBe("kivryn");
+    expect(app.expo.slug).toBe("nexora-native");
+    expect(app.expo.extra.eas.projectId).toBe("307c1e13-5eb2-41fc-99ea-27f2ef392ff7");
     expect(read("mobile/services/notification-service.ts")).toContain("user_id");
   });
 });

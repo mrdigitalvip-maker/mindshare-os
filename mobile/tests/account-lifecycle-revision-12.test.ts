@@ -45,8 +45,8 @@ describe("Revision 12 account lifecycle", () => {
   });
   test("callbacks are malformed-safe, duplicate-safe and bounded", () => {
     expect(parseAuthLink("garbage").error).toBe("invalid_redirect");
-    expect(parseAuthLink("nexora://auth/callback.evil?code=secret").error).toBe("invalid_redirect");
-    const url = "nexora://auth/callback?code=one-time-r12";
+    expect(parseAuthLink("kivryn://auth/callback.evil?code=secret").error).toBe("invalid_redirect");
+    const url = "kivryn://auth/callback?code=one-time-r12";
     expect(claimAuthCallback(url)).toBe(true);
     expect(claimAuthCallback(url)).toBe(false);
     expect(safeAuthDestination("/auth/reset-password")).toBe("/auth/reset-password");
