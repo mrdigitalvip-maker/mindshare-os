@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type {} from "@tanstack/react-start";
 
-const BASE_URL = (process.env.VITE_PUBLIC_SITE_URL ?? "https://nexora.app").replace(/\/$/, "");
+const BASE_URL = (process.env.VITE_PUBLIC_SITE_URL ?? "https://kivryn.app").replace(/\/$/, "");
 
 export const Route = createFileRoute("/sitemap.xml")({
   server: {

@@ -13,16 +13,14 @@ describe("Android post-login provisioning gate", () => {
   });
 
   test("profile errors cannot bypass provisioning into the application", () => {
-    expect(
-      resolveAppDestination({ authStatus: "authenticated", onboarding: "error" }),
-    ).toBeNull();
+    expect(resolveAppDestination({ authStatus: "authenticated", onboarding: "error" })).toBeNull();
     expect(appLayout).toContain('lifecycle.state !== "ready"');
   });
 
   test("a confirmed incomplete profile still goes through onboarding", () => {
-    expect(
-      resolveAppDestination({ authStatus: "authenticated", onboarding: "incomplete" }),
-    ).toBe("/onboarding");
+    expect(resolveAppDestination({ authStatus: "authenticated", onboarding: "incomplete" })).toBe(
+      "/onboarding",
+    );
     expect(appLayout).toContain('return <Redirect href="/" />');
   });
 });
