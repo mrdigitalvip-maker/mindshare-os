@@ -97,15 +97,15 @@ export function ChoiceRow({
 }
 export { s as creatorStyles };
 const s = StyleSheet.create({
-  page: { gap: spacing.md, paddingBottom: spacing.xl },
-  title: { ...typography.title, color: colors.text },
+  page: { gap: spacing.md, paddingBottom: spacing.xxl },
+  title: { ...typography.title, color: colors.text, letterSpacing: -0.5 },
   copy: { ...typography.body, color: colors.textMuted },
   label: { ...typography.caption, color: colors.textMuted },
   field: { gap: spacing.xs },
   input: {
     minHeight: 48,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderActive,
     borderRadius: radius.md,
     color: colors.text,
     padding: spacing.sm,
@@ -136,7 +136,9 @@ const s = StyleSheet.create({
     padding: spacing.md,
     gap: spacing.sm,
     borderRadius: radius.lg,
-    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceRaised,
   },
   heading: { ...typography.heading, color: colors.text },
   error: { ...typography.body, color: colors.danger },

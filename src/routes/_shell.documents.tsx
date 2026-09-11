@@ -104,8 +104,8 @@ function Documents() {
           </div>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {visible.map((document) => (
-              <article key={document.id} className="glass rounded-2xl p-5">
-                <FileText className="h-5 w-5 text-gold" />
+              <article key={document.id} className="v2-surface rounded-2xl p-5">
+                <FileText className="h-5 w-5 text-intelligence" />
                 <h2 className="mt-3 truncate text-lg font-medium">{document.title}</h2>
                 <p className="mt-1 text-xs text-muted-foreground">
                   {document.type} · Updated {new Date(document.updatedAt).toLocaleDateString()}

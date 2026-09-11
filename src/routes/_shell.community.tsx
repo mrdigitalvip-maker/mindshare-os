@@ -80,7 +80,7 @@ function Community() {
         <div className="grid gap-6 xl:grid-cols-2">
           {profile ? (
             <form
-              className="grid gap-3 rounded-xl border p-5"
+              className="v2-surface rounded-2xl p-5 grid gap-3"
               aria-label="Perfil da comunidade"
               onSubmit={(e) => {
                 e.preventDefault();
@@ -143,7 +143,7 @@ function Community() {
               </Button>
             </form>
           ) : (
-            <section className="rounded-xl border p-5">
+            <section className="v2-surface rounded-2xl p-5">
               <h2 className="text-xl font-semibold">Seu perfil</h2>
               <p className="my-3 text-sm text-muted-foreground">
                 Crie seu perfil privado para começar.
@@ -168,7 +168,7 @@ function Community() {
           <div className="space-y-5">
             <form
               onSubmit={squadSubmit}
-              className="grid gap-3 rounded-xl border p-5"
+              className="v2-surface rounded-2xl p-5 grid gap-3"
               aria-label="Criar Squad"
             >
               <h2 className="text-xl font-semibold">Criar Squad</h2>
@@ -182,7 +182,7 @@ function Community() {
             </form>
             <form
               onSubmit={inviteSubmit}
-              className="grid gap-3 rounded-xl border p-5"
+              className="v2-surface rounded-2xl p-5 grid gap-3"
               aria-label="Aceitar convite"
             >
               <h2 className="text-xl font-semibold">Aceitar convite</h2>
@@ -207,7 +207,7 @@ function Community() {
           ) : (
             <div className="mt-3 grid gap-3 md:grid-cols-2">
               {q.data.squads.map((s) => (
-                <article key={s.id} className="rounded-xl border p-5">
+                <article key={s.id} className="v2-surface rounded-2xl p-5">
                   <h3 className="font-medium">{s.name}</h3>
                   <p className="text-sm text-muted-foreground">
                     {s.member_count} de {s.max_members} membros · {s.role}
@@ -231,7 +231,7 @@ function Community() {
           ) : (
             <div className="mt-3 space-y-3">
               {q.data.activity.map((a) => (
-                <article key={a.id} className="rounded-xl border p-4">
+                <article key={a.id} className="v2-surface rounded-2xl p-4">
                   <p>{a.display_name}</p>
                   <p className="text-sm text-muted-foreground">{a.event_type.replace("_", " ")}</p>
                   <div className="mt-3 flex flex-wrap gap-2">

@@ -84,7 +84,7 @@ function SquadPage() {
               )}
             </div>
             {invite && (
-              <div className="mt-4 rounded-xl border p-4" role="status">
+              <div className="v2-surface mt-4 rounded-2xl p-4" role="status">
                 <p>
                   Código: <strong>{invite.code}</strong>
                 </p>
@@ -104,7 +104,7 @@ function SquadPage() {
                 {q.data.members.map((m) => (
                   <li
                     key={m.user_id}
-                    className="flex flex-wrap items-center justify-between gap-2 rounded-xl border p-4"
+                    className="v2-surface flex flex-wrap items-center justify-between gap-2 rounded-2xl p-4"
                   >
                     <span>
                       {m.display_name} · {m.role}

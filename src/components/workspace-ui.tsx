@@ -14,6 +14,53 @@ export function ActionBar({ children }: { children: ReactNode }) {
   );
 }
 
+/** Consistent section identity for dense secondary workspaces. */
+export function WorkspaceSectionHeader({
+  title,
+  description,
+  action,
+}: {
+  title: string;
+  description?: string;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="mb-4 flex min-w-0 flex-wrap items-end justify-between gap-3">
+      <div className="min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="h-4 w-0.5 rounded-full bg-intelligence" aria-hidden="true" />
+          <h2 className="font-display text-xl font-semibold">{title}</h2>
+        </div>
+        {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
+      </div>
+      {action}
+    </div>
+  );
+}
+
+export function StatusChip({
+  children,
+  tone = "neutral",
+}: {
+  children: ReactNode;
+  tone?: "positive" | "warning" | "negative" | "neutral" | "active";
+}) {
+  const tones = {
+    positive: "border-emerald-400/25 bg-emerald-400/10 text-emerald-300",
+    warning: "border-amber-400/25 bg-amber-400/10 text-amber-200",
+    negative: "border-destructive/30 bg-destructive/10 text-destructive",
+    neutral: "border-border bg-muted/40 text-muted-foreground",
+    active: "border-intelligence/30 bg-intelligence/10 text-intelligence",
+  };
+  return (
+    <span
+      className={`inline-flex min-h-7 items-center rounded-full border px-2.5 text-xs font-medium ${tones[tone]}`}
+    >
+      {children}
+    </span>
+  );
+}
+
 export function MetricCard({
   label,
   value,
