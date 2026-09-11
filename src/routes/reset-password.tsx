@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useLanguage } from "@/providers/language-provider";
 
 export const Route = createFileRoute("/reset-password")({
   ssr: false,
@@ -17,6 +18,7 @@ export const Route = createFileRoute("/reset-password")({
 });
 
 function ResetPasswordPage() {
+  const { t } = useLanguage();
   const { updatePassword, recoverySession, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [password, setPassword] = useState("");
@@ -34,20 +36,20 @@ function ResetPasswordPage() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (password !== confirm) {
-      toast.error("Passwords don't match");
+      toast.error(t("auth.passwordMismatch"));
       return;
     }
     if (password.length < 6) {
-      toast.error("Password must be at least 6 characters");
+      toast.error(t("auth.passwordLength"));
       return;
     }
     setLoading(true);
     try {
       await updatePassword(password);
-      toast.success("Password updated");
+      toast.success(t("auth.passwordUpdated"));
       navigate({ to: "/dashboard", replace: true });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Something went wrong");
+      toast.error(t("common.error"));
     } finally {
       setLoading(false);
     }
@@ -57,16 +59,14 @@ function ResetPasswordPage() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background px-6">
         <div className="max-w-sm text-center">
-          <h1 className="font-display text-3xl">Link expired</h1>
-          <p className="mt-3 text-sm text-muted-foreground">
-            This password reset link is invalid or has expired. Request a new one to continue.
-          </p>
+          <h1 className="font-display text-3xl">{t("auth.linkExpired")}</h1>
+          <p className="mt-3 text-sm text-muted-foreground">{t("auth.linkExpiredHelp")}</p>
           <Link
             to="/auth"
             search={{ mode: "forgot" }}
             className="mt-8 inline-flex items-center justify-center rounded-full bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition hover:opacity-90"
           >
-            Request new link
+            {t("auth.requestNewLink")}
           </Link>
         </div>
       </div>
@@ -80,13 +80,11 @@ function ResetPasswordPage() {
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-sm"
       >
-        <h1 className="font-display text-3xl">Set a new password</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Choose a new password for your KIVRYN account.
-        </p>
+        <h1 className="font-display text-3xl">{t("auth.newPasswordTitle")}</h1>
+        <p className="mt-2 text-sm text-muted-foreground">{t("auth.newPasswordHelp")}</p>
         <form className="mt-8 space-y-4" onSubmit={onSubmit}>
           <div className="space-y-1.5">
-            <Label htmlFor="password">New password</Label>
+            <Label htmlFor="password">{t("auth.newPassword")}</Label>
             <Input
               id="password"
               type="password"
@@ -99,7 +97,7 @@ function ResetPasswordPage() {
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="confirm">Confirm password</Label>
+            <Label htmlFor="confirm">{t("auth.confirmPassword")}</Label>
             <Input
               id="confirm"
               type="password"
@@ -117,7 +115,11 @@ function ResetPasswordPage() {
             disabled={loading || !ready}
             aria-busy={loading}
           >
-            {loading ? "Saving…" : ready ? "Update password" : "Verifying link…"}
+            {loading
+              ? t("common.saving")
+              : ready
+                ? t("auth.updatePassword")
+                : t("auth.verifyingLink")}
           </Button>
         </form>
       </motion.div>

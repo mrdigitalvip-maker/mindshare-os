@@ -5,8 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useAuth } from "@/lib/auth-context";
 import { NotificationService, workspaceQueryKeys } from "@/services";
+import { useLanguage } from "@/providers/language-provider";
 
 export function NotificationCenter() {
+  const { t, resolvedLocale } = useLanguage();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const key = workspaceQueryKeys.notifications(user?.id);
@@ -24,19 +26,19 @@ export function NotificationCenter() {
   const mark = useMutation({
     mutationFn: (id: string) => NotificationService.markRead(id),
     onSuccess: refresh,
-    onError: () => toast.error("Notification could not be updated"),
+    onError: () => toast.error(t("notifications.updateError")),
     retry: false,
   });
   const markAll = useMutation({
     mutationFn: () => NotificationService.markAllRead(),
     onSuccess: refresh,
-    onError: () => toast.error("Notifications could not be updated"),
+    onError: () => toast.error(t("notifications.updateAllError")),
     retry: false,
   });
   const remove = useMutation({
     mutationFn: (id: string) => NotificationService.remove(id),
     onSuccess: refresh,
-    onError: () => toast.error("Notification could not be deleted"),
+    onError: () => toast.error(t("notifications.deleteError")),
     retry: false,
   });
   return (
@@ -46,7 +48,7 @@ export function NotificationCenter() {
           variant="ghost"
           size="icon"
           className="relative rounded-full"
-          aria-label={`${unread} unread notifications`}
+          aria-label={t("notifications.unreadLabel", { count: unread })}
         >
           <Bell className="h-4 w-4" />
           {unread > 0 && (
@@ -59,8 +61,10 @@ export function NotificationCenter() {
       <PopoverContent align="end" className="w-[min(24rem,calc(100vw-2rem))] p-0">
         <div className="flex items-center justify-between border-b border-border p-3">
           <div>
-            <p className="font-medium">Notifications</p>
-            <p className="text-xs text-muted-foreground">{unread} unread</p>
+            <p className="font-medium">{t("notifications.title")}</p>
+            <p className="text-xs text-muted-foreground">
+              {t("notifications.unread", { count: unread })}
+            </p>
           </div>
           <Button
             variant="ghost"
@@ -68,7 +72,7 @@ export function NotificationCenter() {
             onClick={() => markAll.mutate()}
             disabled={!unread || markAll.isPending}
           >
-            <CheckCheck className="mr-1 h-4 w-4" /> Mark all read
+            <CheckCheck className="mr-1 h-4 w-4" /> {t("notifications.markAll")}
           </Button>
         </div>
         <div className="max-h-96 overflow-y-auto">
@@ -78,12 +82,12 @@ export function NotificationCenter() {
             </div>
           ) : query.isError ? (
             <div className="p-6 text-center text-sm text-destructive">
-              Notifications could not be loaded.
+              {t("notifications.loadError")}
             </div>
           ) : !query.data?.length ? (
             <div className="p-8 text-center">
               <Bell className="mx-auto h-6 w-6 text-muted-foreground" />
-              <p className="mt-2 text-sm text-muted-foreground">You're all caught up.</p>
+              <p className="mt-2 text-sm text-muted-foreground">{t("notifications.empty")}</p>
             </div>
           ) : (
             query.data.map((item) => (
@@ -102,7 +106,7 @@ export function NotificationCenter() {
                     </p>
                   )}
                   <p className="mt-1 text-[10px] text-muted-foreground">
-                    {new Intl.DateTimeFormat(undefined, {
+                    {new Intl.DateTimeFormat(resolvedLocale, {
                       dateStyle: "medium",
                       timeStyle: "short",
                     }).format(new Date(item.createdAt))}
@@ -113,7 +117,7 @@ export function NotificationCenter() {
                   size="icon"
                   className="h-8 w-8 opacity-0 group-hover:opacity-100"
                   onClick={() => remove.mutate(item.id)}
-                  aria-label="Delete notification"
+                  aria-label={t("notifications.deleteLabel")}
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>

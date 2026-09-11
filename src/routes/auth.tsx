@@ -18,11 +18,7 @@ const searchSchema = z.object({
 export const Route = createFileRoute("/auth")({
   validateSearch: searchSchema,
   head: () => ({
-    meta: [
-      { title: "Sign in — KIVRYN" },
-      { name: "description", content: "Access your KIVRYN workspace." },
-      { name: "robots", content: "noindex" },
-    ],
+    meta: [{ title: "KIVRYN" }, { name: "robots", content: "noindex" }],
   }),
   component: AuthPage,
 });
@@ -67,7 +63,7 @@ function AuthPage() {
         if (needsEmailConfirmation) {
           setSent("signup");
         } else {
-          toast.success("Welcome to KIVRYN");
+          toast.success(t("auth.welcomeKivryn"));
           navigate({ to: "/onboarding" });
         }
       } else if (mode === "forgot") {
@@ -75,11 +71,11 @@ function AuthPage() {
         setSent("forgot");
       } else {
         await signIn(email, password);
-        toast.success("Welcome back");
+        toast.success(t("auth.welcome"));
         navigate({ to: "/dashboard" });
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Something went wrong");
+      toast.error(t("common.error"));
     } finally {
       submitLock.current = false;
       setLoading(false);
@@ -101,9 +97,9 @@ function AuthPage() {
     try {
       await resendConfirmation(email);
       setResendCooldown(60);
-      toast.success("Confirmation request accepted. Check your inbox and spam folder.");
+      toast.success(t("auth.resendAccepted"));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Couldn't request another email");
+      toast.error(t("auth.resendError"));
     } finally {
       resendLock.current = false;
     }
@@ -115,18 +111,23 @@ function AuthPage() {
       await signInWithGoogle();
       // Browser redirects to Google; component unmounts, no need to reset loading.
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Couldn't start Google sign-in");
+      toast.error(t("auth.googleError"));
       setGoogleLoading(false);
     }
   }
 
   const title =
     mode === "signup"
-      ? "Create your KIVRYN"
+      ? t("auth.createKivryn")
       : mode === "forgot"
-        ? "Reset your password"
-        : "Welcome back";
-  const cta = mode === "signup" ? "Create account" : mode === "forgot" ? "Send email" : "Sign in";
+        ? t("auth.resetTitle")
+        : t("auth.welcome");
+  const cta =
+    mode === "signup"
+      ? t("auth.signUp")
+      : mode === "forgot"
+        ? t("auth.sendEmail")
+        : t("auth.signIn");
 
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
@@ -163,11 +164,9 @@ function AuthPage() {
 
           {sent ? (
             <div role="status" aria-live="polite">
-              <h1 className="font-display text-3xl">Check your email</h1>
+              <h1 className="font-display text-3xl">{t("auth.checkEmail")}</h1>
               <p className="mt-3 text-sm text-muted-foreground">
-                {sent === "signup"
-                  ? `Your confirmation request was accepted for ${email}. If the message arrives, click its link to activate your account.`
-                  : "If an account exists for this email, its recovery request was accepted. Check your inbox and spam folder."}
+                {sent === "signup" ? t("auth.signupSent", { email }) : t("auth.recoverySent")}
               </p>
               {sent === "signup" ? (
                 <Button
@@ -178,8 +177,8 @@ function AuthPage() {
                   onClick={() => void onResendConfirmation()}
                 >
                   {resendCooldown > 0
-                    ? `Request again in ${resendCooldown}s`
-                    : "Request another confirmation email"}
+                    ? t("auth.resendIn", { seconds: resendCooldown })
+                    : t("auth.resend")}
                 </Button>
               ) : null}
               <button
@@ -189,7 +188,7 @@ function AuthPage() {
                 }}
                 className="mt-8 inline-flex items-center justify-center rounded-full bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition hover:opacity-90"
               >
-                Back to sign in
+                {t("auth.backToSignIn")}
               </button>
             </div>
           ) : (
@@ -197,16 +196,16 @@ function AuthPage() {
               <h1 className="font-display text-3xl">{title}</h1>
               <p className="mt-2 text-sm text-muted-foreground">
                 {mode === "signup"
-                  ? "Start free. Upgrade whenever you're ready."
+                  ? t("auth.signupHelp")
                   : mode === "forgot"
-                    ? "We'll email you a reset link."
-                    : "Sign in to continue to your workspace."}
+                    ? t("auth.forgotHelp")
+                    : t("auth.signInHelp")}
               </p>
 
               <form className="mt-8 space-y-4" onSubmit={onSubmit}>
                 {mode === "signup" && (
                   <div className="space-y-1.5">
-                    <Label htmlFor="name">Name</Label>
+                    <Label htmlFor="name">{t("auth.name")}</Label>
                     <Input
                       id="name"
                       value={name}
@@ -218,7 +217,7 @@ function AuthPage() {
                   </div>
                 )}
                 <div className="space-y-1.5">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email">{t("auth.email")}</Label>
                   <Input
                     id="email"
                     type="email"
@@ -232,14 +231,14 @@ function AuthPage() {
                 {mode !== "forgot" && (
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <Label htmlFor="password">Password</Label>
+                      <Label htmlFor="password">{t("auth.password")}</Label>
                       {mode === "signin" && (
                         <Link
                           to="/auth"
                           search={{ mode: "forgot" }}
                           className="text-xs text-muted-foreground hover:text-foreground"
                         >
-                          Forgot?
+                          {t("auth.forgotShort")}
                         </Link>
                       )}
                     </div>
@@ -261,7 +260,7 @@ function AuthPage() {
                   disabled={loading}
                   aria-busy={loading}
                 >
-                  {loading ? "Please wait…" : cta}
+                  {loading ? t("auth.wait") : cta}
                 </Button>
               </form>
 
@@ -269,7 +268,7 @@ function AuthPage() {
                 <>
                   <div className="my-6 flex items-center gap-3 text-xs text-muted-foreground">
                     <div className="h-px flex-1 bg-border" />
-                    <span>or continue with</span>
+                    <span>{t("auth.or")}</span>
                     <div className="h-px flex-1 bg-border" />
                   </div>
                   <Button
@@ -280,7 +279,7 @@ function AuthPage() {
                     disabled={googleLoading}
                     aria-busy={googleLoading}
                   >
-                    {googleLoading ? "Redirecting…" : "Continue with Google"}
+                    {googleLoading ? t("auth.redirecting") : t("auth.google")}
                   </Button>
                 </>
               )}
@@ -288,24 +287,24 @@ function AuthPage() {
               <p className="mt-8 text-center text-sm text-muted-foreground">
                 {mode === "signup" ? (
                   <>
-                    Already have an account?{" "}
+                    {t("auth.haveAccount")}{" "}
                     <Link
                       to="/auth"
                       search={{ mode: "signin" }}
                       className="text-foreground hover:underline"
                     >
-                      Sign in
+                      {t("auth.signIn")}
                     </Link>
                   </>
                 ) : (
                   <>
-                    New to KIVRYN?{" "}
+                    {t("auth.newToKivryn")}{" "}
                     <Link
                       to="/auth"
                       search={{ mode: "signup" }}
                       className="text-foreground hover:underline"
                     >
-                      Create an account
+                      {t("auth.createAccount")}
                     </Link>
                   </>
                 )}
@@ -313,23 +312,23 @@ function AuthPage() {
 
               {mode !== "forgot" && (
                 <p className="mt-5 text-center text-xs leading-5 text-muted-foreground">
-                  Ao continuar, você concorda com os{" "}
+                  {t("auth.termsPrefix")}{" "}
                   <a
                     href={LEGAL_URLS.termsOfService}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex min-h-8 items-center text-foreground underline underline-offset-4 hover:text-gold focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
-                    Termos de Serviço
+                    {t("auth.terms")}
                   </a>{" "}
-                  e reconhece a{" "}
+                  {t("auth.privacyJoin")}{" "}
                   <a
                     href={LEGAL_URLS.privacyPolicy}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex min-h-8 items-center text-foreground underline underline-offset-4 hover:text-gold focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
-                    Política de Privacidade
+                    {t("auth.privacy")}
                   </a>
                   .
                 </p>
