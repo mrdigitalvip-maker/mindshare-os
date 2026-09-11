@@ -5,6 +5,7 @@ import { router } from "expo-router";
 import { NativeFormModal } from "@/components/native-form-modal";
 import { AppScreen } from "@/components/app-screen";
 import { StandardHeader } from "@/components/product-ui";
+import { V2Progress } from "@/components/v2/premium-ui";
 import { EmptyState, ErrorState, LoadingState } from "@/components/screen-state";
 import {
   useOpenProject,
@@ -87,16 +88,11 @@ function ProjectCard({
         </View>
       ) : null}
       {progress ? (
-        <View
-          accessible
-          accessibilityRole="progressbar"
-          accessibilityLabel={`${progress.completed} de ${progress.total} tarefas concluídas`}
-          accessibilityValue={{ min: 0, max: 100, now: Math.round(progress.ratio * 100) }}
-          style={styles.progressBlock}
-        >
-          <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: `${progress.ratio * 100}%` }]} />
-          </View>
+        <View style={styles.progressBlock}>
+          <V2Progress
+            value={Math.round(progress.ratio * 100)}
+            label={`${progress.completed} de ${progress.total} tarefas concluídas`}
+          />
           <View style={styles.metaRow}>
             <Text style={styles.meta}>
               {progress.completed} de {progress.total} concluídas
@@ -349,17 +345,6 @@ const styles = StyleSheet.create({
   },
   copy: { ...typography.body, fontSize: 14, lineHeight: 20, color: colors.textMuted },
   progressBlock: { gap: spacing.sm },
-  progressTrack: {
-    height: 3,
-    overflow: "hidden",
-    borderRadius: radius.pill,
-    backgroundColor: colors.surfaceRaised,
-  },
-  progressFill: {
-    height: "100%",
-    borderRadius: radius.pill,
-    backgroundColor: colors.primaryBright,
-  },
   metaRow: {
     flexDirection: "row",
     flexWrap: "wrap",

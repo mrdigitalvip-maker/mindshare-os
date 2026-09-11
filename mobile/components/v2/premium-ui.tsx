@@ -8,8 +8,21 @@ export function PremiumSurface({
   children,
   illuminated = false,
   style,
-}: PropsWithChildren<{ illuminated?: boolean; style?: StyleProp<ViewStyle> }>) {
-  return <View style={[styles.surface, illuminated && styles.illuminated, style]}>{children}</View>;
+  accessibilityLabel,
+}: PropsWithChildren<{
+  illuminated?: boolean;
+  style?: StyleProp<ViewStyle>;
+  accessibilityLabel?: string;
+}>) {
+  return (
+    <View
+      accessible={Boolean(accessibilityLabel)}
+      accessibilityLabel={accessibilityLabel}
+      style={[styles.surface, illuminated && styles.illuminated, style]}
+    >
+      {children}
+    </View>
+  );
 }
 
 export function V2SectionHeader({

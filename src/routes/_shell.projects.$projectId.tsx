@@ -179,7 +179,7 @@ function ProjectWorkspace() {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      <header className="border-b border-border pb-6">
+      <header className="v2-workspace-header">
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <span className="rounded-full border border-border px-2 py-1">
             {statusLabel(p.status)}
@@ -212,19 +212,22 @@ function ProjectWorkspace() {
                 ? `${done.length} de ${count} tarefas concluídas`
                 : "Projeto ainda não planejado"}
             </span>
-            {count > 0 && <span className="text-gold">{p.progress}%</span>}
+            {count > 0 && <span className="text-intelligence">{p.progress}%</span>}
           </div>
           <div className="mt-2 h-2 overflow-hidden rounded-full bg-surface-elevated">
             <div
-              className="h-full rounded-full bg-gold transition-[width]"
+              className="h-full rounded-full bg-intelligence transition-[width]"
               style={{ width: count ? `${p.progress}%` : "0%" }}
             />
           </div>
         </div>
       </header>
       {p.status === "completed" && (
-        <section className="mt-6 rounded-2xl border border-gold/30 bg-gold/10 p-5" role="status">
-          <p className="text-sm font-medium text-gold">Projeto concluído</p>
+        <section
+          className="mt-6 rounded-2xl border border-intelligence/30 bg-intelligence/10 p-5"
+          role="status"
+        >
+          <p className="text-sm font-medium text-intelligence">Projeto concluído</p>
           <h2 className="mt-1 break-words font-display text-2xl">{p.title}</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             {done.length} de {count} tarefas concluídas
@@ -236,14 +239,14 @@ function ProjectWorkspace() {
       ) : (
         <div className="mt-7 grid min-w-0 gap-8 lg:grid-cols-[minmax(0,1.5fr)_minmax(18rem,.7fr)]">
           <main className="min-w-0 space-y-8">
-            <section className="overflow-hidden rounded-2xl border border-gold/25 bg-gradient-to-br from-gold/10 via-surface to-surface">
-              <div className="border-b border-gold/15 px-5 py-3 text-xs font-medium tracking-wide text-gold">
+            <section className="overflow-hidden rounded-2xl border border-intelligence/25 bg-gradient-to-br from-intelligence/10 via-surface to-surface">
+              <div className="border-b border-intelligence/15 px-5 py-3 text-xs font-medium tracking-wide text-intelligence">
                 PRÓXIMA AÇÃO
               </div>
               {next ? (
                 <div className="flex items-start gap-4 p-5">
                   <button
-                    className="mt-0.5 grid h-11 w-11 shrink-0 place-items-center rounded-full border border-gold/40 text-gold"
+                    className="mt-0.5 grid h-11 w-11 shrink-0 place-items-center rounded-full border border-intelligence/40 text-intelligence"
                     onClick={() => toggle.mutate(next.id)}
                     disabled={toggle.isPending}
                     aria-label={`Concluir ${next.title}`}
@@ -333,7 +336,7 @@ function ProjectWorkspace() {
             />
             <section className="rounded-2xl border border-border p-5">
               <div className="flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-gold" />
+                <TrendingUp className="h-4 w-4 text-intelligence" />
                 <h2 className="font-display text-lg">Pulso do projeto</h2>
               </div>
               <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
@@ -366,8 +369,8 @@ function ProjectWorkspace() {
               </dl>
             </section>
             {count > 0 && done.length === count && p.status !== "completed" && (
-              <section className="rounded-2xl border border-gold/30 p-5">
-                <Target className="h-5 w-5 text-gold" />
+              <section className="rounded-2xl border border-intelligence/30 p-5">
+                <Target className="h-5 w-5 text-intelligence" />
                 <h2 className="mt-3 font-display text-lg">Todas as ações foram concluídas</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
                   Revise o resultado e encerre o projeto quando estiver pronto.
@@ -536,7 +539,7 @@ function TaskGroup({
               aria-label={t.status === "done" ? `Reabrir ${t.title}` : `Concluir ${t.title}`}
             >
               {t.status === "done" ? (
-                <span className="grid h-6 w-6 place-items-center rounded-full bg-gold text-background">
+                <span className="grid h-6 w-6 place-items-center rounded-full bg-intelligence text-background">
                   <Check className="h-4 w-4" />
                 </span>
               ) : (
@@ -656,9 +659,9 @@ function Copilot({
           ? "Suas tarefas abertas ainda não possuem prazos."
           : `Seu próximo passo atual é ${next?.title ?? "revisar o plano"}.`;
   return (
-    <section className="rounded-2xl border border-gold/25 p-5" aria-busy={ask.isPending}>
+    <section className="rounded-2xl border border-intelligence/25 p-5" aria-busy={ask.isPending}>
       <div className="flex items-center gap-2">
-        <Sparkles className="h-4 w-4 text-gold" />
+        <Sparkles className="h-4 w-4 text-intelligence" />
         <h2 className="font-display text-lg">KIVRYN Copilot</h2>
       </div>
       <p className="mt-2 text-sm leading-6 text-muted-foreground">{deterministic}</p>
@@ -1022,7 +1025,7 @@ function PlanDialog({
       <DialogContent className="max-h-[92dvh] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="text-gold" />
+            <Sparkles className="text-intelligence" />
             Planejar com KIVRYN
           </DialogTitle>
         </DialogHeader>

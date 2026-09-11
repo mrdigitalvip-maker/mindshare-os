@@ -14,6 +14,7 @@ import {
 import { AppScreen } from "@/components/app-screen";
 import { NativeFormModal } from "@/components/native-form-modal";
 import { StandardHeader } from "@/components/product-ui";
+import { PremiumSurface } from "@/components/v2/premium-ui";
 import { EmptyState, ErrorState, LoadingState } from "@/components/screen-state";
 import { useProjects, useTasks, useWorkspaceMutations } from "@/hooks/use-workspaces";
 import {
@@ -259,16 +260,16 @@ export default function Productivity() {
                   ? `Atualizado às ${new Date(tasksQuery.dataUpdatedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`
                   : "Atualização pendente"}
             </Text>
-            <View
+            <PremiumSurface
               accessibilityLabel={`${counts.overdue} atrasadas, ${counts.today} para hoje, ${counts.open} em aberto`}
               style={styles.summary}
             >
               <SummaryMetric value={counts.overdue} label="atrasadas" tone="danger" />
               <SummaryMetric value={counts.today} label="para hoje" />
               <SummaryMetric value={counts.open} label="em aberto" />
-            </View>
+            </PremiumSurface>
             {focus ? (
-              <View style={styles.next}>
+              <PremiumSurface illuminated style={styles.next}>
                 <Text style={styles.eyebrow}>
                   <LocalizedCopy copyKey="legacy.e3d1ba73d33d" />
                 </Text>
@@ -310,7 +311,7 @@ export default function Productivity() {
                     </Text>
                   </Pressable>
                 </View>
-              </View>
+              </PremiumSurface>
             ) : null}
             {attention.length ? (
               <View style={styles.attention}>

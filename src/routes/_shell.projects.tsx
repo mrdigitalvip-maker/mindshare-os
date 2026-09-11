@@ -49,7 +49,7 @@ function Projects() {
 
   return (
     <PageShell>
-      <header className="flex items-end justify-between gap-4 border-b border-border pb-5">
+      <header className="v2-workspace-header flex items-end justify-between gap-4">
         <div className="min-w-0">
           <h1 className="font-display text-3xl md:text-4xl">{t("page.projects.title")}</h1>
           <p className="mt-1 text-sm text-muted-foreground">{t("page.projects.description")}</p>
@@ -70,8 +70,8 @@ function Projects() {
         />
       ) : !(Array.isArray(projects.data) && projects.data.length) ? (
         <section className="mx-auto flex min-h-[58dvh] max-w-lg flex-col justify-center py-12 text-center">
-          <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl border border-gold/20 bg-gold/10">
-            <FolderKanban className="h-8 w-8 text-gold" />
+          <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl border border-intelligence/20 bg-intelligence/10">
+            <FolderKanban className="h-8 w-8 text-intelligence" />
           </div>
           <h2 className="mt-6 font-display text-2xl">Transforme um objetivo em próximas ações</h2>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
@@ -85,7 +85,7 @@ function Projects() {
         <div className="mt-7 space-y-9">
           <section>
             <div className="mb-4">
-              <p className="text-xs font-medium text-gold">CONTINUAR</p>
+              <p className="text-xs font-medium text-intelligence">CONTINUAR</p>
               <h2 className="mt-1 font-display text-2xl">Trabalho ativo</h2>
             </div>
             {active.length ? (
@@ -163,7 +163,7 @@ function ProjectRow({
     <Link
       to="/projects/$projectId"
       params={{ projectId: project.id }}
-      className={`${featured ? "rounded-2xl border border-border bg-gradient-to-br from-surface-elevated to-surface p-5" : "flex p-4"} group min-w-0 items-center gap-4 transition hover:border-gold/40`}
+      className={`${featured ? "v2-surface rounded-2xl p-5" : "flex p-4"} v2-interactive group min-w-0 items-center gap-4`}
     >
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
@@ -195,7 +195,7 @@ function ProjectRow({
           <>
             <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-background">
               <div
-                className="h-full rounded-full bg-gold"
+                className="h-full rounded-full bg-intelligence"
                 style={{ width: `${project.progress}%` }}
               />
             </div>
@@ -206,7 +206,7 @@ function ProjectRow({
           </>
         )}
       </div>
-      <ArrowRight className="h-5 w-5 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-gold" />
+      <ArrowRight className="h-5 w-5 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-intelligence" />
     </Link>
   );
 }
@@ -286,7 +286,7 @@ function CreateProject({
         className="flex h-dvh w-full max-w-xl flex-col overflow-hidden p-0 sm:w-[min(100%,36rem)]"
       >
         <SheetHeader className="border-b px-5 pb-5 pt-[calc(1.25rem+env(safe-area-inset-top))] text-left">
-          <div className="flex items-center gap-2 text-sm text-gold">
+          <div className="flex items-center gap-2 text-sm text-intelligence">
             <Sparkles className="h-4 w-4" /> Defina o resultado
           </div>
           <SheetTitle className="font-display text-2xl">Novo projeto</SheetTitle>
