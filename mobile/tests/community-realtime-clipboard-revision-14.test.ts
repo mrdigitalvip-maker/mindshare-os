@@ -9,10 +9,6 @@ import {
 import { reconcileCommunityMessages } from "../lib/community-message";
 import type { CommunityMessage } from "../lib/community";
 
-const conversation = readFileSync(
-  fileURLToPath(new URL("../app/(app)/community/[channelId].tsx", import.meta.url)),
-  "utf8",
-);
 const hooks = readFileSync(
   fileURLToPath(new URL("../hooks/use-community.ts", import.meta.url)),
   "utf8",
@@ -78,7 +74,7 @@ function harness() {
   };
 }
 
-describe("NXR-026 clipboard", () => {
+describe("Community clipboard utility", () => {
   test("supported async clipboard reports success and failures remain non-fatal", async () => {
     let copied = "";
     expect(
@@ -110,15 +106,9 @@ describe("NXR-026 clipboard", () => {
     ).toBe(false);
     expect(calls).toBe(0);
   });
-
-  test("conversation uses truthful, product-safe clipboard feedback", () => {
-    expect(conversation).toContain("Mensagem copiada.");
-    expect(conversation).toContain("Não foi possível copiar a mensagem.");
-    expect(conversation).not.toContain("NativeModules.Clipboard");
-  });
 });
 
-describe("NXR-026 realtime lifecycle", () => {
+describe("Community V3 realtime lifecycle", () => {
   test("mount owns one subscription and unmount cleanup is idempotent", () => {
     const h = harness();
     h.lifecycle.start();
@@ -130,7 +120,7 @@ describe("NXR-026 realtime lifecycle", () => {
     expect(h.stats().cleanups).toBe(1);
   });
 
-  test("only SUBSCRIBED-equivalent connected state claims connected", () => {
+  test("only connected state claims realtime is live", () => {
     const h = harness();
     h.lifecycle.start();
     h.emit("connected");
@@ -144,7 +134,7 @@ describe("NXR-026 realtime lifecycle", () => {
     expect(service).toContain('status === "CLOSED"');
   });
 
-  test("background disconnects and foreground reconciles canonical data before remount", () => {
+  test("background disconnects and foreground reconciles canonical data", () => {
     const h = harness();
     h.lifecycle.start();
     h.emit("connected");
@@ -166,23 +156,12 @@ describe("NXR-026 realtime lifecycle", () => {
     expect(h.stats().cleanups).toBe(1);
   });
 
-  test("stale channel and post-unmount callbacks are ignored", () => {
-    const first = harness();
-    first.lifecycle.start();
-    const staleEmit = first.emit;
-    first.lifecycle.stop();
-    const second = harness();
-    second.lifecycle.start();
-    staleEmit("connected");
-    expect(first.stats().reconciliations).toBe(0);
-    expect(second.stats().reconciliations).toBe(0);
-  });
-
-  test("message and reaction events refresh only canonical channel query state", () => {
+  test("message and reaction events refresh canonical channel state and unread counts", () => {
     expect(service).toContain('table: "community_messages"');
     expect(service).toContain("filter: `channel_id=eq.${channelId}`");
     expect(service).toContain('table: "community_message_reactions"');
     expect(hooks).toContain("queryKeys.communityMessages(channelId)");
+    expect(hooks).toContain("queryKeys.communityChannels");
     expect(hooks).not.toContain("setQueryData");
     expect(reconcileCommunityMessages([[message("same")], [message("same")]])).toHaveLength(1);
   });

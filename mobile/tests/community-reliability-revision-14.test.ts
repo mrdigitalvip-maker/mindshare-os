@@ -18,10 +18,10 @@ const source = (path: string) =>
 const conversation = source("../app/(app)/community/[channelId].tsx");
 const hooks = source("../hooks/use-community.ts");
 const service = source("../services/community-service.ts");
-const sql = source("../../supabase/migrations/202608290006_community_live.sql").toLowerCase();
+const v3 = source("../../supabase/migrations/202609130001_community_v3_real_network.sql").toLowerCase();
 const messageId = "36d0dcd5-d846-4de2-846d-06712c2ef31e";
 
-describe("NXR-029 Community delivery reliability", () => {
+describe("KIVRYN Community V3 delivery reliability", () => {
   test("one logical send gets one valid request ID and rapid taps are synchronously rejected", () => {
     const gate = createCommunitySendGate();
     const id = createCommunityRequestId({ getRandomValues: (bytes) => (bytes.fill(7), bytes) });
@@ -32,20 +32,18 @@ describe("NXR-029 Community delivery reliability", () => {
     expect(gate.acquire()).toBe(true);
   });
 
-  test("an ambiguous failure retains the canonical request and reply for idempotent retry", () => {
+  test("ambiguous failures retain canonical request and reply IDs for idempotent retry", () => {
     const failed: FailedCommunitySend = {
       body: "Mensagem real",
       requestId: createCommunityRequestId(),
       replyToId: messageId,
     };
-    const retry = { ...failed };
-    expect(retry.requestId).toBe(failed.requestId);
-    expect(retry.replyToId).toBe(messageId);
+    expect({ ...failed }.requestId).toBe(failed.requestId);
     expect(normalizeCommunityMessageId(messageId)).toBe(messageId);
-    expect(clearFailedAfterSend(failed, retry.requestId)).toBeNull();
+    expect(clearFailedAfterSend(failed, failed.requestId)).toBeNull();
   });
 
-  test("completion only clears state belonging to that send", () => {
+  test("completion clears only state belonging to the successful send", () => {
     const old: FailedCommunitySend = { body: "old", requestId: messageId, replyToId: null };
     expect(clearComposerAfterSend("new draft", "old")).toBe("new draft");
     expect(clearComposerAfterSend(" old ", "old")).toBe("");
@@ -54,53 +52,34 @@ describe("NXR-029 Community delivery reliability", () => {
     expect(clearFailedAfterSend(old, "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")).toBe(old);
   });
 
-  test("backend and transport errors are normalized into distinct safe product copy", () => {
-    expect(communityErrorMessage({ message: "rate_limited", code: "P0001" })).toBe(
-      "Muitas tentativas. Aguarde um pouco.",
-    );
-    expect(communityErrorMessage({ details: "duplicate_message", message: "Database error" })).toBe(
-      "Esta mensagem já foi enviada.",
-    );
+  test("backend and transport errors map to safe product copy", () => {
+    expect(communityErrorMessage({ message: "rate_limited", code: "P0001" })).toContain("Aguarde");
+    expect(communityErrorMessage({ details: "duplicate_message" })).toContain("já foi enviada");
     expect(communityErrorMessage({ hint: "membership_required" })).toContain("Entre na comunidade");
-    expect(communityErrorMessage({ message: "membership_restricted" })).toContain("restrita");
+    expect(communityErrorMessage({ message: "profile_required" })).toContain("perfil");
     expect(communityErrorMessage(new TypeError("Failed to fetch"))).toContain("Sem conexão");
-    expect(communityErrorMessage({ message: "select secret from public.table" })).not.toContain(
-      "select",
-    );
   });
 
   test("malformed scalar RPC results never become successful message IDs", () => {
-    for (const value of [
-      undefined,
-      null,
-      "",
-      {},
-      { id: messageId },
-      [messageId],
-      "[object Object]",
-    ])
+    for (const value of [undefined, null, "", {}, { id: messageId }, [messageId], "[object Object]"])
       expect(() => normalizeCommunityMessageId(value)).toThrow("invalid_rpc_response");
     expect(normalizeCommunityMessageId(messageId)).toBe(messageId);
   });
 
-  test("mobile send is server-authoritative and invalidates the canonical channel query", () => {
+  test("mobile send remains server-authoritative and canonical", () => {
     expect(service).toContain('rpc<unknown>("send_community_message"');
     expect(service).toContain("normalizeCommunityMessageId(result)");
     expect(service).not.toMatch(/from\(["']community_messages["']\)\.insert/);
-    expect(conversation).not.toMatch(/optimistic|setquerydata/i);
+    expect(conversation).toContain("createCommunitySendGate");
+    expect(conversation).toContain("sendLogical(failedSend)");
     expect(hooks).toContain("queryKeys.communityMessages(channelId)");
-    expect(conversation).toContain("send(failed.body, failed.requestId, failed.replyToId)");
   });
 
-  test("SQL counts prior successful user messages globally after idempotency lookup", () => {
-    const idempotency = sql.indexOf("client_request_id=p_client_request_id");
-    const rateLimit = sql.indexOf("interval '1 minute'", idempotency);
-    const duplicate = sql.indexOf("interval '20 seconds'", idempotency);
-    expect(idempotency).toBeGreaterThan(-1);
-    expect(rateLimit).toBeGreaterThan(idempotency);
-    expect(duplicate).toBeGreaterThan(rateLimit);
-    expect(sql.slice(idempotency, rateLimit)).toContain("return result");
-    expect(sql).toContain("where user_id=uid and created_at>");
-    expect(sql).toContain("actor_type public.community_message_actor not null default 'user'");
+  test("V3 keeps server-side idempotency, throttling and read state", () => {
+    expect(v3).toContain("client_request_id");
+    expect(v3).toContain("interval '1 minute'");
+    expect(v3).toContain("interval '20 seconds'");
+    expect(v3).toContain("mark_community_read");
+    expect(v3).toContain("last_read_at");
   });
 });

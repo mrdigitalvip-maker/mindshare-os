@@ -1,6 +1,16 @@
 import type { CommunityMessage } from "@/lib/community";
 
 export const COMMUNITY_USERNAME = /^[a-z][a-z0-9_]{2,29}$/;
+const COMMUNITY_RESERVED_USERNAMES = new Set([
+  "admin",
+  "administrator",
+  "kivryn",
+  "nexora",
+  "official",
+  "moderator",
+  "support",
+  "system",
+]);
 
 export const normalizeCommunityUsername = (value: string) =>
   value.trim().replace(/^@+/, "").toLocaleLowerCase("pt-BR");
@@ -21,12 +31,15 @@ export function normalizeCommunityProfile<
 }
 
 export function profileValidation(displayName: string, username: string, isVisible: boolean) {
+  const normalized = normalizeCommunityUsername(username);
   if (displayName.trim().length > 60) return "O nome público deve ter até 60 caracteres.";
-  if (username && !COMMUNITY_USERNAME.test(username))
+  if (normalized && !COMMUNITY_USERNAME.test(normalized))
     return "Use 3 a 30 caracteres: comece com letra e use apenas letras, números ou _.";
+  if (COMMUNITY_RESERVED_USERNAMES.has(normalized))
+    return "Este @username é reservado para a KIVRYN e moderação.";
   if (isVisible && !displayName.trim())
     return "Informe um nome público para aparecer na Community.";
-  if (isVisible && !COMMUNITY_USERNAME.test(username)) return "Informe um @username válido.";
+  if (isVisible && !COMMUNITY_USERNAME.test(normalized)) return "Informe um @username válido.";
   return null;
 }
 

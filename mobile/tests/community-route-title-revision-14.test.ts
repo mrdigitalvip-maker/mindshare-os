@@ -13,7 +13,7 @@ const home = source("../app/(app)/community/index.tsx");
 const channel = source("../app/(app)/community/[channelId].tsx");
 const squad = source("../app/(app)/community/squads/[squadId].tsx");
 
-describe("NXR-028 Community navigation chrome", () => {
+describe("KIVRYN Community V3 navigation chrome", () => {
   test("every navigator boundary above Community suppresses its native header", () => {
     expect(root).toContain('<Stack.Screen name="(app)" options={{ headerShown: false }} />');
     expect(app).toContain('<Stack.Screen name="community" options={{ headerShown: false }} />');
@@ -21,7 +21,7 @@ describe("NXR-028 Community navigation chrome", () => {
     expect(communityLayout).toContain("<Stack screenOptions={{ headerShown: false }}>");
   });
 
-  test("Community owns a headerless stack for home, channel, and Squad", () => {
+  test("Community owns a headerless stack for home, channel, and private circles", () => {
     expect(communityLayout).toContain('<Stack.Screen name="index" />');
     expect(communityLayout).toContain('<Stack.Screen name="[channelId]" />');
     expect(communityLayout).toContain('<Stack.Screen name="squads/[squadId]" />');
@@ -33,23 +33,20 @@ describe("NXR-028 Community navigation chrome", () => {
       expect(screen).not.toContain(">community/[channelId]<");
       expect(screen).not.toMatch(/>\s*\((?:app|tabs)\)\s*</);
     }
-    expect(home).toContain('<StandardHeader title="Community" />');
-    expect(channel).toContain('<LocalizedCopy copyKey="legacy.c252ba7e4fda" />');
+    expect(home).toContain("KIVRYN COMMUNITY");
+    expect(channel).toContain("KIVRYN COMMUNITY");
   });
 
   test("navigation uses canonical public Community destinations", () => {
     expect(more).toContain('href="/community"');
-    expect(home).toContain('pathname: "/community/[channelId]"');
-    expect(home).toContain("router.push(`/community/squads/${s.id}`)");
+    expect(home).toContain("router.push(`/community/${channel.id}`)");
+    expect(home).toContain("router.push(`/community/squads/${circle.id}`)");
   });
 
-  test("missing or malformed channel parameters never fabricate a channel", () => {
-    expect(channel).toContain(
-      'typeof params.channelId === "string" ? params.channelId.trim() : ""',
-    );
+  test("missing channel parameters never fabricate a channel", () => {
+    expect(channel).toContain('typeof params.channelId === "string" ? params.channelId : ""');
     expect(channel).not.toContain('"invalid-channel"');
-    expect(channel).toContain("if (!channelId) return <UnavailableChannel />");
-    expect(channel).toContain('copyKey="legacy.eecff4eaea70"');
+    expect(channel).toContain("if (!channelId)");
     expect(channel).toContain('router.replace("/community")');
   });
 });

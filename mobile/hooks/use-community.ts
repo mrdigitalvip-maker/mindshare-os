@@ -6,6 +6,7 @@ import { queryKeys } from "@/lib/query-keys";
 import * as service from "@/services/community-service";
 import { createCommunityRealtimeLifecycle } from "@/lib/community-realtime";
 const useUserId = () => useAuth().session?.user.id ?? "";
+
 export function useCommunity() {
   const id = useUserId();
   return useQuery({
@@ -20,6 +21,17 @@ export function useOfficialChannels() {
     queryKey: queryKeys.communityChannels,
     queryFn: () => service.getOfficialChannels(id),
     enabled: Boolean(id),
+  });
+}
+export function useCommunityPublicProfile(senderPublicId: string | null) {
+  const id = useUserId();
+  return useQuery({
+    queryKey: senderPublicId
+      ? queryKeys.communityPublicProfile(senderPublicId)
+      : ["community", "public-profile", "none"],
+    queryFn: () => service.getPublicProfile(id, senderPublicId!),
+    enabled: Boolean(id && senderPublicId),
+    staleTime: 60_000,
   });
 }
 export function useOfficialChannelActions() {
@@ -42,6 +54,10 @@ export function useOfficialChannelActions() {
       }) => service.setNotificationMode(id, p.channel, p.mode),
       onSuccess: done,
     }),
+    markRead: useMutation({
+      mutationFn: (channel: string) => service.markChannelRead(id, channel),
+      onSuccess: done,
+    }),
   };
 }
 export function useCommunityMessages(channelId: string) {
@@ -58,8 +74,10 @@ export function useCommunityMessages(channelId: string) {
   });
   useEffect(() => {
     if (!id || !channelId) return;
-    const reconcile = () =>
+    const reconcile = () => {
       void client.invalidateQueries({ queryKey: queryKeys.communityMessages(channelId) });
+      void client.invalidateQueries({ queryKey: queryKeys.communityChannels });
+    };
     const lifecycle = createCommunityRealtimeLifecycle({
       subscribe: (onStatus) => service.subscribeToChannel(channelId, reconcile, onStatus),
       reconcile,
@@ -74,12 +92,21 @@ export function useCommunityMessages(channelId: string) {
       lifecycle.stop();
     };
   }, [channelId, client, id]);
+  useEffect(() => {
+    if (!id || !channelId || !query.data || AppState.currentState !== "active") return;
+    void service.markChannelRead(id, channelId).then(() =>
+      client.invalidateQueries({ queryKey: queryKeys.communityChannels }),
+    );
+  }, [channelId, client, id, query.data]);
   return { ...query, realtimeStatus };
 }
 export function useMessageActions(channelId: string) {
   const id = useUserId(),
     c = useQueryClient(),
-    done = () => c.invalidateQueries({ queryKey: queryKeys.communityMessages(channelId) });
+    done = () => {
+      void c.invalidateQueries({ queryKey: queryKeys.communityMessages(channelId) });
+      void c.invalidateQueries({ queryKey: queryKeys.communityChannels });
+    };
   return {
     send: useMutation({
       mutationFn: (p: { body: string; requestId: string; replyToId?: string | null }) =>
@@ -114,7 +141,10 @@ export function useSaveCommunityProfile() {
   return useMutation({
     mutationFn: (p: Parameters<typeof service.saveProfile>[1]) => service.saveProfile(id, p),
     onSuccess: async () => {
-      await invalidate(c);
+      await Promise.all([
+        invalidate(c),
+        c.invalidateQueries({ queryKey: queryKeys.communityChannels }),
+      ]);
       await c.refetchQueries({ queryKey: queryKeys.community });
     },
   });

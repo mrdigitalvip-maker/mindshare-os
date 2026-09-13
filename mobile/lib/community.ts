@@ -2,22 +2,28 @@ export type CommunityVisibility = "private" | "community";
 export type CommunityReaction = "support" | "celebrate" | "respect";
 export type ChatReaction = "clap" | "fire" | "strong" | "heart";
 export type NotificationMode = "highlights" | "all" | "muted";
+
 export type OfficialChannel = {
   id: string;
   slug: "nexora-community" | "nexora-community-plus";
   name: string;
+  description: string | null;
   premium: boolean;
   joined: boolean;
   eligible: boolean;
   membershipStatus: string | null;
   notificationMode: NotificationMode;
+  memberCount: number;
+  unreadCount: number;
   recentBody: string | null;
   recentAt: string | null;
 };
+
 export const hasActiveOfficialMembership = (channel: OfficialChannel) =>
   channel.joined &&
   channel.eligible &&
   (channel.membershipStatus === "active" || channel.membershipStatus === "muted");
+
 export type CommunityMessage = {
   id: string;
   clientRequestId: string | null;
@@ -44,6 +50,26 @@ export type CommunityProfile = {
   showStreak: boolean;
   showVerifiedActivity: boolean;
 };
+
+export type CommunityPublicProfile = {
+  senderPublicId: string;
+  displayName: string;
+  username: string;
+  avatarUrl: string | null;
+  bio: string | null;
+  showMomentum: boolean;
+  showStreak: boolean;
+  showVerifiedActivity: boolean;
+};
+
+export const isCommunityProfileReady = (profile: CommunityProfile | null | undefined) =>
+  Boolean(
+    profile &&
+      profile.visibility === "community" &&
+      profile.displayName?.trim() &&
+      profile.username?.trim(),
+  );
+
 export type SquadSummary = {
   id: string;
   name: string;
@@ -52,6 +78,7 @@ export type SquadSummary = {
   memberCount: number;
   role: "owner" | "member";
 };
+
 export type CommunityActivity = {
   id: string;
   actorUserId: string;
@@ -62,11 +89,13 @@ export type CommunityActivity = {
   reactions: Partial<Record<CommunityReaction, number>>;
   myReaction: CommunityReaction | null;
 };
+
 export type CommunityHome = {
   profile: CommunityProfile | null;
   squads: SquadSummary[];
   activity: CommunityActivity[];
 };
+
 export type SquadMember = {
   userId: string;
   role: "owner" | "member";
@@ -93,19 +122,20 @@ export const communityErrorMessage = (error: unknown) => {
     unauthenticated: "Entre novamente para continuar.",
     channel_not_found: "Esta comunidade não está disponível.",
     username_taken: "Este username já está em uso.",
+    profile_required: "Crie seu perfil da Comunidade antes de entrar e conversar.",
     profile_invalid: "Revise os dados do perfil e tente novamente.",
     rate_limited: "Muitas tentativas. Aguarde um pouco.",
-    squad_full: "Este Squad já está completo.",
-    squad_name_invalid: "Use de 2 a 60 caracteres no nome do Squad.",
-    already_member: "Você já participa deste Squad.",
+    squad_full: "Este Círculo já está completo.",
+    squad_name_invalid: "Use de 2 a 60 caracteres no nome do Círculo.",
+    already_member: "Você já participa deste Círculo.",
     invite_expired: "Este convite expirou ou foi revogado.",
     invite_invalid: "Código de convite inválido.",
     blocked: "Esta interação não está disponível.",
     forbidden: "Você não tem permissão para esta ação.",
     owner_cannot_leave:
-      "O responsável deve excluir o Squad; a propriedade não pode ficar sem dono.",
+      "O responsável deve excluir o Círculo; a propriedade não pode ficar sem dono.",
     activity_not_visible: "Esta atividade não está mais disponível.",
-    premium_required: "Community+ está disponível para assinantes Premium.",
+    premium_required: "KIVRYN Premium Lounge está disponível para assinantes Premium.",
     membership_required: "Entre na comunidade para participar.",
     membership_restricted: "Sua participação está restrita. Consulte a moderação.",
     membership_removed: "Sua participação nesta comunidade foi removida.",

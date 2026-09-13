@@ -2,6 +2,7 @@ import { supabase } from "@/lib/supabase";
 import type {
   CommunityHome,
   CommunityProfile,
+  CommunityPublicProfile,
   CommunityReaction,
   OfficialChannel,
   CommunityMessage,
@@ -35,6 +36,7 @@ const mapProfile = (p: Record<string, unknown> | null): CommunityProfile | null 
         showVerifiedActivity: Boolean(p.show_verified_activity),
       }
     : null;
+
 export async function getCommunityHome(userId: string): Promise<CommunityHome> {
   requireUser(userId);
   const raw = await rpc<Record<string, unknown>>("get_community_home", { p_limit: 20 });
@@ -60,6 +62,7 @@ export async function getCommunityHome(userId: string): Promise<CommunityHome> {
     })),
   };
 }
+
 export async function saveProfile(userId: string, profile: CommunityProfile) {
   requireUser(userId);
   const clean = normalizeCommunityProfile(profile);
@@ -79,6 +82,29 @@ export async function saveProfile(userId: string, profile: CommunityProfile) {
     p_show_activity: clean.showVerifiedActivity,
   });
 }
+
+export async function getPublicProfile(
+  userId: string,
+  senderPublicId: string,
+): Promise<CommunityPublicProfile | null> {
+  requireUser(userId);
+  if (!senderPublicId.trim()) return null;
+  const raw = await rpc<Record<string, unknown> | null>("get_community_public_profile", {
+    p_sender_public_id: senderPublicId,
+  });
+  if (!raw) return null;
+  return {
+    senderPublicId: String(raw.sender_public_id),
+    displayName: String(raw.display_name ?? "Membro KIVRYN"),
+    username: String(raw.username ?? ""),
+    avatarUrl: raw.avatar_url as string | null,
+    bio: raw.bio as string | null,
+    showMomentum: Boolean(raw.show_momentum),
+    showStreak: Boolean(raw.show_streak),
+    showVerifiedActivity: Boolean(raw.show_verified_activity),
+  };
+}
+
 export async function createSquad(userId: string, name: string, description: string) {
   requireUser(userId);
   const cleanName = name.trim();
@@ -162,14 +188,15 @@ export async function getOfficialChannels(userId: string): Promise<OfficialChann
   return rows.map((r) => ({
     id: String(r.id),
     slug: r.slug as OfficialChannel["slug"],
-    // Deployed rows keep their compatibility-sensitive legacy slugs, while the
-    // product label presented by current clients follows the KIVRYN brand.
     name: String(r.name).replace(/NEXORA/g, "KIVRYN"),
+    description: typeof r.description === "string" ? r.description : null,
     premium: Boolean(r.premium),
     joined: Boolean(r.joined),
     eligible: Boolean(r.eligible),
     membershipStatus: r.membership_status as string | null,
     notificationMode: r.notification_mode as NotificationMode,
+    memberCount: Number(r.member_count ?? 0),
+    unreadCount: Number(r.unread_count ?? 0),
     recentBody: r.recent_body as string | null,
     recentAt: r.recent_at as string | null,
   }));
@@ -190,6 +217,11 @@ export async function setNotificationMode(
   requireUser(userId);
   await rpc("set_community_notifications", { p_channel: channelId, p_mode: mode });
 }
+export async function markChannelRead(userId: string, channelId: string) {
+  requireUser(userId);
+  await rpc("mark_community_read", { p_channel: channelId });
+}
+
 const mapMessage = (r: Record<string, unknown>): CommunityMessage => ({
   id: String(r.id),
   clientRequestId: r.client_request_id as string | null,
@@ -197,7 +229,10 @@ const mapMessage = (r: Record<string, unknown>): CommunityMessage => ({
   createdAt: String(r.created_at),
   actorType: r.actor_type as CommunityMessage["actorType"],
   senderPublicId: r.sender_public_id as string | null,
-  displayName: String(r.display_name).replace(/NEXORA/g, "KIVRYN"),
+  displayName:
+    (r.actor_type as CommunityMessage["actorType"]) === "system"
+      ? "KIVRYN"
+      : String(r.display_name).replace(/NEXORA/g, "KIVRYN"),
   avatarUrl: r.avatar_url as string | null,
   isSelf: Boolean(r.is_self),
   removed: Boolean(r.removed),
