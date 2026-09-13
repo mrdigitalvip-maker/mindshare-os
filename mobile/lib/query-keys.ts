@@ -30,6 +30,7 @@ export const queryKeys = {
   community: ["community"] as const,
   communityChannels: ["community", "channels"] as const,
   communityMessages: (id: string) => ["community", "channel", validId(id), "messages"] as const,
+  communityPublicProfile: (id: string) => ["community", "public-profile", validId(id)] as const,
   squad: (id: string) => ["community", "squad", validId(id)] as const,
 };
 
