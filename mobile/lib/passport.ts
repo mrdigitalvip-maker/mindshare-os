@@ -61,6 +61,14 @@ export type PassportLesson = {
   completedAt: string | null;
 };
 
+export type PassportPlacementQuestion = {
+  key: string;
+  prompt: string;
+  options: string[];
+  difficulty: PassportLevel;
+  orderIndex: number;
+};
+
 export type PassportVocabularyStage = "new" | "learning" | "review" | "mastered";
 
 export type PassportVocabularyItem = {
