@@ -28,6 +28,7 @@ const copy = {
     noMission: "Nenhuma missão criada para hoje.",
     reviewQueue: "VOCABULÁRIO PARA REVISAR",
     allClear: "Tudo revisado por enquanto.",
+    reviewNow: "Revisar agora",
     refresh: "Atualizar",
     completed: "concluídas",
     pending: "pendentes",
@@ -51,6 +52,7 @@ const copy = {
     noMission: "No mission was created for today.",
     reviewQueue: "VOCABULARY TO REVIEW",
     allClear: "You're all caught up for now.",
+    reviewNow: "Review now",
     refresh: "Refresh",
     completed: "completed",
     pending: "pending",
@@ -88,6 +90,7 @@ export default function PassportHome() {
   const track = profile ? data?.tracks.find((item) => item.id === profile.trackId) ?? null : null;
   const nextLesson = data?.lessons.find((lesson) => lesson.status !== "completed") ?? null;
   const nextMission = data?.missions.find((mission) => mission.status === "pending") ?? null;
+  const dueVocabulary = data?.dueVocabulary ?? [];
 
   return (
     <AppScreen scroll>
@@ -123,7 +126,7 @@ export default function PassportHome() {
         <>
           <View style={styles.metrics}>
             <Metric label={c.lessons} value={`${data?.completedLessons ?? 0}/${data?.lessons.length ?? 0}`} detail={c.completed} />
-            <Metric label={c.vocabulary} value={String(data?.dueVocabulary.length ?? 0)} detail={c.pending} />
+            <Metric label={c.vocabulary} value={String(dueVocabulary.length)} detail={c.pending} />
             <Metric label={c.missions} value={`${data?.completedMissions ?? 0}/${data?.missions.length ?? 0}`} detail={c.completed} />
           </View>
 
@@ -145,8 +148,10 @@ export default function PassportHome() {
           <Section label={c.dailyMission} title={nextMission?.title ?? c.noMission} body={nextMission?.prompt ?? ""} />
           <Section
             label={c.reviewQueue}
-            title={data?.dueVocabulary[0]?.term ?? c.allClear}
-            body={data?.dueVocabulary[0]?.translation ?? ""}
+            title={dueVocabulary[0]?.term ?? c.allClear}
+            body={dueVocabulary.length ? `${dueVocabulary.length} ${c.pending}` : ""}
+            actionLabel={dueVocabulary.length ? c.reviewNow : undefined}
+            onPress={dueVocabulary.length ? () => router.push("/passport/review") : undefined}
           />
         </>
       ) : null}
