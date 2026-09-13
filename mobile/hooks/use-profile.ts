@@ -7,12 +7,15 @@ import { resolveAccountLifecycle } from "@/lib/auth-state";
 
 export function useProfile() {
   const { session, status } = useAuth();
+  const userId = session?.user.id ?? null;
+
   return useQuery({
-    queryKey: queryKeys.profile,
+    queryKey: [...queryKeys.profile, userId ?? "anonymous"],
     queryFn: () => ensureAuthenticatedProfile(session!.user),
-    enabled: status === "authenticated" && Boolean(session?.user.id),
+    enabled: status === "authenticated" && Boolean(userId),
     retry: 0,
     staleTime: 60_000,
+    networkMode: "always",
   });
 }
 
