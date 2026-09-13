@@ -17,10 +17,15 @@ const copy = {
     noProfileCopy: "Escolha um idioma, faça o teste de nível e deixe a KIVRYN montar seu plano internacional.",
     language: "Idioma",
     level: "Nível",
+    levelPending: "Aguardando teste",
     progress: "Progresso",
     lessons: "Lições",
     vocabulary: "Revisões",
     missions: "Missões de hoje",
+    placement: "TESTE DE NÍVEL PENDENTE",
+    placementTitle: "Conclua seu nivelamento",
+    placementBody: "Seu perfil já foi criado. Agora responda ao teste para definir seu nível real antes de iniciar o plano do Passport.",
+    placementAction: "Fazer teste de nível",
     nextLesson: "PRÓXIMA LIÇÃO",
     nothingNext: "Nenhuma lição disponível agora.",
     openLesson: "Abrir lição",
@@ -46,10 +51,15 @@ const copy = {
     noProfileCopy: "Choose a language, take the placement test and let KIVRYN build your international plan.",
     language: "Language",
     level: "Level",
+    levelPending: "Awaiting test",
     progress: "Progress",
     lessons: "Lessons",
     vocabulary: "Reviews",
     missions: "Today's missions",
+    placement: "PLACEMENT TEST PENDING",
+    placementTitle: "Complete your placement test",
+    placementBody: "Your profile is already created. Take the test now so Passport can set your real level before starting the learning plan.",
+    placementAction: "Take placement test",
     nextLesson: "NEXT LESSON",
     nothingNext: "No lesson is available right now.",
     openLesson: "Open lesson",
@@ -98,6 +108,7 @@ export default function PassportHome() {
   const data = passport.data;
   const profile = data?.profile ?? null;
   const track = profile ? data?.tracks.find((item) => item.id === profile.trackId) ?? null : null;
+  const needsPlacement = Boolean(profile && profile.placementScore == null);
   const nextLesson = data?.lessons.find((lesson) => lesson.status !== "completed") ?? null;
   const nextMission = data?.missions.find((mission) => mission.status === "pending") ?? null;
   const dueVocabulary = data?.dueVocabulary ?? [];
@@ -113,15 +124,22 @@ export default function PassportHome() {
             <View style={styles.heroRow}>
               <View>
                 <Text style={styles.language}>{track?.title ?? c.language}</Text>
-                <Text style={styles.level}>{c.level} {profile.currentLevel}</Text>
+                <Text style={styles.level}>
+                  {c.level} {needsPlacement ? c.levelPending : profile.currentLevel}
+                </Text>
               </View>
               <View style={styles.progressBadge}>
-                <Text style={styles.progressValue}>{data?.progressPercent ?? 0}%</Text>
+                <Text style={styles.progressValue}>{needsPlacement ? 0 : data?.progressPercent ?? 0}%</Text>
                 <Text style={styles.progressLabel}>{c.progress}</Text>
               </View>
             </View>
             <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: `${Math.min(100, data?.progressPercent ?? 0)}%` }]} />
+              <View
+                style={[
+                  styles.progressFill,
+                  { width: `${needsPlacement ? 0 : Math.min(100, data?.progressPercent ?? 0)}%` },
+                ]}
+              />
             </View>
           </>
         ) : (
@@ -133,50 +151,60 @@ export default function PassportHome() {
       </View>
 
       {profile ? (
-        <>
-          <View style={styles.metrics}>
-            <Metric label={c.lessons} value={`${data?.completedLessons ?? 0}/${data?.lessons.length ?? 0}`} detail={c.completed} />
-            <Metric label={c.vocabulary} value={String(dueVocabulary.length)} detail={c.pending} />
-            <Metric label={c.missions} value={`${data?.completedMissions ?? 0}/${data?.missions.length ?? 0}`} detail={c.completed} />
-          </View>
+        needsPlacement ? (
+          <Section
+            label={c.placement}
+            title={c.placementTitle}
+            body={c.placementBody}
+            actionLabel={c.placementAction}
+            onPress={() => router.push("/passport/placement")}
+          />
+        ) : (
+          <>
+            <View style={styles.metrics}>
+              <Metric label={c.lessons} value={`${data?.completedLessons ?? 0}/${data?.lessons.length ?? 0}`} detail={c.completed} />
+              <Metric label={c.vocabulary} value={String(dueVocabulary.length)} detail={c.pending} />
+              <Metric label={c.missions} value={`${data?.completedMissions ?? 0}/${data?.missions.length ?? 0}`} detail={c.completed} />
+            </View>
 
-          <Section
-            label={c.nextLesson}
-            title={nextLesson?.title ?? c.nothingNext}
-            body={nextLesson?.description ?? ""}
-            actionLabel={nextLesson ? c.openLesson : undefined}
-            onPress={
-              nextLesson
-                ? () =>
-                    router.push({
-                      pathname: "/passport/lesson/[lessonId]",
-                      params: { lessonId: nextLesson.id },
-                    })
-                : undefined
-            }
-          />
-          <Section
-            label={c.dailyMission}
-            title={nextMission?.title ?? c.noMission}
-            body={nextMission?.prompt ?? ""}
-            actionLabel={c.missionsAction}
-            onPress={() => router.push("/passport/missions")}
-          />
-          <Section
-            label={c.reviewQueue}
-            title={dueVocabulary[0]?.term ?? c.allClear}
-            body={dueVocabulary.length ? `${dueVocabulary.length} ${c.pending}` : ""}
-            actionLabel={dueVocabulary.length ? c.reviewNow : undefined}
-            onPress={dueVocabulary.length ? () => router.push("/passport/review") : undefined}
-          />
-          <Section
-            label={c.roleplay}
-            title={c.roleplayTitle}
-            body={c.roleplayBody}
-            actionLabel={c.roleplayAction}
-            onPress={() => router.push("/passport/roleplay")}
-          />
-        </>
+            <Section
+              label={c.nextLesson}
+              title={nextLesson?.title ?? c.nothingNext}
+              body={nextLesson?.description ?? ""}
+              actionLabel={nextLesson ? c.openLesson : undefined}
+              onPress={
+                nextLesson
+                  ? () =>
+                      router.push({
+                        pathname: "/passport/lesson/[lessonId]",
+                        params: { lessonId: nextLesson.id },
+                      })
+                  : undefined
+              }
+            />
+            <Section
+              label={c.dailyMission}
+              title={nextMission?.title ?? c.noMission}
+              body={nextMission?.prompt ?? ""}
+              actionLabel={c.missionsAction}
+              onPress={() => router.push("/passport/missions")}
+            />
+            <Section
+              label={c.reviewQueue}
+              title={dueVocabulary[0]?.term ?? c.allClear}
+              body={dueVocabulary.length ? `${dueVocabulary.length} ${c.pending}` : ""}
+              actionLabel={dueVocabulary.length ? c.reviewNow : undefined}
+              onPress={dueVocabulary.length ? () => router.push("/passport/review") : undefined}
+            />
+            <Section
+              label={c.roleplay}
+              title={c.roleplayTitle}
+              body={c.roleplayBody}
+              actionLabel={c.roleplayAction}
+              onPress={() => router.push("/passport/roleplay")}
+            />
+          </>
+        )
       ) : null}
 
       <Pressable style={styles.refreshButton} onPress={() => passport.refetch()}>
