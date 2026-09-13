@@ -46,6 +46,30 @@ export type PassportRoleplayTurnResult = {
   transcript: PassportRoleplayEntry[];
 };
 
+export async function listPassportRoleplaySessions(
+  userId: string,
+  trackId: string,
+  limit = 10,
+): Promise<PassportRoleplaySession[]> {
+  const uid = requireUser(userId);
+  const languageTrackId = trackId.trim();
+  if (!languageTrackId) throw workspaceMutationError(new Error("Language track required."));
+  if (!Number.isInteger(limit) || limit < 1 || limit > 50) {
+    throw workspaceMutationError(new Error("Role-play session limit must be between 1 and 50."));
+  }
+
+  const { data, error } = await supabase
+    .from("passport_roleplay_sessions")
+    .select("id,track_id,scenario,mode,status,transcript,feedback,score,started_at,completed_at")
+    .eq("user_id", uid)
+    .eq("track_id", languageTrackId)
+    .order("started_at", { ascending: false })
+    .limit(limit);
+
+  if (error) throw workspaceMutationError(error);
+  return (data ?? []).map((row) => roleplaySessionFrom(row as Record<string, unknown>));
+}
+
 export async function startPassportRoleplaySession(
   userId: string,
   input: StartPassportRoleplayInput,
@@ -136,4 +160,27 @@ export async function sendPassportRoleplayMessage(
     reply: String(result.reply ?? ""),
     transcript,
   };
+}
+
+export async function finishPassportRoleplaySession(
+  userId: string,
+  sessionId: string,
+): Promise<PassportRoleplaySession> {
+  const uid = requireUser(userId);
+  const id = sessionId.trim();
+  if (!id) throw workspaceMutationError(new Error("Role-play session required."));
+
+  const completedAt = new Date().toISOString();
+  const { data, error } = await supabase
+    .from("passport_roleplay_sessions")
+    .update({ status: "completed", completed_at: completedAt, updated_at: completedAt } as never)
+    .eq("id", id)
+    .eq("user_id", uid)
+    .eq("status", "active")
+    .select("id,track_id,scenario,mode,status,transcript,feedback,score,started_at,completed_at")
+    .maybeSingle();
+
+  if (error) throw workspaceMutationError(error);
+  if (!data) throw workspaceMutationError(new Error("Active role-play session not found."));
+  return roleplaySessionFrom(data as unknown as Record<string, unknown>);
 }
