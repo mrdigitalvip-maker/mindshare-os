@@ -57,6 +57,7 @@ export function useCreatePersonalChallenge() {
         client.invalidateQueries({ queryKey: queryKeys.personalChallenges }),
         client.invalidateQueries({ queryKey: queryKeys.momentum }),
         client.invalidateQueries({ queryKey: queryKeys.arena }),
+        client.invalidateQueries({ queryKey: queryKeys.challengeRankingRoot }),
       ]);
     },
   });
@@ -71,9 +72,7 @@ export function useCheckInPersonalChallenge() {
       await Promise.all([
         client.invalidateQueries({ queryKey: queryKeys.personalChallenges }),
         client.invalidateQueries({ queryKey: queryKeys.momentum }),
-        client.invalidateQueries({ queryKey: queryKeys.challengeRanking("daily") }),
-        client.invalidateQueries({ queryKey: queryKeys.challengeRanking("weekly") }),
-        client.invalidateQueries({ queryKey: queryKeys.challengeRanking("monthly") }),
+        client.invalidateQueries({ queryKey: queryKeys.challengeRankingRoot }),
       ]);
     },
   });
@@ -104,7 +103,7 @@ export function useSetChallengeRankingOptIn(period: ChallengePeriod) {
     mutationFn: (enabled: boolean) => service.setChallengeRankingOptIn(id, enabled),
     onSuccess: async () => {
       await Promise.all([
-        client.invalidateQueries({ queryKey: queryKeys.challengeRanking(period) }),
+        client.invalidateQueries({ queryKey: queryKeys.challengeRankingRoot }),
         client.invalidateQueries({ queryKey: queryKeys.community }),
       ]);
     },
