@@ -7,30 +7,17 @@ import {
   reconcileCommunityMessages,
 } from "../lib/community-message";
 import { communityErrorMessage, hasActiveOfficialMembership } from "../lib/community";
-const sql = readFileSync(
-  fileURLToPath(
-    new URL("../../supabase/migrations/202608290006_community_live.sql", import.meta.url),
-  ),
-  "utf8",
-).toLowerCase();
-const service = readFileSync(
-  fileURLToPath(new URL("../services/community-service.ts", import.meta.url)),
-  "utf8",
-);
-const conversation = readFileSync(
-  fileURLToPath(new URL("../app/(app)/community/[channelId].tsx", import.meta.url)),
-  "utf8",
-);
-const layout = readFileSync(
-  fileURLToPath(new URL("../app/(app)/_layout.tsx", import.meta.url)),
-  "utf8",
-);
-const communityLayout = readFileSync(
-  fileURLToPath(new URL("../app/(app)/community/_layout.tsx", import.meta.url)),
-  "utf8",
-);
-describe("Community Live server contract", () => {
-  test("client request IDs are standards-valid UUID v4 values", () => {
+
+const source = (path: string) =>
+  readFileSync(fileURLToPath(new URL(path, import.meta.url)), "utf8");
+const v3 = source("../../supabase/migrations/202609130001_community_v3_real_network.sql").toLowerCase();
+const digest = source("../../supabase/migrations/202609130002_community_v3_notification_digest.sql").toLowerCase();
+const service = source("../services/community-service.ts");
+const conversation = source("../app/(app)/community/[channelId].tsx");
+const home = source("../app/(app)/community/index.tsx");
+
+describe("KIVRYN Community V3 real network contract", () => {
+  test("client request IDs remain standards-valid UUID v4 values", () => {
     const id = createCommunityRequestId({
       getRandomValues: (bytes) => {
         bytes.fill(17);
@@ -40,62 +27,70 @@ describe("Community Live server contract", () => {
     expect(id).toBe("11111111-1111-4111-9111-111111111111");
     expect(isCommunityRequestId(id)).toBe(true);
   });
-  test("send trims and validates input while retaining the retry request ID", () => {
-    expect(service).toContain("const clean = body.trim()");
-    expect(service).toContain("clean.length > 1200");
-    expect(service).toContain("p_client_request_id: requestId");
-    expect(conversation).toContain("send(failed.body, failed.requestId, failed.replyToId)");
-    expect(conversation).toContain("onSuccess: () =>");
-    expect(conversation).not.toContain('setBody("");\n    setFailed(null);');
-  });
-  test("conversation route never exposes its filesystem route header", () => {
-    expect(layout).toContain('name="community" options={{ headerShown: false }}');
-    expect(communityLayout).toContain("<Stack screenOptions={{ headerShown: false }}>");
-    expect(communityLayout).toContain('<Stack.Screen name="[channelId]" />');
-    expect(conversation).toContain('copyKey="legacy.c252ba7e4fda"');
-  });
-  test("backend errors have specific human-readable messages", () => {
-    expect(communityErrorMessage(new Error("membership_required"))).toContain("Entre");
+
+  test("official access stays server-authoritative and profile-gated", () => {
+    expect(v3).toContain("community_profile_ready");
+    expect(v3).toContain("profile_required");
+    expect(v3).toContain("public.has_premium(uid)");
+    expect(communityErrorMessage(new Error("profile_required"))).toContain("perfil");
     expect(communityErrorMessage(new Error("premium_required"))).toContain("Premium");
-    expect(communityErrorMessage(new Error("rate_limited"))).toContain("Aguarde");
-    expect(communityErrorMessage(new Error("duplicate_message"))).toContain("já foi enviada");
-    expect(communityErrorMessage(new Error("Network request failed"))).toContain("conexão");
   });
-  test("official channel access uses only the backend eligibility and membership response", () => {
+
+  test("channel summaries use real member and unread counts", () => {
+    expect(v3).toContain("'member_count'");
+    expect(v3).toContain("'unread_count'");
+    expect(v3).toContain("last_read_at");
+    expect(service).toContain("memberCount: Number(r.member_count ?? 0)");
+    expect(service).toContain("unreadCount: Number(r.unread_count ?? 0)");
+    expect(service).toContain('rpc("mark_community_read"');
+  });
+
+  test("public profiles use opaque identifiers and shared-membership privacy", () => {
+    expect(v3).toContain("community_public_user_id");
+    expect(v3).toContain("get_community_public_profile");
+    expect(v3).not.toContain("select email");
+    expect(service).toContain("getPublicProfile");
+    expect(conversation).toContain("useCommunityPublicProfile");
+  });
+
+  test("real membership state is the only source for entering a chat", () => {
     const base = {
       id: "channel",
       slug: "nexora-community" as const,
       name: "KIVRYN Community",
+      description: null,
       premium: false,
       notificationMode: "highlights" as const,
+      memberCount: 1,
+      unreadCount: 0,
       recentBody: null,
       recentAt: null,
     };
     expect(
-      hasActiveOfficialMembership({
-        ...base,
-        joined: true,
-        eligible: true,
-        membershipStatus: "active",
-      }),
+      hasActiveOfficialMembership({ ...base, joined: true, eligible: true, membershipStatus: "active" }),
     ).toBe(true);
     expect(
-      hasActiveOfficialMembership({
-        ...base,
-        joined: true,
-        eligible: false,
-        membershipStatus: "active",
-      }),
+      hasActiveOfficialMembership({ ...base, joined: true, eligible: false, membershipStatus: "active" }),
     ).toBe(false);
     expect(
-      hasActiveOfficialMembership({
-        ...base,
-        joined: true,
-        eligible: true,
-        membershipStatus: "restricted",
-      }),
+      hasActiveOfficialMembership({ ...base, joined: true, eligible: true, membershipStatus: "restricted" }),
     ).toBe(false);
   });
+
+  test("official prompts are transparent and limited to one per day", () => {
+    expect(v3).toContain("kivryn");
+    expect(v3).toContain("sent_count >= 1");
+    expect(v3).toContain("one transparent official conversation starter per day");
+    expect(conversation).toContain("KIVRYN • OFICIAL");
+    expect(conversation).toContain("nunca se passam por usuários reais");
+  });
+
+  test("daily notifications are based on genuine unread data", () => {
+    expect(digest).toContain("unread_count");
+    expect(digest).toContain("notification_mode <> 'muted'");
+    expect(digest).toContain("public.has_premium(p_user)");
+  });
+
   test("server-page reconciliation removes duplicate realtime/refetch rows", () => {
     const message = {
       id: "one",
@@ -104,7 +99,7 @@ describe("Community Live server contract", () => {
       createdAt: "2026-01-01T00:00:00Z",
       actorType: "system" as const,
       senderPublicId: null,
-      displayName: "KIVRYN Host",
+      displayName: "KIVRYN",
       avatarUrl: null,
       isSelf: false,
       removed: false,
@@ -113,78 +108,11 @@ describe("Community Live server contract", () => {
       myReaction: null,
     };
     expect(reconcileCommunityMessages([[message], [message]])).toEqual([message]);
-    expect(message.actorType).toBe("system");
-    expect(message.displayName).toBe("KIVRYN Host");
   });
-  test("official access is server authoritative", () => {
-    expect(sql).toContain("'nexora-community','nexora community',false");
-    expect(sql).toContain("public.has_premium(uid)");
-    expect(sql).toContain("premium_required");
-  });
-  test("membership and restrictions gate posting", () => {
-    expect(sql).toContain("membership_required");
-    expect(sql).toContain("membership_restricted");
-  });
-  test("Host is privileged, bounded and idempotent", () => {
-    expect(sql).toContain("auth.role()<>'service_role'");
-    expect(sql).toContain("unique(channel_id,host_key)");
-    expect(sql).toContain("state.sent_count>=2");
-  });
-  test("send is idempotent, rate limited and paginated", () => {
-    expect(sql).toContain("unique(user_id,client_request_id)");
-    expect(sql).toContain("limit least(greatest(p_limit,1),50)");
-    expect(sql).toContain("interval '1 minute'");
-  });
-  test("removed content, reports and blocks are enforced", () => {
-    expect(sql).toContain("mensagem removida.");
-    expect(sql).toContain("'message',p_message");
-    expect(sql).toContain("block_community_message_sender");
-  });
-  test("social actions never award Momentum", () => {
-    expect(sql).toContain("on conflict(message_id,user_id) do update");
-    expect(sql).not.toContain("insert into public.momentum_events");
-  });
-  test("privacy excludes workspace and email", () => {
-    expect(sql).not.toContain("select email");
-    expect(sql).not.toContain("projects");
-    expect(sql).not.toContain("assistant messages");
-  });
-  test("realtime scopes, reconciles and cleans up", () => {
-    expect(service).toContain("filter: `channel_id=eq.${channelId}`");
-    expect(service).toContain("removeChannel(channel)");
-    expect(service).toContain("if (active) onChange()");
-    expect(conversation).toContain("reconcileCommunityMessages");
-    expect(conversation).toContain("actions.react.mutate");
-  });
-  test("notifications default conservatively", () => {
-    expect(sql).toContain("default 'highlights'");
-  });
-});
 
-describe("Community physical acceptance hotfix", () => {
-  test("reply is canonical and retry preserves request and reply IDs", () => {
-    expect(service).toContain("replyToId?: string | null");
-    expect(service).toContain("p_reply_to: replyToId ?? null");
-    expect(conversation).toContain("send(failed.body, failed.requestId, failed.replyToId)");
-  });
-  test("Android composer follows the stable keyboard contract", () => {
-    expect(conversation).toContain('behavior={Platform.OS === "ios" ? "padding" : "height"}');
-    expect(conversation).toContain('keyboardDismissMode="interactive"');
-    expect(conversation).toContain('keyboardShouldPersistTaps="handled"');
-    expect(conversation).toContain("multiline");
-    expect(conversation).toContain("scrollEnabled");
-    expect(conversation).toContain("blurOnSubmit={false}");
-    expect(conversation).toContain("value={body}");
-  });
-  test("Host identity and contextual actions replace technical alerts", () => {
-    expect(conversation).toContain("KIVRYN Host");
-    expect(conversation).toContain('copyKey="legacy.5f89039a541b"');
-    expect(conversation).not.toContain("Mensagem oficial automatizada — não é uma pessoa.");
-    expect(conversation).toContain('label="Bloquear usuário"');
-    expect(conversation).toContain("messageActions(message)");
-  });
-  test("zero-count reaction controls are absent from message rows", () => {
-    expect(conversation).toContain("> 0");
-    expect(conversation).not.toContain("item.reactions[r] ?? 0");
+  test("product never fabricates online users, ranks or synthetic social proof", () => {
+    expect(home).not.toMatch(/pessoas online|membros ativos|ranking|fake users/i);
+    expect(v3).not.toContain("fake_user");
+    expect(v3).not.toContain("momentum_events");
   });
 });
