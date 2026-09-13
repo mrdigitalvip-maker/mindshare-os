@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { AppScreen } from "@/components/app-screen";
+import { NativeDateField } from "@/components/native-date-field";
 import { StandardHeader } from "@/components/product-ui";
 import { ErrorState, LoadingState } from "@/components/screen-state";
 import { usePassportLanguageTracks } from "@/hooks/use-passport";
@@ -40,13 +41,18 @@ const copy = {
       "Escolha a duração inicial do seu plano. O Passport aceita de 7 a 365 dias e pode ser ajustado depois.",
     days: "dias",
     defaultPlan: "Padrão",
+    travelDateEyebrow: "DATA DA VIAGEM",
+    travelDateHeading: "Você já tem uma data em mente?",
+    travelDateBody:
+      "Opcional. Se houver uma viagem planejada, o Passport pode guardar essa data para orientar sua preparação.",
+    travelDateLabel: "Adicionar data da viagem (opcional)",
     loading: "Carregando idiomas do Passport…",
     errorTitle: "Não foi possível carregar os idiomas.",
     errorMessage: "Nenhuma configuração foi alterada. Verifique a conexão e tente novamente.",
     retry: "Tentar novamente",
     empty: "Nenhum idioma está disponível no momento.",
     selected: "Selecionado",
-    nextHint: "Duração do plano definida. Na próxima unidade vamos adicionar a data de viagem opcional antes de salvar o Passport.",
+    nextHint: "Detalhes finais definidos. A data da viagem pode ficar vazia. Na próxima unidade vamos salvar o Passport de verdade.",
     goals: {
       travel: { title: "Viagem", description: "Aeroporto, hotel, restaurante, transporte e situações reais." },
       work: { title: "Trabalho", description: "Reuniões, comunicação profissional e contexto de negócios." },
@@ -82,13 +88,18 @@ const copy = {
       "Choose the initial duration of your plan. Passport accepts 7 to 365 days and can be adjusted later.",
     days: "days",
     defaultPlan: "Default",
+    travelDateEyebrow: "TRAVEL DATE",
+    travelDateHeading: "Do you already have a date in mind?",
+    travelDateBody:
+      "Optional. If a trip is planned, Passport can store the date to guide your preparation.",
+    travelDateLabel: "Add travel date (optional)",
     loading: "Loading Passport languages…",
     errorTitle: "Languages could not be loaded.",
     errorMessage: "No settings were changed. Check your connection and try again.",
     retry: "Try again",
     empty: "No language is available right now.",
     selected: "Selected",
-    nextHint: "Plan duration is set. Next we'll add the optional travel date before saving your Passport.",
+    nextHint: "Final details are set. The travel date can stay empty. Next we'll save your Passport for real.",
     goals: {
       travel: { title: "Travel", description: "Airport, hotel, restaurant, transport and real situations." },
       work: { title: "Work", description: "Meetings, professional communication and business context." },
@@ -107,6 +118,7 @@ export default function PassportSetup() {
   const [selectedGoal, setSelectedGoal] = useState<PassportGoal | null>(null);
   const [dailyMinutes, setDailyMinutes] = useState<number | null>(null);
   const [planHorizonDays, setPlanHorizonDays] = useState<number | null>(null);
+  const [travelDate, setTravelDate] = useState<string | null>(null);
 
   if (tracks.isPending) return <LoadingState title={text.loading} />;
   if (tracks.isError) {
@@ -161,6 +173,7 @@ export default function PassportSetup() {
                     setSelectedGoal(null);
                     setDailyMinutes(null);
                     setPlanHorizonDays(null);
+                    setTravelDate(null);
                   }
                   setSelectedTrackId(track.id);
                 }}
@@ -211,6 +224,7 @@ export default function PassportSetup() {
                     if (goal !== selectedGoal) {
                       setDailyMinutes(null);
                       setPlanHorizonDays(null);
+                      setTravelDate(null);
                     }
                     setSelectedGoal(goal);
                   }}
@@ -253,7 +267,10 @@ export default function PassportSetup() {
                   accessibilityRole="button"
                   accessibilityState={{ selected }}
                   onPress={() => {
-                    if (minutes !== dailyMinutes) setPlanHorizonDays(null);
+                    if (minutes !== dailyMinutes) {
+                      setPlanHorizonDays(null);
+                      setTravelDate(null);
+                    }
                     setDailyMinutes(minutes);
                   }}
                   style={({ pressed }) => [
@@ -306,9 +323,26 @@ export default function PassportSetup() {
       ) : null}
 
       {selectedTrackId && selectedGoal && dailyMinutes && planHorizonDays ? (
-        <View style={styles.nextHintCard}>
-          <Text style={styles.nextHint}>{text.nextHint}</Text>
-        </View>
+        <>
+          <View style={styles.sectionHero}>
+            <Text style={styles.eyebrow}>{text.travelDateEyebrow}</Text>
+            <Text style={styles.heading}>{text.travelDateHeading}</Text>
+            <Text style={styles.body}>{text.travelDateBody}</Text>
+          </View>
+
+          <View style={styles.dateFieldWrap}>
+            <NativeDateField
+              value={travelDate}
+              onChange={setTravelDate}
+              label={text.travelDateLabel}
+              locale={resolvedLocale}
+            />
+          </View>
+
+          <View style={styles.nextHintCard}>
+            <Text style={styles.nextHint}>{text.nextHint}</Text>
+          </View>
+        </>
       ) : null}
     </AppScreen>
   );
@@ -406,6 +440,7 @@ const styles = StyleSheet.create({
   optionValue: { ...typography.heading, color: colors.text },
   optionLabel: { ...typography.caption, color: colors.textMuted, marginTop: spacing.xs },
   defaultLabel: { ...typography.caption, color: colors.primaryBright, marginTop: spacing.sm },
+  dateFieldWrap: { marginTop: spacing.md },
   emptyCard: {
     padding: spacing.lg,
     borderRadius: radius.lg,
