@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from "expo-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { AppScreen } from "@/components/app-screen";
@@ -9,6 +9,7 @@ import {
   useCompletePassportLesson,
   usePassportHome,
   usePassportLessons,
+  useStartPassportLesson,
 } from "@/hooks/use-passport";
 import { useSubscription } from "@/hooks/use-subscription";
 import { colors, radius, spacing, typography } from "@/lib/theme";
@@ -120,9 +121,28 @@ export default function PassportLessonScreen() {
   const passport = usePassportHome(missionDate);
   const profile = passport.data?.profile ?? null;
   const lessons = usePassportLessons(profile?.trackId ?? "");
+  const startLesson = useStartPassportLesson(id);
   const completeLesson = useCompletePassportLesson(id);
   const subscription = useSubscription();
   const [answer, setAnswer] = useState("");
+  const startedLessonRef = useRef<string | null>(null);
+
+  const lesson = (lessons.data ?? []).find((item) => item.id === id) ?? null;
+  const premiumPending = Boolean(lesson?.premium && subscription.isPending);
+  const locked = Boolean(
+    lesson?.premium && !subscription.isPending && subscription.data?.entitlement !== "premium",
+  );
+
+  useEffect(() => {
+    if (!lesson || lesson.status !== "not_started" || premiumPending || locked) return;
+    if (startedLessonRef.current === lesson.id || startLesson.isPending) return;
+    startedLessonRef.current = lesson.id;
+    startLesson.mutate(undefined, {
+      onError: () => {
+        startedLessonRef.current = null;
+      },
+    });
+  }, [lesson?.id, lesson?.status, locked, premiumPending, startLesson.isPending]);
 
   if (passport.isPending) return <LoadingState title={text.loading} />;
   if (passport.isError) {
@@ -159,7 +179,6 @@ export default function PassportLessonScreen() {
     );
   }
 
-  const lesson = (lessons.data ?? []).find((item) => item.id === id) ?? null;
   if (!lesson) {
     return (
       <AppScreen scroll contentContainerStyle={styles.page}>
@@ -171,9 +190,8 @@ export default function PassportLessonScreen() {
     );
   }
 
-  if (lesson.premium && subscription.isPending) return <LoadingState title={text.loading} />;
+  if (premiumPending) return <LoadingState title={text.loading} />;
 
-  const locked = lesson.premium && subscription.data?.entitlement !== "premium";
   const explanation = contentText(lesson.content.explanation);
   const example = contentText(lesson.content.example);
   const exercise = contentText(lesson.content.exercise);
@@ -322,7 +340,7 @@ function ResultMetric({ label, value }: { label: string; value: string }) {
   );
 }
 
-function StateCard({ title, body, children }: { title: string; body: string; children: React.ReactNode }) {
+function StateCard({ title, body, children }: { title: string; body: string; children: ReactNode }) {
   return (
     <View style={styles.stateCard}>
       <Text style={styles.stateTitle}>{title}</Text>
