@@ -169,7 +169,7 @@ export default function PassportSetup() {
         planHorizonDays,
         isPrimary: true,
       });
-      router.replace("/passport");
+      router.replace("/passport/placement");
     } catch {
       // Mutation state exposes the user-facing failure below without clearing local selections.
     }
