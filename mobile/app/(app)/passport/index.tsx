@@ -29,6 +29,10 @@ const copy = {
     reviewQueue: "VOCABULÁRIO PARA REVISAR",
     allClear: "Tudo revisado por enquanto.",
     reviewNow: "Revisar agora",
+    roleplay: "ROLE-PLAY COM IA",
+    roleplayTitle: "Pratique situações reais",
+    roleplayBody: "Aeroporto, hotel, restaurante, transporte e outros cenários no seu idioma e nível atuais.",
+    roleplayAction: "Praticar conversa",
     refresh: "Atualizar",
     completed: "concluídas",
     pending: "pendentes",
@@ -53,6 +57,10 @@ const copy = {
     reviewQueue: "VOCABULARY TO REVIEW",
     allClear: "You're all caught up for now.",
     reviewNow: "Review now",
+    roleplay: "AI ROLE-PLAY",
+    roleplayTitle: "Practice real situations",
+    roleplayBody: "Airport, hotel, restaurant, transport and other scenarios at your current language and level.",
+    roleplayAction: "Practice conversation",
     refresh: "Refresh",
     completed: "completed",
     pending: "pending",
@@ -152,6 +160,13 @@ export default function PassportHome() {
             body={dueVocabulary.length ? `${dueVocabulary.length} ${c.pending}` : ""}
             actionLabel={dueVocabulary.length ? c.reviewNow : undefined}
             onPress={dueVocabulary.length ? () => router.push("/passport/review") : undefined}
+          />
+          <Section
+            label={c.roleplay}
+            title={c.roleplayTitle}
+            body={c.roleplayBody}
+            actionLabel={c.roleplayAction}
+            onPress={() => router.push("/passport/roleplay")}
           />
         </>
       ) : null}
