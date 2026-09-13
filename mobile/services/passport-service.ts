@@ -163,3 +163,29 @@ export async function listPassportLessons(
     ),
   );
 }
+
+export async function completePassportLesson(
+  userId: string,
+  lessonId: string,
+  score = 100,
+): Promise<{ xp: number; streak: number; date: string }> {
+  requireUser(userId);
+  const id = lessonId.trim();
+  if (!id) throw workspaceMutationError(new Error("Lesson required."));
+  if (!Number.isFinite(score) || score < 0 || score > 100) {
+    throw workspaceMutationError(new Error("Score must be between 0 and 100."));
+  }
+
+  const { data, error } = await supabase.rpc("complete_studio_lesson", {
+    p_lesson_id: id,
+    p_score: Math.round(score),
+  } as never);
+
+  if (error) throw workspaceMutationError(error);
+  const result = (data ?? {}) as Record<string, unknown>;
+  return {
+    xp: Number(result.xp ?? 0),
+    streak: Number(result.streak ?? 0),
+    date: String(result.date ?? ""),
+  };
+}
