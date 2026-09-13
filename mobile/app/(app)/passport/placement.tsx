@@ -5,7 +5,11 @@ import { router } from "expo-router";
 import { AppScreen } from "@/components/app-screen";
 import { StandardHeader } from "@/components/product-ui";
 import { ErrorState, LoadingState } from "@/components/screen-state";
-import { usePassportHome, usePassportPlacementQuestions } from "@/hooks/use-passport";
+import {
+  usePassportHome,
+  usePassportPlacementQuestions,
+  useSubmitPassportPlacement,
+} from "@/hooks/use-passport";
 import { colors, radius, spacing, typography } from "@/lib/theme";
 import { useLanguage } from "@/providers/language-provider";
 
@@ -30,6 +34,15 @@ const copy = {
     next: "Próxima",
     completeTitle: "Respostas completas",
     completeBody: "Revise suas escolhas. O resultado será calculado pelo servidor quando você enviar o teste.",
+    submit: "Enviar teste",
+    submitting: "Calculando nível…",
+    submitError: "Não foi possível calcular seu nível. Suas respostas continuam aqui; tente novamente.",
+    resultEyebrow: "NÍVEL DEFINIDO",
+    resultTitle: "Seu resultado do Passport",
+    resultLevel: "Nível",
+    resultScore: "Score",
+    resultBody: "O resultado foi calculado pelo servidor e aplicado ao seu perfil Passport.",
+    continue: "Continuar para o Passport",
   },
   en: {
     title: "Placement test",
@@ -51,6 +64,15 @@ const copy = {
     next: "Next",
     completeTitle: "Answers complete",
     completeBody: "Review your choices. Your result will be calculated by the server when you submit the test.",
+    submit: "Submit test",
+    submitting: "Calculating level…",
+    submitError: "Your level could not be calculated. Your answers are still here; try again.",
+    resultEyebrow: "LEVEL SET",
+    resultTitle: "Your Passport result",
+    resultLevel: "Level",
+    resultScore: "Score",
+    resultBody: "The result was calculated by the server and applied to your Passport profile.",
+    continue: "Continue to Passport",
   },
 } as const;
 
@@ -69,6 +91,7 @@ export default function PassportPlacement() {
   const passport = usePassportHome(missionDate);
   const profile = passport.data?.profile ?? null;
   const questionsQuery = usePassportPlacementQuestions(profile?.trackId ?? "");
+  const submitPlacement = useSubmitPassportPlacement(profile?.trackId ?? "");
   const questions = useMemo(
     () => [...(questionsQuery.data ?? [])].sort((a, b) => a.orderIndex - b.orderIndex),
     [questionsQuery.data],
@@ -139,7 +162,18 @@ export default function PassportPlacement() {
     0,
   );
   const allAnswered = answeredCount === questions.length;
-  const canGoNext = selectedOption !== undefined && safeIndex < questions.length - 1;
+  const hasResult = Boolean(submitPlacement.data);
+  const interactionLocked = submitPlacement.isPending || hasResult;
+  const canGoNext = selectedOption !== undefined && safeIndex < questions.length - 1 && !interactionLocked;
+
+  async function submitAnswers() {
+    if (!profile || !allAnswered || submitPlacement.isPending || hasResult) return;
+    try {
+      await submitPlacement.mutateAsync(answers);
+    } catch {
+      // Mutation state exposes the user-facing error below without clearing answers.
+    }
+  }
 
   return (
     <AppScreen scroll contentContainerStyle={styles.page}>
@@ -182,16 +216,19 @@ export default function PassportPlacement() {
               <Pressable
                 key={`${question.key}-${index}`}
                 accessibilityRole="button"
-                accessibilityState={{ selected }}
-                onPress={() =>
+                accessibilityState={{ selected, disabled: interactionLocked }}
+                disabled={interactionLocked}
+                onPress={() => {
+                  submitPlacement.reset();
                   setAnswers((current) => ({
                     ...current,
                     [question.key]: index,
-                  }))
-                }
+                  }));
+                }}
                 style={({ pressed }) => [
                   styles.option,
                   selected && styles.optionSelected,
+                  interactionLocked && styles.disabled,
                   pressed && styles.pressed,
                 ]}
               >
@@ -207,40 +244,89 @@ export default function PassportPlacement() {
         </View>
       </View>
 
-      <View style={styles.navigationRow}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityState={{ disabled: safeIndex === 0 }}
-          disabled={safeIndex === 0}
-          onPress={() => setCurrentIndex((value) => Math.max(0, value - 1))}
-          style={({ pressed }) => [
-            styles.secondaryButton,
-            safeIndex === 0 && styles.disabled,
-            pressed && styles.pressed,
-          ]}
-        >
-          <Text style={styles.secondaryButtonText}>{text.previous}</Text>
-        </Pressable>
+      {!hasResult ? (
+        <View style={styles.navigationRow}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ disabled: safeIndex === 0 || submitPlacement.isPending }}
+            disabled={safeIndex === 0 || submitPlacement.isPending}
+            onPress={() => setCurrentIndex((value) => Math.max(0, value - 1))}
+            style={({ pressed }) => [
+              styles.secondaryButton,
+              (safeIndex === 0 || submitPlacement.isPending) && styles.disabled,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Text style={styles.secondaryButtonText}>{text.previous}</Text>
+          </Pressable>
 
-        <Pressable
-          accessibilityRole="button"
-          accessibilityState={{ disabled: !canGoNext }}
-          disabled={!canGoNext}
-          onPress={() => setCurrentIndex((value) => Math.min(questions.length - 1, value + 1))}
-          style={({ pressed }) => [
-            styles.primaryButton,
-            !canGoNext && styles.disabled,
-            pressed && styles.pressed,
-          ]}
-        >
-          <Text style={styles.primaryButtonText}>{text.next}</Text>
-        </Pressable>
-      </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ disabled: !canGoNext }}
+            disabled={!canGoNext}
+            onPress={() => setCurrentIndex((value) => Math.min(questions.length - 1, value + 1))}
+            style={({ pressed }) => [
+              styles.primaryButton,
+              !canGoNext && styles.disabled,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Text style={styles.primaryButtonText}>{text.next}</Text>
+          </Pressable>
+        </View>
+      ) : null}
 
-      {allAnswered ? (
+      {allAnswered && !hasResult ? (
         <View style={styles.completeCard} accessibilityLiveRegion="polite">
           <Text style={styles.completeTitle}>{text.completeTitle}</Text>
           <Text style={styles.completeBody}>{text.completeBody}</Text>
+
+          {submitPlacement.isError ? (
+            <View style={styles.errorCard}>
+              <Text style={styles.errorText}>{text.submitError}</Text>
+            </View>
+          ) : null}
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ disabled: submitPlacement.isPending }}
+            disabled={submitPlacement.isPending}
+            onPress={() => void submitAnswers()}
+            style={({ pressed }) => [
+              styles.submitButton,
+              submitPlacement.isPending && styles.disabled,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Text style={styles.submitButtonText}>
+              {submitPlacement.isPending ? text.submitting : text.submit}
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+      {submitPlacement.data ? (
+        <View style={styles.resultCard} accessibilityLiveRegion="polite">
+          <Text style={styles.resultEyebrow}>{text.resultEyebrow}</Text>
+          <Text style={styles.resultTitle}>{text.resultTitle}</Text>
+          <View style={styles.resultMetrics}>
+            <View style={styles.resultMetric}>
+              <Text style={styles.resultMetricLabel}>{text.resultLevel}</Text>
+              <Text style={styles.resultMetricValue}>{submitPlacement.data.level}</Text>
+            </View>
+            <View style={styles.resultMetric}>
+              <Text style={styles.resultMetricLabel}>{text.resultScore}</Text>
+              <Text style={styles.resultMetricValue}>{String(submitPlacement.data.score)}</Text>
+            </View>
+          </View>
+          <Text style={styles.resultBody}>{text.resultBody}</Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.replace("/passport")}
+            style={({ pressed }) => [styles.primaryButton, styles.continueButton, pressed && styles.pressed]}
+          >
+            <Text style={styles.primaryButtonText}>{text.continue}</Text>
+          </Pressable>
         </View>
       ) : null}
     </AppScreen>
@@ -350,6 +436,47 @@ const styles = StyleSheet.create({
   },
   completeTitle: { ...typography.heading, color: colors.primaryBright },
   completeBody: { ...typography.body, color: colors.textSecondary, marginTop: spacing.sm },
+  submitButton: {
+    minHeight: 52,
+    marginTop: spacing.md,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.lg,
+    backgroundColor: colors.primary,
+  },
+  submitButtonText: { ...typography.label, color: colors.text },
+  errorCard: {
+    marginTop: spacing.md,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.danger,
+    backgroundColor: colors.surface,
+  },
+  errorText: { ...typography.caption, color: colors.danger },
+  resultCard: {
+    marginTop: spacing.md,
+    padding: spacing.lg,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.success,
+    backgroundColor: colors.canvasElevated,
+  },
+  resultEyebrow: { ...typography.eyebrow, color: colors.success },
+  resultTitle: { ...typography.title, color: colors.text, marginTop: spacing.sm },
+  resultMetrics: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.lg },
+  resultMetric: {
+    flex: 1,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceRaised,
+  },
+  resultMetricLabel: { ...typography.caption, color: colors.textMuted },
+  resultMetricValue: { ...typography.title, color: colors.primaryBright, marginTop: spacing.xs },
+  resultBody: { ...typography.body, color: colors.textSecondary, marginTop: spacing.md },
+  continueButton: { marginTop: spacing.lg },
   stateCard: {
     marginTop: spacing.md,
     padding: spacing.lg,
