@@ -27,6 +27,7 @@ export const NEXORA_MUTATION_ACTIONS = [
   "create_study_goal",
   "update_study_goal",
   "set_subject_next_action",
+  "create_personal_challenge",
 ];
 
 const navigation = new Set(NEXORA_NAVIGATION_ACTIONS);
@@ -45,6 +46,8 @@ const fields = new Set([
   "value",
   "expected_updated_at",
   "target_value",
+  "challenge_period",
+  "challenge_category",
 ]);
 
 /** Strictly validate the model's untrusted mutation proposal. */
@@ -58,6 +61,13 @@ export function parseNexoraProposal(value) {
   if (value.due_date != null && (typeof value.due_date !== "string" || !date.test(value.due_date)))
     return null;
   if (value.priority != null && !["low", "medium", "high"].includes(value.priority)) return null;
+  if (value.challenge_period != null && !["daily", "weekly", "monthly"].includes(value.challenge_period))
+    return null;
+  if (
+    value.challenge_category != null &&
+    !["execution", "study", "fitness", "wellbeing", "journey", "custom"].includes(value.challenge_category)
+  )
+    return null;
   for (const key of ["title", "objective", "value"])
     if (
       value[key] != null &&
@@ -66,18 +76,20 @@ export function parseNexoraProposal(value) {
       return null;
   if (
     value.target_value != null &&
-    (!Number.isInteger(value.target_value) || value.target_value < 1 || value.target_value > 100000)
+    (!Number.isInteger(value.target_value) || value.target_value < 1 || value.target_value > 10000)
   )
     return null;
   const type = value.action_type;
   if (
-    ["create_task", "create_project", "add_task_to_project", "create_study_goal"].includes(type) &&
+    ["create_task", "create_project", "add_task_to_project", "create_study_goal", "create_personal_challenge"].includes(type) &&
     !value.title
   )
     return null;
   if (type === "add_task_to_project" && !value.project_id) return null;
   if (type === "create_study_goal" && !value.subject_id) return null;
-  if (
+  if (type === "create_personal_challenge") {
+    if (!value.challenge_period || !value.challenge_category || value.target_value == null) return null;
+  } else if (
     !["create_task", "create_project", "add_task_to_project", "create_study_goal"].includes(type) &&
     !value.resource_id
   )
