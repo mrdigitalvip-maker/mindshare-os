@@ -12,6 +12,7 @@ import {
   useStartPassportLesson,
 } from "@/hooks/use-passport";
 import { useSubscription } from "@/hooks/use-subscription";
+import { isPremiumEntitlement } from "@/lib/subscription";
 import { colors, radius, spacing, typography } from "@/lib/theme";
 import { useLanguage } from "@/providers/language-provider";
 
@@ -130,7 +131,9 @@ export default function PassportLessonScreen() {
   const lesson = (lessons.data ?? []).find((item) => item.id === id) ?? null;
   const premiumPending = Boolean(lesson?.premium && subscription.isPending);
   const locked = Boolean(
-    lesson?.premium && !subscription.isPending && subscription.data?.entitlement !== "premium",
+    lesson?.premium &&
+      !subscription.isPending &&
+      !isPremiumEntitlement(subscription.data?.entitlement ?? "free"),
   );
 
   useEffect(() => {
