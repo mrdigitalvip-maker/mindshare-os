@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
   },
   optionIndexSelected: { borderColor: colors.primaryBright, backgroundColor: colors.primaryBright },
   optionIndexText: { ...typography.label, color: colors.textSecondary },
-  optionIndexTextSelected: { color: colors.canvas },
+  optionIndexTextSelected: { color: colors.background },
   optionText: { ...typography.body, flex: 1, color: colors.textSecondary },
   optionTextSelected: { color: colors.text },
   navigationRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.md },
