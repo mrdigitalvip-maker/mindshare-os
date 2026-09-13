@@ -34,6 +34,18 @@ export type StartPassportRoleplayInput = {
   mode?: "text" | "voice";
 };
 
+export type PassportRoleplayEntry = {
+  role: "user" | "assistant";
+  content: string;
+  createdAt: string;
+};
+
+export type PassportRoleplayTurnResult = {
+  sessionId: string;
+  reply: string;
+  transcript: PassportRoleplayEntry[];
+};
+
 export async function startPassportRoleplaySession(
   userId: string,
   input: StartPassportRoleplayInput,
@@ -65,4 +77,63 @@ export async function startPassportRoleplaySession(
 
   if (error) throw workspaceMutationError(error);
   return roleplaySessionFrom(data as unknown as Record<string, unknown>);
+}
+
+export async function sendPassportRoleplayMessage(
+  userId: string,
+  sessionId: string,
+  message: string,
+): Promise<PassportRoleplayTurnResult> {
+  requireUser(userId);
+  const id = sessionId.trim();
+  const content = message.trim();
+  if (!id) throw workspaceMutationError(new Error("Role-play session required."));
+  if (!content || content.length > 1200) {
+    throw workspaceMutationError(new Error("Role-play message must be between 1 and 1200 characters."));
+  }
+
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  let session = sessionData.session;
+  if (!sessionError && session?.expires_at && session.expires_at * 1000 - Date.now() < 30_000) {
+    const refreshed = await supabase.auth.refreshSession();
+    session = refreshed.data.session;
+  }
+  if (sessionError || !session?.access_token) {
+    throw workspaceMutationError(new Error("Authenticated session required."));
+  }
+
+  const { data, error } = await supabase.functions.invoke("passport-roleplay", {
+    body: { sessionId: id, message: content },
+    headers: { Authorization: `Bearer ${session.access_token}` },
+  });
+
+  if (error) throw workspaceMutationError(error);
+  const envelope = (data ?? {}) as Record<string, unknown>;
+  if (envelope.ok !== true || !envelope.data || typeof envelope.data !== "object") {
+    const details =
+      envelope.error && typeof envelope.error === "object"
+        ? (envelope.error as Record<string, unknown>)
+        : null;
+    throw workspaceMutationError(
+      new Error(typeof details?.message === "string" ? details.message : "Role-play response failed."),
+    );
+  }
+
+  const result = envelope.data as Record<string, unknown>;
+  const transcript = Array.isArray(result.transcript)
+    ? result.transcript
+        .filter((entry): entry is Record<string, unknown> => Boolean(entry) && typeof entry === "object")
+        .map((entry) => ({
+          role: entry.role === "assistant" ? "assistant" as const : "user" as const,
+          content: String(entry.content ?? ""),
+          createdAt: String(entry.createdAt ?? ""),
+        }))
+        .filter((entry) => entry.content.length > 0)
+    : [];
+
+  return {
+    sessionId: String(result.sessionId ?? id),
+    reply: String(result.reply ?? ""),
+    transcript,
+  };
 }
