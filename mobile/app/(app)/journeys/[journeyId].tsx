@@ -144,8 +144,8 @@ function targetDiff(targetDate: string | null) {
 
 export default function JourneyDetail() {
   const { resolvedLocale } = useLanguage();
-  const c = copy[resolvedLocale === "en-US" ? "en-US" : "pt-BR"];
-  const locale = resolvedLocale === "en-US" ? "en-US" : "pt-BR";
+  const c = copy[resolvedLocale === "en" ? "en-US" : "pt-BR"];
+  const locale = resolvedLocale === "en" ? "en-US" : "pt-BR";
   const { journeyId } = useLocalSearchParams<{ journeyId: string }>();
   const journey = useJourney(journeyId ?? "");
   const mission = useDailyMission();

@@ -36,7 +36,7 @@ export const layout = {
   tabBarBaseHeight: 60,
   maxContentWidth: 720,
 } as const;
-export const radius = { sm: 8, md: 14, lg: 22, pill: 999 } as const;
+export const radius = { sm: 8, md: 14, lg: 22, xl: 28, pill: 999 } as const;
 export const typography = {
   display: { fontSize: 36, lineHeight: 42, fontWeight: "600" } satisfies TextStyle,
   title: { fontSize: 27, lineHeight: 33, fontWeight: "600" } satisfies TextStyle,
@@ -52,6 +52,20 @@ export const typography = {
   } satisfies TextStyle,
 } as const;
 export const shadows = {
+  soft: {
+    shadowColor: "#000",
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 4,
+  } satisfies ViewStyle,
+  card: {
+    shadowColor: "#000",
+    shadowOpacity: 0.22,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 5,
+  } satisfies ViewStyle,
   raised: {
     shadowColor: "#000",
     shadowOpacity: 0.28,
