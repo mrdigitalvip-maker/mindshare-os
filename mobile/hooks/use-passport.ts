@@ -3,6 +3,12 @@ import { useAuth } from "@/providers/auth-provider";
 import { loadPassportHomeSnapshot } from "@/services/passport-home-service";
 import { startPassportLesson } from "@/services/passport-lesson-progress-service";
 import {
+  finishPassportRoleplaySession,
+  listPassportRoleplaySessions,
+  sendPassportRoleplayMessage,
+  startPassportRoleplaySession,
+} from "@/services/passport-roleplay-service";
+import {
   addPassportVocabulary,
   completePassportLesson,
   listPassportDueVocabulary,
@@ -15,6 +21,7 @@ import {
   type AddPassportVocabularyInput,
   type UpsertPassportProfileInput,
 } from "@/services/passport-service";
+import type { PassportRoleplayScenario } from "@/lib/passport";
 
 export function usePassportLanguageTracks() {
   return useQuery({
@@ -109,6 +116,61 @@ export function useAddPassportVocabulary(trackId: string) {
       addPassportVocabulary(userId, { ...input, trackId: languageTrackId }),
     onSuccess: async () => {
       await client.invalidateQueries({ queryKey: ["passport"] });
+    },
+  });
+}
+
+export function usePassportRoleplaySessions(trackId: string, limit = 10) {
+  const userId = useAuth().session?.user.id ?? "";
+  const languageTrackId = trackId.trim();
+
+  return useQuery({
+    queryKey: ["passport", "roleplay", "sessions", userId, languageTrackId, limit] as const,
+    queryFn: () => listPassportRoleplaySessions(userId, languageTrackId, limit),
+    enabled: Boolean(userId) && Boolean(languageTrackId),
+    staleTime: 15_000,
+  });
+}
+
+export function useStartPassportRoleplay(trackId: string) {
+  const userId = useAuth().session?.user.id ?? "";
+  const languageTrackId = trackId.trim();
+  const client = useQueryClient();
+
+  return useMutation({
+    mutationFn: (scenario: PassportRoleplayScenario) =>
+      startPassportRoleplaySession(userId, {
+        trackId: languageTrackId,
+        scenario,
+        mode: "text",
+      }),
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: ["passport", "roleplay"] });
+    },
+  });
+}
+
+export function useSendPassportRoleplayMessage() {
+  const userId = useAuth().session?.user.id ?? "";
+  const client = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ sessionId, message }: { sessionId: string; message: string }) =>
+      sendPassportRoleplayMessage(userId, sessionId, message),
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: ["passport", "roleplay"] });
+    },
+  });
+}
+
+export function useFinishPassportRoleplaySession() {
+  const userId = useAuth().session?.user.id ?? "";
+  const client = useQueryClient();
+
+  return useMutation({
+    mutationFn: (sessionId: string) => finishPassportRoleplaySession(userId, sessionId),
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: ["passport", "roleplay"] });
     },
   });
 }
