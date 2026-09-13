@@ -10,6 +10,7 @@ import { colors, radius, spacing, typography } from "@/lib/theme";
 import { useLanguage } from "@/providers/language-provider";
 
 const dailyMinuteOptions = [5, 15, 30, 45, 60] as const;
+const planHorizonOptions = [30, 60, 90, 180, 365] as const;
 
 const copy = {
   "pt-BR": {
@@ -32,13 +33,20 @@ const copy = {
       "Escolha um ritmo sustentável. O Passport usa esse valor real para organizar sua rotina de aprendizagem.",
     minutes: "min/dia",
     defaultPace: "Padrão",
+    planStep: "ETAPA 4 DE 4",
+    planEyebrow: "HORIZONTE DO PLANO",
+    planHeading: "Por quanto tempo você quer planejar?",
+    planBody:
+      "Escolha a duração inicial do seu plano. O Passport aceita de 7 a 365 dias e pode ser ajustado depois.",
+    days: "dias",
+    defaultPlan: "Padrão",
     loading: "Carregando idiomas do Passport…",
     errorTitle: "Não foi possível carregar os idiomas.",
     errorMessage: "Nenhuma configuração foi alterada. Verifique a conexão e tente novamente.",
     retry: "Tentar novamente",
     empty: "Nenhum idioma está disponível no momento.",
     selected: "Selecionado",
-    nextHint: "Idioma, objetivo e ritmo definidos. Na próxima etapa vamos configurar os detalhes finais do plano.",
+    nextHint: "Duração do plano definida. Na próxima unidade vamos adicionar a data de viagem opcional antes de salvar o Passport.",
     goals: {
       travel: { title: "Viagem", description: "Aeroporto, hotel, restaurante, transporte e situações reais." },
       work: { title: "Trabalho", description: "Reuniões, comunicação profissional e contexto de negócios." },
@@ -67,13 +75,20 @@ const copy = {
       "Choose a sustainable pace. Passport uses this real value to organize your learning routine.",
     minutes: "min/day",
     defaultPace: "Default",
+    planStep: "STEP 4 OF 4",
+    planEyebrow: "PLAN HORIZON",
+    planHeading: "How far ahead do you want to plan?",
+    planBody:
+      "Choose the initial duration of your plan. Passport accepts 7 to 365 days and can be adjusted later.",
+    days: "days",
+    defaultPlan: "Default",
     loading: "Loading Passport languages…",
     errorTitle: "Languages could not be loaded.",
     errorMessage: "No settings were changed. Check your connection and try again.",
     retry: "Try again",
     empty: "No language is available right now.",
     selected: "Selected",
-    nextHint: "Language, goal and pace are set. Next we'll configure the final plan details.",
+    nextHint: "Plan duration is set. Next we'll add the optional travel date before saving your Passport.",
     goals: {
       travel: { title: "Travel", description: "Airport, hotel, restaurant, transport and real situations." },
       work: { title: "Work", description: "Meetings, professional communication and business context." },
@@ -91,6 +106,7 @@ export default function PassportSetup() {
   const [selectedTrackId, setSelectedTrackId] = useState<string | null>(null);
   const [selectedGoal, setSelectedGoal] = useState<PassportGoal | null>(null);
   const [dailyMinutes, setDailyMinutes] = useState<number | null>(null);
+  const [planHorizonDays, setPlanHorizonDays] = useState<number | null>(null);
 
   if (tracks.isPending) return <LoadingState title={text.loading} />;
   if (tracks.isError) {
@@ -105,12 +121,14 @@ export default function PassportSetup() {
   }
 
   const languageTracks = tracks.data ?? [];
-  const stepLabel = selectedGoal
-    ? text.paceStep
-    : selectedTrackId
-      ? text.goalStep
-      : text.languageStep;
-  const progressWidth = dailyMinutes ? "75%" : selectedGoal ? "75%" : selectedTrackId ? "50%" : "25%";
+  const stepLabel = dailyMinutes
+    ? text.planStep
+    : selectedGoal
+      ? text.paceStep
+      : selectedTrackId
+        ? text.goalStep
+        : text.languageStep;
+  const progressWidth = dailyMinutes ? "100%" : selectedGoal ? "75%" : selectedTrackId ? "50%" : "25%";
 
   return (
     <AppScreen scroll contentContainerStyle={styles.page}>
@@ -142,6 +160,7 @@ export default function PassportSetup() {
                   if (track.id !== selectedTrackId) {
                     setSelectedGoal(null);
                     setDailyMinutes(null);
+                    setPlanHorizonDays(null);
                   }
                   setSelectedTrackId(track.id);
                 }}
@@ -189,7 +208,10 @@ export default function PassportSetup() {
                   accessibilityRole="button"
                   accessibilityState={{ selected }}
                   onPress={() => {
-                    if (goal !== selectedGoal) setDailyMinutes(null);
+                    if (goal !== selectedGoal) {
+                      setDailyMinutes(null);
+                      setPlanHorizonDays(null);
+                    }
                     setSelectedGoal(goal);
                   }}
                   style={({ pressed }) => [
@@ -222,7 +244,7 @@ export default function PassportSetup() {
             <Text style={styles.body}>{text.paceBody}</Text>
           </View>
 
-          <View style={styles.paceGrid}>
+          <View style={styles.optionGrid}>
             {dailyMinuteOptions.map((minutes) => {
               const selected = dailyMinutes === minutes;
               return (
@@ -230,15 +252,18 @@ export default function PassportSetup() {
                   key={minutes}
                   accessibilityRole="button"
                   accessibilityState={{ selected }}
-                  onPress={() => setDailyMinutes(minutes)}
+                  onPress={() => {
+                    if (minutes !== dailyMinutes) setPlanHorizonDays(null);
+                    setDailyMinutes(minutes);
+                  }}
                   style={({ pressed }) => [
-                    styles.paceCard,
+                    styles.optionCard,
                     selected && styles.choiceCardSelected,
                     pressed && styles.choiceCardPressed,
                   ]}
                 >
-                  <Text style={[styles.paceValue, selected && styles.choiceTitleSelected]}>{minutes}</Text>
-                  <Text style={styles.paceLabel}>{text.minutes}</Text>
+                  <Text style={[styles.optionValue, selected && styles.choiceTitleSelected]}>{minutes}</Text>
+                  <Text style={styles.optionLabel}>{text.minutes}</Text>
                   {minutes === 15 ? <Text style={styles.defaultLabel}>{text.defaultPace}</Text> : null}
                 </Pressable>
               );
@@ -248,6 +273,39 @@ export default function PassportSetup() {
       ) : null}
 
       {selectedTrackId && selectedGoal && dailyMinutes ? (
+        <>
+          <View style={styles.sectionHero}>
+            <Text style={styles.eyebrow}>{text.planEyebrow}</Text>
+            <Text style={styles.heading}>{text.planHeading}</Text>
+            <Text style={styles.body}>{text.planBody}</Text>
+          </View>
+
+          <View style={styles.optionGrid}>
+            {planHorizonOptions.map((days) => {
+              const selected = planHorizonDays === days;
+              return (
+                <Pressable
+                  key={days}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                  onPress={() => setPlanHorizonDays(days)}
+                  style={({ pressed }) => [
+                    styles.optionCard,
+                    selected && styles.choiceCardSelected,
+                    pressed && styles.choiceCardPressed,
+                  ]}
+                >
+                  <Text style={[styles.optionValue, selected && styles.choiceTitleSelected]}>{days}</Text>
+                  <Text style={styles.optionLabel}>{text.days}</Text>
+                  {days === 90 ? <Text style={styles.defaultLabel}>{text.defaultPlan}</Text> : null}
+                </Pressable>
+              );
+            })}
+          </View>
+        </>
+      ) : null}
+
+      {selectedTrackId && selectedGoal && dailyMinutes && planHorizonDays ? (
         <View style={styles.nextHintCard}>
           <Text style={styles.nextHint}>{text.nextHint}</Text>
         </View>
@@ -328,13 +386,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primaryBright,
   },
   selectedLabel: { ...typography.caption, color: colors.primaryBright },
-  paceGrid: {
+  optionGrid: {
     marginTop: spacing.md,
     flexDirection: "row",
     flexWrap: "wrap",
     gap: spacing.sm,
   },
-  paceCard: {
+  optionCard: {
     minWidth: 104,
     flexGrow: 1,
     alignItems: "center",
@@ -345,8 +403,8 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.surface,
   },
-  paceValue: { ...typography.heading, color: colors.text },
-  paceLabel: { ...typography.caption, color: colors.textMuted, marginTop: spacing.xs },
+  optionValue: { ...typography.heading, color: colors.text },
+  optionLabel: { ...typography.caption, color: colors.textMuted, marginTop: spacing.xs },
   defaultLabel: { ...typography.caption, color: colors.primaryBright, marginTop: spacing.sm },
   emptyCard: {
     padding: spacing.lg,
