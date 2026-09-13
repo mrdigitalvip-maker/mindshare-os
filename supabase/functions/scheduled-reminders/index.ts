@@ -63,6 +63,51 @@ Deno.serve(async (request) => {
         }
       }
     }
+
+    // Community retention is based on real unread messages only. No synthetic
+    // activity, fake counts or message contents are exposed in the push body.
+    if (hour === 19) {
+      const { data: digests, error: digestError } = await db.rpc(
+        "get_community_notification_digests",
+        { p_user: pref.user_id },
+      );
+      if (!digestError && Array.isArray(digests)) {
+        for (const digest of digests as Array<{
+          channel_id?: string;
+          name?: string;
+          unread_count?: number;
+          notification_mode?: string;
+        }>) {
+          if (!digest.channel_id || !digest.unread_count || digest.notification_mode === "muted") continue;
+          const dedupe = `community-digest:${digest.channel_id}`;
+          const { error } = await db.from("notification_deliveries").insert({
+            user_id: pref.user_id,
+            dedupe_key: dedupe,
+            kind: "general",
+            delivered_on: day,
+          });
+          if (error) continue;
+          const count = Number(digest.unread_count);
+          await fetch(`${url}/functions/v1/push-send`, {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              "x-scheduler-secret": schedulerSecret,
+            },
+            body: JSON.stringify({
+              userId: pref.user_id,
+              title: digest.name ?? "KIVRYN Community",
+              body:
+                count === 1
+                  ? "Você tem 1 nova mensagem na comunidade."
+                  : `Você tem ${count} novas mensagens na comunidade.`,
+              url: `/community/${digest.channel_id}`,
+            }),
+          });
+          queued++;
+        }
+      }
+    }
     // Legacy Studio reminders are intentionally not emitted by the native product.
   }
   return Response.json({ queued });
