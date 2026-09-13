@@ -419,3 +419,30 @@ export async function listPassportDailyMissions(
   if (error) throw workspaceMutationError(error);
   return (data ?? []).map((row) => dailyMissionFrom(row as Record<string, unknown>));
 }
+
+export async function updatePassportDailyMissionStatus(
+  userId: string,
+  missionId: string,
+  status: "completed" | "skipped",
+): Promise<PassportDailyMission> {
+  const uid = requireUser(userId);
+  const id = missionId.trim();
+  if (!id) throw workspaceMutationError(new Error("Daily mission required."));
+
+  const { data, error } = await supabase
+    .from("passport_daily_missions")
+    .update({
+      status,
+      completed_at: status === "completed" ? new Date().toISOString() : null,
+      updated_at: new Date().toISOString(),
+    } as never)
+    .eq("id", id)
+    .eq("user_id", uid)
+    .select(
+      "id,track_id,mission_date,mission_key,mission_type,title,prompt,status,metadata,completed_at",
+    )
+    .single();
+
+  if (error) throw workspaceMutationError(error);
+  return dailyMissionFrom(data as unknown as Record<string, unknown>);
+}
