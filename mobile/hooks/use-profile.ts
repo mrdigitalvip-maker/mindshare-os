@@ -11,7 +11,8 @@ export function useProfile() {
     queryKey: queryKeys.profile,
     queryFn: () => ensureAuthenticatedProfile(session!.user),
     enabled: status === "authenticated" && Boolean(session?.user.id),
-    retry: 2,
+    retry: 0,
+    staleTime: 60_000,
   });
 }
 

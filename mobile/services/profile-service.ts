@@ -8,7 +8,8 @@ import {
 } from "@/lib/profile-identity";
 
 export type MobileProfile = ProfileIdentity;
-export const PROFILE_BOOTSTRAP_TIMEOUT_MS = 15_000;
+export const PROFILE_READ_TIMEOUT_MS = 6_000;
+export const PROFILE_BOOTSTRAP_TIMEOUT_MS = 8_000;
 
 function withTimeout<T>(operation: PromiseLike<T>, timeoutMs: number): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -48,6 +49,12 @@ export async function getProfile(userId: string): Promise<MobileProfile | null> 
 }
 
 export async function ensureAuthenticatedProfile(user: User): Promise<ProfileIdentity> {
+  // Normal sign-ups already create a profile through the auth trigger. Read first so
+  // returning users never wait on the repair/bootstrap RPC during every app launch.
+  const existingProfile = await withTimeout(getProfile(user.id), PROFILE_READ_TIMEOUT_MS);
+  if (existingProfile) return normalizeProfileIdentity(user, existingProfile as ProfileRecord);
+
+  // Repair path only: older/partial accounts that do not have a profile yet.
   const values = initialProfileValues(user);
   const { error } = await withTimeout(
     supabase.rpc("bootstrap_authenticated_user", {
@@ -57,9 +64,10 @@ export async function ensureAuthenticatedProfile(user: User): Promise<ProfileIde
     PROFILE_BOOTSTRAP_TIMEOUT_MS,
   );
   if (error) throw error;
-  const profile = await withTimeout(getProfile(user.id), PROFILE_BOOTSTRAP_TIMEOUT_MS);
-  if (!profile) throw new Error("Profile could not be ensured.");
-  return normalizeProfileIdentity(user, profile as ProfileRecord);
+
+  const repairedProfile = await withTimeout(getProfile(user.id), PROFILE_READ_TIMEOUT_MS);
+  if (!repairedProfile) throw new Error("Profile could not be ensured.");
+  return normalizeProfileIdentity(user, repairedProfile as ProfileRecord);
 }
 
 export async function updateProfileName(userId: string, fullName: string): Promise<void> {
