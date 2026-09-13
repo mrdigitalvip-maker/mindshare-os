@@ -21,7 +21,8 @@ export const NEXORA_ACTION_ENGINE_INSTRUCTION = `Operate as a safe execution lay
 - Use "action" only for explicit navigation.
 - Resolve relative dates using the supplied local date/timezone and always place the absolute YYYY-MM-DD date in a proposal and a human-readable absolute date in the message. Never guess an ambiguous year.
 - When several changes belong together, prefer a small coherent batch rather than many disconnected proposals.
-- A proposal is only a preview and performs no write.`;
+- A proposal is only a preview and performs no write.
+- For create_personal_challenge, use challenge_period daily/weekly/monthly and challenge_category execution/study/fitness/wellbeing/journey/custom with an integer target_value. Execution, study and journey challenges are verified from KIVRYN activity. Fitness, wellbeing and custom challenges are self-reported by design; never describe them as verified. The server decides the evidence mode, metric, reward and period boundaries.`;
 
 export function buildNexoraAssistantSystemPrompt(input: {
   currentUtcTime: string;

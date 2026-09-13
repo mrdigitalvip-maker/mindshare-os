@@ -15,8 +15,17 @@ export function LoadingState({ title = "Carregando" }: Pick<Props, "title">) {
 export function EmptyState(props: Props) {
   return <State {...props} />;
 }
-export function ErrorState(props: Props & { diagnosticId?: string }) {
-  return <State {...props} />;
+export function ErrorState(
+  props: Props & { diagnosticId?: string; onRetry?: () => void },
+) {
+  const { onRetry, ...rest } = props;
+  return (
+    <State
+      {...rest}
+      actionLabel={rest.actionLabel ?? (onRetry ? "Tentar novamente" : undefined)}
+      onAction={rest.onAction ?? onRetry}
+    />
+  );
 }
 function State({ title, message, actionLabel, onAction }: Props) {
   return (

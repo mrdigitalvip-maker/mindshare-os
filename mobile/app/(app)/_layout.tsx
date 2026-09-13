@@ -34,6 +34,7 @@ export default function AppLayout() {
       <Stack.Screen name="packs/index" options={{ headerShown: false }} />
       <Stack.Screen name="packs/[slug]" options={{ title: "Programa" }} />
       <Stack.Screen name="arena" options={{ headerShown: false }} />
+      <Stack.Screen name="challenges" options={{ headerShown: false }} />
       <Stack.Screen name="community" options={{ headerShown: false }} />
       <Stack.Screen name="creator/index" options={{ title: t("creator.title") }} />
       <Stack.Screen name="creator/new" options={{ title: t("creator.new") }} />
