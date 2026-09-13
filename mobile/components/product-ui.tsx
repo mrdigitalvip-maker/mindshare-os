@@ -51,12 +51,23 @@ export function AppHeader({ onMenu }: { onMenu(): void }) {
   );
 }
 
-export function StandardHeader({ title, action }: { title: string; action?: React.ReactNode }) {
+export function StandardHeader({
+  title,
+  subtitle,
+  action,
+}: {
+  title: string;
+  subtitle?: string;
+  action?: React.ReactNode;
+}) {
   return (
     <View style={styles.standardHeader}>
-      <Text accessibilityRole="header" style={styles.title}>
-        {title}
-      </Text>
+      <View style={styles.standardHeaderCopy}>
+        <Text accessibilityRole="header" style={styles.title}>
+          {title}
+        </Text>
+        {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+      </View>
       {action}
     </View>
   );
@@ -94,6 +105,7 @@ export function ModuleCard({
     </Pressable>
   );
 }
+
 const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
@@ -103,12 +115,15 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   standardHeader: {
-    minHeight: 56,
+    minHeight: 64,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    gap: spacing.md,
   },
+  standardHeaderCopy: { flex: 1, minWidth: 0 },
   title: { ...typography.title, color: colors.text, flexShrink: 1 },
+  subtitle: { ...typography.caption, color: colors.textMuted, marginTop: 3 },
   icon: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   iconText: { color: colors.text, fontSize: 22 },
   search: {
