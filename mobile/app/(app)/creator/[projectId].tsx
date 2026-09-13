@@ -1,11 +1,12 @@
-import { useEffect, useState } from "react";
-import { Text, StyleSheet, Pressable, View } from "react-native";
-import { useLocalSearchParams } from "expo-router";
+import { useEffect, useMemo, useState } from "react";
+import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import { router, useLocalSearchParams } from "expo-router";
 import { AppScreen } from "@/components/app-screen";
 import { useAuth } from "@/providers/auth-provider";
 import { useLanguage } from "@/providers/language-provider";
 import {
   cancelCreatorJob,
+  createOutputSignedUrl,
   getCreatorProject,
   getLatestCreatorJob,
   listCreatorClips,
@@ -13,87 +14,339 @@ import {
   type CreatorJob,
   type CreatorProject,
 } from "@/services/creator-service";
-import { colors, spacing, typography } from "@/lib/theme";
+import { colors, radius, shadows, spacing, typography } from "@/lib/theme";
+
+const copy = {
+  "pt-BR": {
+    eyebrow: "CREATOR STUDIO",
+    source: "PROJETO",
+    pipeline: "PIPELINE",
+    processing: "Processando seu vídeo",
+    processingCopy: "A KIVRYN está transformando o arquivo em sinais, transcrição e cortes renderizados.",
+    cancel: "Cancelar processamento",
+    clips: "CORTES ENCONTRADOS",
+    noClips: "Os cortes aparecerão aqui quando a seleção estiver pronta.",
+    potential: "Content Potential",
+    signal: "Sinal interno — não é garantia de viralidade.",
+    excerpt: "TRECHO",
+    open: "Abrir export",
+    opening: "Abrindo…",
+    package: "Criar pacote de postagem",
+    projectAI: "Analisar projeto com KIVRYN",
+    aiCopy: "Compare os cortes reais deste projeto e decida qual merece ser trabalhado primeiro.",
+    outputReady: "Export renderizado",
+    outputWaiting: "Renderização pendente",
+    invalid: "Projeto não encontrado",
+    settings: "CONFIGURAÇÃO",
+    captions: "Legendas",
+    on: "ON",
+    off: "OFF",
+    refreshes: "Atualização automática a cada 5 segundos durante o processamento.",
+  },
+  en: {
+    eyebrow: "CREATOR STUDIO",
+    source: "PROJECT",
+    pipeline: "PIPELINE",
+    processing: "Processing your video",
+    processingCopy: "KIVRYN is turning the file into signals, transcript and rendered clips.",
+    cancel: "Cancel processing",
+    clips: "FOUND CLIPS",
+    noClips: "Clips will appear here when selection is ready.",
+    potential: "Content Potential",
+    signal: "Internal signal — not a virality guarantee.",
+    excerpt: "EXCERPT",
+    open: "Open export",
+    opening: "Opening…",
+    package: "Create posting package",
+    projectAI: "Analyze project with KIVRYN",
+    aiCopy: "Compare the real clips in this project and decide which one deserves work first.",
+    outputReady: "Rendered export",
+    outputWaiting: "Rendering pending",
+    invalid: "Project not found",
+    settings: "SETTINGS",
+    captions: "Captions",
+    on: "ON",
+    off: "OFF",
+    refreshes: "Auto-refreshes every 5 seconds while processing.",
+  },
+} as const;
+
+const stageOrder = ["queued", "analyzing", "transcribing", "selecting_clips", "rendering", "completed"] as const;
+const activeStages = new Set(["queued", "analyzing", "transcribing", "selecting_clips", "rendering"]);
+
 export default function CreatorProjectScreen() {
   const params = useLocalSearchParams<{ projectId?: string | string[] }>();
   const id = typeof params.projectId === "string" ? params.projectId : "";
   const { session } = useAuth();
-  const { t } = useLanguage();
-  const [p, setP] = useState<CreatorProject | null>();
+  const { resolvedLocale } = useLanguage();
+  const language = resolvedLocale?.startsWith("en") ? "en" : "pt-BR";
+  const c = copy[language];
+  const [project, setProject] = useState<CreatorProject | null>();
   const [job, setJob] = useState<CreatorJob | null>(null);
   const [clips, setClips] = useState<CreatorClip[]>([]);
+  const [openingClip, setOpeningClip] = useState<string | null>(null);
+
   useEffect(() => {
-    if (session?.user.id && id) {
-      const load = () =>
-        Promise.all([
-          getCreatorProject(session.user.id, id),
-          getLatestCreatorJob(session.user.id, id),
-          listCreatorClips(session.user.id, id),
-        ])
-          .then(([project, current, results]) => {
-            setP(project);
-            setJob(current);
-            setClips(results);
-          })
-          .catch(() => setP(null));
-      void load();
-      const timer = setInterval(() => void load(), 5000);
-      return () => clearInterval(timer);
-    } else setP(null);
+    if (!session?.user.id || !id) {
+      setProject(null);
+      return;
+    }
+    let mounted = true;
+    const load = () =>
+      Promise.all([
+        getCreatorProject(session.user.id, id),
+        getLatestCreatorJob(session.user.id, id),
+        listCreatorClips(session.user.id, id),
+      ])
+        .then(([nextProject, current, results]) => {
+          if (!mounted) return;
+          setProject(nextProject);
+          setJob(current);
+          setClips(results);
+        })
+        .catch(() => mounted && setProject(null));
+    void load();
+    const timer = setInterval(() => void load(), 5000);
+    return () => {
+      mounted = false;
+      clearInterval(timer);
+    };
   }, [id, session?.user.id]);
+
+  const stage = job?.progressStage ?? job?.status ?? project?.status ?? "draft";
+  const stageIndex = stageOrder.indexOf(stage as (typeof stageOrder)[number]);
+  const pipelineProgress = stage === "completed" ? 100 : stageIndex >= 0 ? Math.max(8, Math.round(((stageIndex + 1) / stageOrder.length) * 100)) : 0;
+  const bestClip = useMemo(() => [...clips].sort((a, b) => a.rank - b.rank)[0] ?? null, [clips]);
+
+  const openExport = async (clip: CreatorClip) => {
+    if (!clip.outputPath || openingClip) return;
+    setOpeningClip(clip.id);
+    try {
+      const url = await createOutputSignedUrl(clip.outputPath);
+      await Linking.openURL(url);
+    } finally {
+      setOpeningClip(null);
+    }
+  };
+
+  const openClipAI = (clip: CreatorClip) => {
+    const context =
+      language === "en"
+        ? `Create a posting package for this real Creator Studio clip. Project: ${project?.title ?? ""}. Duration: ${Math.round(clip.durationMs / 1000)} seconds. Aspect ratio: ${clip.aspectRatio}. Content Potential signal: ${clip.score}/100. Selection reason: ${clip.scoreReason}. Transcript excerpt: ${clip.transcriptExcerpt}. Return strong hook/title options, caption, CTA, platform adaptation and a compact hashtag set. Do not promise virality or invent analytics.`
+        : `Crie um pacote de postagem para este corte real do Creator Studio. Projeto: ${project?.title ?? ""}. Duração: ${Math.round(clip.durationMs / 1000)} segundos. Formato: ${clip.aspectRatio}. Sinal Content Potential: ${clip.score}/100. Motivo da seleção: ${clip.scoreReason}. Trecho da transcrição: ${clip.transcriptExcerpt}. Entregue opções fortes de hook/título, descrição, CTA, adaptação por plataforma e um conjunto compacto de hashtags. Não prometa viralidade nem invente analytics.`;
+    router.push({ pathname: "/assistant", params: { context } });
+  };
+
+  const openProjectAI = () => {
+    const clipSummary = clips
+      .slice(0, 8)
+      .map((clip) => `#${clip.rank}: ${clip.score}/100 · ${Math.round(clip.durationMs / 1000)}s · ${clip.scoreReason}`)
+      .join("\n");
+    const context =
+      language === "en"
+        ? `Act as KIVRYN Creator Intelligence for this real Creator Studio project. Project: ${project?.title ?? ""}. Clips found: ${clips.length}. Best ranked clip: ${bestClip ? `#${bestClip.rank}, signal ${bestClip.score}/100` : "none yet"}. Compare only the available signals and recommend which clip to work on first, why, and one concrete distribution experiment. Clips:\n${clipSummary || "No clips ready yet."}`
+        : `Atue como KIVRYN Creator Intelligence neste projeto real do Creator Studio. Projeto: ${project?.title ?? ""}. Cortes encontrados: ${clips.length}. Melhor corte ranqueado: ${bestClip ? `#${bestClip.rank}, sinal ${bestClip.score}/100` : "nenhum ainda"}. Compare somente os sinais disponíveis e recomende qual corte trabalhar primeiro, por quê e um experimento concreto de distribuição. Cortes:\n${clipSummary || "Ainda não há cortes prontos."}`;
+    router.push({ pathname: "/assistant", params: { context } });
+  };
+
   return (
     <AppScreen scroll contentContainerStyle={s.page}>
-      {p === undefined ? (
-        <Text style={s.copy}>{t("common.loading")}</Text>
-      ) : p === null ? (
-        <Text style={s.title}>{t("creator.invalidRoute")}</Text>
+      {project === undefined ? (
+        <Text style={s.copy}>Loading…</Text>
+      ) : project === null ? (
+        <Text style={s.title}>{c.invalid}</Text>
       ) : (
         <>
-          <Text style={s.title}>{p.title}</Text>
-          <Text style={s.copy}>
-            {t("creator.aspect")}: {p.aspectRatio}
-          </Text>
-          <Text style={s.copy}>
-            {t("creator.captions")}:{" "}
-            {p.captionsEnabled ? t("creator.captionsAuto") : t("creator.captionsOff")}
-          </Text>
-          <Text style={s.copy}>{t("creator.foundation")}</Text>
-          {job ? <Text style={s.stage}>{job.progressStage ?? job.status}</Text> : null}
-          {job?.errorCode ? <Text style={s.error}>{job.errorCode}</Text> : null}
-          {job &&
-          ["queued", "analyzing", "transcribing", "selecting_clips", "rendering"].includes(
-            job.status,
-          ) ? (
-            <Pressable style={s.button} onPress={() => void cancelCreatorJob(job.id)}>
-              <Text style={s.buttonText}>{t("creator.cancelProcessing")}</Text>
-            </Pressable>
-          ) : null}
-          {clips.map((clip) => (
-            <View key={clip.id} style={s.card}>
-              <Text style={s.title}>
-                #{clip.rank}
-                {clip.rank === 1 ? ` — ${t("creator.highestPotential")}` : ""}
-              </Text>
-              <Text style={s.copy}>
-                {Math.round(clip.durationMs / 1000)}s · {t("creator.clipScore")}: {clip.score}/100
-              </Text>
-              <Text style={s.copy}>{clip.scoreReason}</Text>
-              <Text style={s.excerpt}>{clip.transcriptExcerpt}</Text>
+          <View style={s.hero}>
+            <Text style={s.eyebrow}>{c.eyebrow}</Text>
+            <Text style={s.title}>{project.title}</Text>
+            <View style={s.metaRow}>
+              <Text style={s.meta}>{project.aspectRatio}</Text>
+              <Text style={s.meta}>{c.captions}: {project.captionsEnabled ? c.on : c.off}</Text>
+              <Text style={s.meta}>{project.status.toUpperCase()}</Text>
             </View>
-          ))}
+          </View>
+
+          <View style={s.pipelineCard}>
+            <View style={s.pipelineTop}>
+              <View style={s.flex}>
+                <Text style={s.eyebrow}>{c.pipeline}</Text>
+                <Text style={s.cardTitle}>{activeStages.has(job?.status ?? "") ? c.processing : stage.replaceAll("_", " ")}</Text>
+              </View>
+              <Text style={s.percent}>{pipelineProgress}%</Text>
+            </View>
+            <View style={s.track}>
+              <View style={[s.fill, { width: `${pipelineProgress}%` }]} />
+            </View>
+            <Text style={s.copy}>{c.processingCopy}</Text>
+            <Text style={s.meta}>{c.refreshes}</Text>
+            {job?.errorCode ? <Text style={s.error}>{job.errorCode}</Text> : null}
+            {job && activeStages.has(job.status) ? (
+              <Pressable style={s.cancelButton} onPress={() => void cancelCreatorJob(job.id)}>
+                <Text style={s.cancelText}>{c.cancel}</Text>
+              </Pressable>
+            ) : null}
+          </View>
+
+          <View style={s.aiCard}>
+            <Text style={s.eyebrow}>KIVRYN CREATOR INTELLIGENCE</Text>
+            <Text style={s.cardTitle}>{c.projectAI}</Text>
+            <Text style={s.copy}>{c.aiCopy}</Text>
+            <Pressable style={s.outlineButton} onPress={openProjectAI}>
+              <Text style={s.outlineText}>{c.projectAI}</Text>
+            </Pressable>
+          </View>
+
+          <Text style={s.eyebrow}>{c.clips}</Text>
+          {clips.length === 0 ? (
+            <View style={s.emptyCard}>
+              <Text style={s.copy}>{c.noClips}</Text>
+            </View>
+          ) : (
+            clips.map((clip) => (
+              <View key={clip.id} style={[s.clipCard, clip.rank === 1 && s.bestClip]}>
+                <View style={s.clipTop}>
+                  <View style={s.rankBadge}>
+                    <Text style={s.rankText}>#{clip.rank}</Text>
+                  </View>
+                  <View style={s.flex}>
+                    <Text style={s.cardTitle}>{c.potential} · {clip.score}/100</Text>
+                    <Text style={s.meta}>{Math.round(clip.durationMs / 1000)}s · {clip.aspectRatio} · {clip.captionsEnabled ? "Captions ON" : "Captions OFF"}</Text>
+                  </View>
+                </View>
+                <Text style={s.signalNotice}>{c.signal}</Text>
+                <Text style={s.copy}>{clip.scoreReason}</Text>
+                <View style={s.excerptBox}>
+                  <Text style={s.eyebrow}>{c.excerpt}</Text>
+                  <Text style={s.excerpt}>{clip.transcriptExcerpt}</Text>
+                </View>
+                <Text style={clip.outputPath ? s.ready : s.waiting}>
+                  {clip.outputPath ? c.outputReady : c.outputWaiting}
+                </Text>
+                <View style={s.actions}>
+                  {clip.outputPath ? (
+                    <Pressable
+                      style={s.primaryButton}
+                      disabled={openingClip === clip.id}
+                      onPress={() => void openExport(clip)}
+                    >
+                      <Text style={s.primaryText}>{openingClip === clip.id ? c.opening : c.open}</Text>
+                    </Pressable>
+                  ) : null}
+                  <Pressable style={s.outlineButton} onPress={() => openClipAI(clip)}>
+                    <Text style={s.outlineText}>{c.package}</Text>
+                  </Pressable>
+                </View>
+              </View>
+            ))
+          )}
         </>
       )}
     </AppScreen>
   );
 }
+
 const s = StyleSheet.create({
-  page: { gap: spacing.md },
+  page: { gap: spacing.lg, paddingBottom: spacing.xxl },
+  hero: {
+    gap: spacing.sm,
+    padding: spacing.lg,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.borderActive,
+    backgroundColor: colors.canvasElevated,
+    ...shadows.illuminated,
+  },
+  eyebrow: { ...typography.eyebrow, color: colors.primaryBright },
   title: { ...typography.title, color: colors.text },
-  copy: { ...typography.body, color: colors.textMuted },
-  stage: { ...typography.heading, color: colors.primary },
-  error: { ...typography.body, color: colors.danger },
-  button: { padding: spacing.md, backgroundColor: colors.surface, borderRadius: 12 },
-  buttonText: { ...typography.body, color: colors.text },
-  card: { padding: spacing.md, gap: spacing.sm, backgroundColor: colors.surface, borderRadius: 12 },
+  cardTitle: { ...typography.heading, color: colors.text },
+  copy: { ...typography.body, color: colors.textSecondary },
+  meta: { ...typography.caption, color: colors.textMuted },
+  metaRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  pipelineCard: {
+    gap: spacing.md,
+    padding: spacing.lg,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  pipelineTop: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: spacing.md },
+  flex: { flex: 1, gap: spacing.xs },
+  percent: { ...typography.title, color: colors.primaryBright },
+  track: { height: 8, overflow: "hidden", borderRadius: radius.pill, backgroundColor: colors.border },
+  fill: { height: "100%", backgroundColor: colors.primaryBright },
+  cancelButton: {
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.danger,
+  },
+  cancelText: { ...typography.label, color: colors.danger },
+  aiCard: {
+    gap: spacing.md,
+    padding: spacing.lg,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.borderActive,
+    backgroundColor: colors.surfaceRaised,
+    ...shadows.raised,
+  },
+  emptyCard: {
+    padding: spacing.lg,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  clipCard: {
+    gap: spacing.md,
+    padding: spacing.lg,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  bestClip: { borderColor: colors.borderActive, backgroundColor: colors.surfaceRaised },
+  clipTop: { flexDirection: "row", alignItems: "flex-start", gap: spacing.md },
+  rankBadge: {
+    minWidth: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.md,
+    backgroundColor: colors.accentMuted,
+  },
+  rankText: { ...typography.label, color: colors.primaryBright },
+  signalNotice: { ...typography.caption, color: colors.warning },
+  excerptBox: {
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.canvasElevated,
+  },
   excerpt: { ...typography.body, color: colors.text },
+  ready: { ...typography.label, color: colors.success },
+  waiting: { ...typography.label, color: colors.textMuted },
+  actions: { gap: spacing.sm },
+  primaryButton: {
+    minHeight: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.md,
+    backgroundColor: colors.primary,
+  },
+  primaryText: { ...typography.label, color: colors.text },
+  outlineButton: {
+    minHeight: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.borderActive,
+  },
+  outlineText: { ...typography.label, color: colors.primaryBright },
+  error: { ...typography.body, color: colors.danger },
 });
