@@ -4,6 +4,7 @@ import {
   type PassportPlacementQuestion,
   type PassportPlacementResult,
   type PassportProfile,
+  type PassportVocabularyItem,
 } from "@/lib/passport";
 import { workspaceMutationError } from "@/lib/mutation-errors";
 import { supabase } from "@/lib/supabase";
@@ -245,4 +246,45 @@ export async function submitPassportPlacement(
     score: Number(result.score ?? 0),
     level: String(result.level) as PassportPlacementResult["level"],
   };
+}
+
+export async function listPassportDueVocabulary(
+  userId: string,
+  trackId: string,
+  limit = 20,
+): Promise<PassportVocabularyItem[]> {
+  const uid = requireUser(userId);
+  const languageTrackId = trackId.trim();
+  if (!languageTrackId) throw workspaceMutationError(new Error("Language track required."));
+  if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
+    throw workspaceMutationError(new Error("Vocabulary review limit must be between 1 and 100."));
+  }
+
+  const { data, error } = await supabase
+    .from("passport_vocabulary")
+    .select(
+      "id,track_id,source_lesson_id,term,translation,context,stage,ease_factor,interval_days,repetitions,next_review_at,last_reviewed_at",
+    )
+    .eq("user_id", uid)
+    .eq("track_id", languageTrackId)
+    .neq("stage", "mastered")
+    .lte("next_review_at", new Date().toISOString())
+    .order("next_review_at", { ascending: true })
+    .limit(limit);
+
+  if (error) throw workspaceMutationError(error);
+  return (data ?? []).map((row) => ({
+    id: String(row.id),
+    trackId: String(row.track_id),
+    sourceLessonId: typeof row.source_lesson_id === "string" ? row.source_lesson_id : null,
+    term: String(row.term),
+    translation: String(row.translation ?? ""),
+    context: String(row.context ?? ""),
+    stage: String(row.stage) as PassportVocabularyItem["stage"],
+    easeFactor: Number(row.ease_factor),
+    intervalDays: Number(row.interval_days),
+    repetitions: Number(row.repetitions),
+    nextReviewAt: String(row.next_review_at),
+    lastReviewedAt: typeof row.last_reviewed_at === "string" ? row.last_reviewed_at : null,
+  }));
 }
