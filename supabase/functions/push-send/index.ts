@@ -108,6 +108,9 @@ function nativeRoute(path: string) {
   if (task) return { kind: "task", resourceId: task };
   const journey = path.match(/^\/journeys\/([A-Za-z0-9-]+)$/)?.[1];
   if (journey) return { kind: "journey", resourceId: journey };
+  const community = path.match(/^\/community\/([A-Za-z0-9-]+)$/)?.[1];
+  if (community) return { kind: "community", resourceId: community };
+  if (path === "/community") return { kind: "community" };
   if (path === "/journeys") return { kind: "weekly_challenge" };
   return { kind: "general" };
 }
