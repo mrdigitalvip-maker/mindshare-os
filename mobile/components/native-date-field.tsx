@@ -1,37 +1,71 @@
-import { LocalizedCopy } from "@/components/localized-copy";
 import { useMemo, useState } from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { localDateKey } from "@/lib/journeys";
 import { colors, radius, spacing, typography } from "@/lib/theme";
 
-const MONTHS = [
-  "janeiro",
-  "fevereiro",
-  "março",
-  "abril",
-  "maio",
-  "junho",
-  "julho",
-  "agosto",
-  "setembro",
-  "outubro",
-  "novembro",
-  "dezembro",
-];
+type NativeDateFieldLocale = "pt-BR" | "en";
 
-const WEEKDAYS = ["D", "S", "T", "Q", "Q", "S", "S"];
+const calendarCopy = {
+  "pt-BR": {
+    months: [
+      "janeiro",
+      "fevereiro",
+      "março",
+      "abril",
+      "maio",
+      "junho",
+      "julho",
+      "agosto",
+      "setembro",
+      "outubro",
+      "novembro",
+      "dezembro",
+    ],
+    weekdays: ["D", "S", "T", "Q", "Q", "S", "S"],
+    previousMonth: "Mês anterior",
+    nextMonth: "Próximo mês",
+    targetDate: "Data-alvo",
+    clear: "Remover data",
+    cancel: "Cancelar",
+  },
+  en: {
+    months: [
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December",
+    ],
+    weekdays: ["S", "M", "T", "W", "T", "F", "S"],
+    previousMonth: "Previous month",
+    nextMonth: "Next month",
+    targetDate: "Target date",
+    clear: "Clear date",
+    cancel: "Cancel",
+  },
+} as const;
 
 export function NativeDateField({
   value,
   onChange,
   minimumDate = new Date(),
   label = "Adicionar data-alvo (opcional)",
+  locale = "pt-BR",
 }: {
   value: string | null;
   onChange(value: string | null): void;
   minimumDate?: Date;
   label?: string;
+  locale?: NativeDateFieldLocale;
 }) {
+  const text = calendarCopy[locale];
   const minimum = new Date(
     minimumDate.getFullYear(),
     minimumDate.getMonth(),
@@ -60,7 +94,7 @@ export function NativeDateField({
         style={s.field}
       >
         <Text style={value ? s.value : s.placeholder}>
-          {value ? `Data-alvo: ${selected.toLocaleDateString("pt-BR")}` : label}
+          {value ? `${text.targetDate}: ${selected.toLocaleDateString(locale)}` : label}
         </Text>
       </Pressable>
       <Modal transparent animationType="fade" visible={open} onRequestClose={() => setOpen(false)}>
@@ -69,24 +103,24 @@ export function NativeDateField({
             <View style={s.header}>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Mês anterior"
+                accessibilityLabel={text.previousMonth}
                 onPress={() => move(-1)}
               >
                 <Text style={s.arrow}>‹</Text>
               </Pressable>
               <Text style={s.heading}>
-                {MONTHS[month.getMonth()]} de {month.getFullYear()}
+                {text.months[month.getMonth()]} {month.getFullYear()}
               </Text>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Próximo mês"
+                accessibilityLabel={text.nextMonth}
                 onPress={() => move(1)}
               >
                 <Text style={s.arrow}>›</Text>
               </Pressable>
             </View>
             <View style={s.grid}>
-              {WEEKDAYS.map((day, index) => (
+              {text.weekdays.map((day, index) => (
                 <Text key={`${day}-${index}`} style={s.weekday}>
                   {day}
                 </Text>
@@ -102,7 +136,7 @@ export function NativeDateField({
                   <Pressable
                     key={iso}
                     accessibilityRole="button"
-                    accessibilityLabel={date.toLocaleDateString("pt-BR")}
+                    accessibilityLabel={date.toLocaleDateString(locale)}
                     disabled={disabled}
                     onPress={() => {
                       onChange(iso);
@@ -118,22 +152,19 @@ export function NativeDateField({
             <View style={s.actions}>
               {value ? (
                 <Pressable
+                  accessibilityRole="button"
                   onPress={() => {
                     onChange(null);
                     setOpen(false);
                   }}
                 >
-                  <Text style={s.clear}>
-                    <LocalizedCopy copyKey="legacy.1e73b75d260e" />
-                  </Text>
+                  <Text style={s.clear}>{text.clear}</Text>
                 </Pressable>
               ) : (
                 <View />
               )}
-              <Pressable onPress={() => setOpen(false)}>
-                <Text style={s.cancel}>
-                  <LocalizedCopy copyKey="legacy.96844ebdec58" />
-                </Text>
+              <Pressable accessibilityRole="button" onPress={() => setOpen(false)}>
+                <Text style={s.cancel}>{text.cancel}</Text>
               </Pressable>
             </View>
           </View>
