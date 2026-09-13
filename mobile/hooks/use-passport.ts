@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/providers/auth-provider";
 import { loadPassportHomeSnapshot } from "@/services/passport-home-service";
 import {
+  completePassportLesson,
   listPassportLanguageTracks,
   listPassportLessons,
   listPassportPlacementQuestions,
@@ -39,6 +40,19 @@ export function usePassportLessons(trackId: string) {
     queryFn: () => listPassportLessons(userId, languageTrackId),
     enabled: Boolean(userId) && Boolean(languageTrackId),
     staleTime: 60_000,
+  });
+}
+
+export function useCompletePassportLesson(lessonId: string) {
+  const userId = useAuth().session?.user.id ?? "";
+  const id = lessonId.trim();
+  const client = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => completePassportLesson(userId, id),
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: ["passport"] });
+    },
   });
 }
 
