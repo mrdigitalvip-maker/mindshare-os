@@ -2,6 +2,7 @@ import {
   type PassportLanguageTrack,
   type PassportLesson,
   type PassportPlacementQuestion,
+  type PassportPlacementResult,
   type PassportProfile,
 } from "@/lib/passport";
 import { workspaceMutationError } from "@/lib/mutation-errors";
@@ -216,4 +217,32 @@ export async function listPassportPlacementQuestions(
       orderIndex: Number(value.orderIndex ?? 0),
     };
   });
+}
+
+export async function submitPassportPlacement(
+  userId: string,
+  trackId: string,
+  answers: Record<string, number>,
+): Promise<PassportPlacementResult> {
+  requireUser(userId);
+  const languageTrackId = trackId.trim();
+  if (!languageTrackId) throw workspaceMutationError(new Error("Language track required."));
+
+  const entries = Object.entries(answers);
+  if (!entries.length) throw workspaceMutationError(new Error("Placement answers required."));
+  if (entries.some(([key, value]) => !key.trim() || !Number.isInteger(value) || value < 0)) {
+    throw workspaceMutationError(new Error("Placement answers are invalid."));
+  }
+
+  const { data, error } = await supabase.rpc("submit_passport_placement", {
+    p_track_id: languageTrackId,
+    p_answers: answers,
+  } as never);
+
+  if (error) throw workspaceMutationError(error);
+  const result = (data ?? {}) as Record<string, unknown>;
+  return {
+    score: Number(result.score ?? 0),
+    level: String(result.level) as PassportPlacementResult["level"],
+  };
 }
