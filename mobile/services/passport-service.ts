@@ -1,4 +1,8 @@
-import { type PassportLanguageTrack, type PassportProfile } from "@/lib/passport";
+import {
+  type PassportLanguageTrack,
+  type PassportLesson,
+  type PassportProfile,
+} from "@/lib/passport";
 import { workspaceMutationError } from "@/lib/mutation-errors";
 import { supabase } from "@/lib/supabase";
 
@@ -29,6 +33,33 @@ const profileFrom = (row: Record<string, unknown>): PassportProfile => ({
   isPrimary: Boolean(row.is_primary),
   createdAt: String(row.created_at),
   updatedAt: String(row.updated_at),
+});
+
+const lessonFrom = (
+  row: Record<string, unknown>,
+  progress?: Record<string, unknown>,
+): PassportLesson => ({
+  id: String(row.id),
+  trackId: String(row.track_id),
+  slug: String(row.slug),
+  title: String(row.title),
+  description: String(row.description ?? ""),
+  content:
+    row.content && typeof row.content === "object" && !Array.isArray(row.content)
+      ? (row.content as Record<string, unknown>)
+      : {},
+  lessonType: String(row.lesson_type),
+  difficulty: String(row.difficulty),
+  orderIndex: Number(row.order_index),
+  estimatedMinutes: Number(row.estimated_minutes),
+  premium: Boolean(row.premium),
+  status: progress
+    ? (String(progress.status) as PassportLesson["status"])
+    : "not_started",
+  score: progress?.score == null ? null : Number(progress.score),
+  xp: Number(progress?.xp ?? 0),
+  completedAt:
+    typeof progress?.completed_at === "string" ? progress.completed_at : null,
 });
 
 export type UpsertPassportProfileInput = {
@@ -87,4 +118,48 @@ export async function upsertPassportProfile(
 
   if (error) throw workspaceMutationError(error);
   return profileFrom(data as unknown as Record<string, unknown>);
+}
+
+export async function listPassportLessons(
+  userId: string,
+  trackId: string,
+): Promise<PassportLesson[]> {
+  const uid = requireUser(userId);
+  const languageTrackId = trackId.trim();
+  if (!languageTrackId) throw workspaceMutationError(new Error("Language track required."));
+
+  const { data: lessons, error: lessonsError } = await supabase
+    .from("studio_lessons")
+    .select(
+      "id,track_id,slug,title,description,content,lesson_type,difficulty,order_index,estimated_minutes,premium",
+    )
+    .eq("track_id", languageTrackId)
+    .eq("active", true)
+    .order("order_index", { ascending: true });
+
+  if (lessonsError) throw workspaceMutationError(lessonsError);
+  if (!lessons?.length) return [];
+
+  const lessonIds = lessons.map((lesson) => String(lesson.id));
+  const { data: progressRows, error: progressError } = await supabase
+    .from("studio_progress")
+    .select("lesson_id,status,score,xp,completed_at")
+    .eq("user_id", uid)
+    .in("lesson_id", lessonIds);
+
+  if (progressError) throw workspaceMutationError(progressError);
+
+  const progressByLesson = new Map(
+    (progressRows ?? []).map((row) => [
+      String(row.lesson_id),
+      row as Record<string, unknown>,
+    ]),
+  );
+
+  return lessons.map((lesson) =>
+    lessonFrom(
+      lesson as Record<string, unknown>,
+      progressByLesson.get(String(lesson.id)),
+    ),
+  );
 }
