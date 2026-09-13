@@ -4,6 +4,7 @@ import {
   type PassportPlacementQuestion,
   type PassportPlacementResult,
   type PassportProfile,
+  type PassportReviewResult,
   type PassportVocabularyItem,
 } from "@/lib/passport";
 import { workspaceMutationError } from "@/lib/mutation-errors";
@@ -287,4 +288,34 @@ export async function listPassportDueVocabulary(
     nextReviewAt: String(row.next_review_at),
     lastReviewedAt: typeof row.last_reviewed_at === "string" ? row.last_reviewed_at : null,
   }));
+}
+
+export async function reviewPassportVocabulary(
+  userId: string,
+  vocabularyId: string,
+  grade: number,
+): Promise<PassportReviewResult> {
+  requireUser(userId);
+  const id = vocabularyId.trim();
+  if (!id) throw workspaceMutationError(new Error("Vocabulary item required."));
+  if (!Number.isInteger(grade) || grade < 0 || grade > 5) {
+    throw workspaceMutationError(new Error("Vocabulary grade must be between 0 and 5."));
+  }
+
+  const { data, error } = await supabase.rpc("review_passport_vocabulary", {
+    p_vocabulary_id: id,
+    p_grade: grade,
+  } as never);
+
+  if (error) throw workspaceMutationError(error);
+  const result = (data ?? {}) as Record<string, unknown>;
+  return {
+    id: String(result.id),
+    grade: Number(result.grade),
+    stage: String(result.stage) as PassportReviewResult["stage"],
+    repetitions: Number(result.repetitions),
+    intervalDays: Number(result.intervalDays),
+    easeFactor: Number(result.easeFactor),
+    nextReviewAt: String(result.nextReviewAt),
+  };
 }
