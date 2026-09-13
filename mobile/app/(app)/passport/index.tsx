@@ -1,3 +1,4 @@
+import { router } from "expo-router";
 import { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { AppScreen } from "@/components/app-screen";
@@ -22,6 +23,7 @@ const copy = {
     missions: "Missões de hoje",
     nextLesson: "PRÓXIMA LIÇÃO",
     nothingNext: "Nenhuma lição disponível agora.",
+    openLesson: "Abrir lição",
     dailyMission: "MISSÃO DE HOJE",
     noMission: "Nenhuma missão criada para hoje.",
     reviewQueue: "VOCABULÁRIO PARA REVISAR",
@@ -44,6 +46,7 @@ const copy = {
     missions: "Today's missions",
     nextLesson: "NEXT LESSON",
     nothingNext: "No lesson is available right now.",
+    openLesson: "Open lesson",
     dailyMission: "TODAY'S MISSION",
     noMission: "No mission was created for today.",
     reviewQueue: "VOCABULARY TO REVIEW",
@@ -124,7 +127,21 @@ export default function PassportHome() {
             <Metric label={c.missions} value={`${data?.completedMissions ?? 0}/${data?.missions.length ?? 0}`} detail={c.completed} />
           </View>
 
-          <Section label={c.nextLesson} title={nextLesson?.title ?? c.nothingNext} body={nextLesson?.description ?? ""} />
+          <Section
+            label={c.nextLesson}
+            title={nextLesson?.title ?? c.nothingNext}
+            body={nextLesson?.description ?? ""}
+            actionLabel={nextLesson ? c.openLesson : undefined}
+            onPress={
+              nextLesson
+                ? () =>
+                    router.push({
+                      pathname: "/passport/lesson/[lessonId]",
+                      params: { lessonId: nextLesson.id },
+                    })
+                : undefined
+            }
+          />
           <Section label={c.dailyMission} title={nextMission?.title ?? c.noMission} body={nextMission?.prompt ?? ""} />
           <Section
             label={c.reviewQueue}
@@ -151,13 +168,38 @@ function Metric({ label, value, detail }: { label: string; value: string; detail
   );
 }
 
-function Section({ label, title, body }: { label: string; title: string; body: string }) {
-  return (
-    <View style={styles.section}>
+function Section({
+  label,
+  title,
+  body,
+  actionLabel,
+  onPress,
+}: {
+  label: string;
+  title: string;
+  body: string;
+  actionLabel?: string;
+  onPress?: () => void;
+}) {
+  const content = (
+    <>
       <Text style={styles.sectionLabel}>{label}</Text>
       <Text style={styles.sectionTitle}>{title}</Text>
       {body ? <Text style={styles.sectionBody}>{body}</Text> : null}
-    </View>
+      {actionLabel ? <Text style={styles.sectionAction}>{actionLabel} →</Text> : null}
+    </>
+  );
+
+  return onPress ? (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [styles.section, styles.sectionInteractive, pressed && styles.sectionPressed]}
+    >
+      {content}
+    </Pressable>
+  ) : (
+    <View style={styles.section}>{content}</View>
   );
 }
 
@@ -187,9 +229,12 @@ const styles = StyleSheet.create({
   metricValue: { ...typography.heading, color: colors.text, marginTop: spacing.sm },
   metricDetail: { ...typography.caption, color: colors.textSecondary, marginTop: spacing.xs },
   section: { marginTop: spacing.md, padding: spacing.lg, borderRadius: radius.xl, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  sectionInteractive: { borderColor: colors.borderActive },
+  sectionPressed: { opacity: 0.82 },
   sectionLabel: { ...typography.label, color: colors.primaryBright },
   sectionTitle: { ...typography.heading, color: colors.text, marginTop: spacing.sm },
   sectionBody: { ...typography.body, color: colors.textSecondary, marginTop: spacing.sm },
+  sectionAction: { ...typography.label, color: colors.primaryBright, marginTop: spacing.md },
   refreshButton: { marginTop: spacing.lg, marginBottom: spacing.lg, alignItems: "center", justifyContent: "center", paddingVertical: spacing.md, borderRadius: radius.lg, backgroundColor: colors.surfaceRaised, borderWidth: 1, borderColor: colors.border },
   refreshText: { ...typography.label, color: colors.text },
 });
