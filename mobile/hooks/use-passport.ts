@@ -17,6 +17,7 @@ import {
   listPassportPlacementQuestions,
   reviewPassportVocabulary,
   submitPassportPlacement,
+  updatePassportDailyMissionStatus,
   upsertPassportProfile,
   type AddPassportVocabularyInput,
   type UpsertPassportProfileInput,
@@ -171,6 +172,24 @@ export function useFinishPassportRoleplaySession() {
     mutationFn: (sessionId: string) => finishPassportRoleplaySession(userId, sessionId),
     onSuccess: async () => {
       await client.invalidateQueries({ queryKey: ["passport", "roleplay"] });
+    },
+  });
+}
+
+export function useUpdatePassportDailyMissionStatus() {
+  const userId = useAuth().session?.user.id ?? "";
+  const client = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      missionId,
+      status,
+    }: {
+      missionId: string;
+      status: "completed" | "skipped";
+    }) => updatePassportDailyMissionStatus(userId, missionId, status),
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: ["passport"] });
     },
   });
 }
