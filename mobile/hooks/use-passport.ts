@@ -3,12 +3,16 @@ import { useAuth } from "@/providers/auth-provider";
 import { loadPassportHomeSnapshot } from "@/services/passport-home-service";
 import { startPassportLesson } from "@/services/passport-lesson-progress-service";
 import {
+  addPassportVocabulary,
   completePassportLesson,
+  listPassportDueVocabulary,
   listPassportLanguageTracks,
   listPassportLessons,
   listPassportPlacementQuestions,
+  reviewPassportVocabulary,
   submitPassportPlacement,
   upsertPassportProfile,
+  type AddPassportVocabularyInput,
   type UpsertPassportProfileInput,
 } from "@/services/passport-service";
 
@@ -64,6 +68,45 @@ export function useCompletePassportLesson(lessonId: string) {
 
   return useMutation({
     mutationFn: () => completePassportLesson(userId, id),
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: ["passport"] });
+    },
+  });
+}
+
+export function usePassportDueVocabulary(trackId: string, limit = 20) {
+  const userId = useAuth().session?.user.id ?? "";
+  const languageTrackId = trackId.trim();
+
+  return useQuery({
+    queryKey: ["passport", "review", "due", userId, languageTrackId, limit] as const,
+    queryFn: () => listPassportDueVocabulary(userId, languageTrackId, limit),
+    enabled: Boolean(userId) && Boolean(languageTrackId),
+    staleTime: 30_000,
+  });
+}
+
+export function useReviewPassportVocabulary() {
+  const userId = useAuth().session?.user.id ?? "";
+  const client = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ vocabularyId, grade }: { vocabularyId: string; grade: number }) =>
+      reviewPassportVocabulary(userId, vocabularyId, grade),
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: ["passport"] });
+    },
+  });
+}
+
+export function useAddPassportVocabulary(trackId: string) {
+  const userId = useAuth().session?.user.id ?? "";
+  const languageTrackId = trackId.trim();
+  const client = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: Omit<AddPassportVocabularyInput, "trackId">) =>
+      addPassportVocabulary(userId, { ...input, trackId: languageTrackId }),
     onSuccess: async () => {
       await client.invalidateQueries({ queryKey: ["passport"] });
     },
