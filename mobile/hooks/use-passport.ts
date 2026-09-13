@@ -3,6 +3,7 @@ import { useAuth } from "@/providers/auth-provider";
 import { loadPassportHomeSnapshot } from "@/services/passport-home-service";
 import {
   listPassportLanguageTracks,
+  listPassportLessons,
   listPassportPlacementQuestions,
   submitPassportPlacement,
   upsertPassportProfile,
@@ -25,6 +26,18 @@ export function usePassportHome(missionDate: string) {
     queryKey: ["passport", "home", userId, date] as const,
     queryFn: () => loadPassportHomeSnapshot(userId, date),
     enabled: Boolean(userId) && /^\d{4}-\d{2}-\d{2}$/.test(date),
+    staleTime: 60_000,
+  });
+}
+
+export function usePassportLessons(trackId: string) {
+  const userId = useAuth().session?.user.id ?? "";
+  const languageTrackId = trackId.trim();
+
+  return useQuery({
+    queryKey: ["passport", "lessons", userId, languageTrackId] as const,
+    queryFn: () => listPassportLessons(userId, languageTrackId),
+    enabled: Boolean(userId) && Boolean(languageTrackId),
     staleTime: 60_000,
   });
 }
