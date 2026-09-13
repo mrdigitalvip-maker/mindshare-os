@@ -43,6 +43,24 @@ export type PassportProfile = {
   updatedAt: string;
 };
 
+export type PassportLesson = {
+  id: string;
+  trackId: string;
+  slug: string;
+  title: string;
+  description: string;
+  content: Record<string, unknown>;
+  lessonType: string;
+  difficulty: string;
+  orderIndex: number;
+  estimatedMinutes: number;
+  premium: boolean;
+  status: "not_started" | "in_progress" | "completed";
+  score: number | null;
+  xp: number;
+  completedAt: string | null;
+};
+
 export type PassportVocabularyStage = "new" | "learning" | "review" | "mastered";
 
 export type PassportVocabularyItem = {
