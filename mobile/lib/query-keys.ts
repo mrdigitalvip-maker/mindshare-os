@@ -27,6 +27,10 @@ export const queryKeys = {
   journeyPacks: ["journey-packs"] as const,
   journeyPack: (slug: string) => ["journey-packs", validId(slug)] as const,
   arena: ["arena"] as const,
+  personalChallenges: ["arena", "personal-challenges"] as const,
+  challengeSuggestions: ["arena", "challenge-suggestions"] as const,
+  challengeRankingRoot: ["arena", "ranking"] as const,
+  challengeRanking: (period: "daily" | "weekly" | "monthly") => ["arena", "ranking", period] as const,
   community: ["community"] as const,
   communityChannels: ["community", "channels"] as const,
   communityMessages: (id: string) => ["community", "channel", validId(id), "messages"] as const,
@@ -43,6 +47,8 @@ export const verifiedExecutionInvalidations = [
   queryKeys.momentum,
   queryKeys.journeyChallenge,
   queryKeys.arena,
+  queryKeys.personalChallenges,
+  queryKeys.challengeRankingRoot,
   queryKeys.community,
 ] as const;
 
@@ -56,6 +62,8 @@ export function taskMutationInvalidations(
     queryKeys.projects,
     queryKeys.journeys,
     queryKeys.dailyMission,
+    queryKeys.personalChallenges,
+    queryKeys.challengeRankingRoot,
     ...projectIds.flatMap((id) => [queryKeys.project(id), queryKeys.projectTasks(id)]),
   ] as const;
 }
