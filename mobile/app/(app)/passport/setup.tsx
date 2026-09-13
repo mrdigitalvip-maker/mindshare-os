@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { router } from "expo-router";
 
 import { AppScreen } from "@/components/app-screen";
 import { NativeDateField } from "@/components/native-date-field";
 import { StandardHeader } from "@/components/product-ui";
 import { ErrorState, LoadingState } from "@/components/screen-state";
-import { usePassportLanguageTracks } from "@/hooks/use-passport";
+import { usePassportLanguageTracks, useUpsertPassportProfile } from "@/hooks/use-passport";
 import { passportGoals, type PassportGoal } from "@/lib/passport";
 import { colors, radius, spacing, typography } from "@/lib/theme";
 import { useLanguage } from "@/providers/language-provider";
@@ -52,7 +53,13 @@ const copy = {
     retry: "Tentar novamente",
     empty: "Nenhum idioma está disponível no momento.",
     selected: "Selecionado",
-    nextHint: "Detalhes finais definidos. A data da viagem pode ficar vazia. Na próxima unidade vamos salvar o Passport de verdade.",
+    saveEyebrow: "PRONTO PARA CRIAR",
+    saveHeading: "Salvar seu Passport",
+    saveBody:
+      "Essas escolhas serão gravadas no seu perfil Passport. Depois disso, seguimos para o teste de nível.",
+    save: "Criar Passport",
+    saving: "Criando Passport…",
+    saveError: "Não foi possível salvar o Passport. Nenhuma configuração foi perdida; tente novamente.",
     goals: {
       travel: { title: "Viagem", description: "Aeroporto, hotel, restaurante, transporte e situações reais." },
       work: { title: "Trabalho", description: "Reuniões, comunicação profissional e contexto de negócios." },
@@ -99,7 +106,13 @@ const copy = {
     retry: "Try again",
     empty: "No language is available right now.",
     selected: "Selected",
-    nextHint: "Final details are set. The travel date can stay empty. Next we'll save your Passport for real.",
+    saveEyebrow: "READY TO CREATE",
+    saveHeading: "Save your Passport",
+    saveBody:
+      "These choices will be stored in your Passport profile. After that, we'll move on to the placement test.",
+    save: "Create Passport",
+    saving: "Creating Passport…",
+    saveError: "Passport could not be saved. Your selections were not lost; try again.",
     goals: {
       travel: { title: "Travel", description: "Airport, hotel, restaurant, transport and real situations." },
       work: { title: "Work", description: "Meetings, professional communication and business context." },
@@ -114,6 +127,7 @@ export default function PassportSetup() {
   const { resolvedLocale } = useLanguage();
   const text = copy[resolvedLocale];
   const tracks = usePassportLanguageTracks();
+  const saveProfile = useUpsertPassportProfile();
   const [selectedTrackId, setSelectedTrackId] = useState<string | null>(null);
   const [selectedGoal, setSelectedGoal] = useState<PassportGoal | null>(null);
   const [dailyMinutes, setDailyMinutes] = useState<number | null>(null);
@@ -141,6 +155,25 @@ export default function PassportSetup() {
         ? text.goalStep
         : text.languageStep;
   const progressWidth = dailyMinutes ? "100%" : selectedGoal ? "75%" : selectedTrackId ? "50%" : "25%";
+  const canSave = Boolean(selectedTrackId && selectedGoal && dailyMinutes && planHorizonDays);
+
+  async function savePassport() {
+    if (!selectedTrackId || !selectedGoal || !dailyMinutes || !planHorizonDays || saveProfile.isPending) return;
+
+    try {
+      await saveProfile.mutateAsync({
+        trackId: selectedTrackId,
+        goal: selectedGoal,
+        travelDate,
+        dailyMinutes,
+        planHorizonDays,
+        isPrimary: true,
+      });
+      router.replace("/passport");
+    } catch {
+      // Mutation state exposes the user-facing failure below without clearing local selections.
+    }
+  }
 
   return (
     <AppScreen scroll contentContainerStyle={styles.page}>
@@ -168,12 +201,14 @@ export default function PassportSetup() {
                 key={track.id}
                 accessibilityRole="button"
                 accessibilityState={{ selected }}
+                disabled={saveProfile.isPending}
                 onPress={() => {
                   if (track.id !== selectedTrackId) {
                     setSelectedGoal(null);
                     setDailyMinutes(null);
                     setPlanHorizonDays(null);
                     setTravelDate(null);
+                    saveProfile.reset();
                   }
                   setSelectedTrackId(track.id);
                 }}
@@ -220,11 +255,13 @@ export default function PassportSetup() {
                   key={goal}
                   accessibilityRole="button"
                   accessibilityState={{ selected }}
+                  disabled={saveProfile.isPending}
                   onPress={() => {
                     if (goal !== selectedGoal) {
                       setDailyMinutes(null);
                       setPlanHorizonDays(null);
                       setTravelDate(null);
+                      saveProfile.reset();
                     }
                     setSelectedGoal(goal);
                   }}
@@ -266,10 +303,12 @@ export default function PassportSetup() {
                   key={minutes}
                   accessibilityRole="button"
                   accessibilityState={{ selected }}
+                  disabled={saveProfile.isPending}
                   onPress={() => {
                     if (minutes !== dailyMinutes) {
                       setPlanHorizonDays(null);
                       setTravelDate(null);
+                      saveProfile.reset();
                     }
                     setDailyMinutes(minutes);
                   }}
@@ -305,7 +344,11 @@ export default function PassportSetup() {
                   key={days}
                   accessibilityRole="button"
                   accessibilityState={{ selected }}
-                  onPress={() => setPlanHorizonDays(days)}
+                  disabled={saveProfile.isPending}
+                  onPress={() => {
+                    setPlanHorizonDays(days);
+                    saveProfile.reset();
+                  }}
                   style={({ pressed }) => [
                     styles.optionCard,
                     selected && styles.choiceCardSelected,
@@ -333,15 +376,40 @@ export default function PassportSetup() {
           <View style={styles.dateFieldWrap}>
             <NativeDateField
               value={travelDate}
-              onChange={setTravelDate}
+              onChange={(next) => {
+                setTravelDate(next);
+                saveProfile.reset();
+              }}
               label={text.travelDateLabel}
               locale={resolvedLocale}
             />
           </View>
 
-          <View style={styles.nextHintCard}>
-            <Text style={styles.nextHint}>{text.nextHint}</Text>
+          <View style={styles.sectionHero}>
+            <Text style={styles.eyebrow}>{text.saveEyebrow}</Text>
+            <Text style={styles.heading}>{text.saveHeading}</Text>
+            <Text style={styles.body}>{text.saveBody}</Text>
           </View>
+
+          {saveProfile.isError ? (
+            <View style={styles.errorCard} accessibilityLiveRegion="polite">
+              <Text style={styles.errorText}>{text.saveError}</Text>
+            </View>
+          ) : null}
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ disabled: !canSave || saveProfile.isPending }}
+            disabled={!canSave || saveProfile.isPending}
+            onPress={() => void savePassport()}
+            style={({ pressed }) => [
+              styles.saveButton,
+              (!canSave || saveProfile.isPending) && styles.saveButtonDisabled,
+              pressed && styles.choiceCardPressed,
+            ]}
+          >
+            <Text style={styles.saveButtonText}>{saveProfile.isPending ? text.saving : text.save}</Text>
+          </Pressable>
         </>
       ) : null}
     </AppScreen>
@@ -441,6 +509,25 @@ const styles = StyleSheet.create({
   optionLabel: { ...typography.caption, color: colors.textMuted, marginTop: spacing.xs },
   defaultLabel: { ...typography.caption, color: colors.primaryBright, marginTop: spacing.sm },
   dateFieldWrap: { marginTop: spacing.md },
+  errorCard: {
+    marginTop: spacing.md,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.danger,
+    backgroundColor: colors.surface,
+  },
+  errorText: { ...typography.caption, color: colors.danger },
+  saveButton: {
+    marginTop: spacing.md,
+    minHeight: 54,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.lg,
+    backgroundColor: colors.primary,
+  },
+  saveButtonDisabled: { opacity: 0.5 },
+  saveButtonText: { ...typography.label, color: colors.text },
   emptyCard: {
     padding: spacing.lg,
     borderRadius: radius.lg,
@@ -449,13 +536,4 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   emptyText: { ...typography.body, color: colors.textMuted },
-  nextHintCard: {
-    marginTop: spacing.md,
-    padding: spacing.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.canvasElevated,
-  },
-  nextHint: { ...typography.caption, color: colors.textSecondary },
 });
