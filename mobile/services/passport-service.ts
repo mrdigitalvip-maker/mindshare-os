@@ -66,6 +66,21 @@ const lessonFrom = (
     typeof progress?.completed_at === "string" ? progress.completed_at : null,
 });
 
+const vocabularyFrom = (row: Record<string, unknown>): PassportVocabularyItem => ({
+  id: String(row.id),
+  trackId: String(row.track_id),
+  sourceLessonId: typeof row.source_lesson_id === "string" ? row.source_lesson_id : null,
+  term: String(row.term),
+  translation: String(row.translation ?? ""),
+  context: String(row.context ?? ""),
+  stage: String(row.stage) as PassportVocabularyItem["stage"],
+  easeFactor: Number(row.ease_factor),
+  intervalDays: Number(row.interval_days),
+  repetitions: Number(row.repetitions),
+  nextReviewAt: String(row.next_review_at),
+  lastReviewedAt: typeof row.last_reviewed_at === "string" ? row.last_reviewed_at : null,
+});
+
 export type UpsertPassportProfileInput = {
   trackId: string;
   goal: PassportProfile["goal"];
@@ -74,6 +89,14 @@ export type UpsertPassportProfileInput = {
   dailyMinutes?: number;
   planHorizonDays?: number;
   isPrimary?: boolean;
+};
+
+export type AddPassportVocabularyInput = {
+  trackId: string;
+  term: string;
+  translation?: string;
+  context?: string;
+  sourceLessonId?: string | null;
 };
 
 export async function listPassportLanguageTracks(): Promise<PassportLanguageTrack[]> {
@@ -274,20 +297,7 @@ export async function listPassportDueVocabulary(
     .limit(limit);
 
   if (error) throw workspaceMutationError(error);
-  return (data ?? []).map((row) => ({
-    id: String(row.id),
-    trackId: String(row.track_id),
-    sourceLessonId: typeof row.source_lesson_id === "string" ? row.source_lesson_id : null,
-    term: String(row.term),
-    translation: String(row.translation ?? ""),
-    context: String(row.context ?? ""),
-    stage: String(row.stage) as PassportVocabularyItem["stage"],
-    easeFactor: Number(row.ease_factor),
-    intervalDays: Number(row.interval_days),
-    repetitions: Number(row.repetitions),
-    nextReviewAt: String(row.next_review_at),
-    lastReviewedAt: typeof row.last_reviewed_at === "string" ? row.last_reviewed_at : null,
-  }));
+  return (data ?? []).map((row) => vocabularyFrom(row as Record<string, unknown>));
 }
 
 export async function reviewPassportVocabulary(
@@ -318,4 +328,50 @@ export async function reviewPassportVocabulary(
     easeFactor: Number(result.easeFactor),
     nextReviewAt: String(result.nextReviewAt),
   };
+}
+
+export async function addPassportVocabulary(
+  userId: string,
+  input: AddPassportVocabularyInput,
+): Promise<PassportVocabularyItem> {
+  const uid = requireUser(userId);
+  const trackId = input.trackId.trim();
+  const term = input.term.trim();
+  const sourceLessonId = input.sourceLessonId?.trim() || null;
+
+  if (!trackId) throw workspaceMutationError(new Error("Language track required."));
+  if (!term || term.length > 160) {
+    throw workspaceMutationError(new Error("Vocabulary term must be between 1 and 160 characters."));
+  }
+
+  if (sourceLessonId) {
+    const { data: sourceLesson, error: sourceLessonError } = await supabase
+      .from("studio_lessons")
+      .select("id,track_id")
+      .eq("id", sourceLessonId)
+      .maybeSingle();
+
+    if (sourceLessonError) throw workspaceMutationError(sourceLessonError);
+    if (!sourceLesson || String(sourceLesson.track_id) !== trackId) {
+      throw workspaceMutationError(new Error("Source lesson must belong to the selected language track."));
+    }
+  }
+
+  const { data, error } = await supabase
+    .from("passport_vocabulary")
+    .insert({
+      user_id: uid,
+      track_id: trackId,
+      source_lesson_id: sourceLessonId,
+      term,
+      translation: input.translation?.trim() ?? "",
+      context: input.context?.trim() ?? "",
+    } as never)
+    .select(
+      "id,track_id,source_lesson_id,term,translation,context,stage,ease_factor,interval_days,repetitions,next_review_at,last_reviewed_at",
+    )
+    .single();
+
+  if (error) throw workspaceMutationError(error);
+  return vocabularyFrom(data as unknown as Record<string, unknown>);
 }
