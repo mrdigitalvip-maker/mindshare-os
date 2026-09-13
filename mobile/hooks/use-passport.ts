@@ -4,6 +4,7 @@ import { loadPassportHomeSnapshot } from "@/services/passport-home-service";
 import {
   listPassportLanguageTracks,
   listPassportPlacementQuestions,
+  submitPassportPlacement,
   upsertPassportProfile,
   type UpsertPassportProfileInput,
 } from "@/services/passport-service";
@@ -37,6 +38,20 @@ export function usePassportPlacementQuestions(trackId: string) {
     queryFn: () => listPassportPlacementQuestions(userId, languageTrackId),
     enabled: Boolean(userId) && Boolean(languageTrackId),
     staleTime: 5 * 60_000,
+  });
+}
+
+export function useSubmitPassportPlacement(trackId: string) {
+  const userId = useAuth().session?.user.id ?? "";
+  const languageTrackId = trackId.trim();
+  const client = useQueryClient();
+
+  return useMutation({
+    mutationFn: (answers: Record<string, number>) =>
+      submitPassportPlacement(userId, languageTrackId, answers),
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: ["passport"] });
+    },
   });
 }
 
