@@ -64,6 +64,53 @@ Deno.serve(async (request) => {
       }
     }
 
+    // Challenge reminders are restrained: daily challenges may remind once per day;
+    // weekly/monthly challenges only remind near their deadline. Progress is real.
+    if (hour === 18 && pref.challenges_enabled !== false) {
+      const nowIso = new Date().toISOString();
+      const { data: candidates } = await db
+        .from("personal_challenges")
+        .select("id,title,period,target_value,progress,ends_at")
+        .eq("user_id", pref.user_id)
+        .eq("status", "active")
+        .lte("starts_at", nowIso)
+        .gt("ends_at", nowIso)
+        .order("ends_at", { ascending: true })
+        .limit(10);
+      const deadline = Date.now() + 36 * 60 * 60 * 1000;
+      const challenge = (candidates ?? []).find((item) => {
+        const remaining = Number(item.target_value) - Number(item.progress ?? 0);
+        if (remaining <= 0) return false;
+        return item.period === "daily" || new Date(item.ends_at).getTime() <= deadline;
+      });
+      if (challenge) {
+        const dedupe = `challenge-reminder:${challenge.id}`;
+        const { error } = await db.from("notification_deliveries").insert({
+          user_id: pref.user_id,
+          dedupe_key: dedupe,
+          kind: "general",
+          delivered_on: day,
+        });
+        if (!error) {
+          const remaining = Math.max(1, Number(challenge.target_value) - Number(challenge.progress ?? 0));
+          await fetch(`${url}/functions/v1/push-send`, {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              "x-scheduler-secret": schedulerSecret,
+            },
+            body: JSON.stringify({
+              userId: pref.user_id,
+              title: challenge.title ?? "KIVRYN Challenge",
+              body: `Faltam ${remaining} para concluir seu desafio.`,
+              url: "/challenges",
+            }),
+          });
+          queued++;
+        }
+      }
+    }
+
     // Community retention is based on real unread messages only. No synthetic
     // activity, fake counts or message contents are exposed in the push body.
     if (hour === 19) {
