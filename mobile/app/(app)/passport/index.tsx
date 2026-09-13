@@ -26,6 +26,7 @@ const copy = {
     openLesson: "Abrir lição",
     dailyMission: "MISSÃO DE HOJE",
     noMission: "Nenhuma missão criada para hoje.",
+    missionsAction: "Ver missões",
     reviewQueue: "VOCABULÁRIO PARA REVISAR",
     allClear: "Tudo revisado por enquanto.",
     reviewNow: "Revisar agora",
@@ -54,6 +55,7 @@ const copy = {
     openLesson: "Open lesson",
     dailyMission: "TODAY'S MISSION",
     noMission: "No mission was created for today.",
+    missionsAction: "View missions",
     reviewQueue: "VOCABULARY TO REVIEW",
     allClear: "You're all caught up for now.",
     reviewNow: "Review now",
@@ -153,7 +155,13 @@ export default function PassportHome() {
                 : undefined
             }
           />
-          <Section label={c.dailyMission} title={nextMission?.title ?? c.noMission} body={nextMission?.prompt ?? ""} />
+          <Section
+            label={c.dailyMission}
+            title={nextMission?.title ?? c.noMission}
+            body={nextMission?.prompt ?? ""}
+            actionLabel={c.missionsAction}
+            onPress={() => router.push("/passport/missions")}
+          />
           <Section
             label={c.reviewQueue}
             title={dueVocabulary[0]?.term ?? c.allClear}
