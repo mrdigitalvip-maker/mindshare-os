@@ -15,8 +15,10 @@ Deno.serve(async (request) => {
   if (rejected) return rejected;
   if (request.method !== "POST")
     return jsonResponse(request, { error: { code: "method_not_allowed" } }, 405);
+
   const authorization = request.headers.get("Authorization");
   if (!authorization) return jsonResponse(request, { error: { code: "unauthorized" } }, 401);
+
   const client = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
     global: { headers: { Authorization: authorization } },
   });
@@ -25,28 +27,38 @@ Deno.serve(async (request) => {
     error: authError,
   } = await client.auth.getUser();
   if (authError || !user) return jsonResponse(request, { error: { code: "unauthorized" } }, 401);
+
   const body = (await request.json().catch(() => null)) as {
     action?: string;
     text?: unknown;
   } | null;
-  const configured = Boolean(
-    Deno.env.get("ELEVENLABS_API_KEY") && Deno.env.get("ELEVENLABS_VOICE_ID_NEXORA"),
-  );
-  const { data, error } = await client
-    .from("subscriptions")
-    .select("status,current_period_end")
-    .eq("user_id", user.id)
-    .order("updated_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  const active =
-    !error &&
-    (data?.status === "active" || data?.status === "trialing") &&
-    (!data.current_period_end || new Date(data.current_period_end).getTime() > Date.now());
+
+  const apiKey = Deno.env.get("ELEVENLABS_API_KEY");
+  const voiceId = Deno.env.get("ELEVENLABS_VOICE_ID") ?? Deno.env.get("ELEVENLABS_VOICE_ID_NEXORA");
+  const configured = Boolean(apiKey && voiceId);
+  const premiumOnly = Deno.env.get("KIVRYN_VOICE_PREMIUM_ONLY") === "true";
+
+  let premiumActive = false;
+  if (premiumOnly) {
+    const { data, error } = await client
+      .from("subscriptions")
+      .select("status,current_period_end")
+      .eq("user_id", user.id)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    premiumActive =
+      !error &&
+      (data?.status === "active" || data?.status === "trialing") &&
+      (!data.current_period_end || new Date(data.current_period_end).getTime() > Date.now());
+  }
+
+  const entitled = !premiumOnly || premiumActive;
   if (body?.action === "availability")
-    return jsonResponse(request, { available: configured && active });
+    return jsonResponse(request, { available: configured && entitled, premiumOnly });
   if (!configured) return jsonResponse(request, { error: { code: "provider_unavailable" } }, 503);
-  if (!active) return jsonResponse(request, { error: { code: "premium_required" } }, 403);
+  if (!entitled) return jsonResponse(request, { error: { code: "premium_required" } }, 403);
+
   if (
     body?.action !== "speak" ||
     typeof body.text !== "string" ||
@@ -54,28 +66,31 @@ Deno.serve(async (request) => {
     body.text.length > MAX_TEXT_LENGTH
   )
     return jsonResponse(request, { error: { code: "invalid_request" } }, 400);
+
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 20_000);
   try {
-    const response = await fetch(
-      `https://api.elevenlabs.io/v1/text-to-speech/${Deno.env.get("ELEVENLABS_VOICE_ID_NEXORA")}`,
-      {
-        method: "POST",
-        signal: controller.signal,
-        headers: {
-          "xi-api-key": Deno.env.get("ELEVENLABS_API_KEY")!,
-          "content-type": "application/json",
-          accept: "audio/mpeg",
-        },
-        body: JSON.stringify({ text: body.text.trim(), model_id: "eleven_multilingual_v2" }),
+    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        "xi-api-key": apiKey!,
+        "content-type": "application/json",
+        accept: "audio/mpeg",
       },
-    );
+      body: JSON.stringify({
+        text: body.text.trim(),
+        model_id: "eleven_multilingual_v2",
+        voice_settings: { stability: 0.46, similarity_boost: 0.8, style: 0.18, use_speaker_boost: true },
+      }),
+    });
     if (!response.ok || !response.body)
       return jsonResponse(
         request,
         { error: { code: response.status === 429 ? "provider_rate_limited" : "provider_error" } },
         response.status === 429 ? 429 : 502,
       );
+
     const headers = corsHeaders(request);
     headers.set("Content-Type", "audio/mpeg");
     headers.set("Cache-Control", "no-store");
