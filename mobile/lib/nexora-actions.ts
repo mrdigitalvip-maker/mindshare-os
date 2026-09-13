@@ -13,6 +13,7 @@ export const nexoraActionTypes = [
   "create_study_goal",
   "update_study_goal",
   "set_subject_next_action",
+  "create_personal_challenge",
 ] as const;
 export type NexoraActionType = (typeof nexoraActionTypes)[number];
 export type NexoraAction = {
@@ -27,6 +28,8 @@ export type NexoraAction = {
   value?: string;
   expected_updated_at?: string;
   target_value?: number;
+  challenge_period?: "daily" | "weekly" | "monthly";
+  challenge_category?: "execution" | "study" | "fitness" | "wellbeing" | "journey" | "custom";
 };
 export type NexoraActionStatus = "pending" | "applying" | "applied" | "failed" | "cancelled";
 const types = new Set<string>(nexoraActionTypes);
@@ -43,6 +46,8 @@ const fields = new Set([
   "value",
   "expected_updated_at",
   "target_value",
+  "challenge_period",
+  "challenge_category",
 ]);
 export function parseNexoraActions(value: unknown): NexoraAction[] {
   if (!Array.isArray(value) || value.length > 5) return [];
@@ -70,6 +75,33 @@ export function parseNexoraActions(value: unknown): NexoraAction[] {
       return false;
     if (item.priority != null && !["low", "medium", "high"].includes(String(item.priority)))
       return false;
+    if (
+      item.challenge_period != null &&
+      !["daily", "weekly", "monthly"].includes(String(item.challenge_period))
+    )
+      return false;
+    if (
+      item.challenge_category != null &&
+      !["execution", "study", "fitness", "wellbeing", "journey", "custom"].includes(
+        String(item.challenge_category),
+      )
+    )
+      return false;
+    if (
+      item.target_value != null &&
+      (!Number.isInteger(item.target_value) || Number(item.target_value) < 1 || Number(item.target_value) > 10000)
+    )
+      return false;
+    if (item.action_type === "create_personal_challenge") {
+      if (
+        typeof item.title !== "string" ||
+        !item.title.trim() ||
+        !item.challenge_period ||
+        !item.challenge_category ||
+        item.target_value == null
+      )
+        return false;
+    }
     return true;
   });
   // Never turn a malformed multi-action response into a misleading partial proposal.
@@ -91,8 +123,18 @@ export function actionPreview(action: NexoraAction) {
     create_study_goal: "Criar meta de estudo",
     update_study_goal: "Atualizar meta de estudo",
     set_subject_next_action: "Definir próxima ação de estudo",
+    create_personal_challenge: "Criar desafio pessoal",
   };
   const priority = { low: "Baixa", medium: "Média", high: "Alta" } as const;
+  const period = { daily: "Diário", weekly: "Semanal", monthly: "Mensal" } as const;
+  const category = {
+    execution: "Execução",
+    study: "Estudos",
+    fitness: "Fitness",
+    wellbeing: "Bem-estar",
+    journey: "Jornada",
+    custom: "Pessoal",
+  } as const;
   const date = action.due_date
     ? new Intl.DateTimeFormat("pt-BR", { day: "numeric", month: "long", timeZone: "UTC" }).format(
         new Date(`${action.due_date}T00:00:00Z`),
@@ -104,6 +146,11 @@ export function actionPreview(action: NexoraAction) {
     action.value ? `Nova informação: ${action.value}` : null,
     date ? `${action.action_type === "reschedule_task" ? "Novo prazo" : "Prazo"}: ${date}` : null,
     action.priority ? `Prioridade: ${priority[action.priority]}` : null,
+    action.challenge_period ? `Período: ${period[action.challenge_period]}` : null,
+    action.challenge_category ? `Categoria: ${category[action.challenge_category]}` : null,
+    action.action_type === "create_personal_challenge" && action.target_value
+      ? `Meta: ${action.target_value}`
+      : null,
   ].filter(Boolean) as string[];
   return { label: labels[action.action_type], details };
 }
@@ -115,6 +162,7 @@ export const actionInvalidationRoots = (actions: NexoraAction[]) => {
       roots.add("tasks");
       roots.add("projects");
       roots.add("journeys");
+      roots.add("arena");
     }
     if (action.action_type.includes("project")) {
       roots.add("projects");
@@ -123,6 +171,11 @@ export const actionInvalidationRoots = (actions: NexoraAction[]) => {
     if (action.action_type.includes("study") || action.action_type.includes("subject")) {
       roots.add("study-subjects");
       roots.add("study-overview");
+      roots.add("journeys");
+      roots.add("arena");
+    }
+    if (action.action_type === "create_personal_challenge") {
+      roots.add("arena");
       roots.add("journeys");
     }
   }
@@ -145,6 +198,7 @@ export function actionReceipt(action: NexoraAction): string {
     create_study_goal: "Meta de estudo criada.",
     update_study_goal: "Meta de estudo atualizada.",
     set_subject_next_action: "Próxima ação de estudo atualizada.",
+    create_personal_challenge: "Desafio criado.",
   };
   return receipts[action.action_type];
 }
@@ -163,5 +217,7 @@ export function actionResultRoute(action: NexoraAction, resourceId: string) {
     };
   if (action.action_type === "set_subject_next_action")
     return { label: "Ver disciplina", href: `/studies/${resourceId}` as const };
+  if (action.action_type === "create_personal_challenge")
+    return { label: "Abrir Challenges", href: "/challenges" as const };
   return null;
 }
