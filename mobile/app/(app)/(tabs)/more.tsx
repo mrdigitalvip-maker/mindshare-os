@@ -21,6 +21,13 @@ export default function More() {
       </Text>
       <ModuleGroup title="EXECUÇÃO">
         <ModuleCard
+          icon="✦"
+          title="Challenges"
+          description="Desafios pessoais, Momentum e ranking real."
+          href="/challenges"
+        />
+
+        <ModuleCard
           icon="◇"
           title="Arena"
           description="Desafios reais conectados ao seu progresso."
