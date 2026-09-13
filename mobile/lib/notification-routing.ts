@@ -3,6 +3,8 @@ export type NotificationProvider = "webpush" | "expo" | "fcm" | "apns";
 export type NativeNotificationRoute =
   | "/dashboard"
   | "/journeys"
+  | "/community"
+  | `/community/${string}`
   | `/journeys/${string}`
   | `/projects/${string}`
   | `/studies/${string}`
@@ -18,6 +20,8 @@ export function notificationRoute(data: unknown): NativeNotificationRoute {
   if (!data || typeof data !== "object") return "/dashboard";
   const payload = data as Record<string, unknown>;
   const id = typeof payload.resourceId === "string" ? payload.resourceId.trim() : "";
+  if (payload.kind === "community")
+    return id && /^[A-Za-z0-9-]+$/.test(id) ? `/community/${id}` : "/community";
   if (!id || !/^[A-Za-z0-9-]+$/.test(id)) return "/dashboard";
   if (payload.kind === "project") return `/projects/${id}`;
   if (payload.kind === "study") return `/studies/${id}`;
