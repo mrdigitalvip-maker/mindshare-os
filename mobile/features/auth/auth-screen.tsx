@@ -4,6 +4,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -18,9 +19,92 @@ import { presentAuthError } from "@/lib/auth-errors";
 import { authCallbackUrl } from "@/lib/auth-links";
 import { LEGAL_URLS } from "@/lib/legal";
 import { hasSupabaseConfig, supabase } from "@/lib/supabase";
-import { colors, radius, spacing, typography } from "@/lib/theme";
+import { colors, radius, shadows, spacing, typography } from "@/lib/theme";
+import { useLanguage } from "@/providers/language-provider";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const copy = {
+  "pt-BR": {
+    eyebrow: "PERSONAL AI OPERATING SYSTEM",
+    title: "Seu mundo.\nMais inteligente.",
+    subtitle: "Entre no KIVRYN e continue de onde parou.",
+    signupTitle: "Comece com o\nKIVRYN.",
+    signupSubtitle: "Crie seu espaço pessoal e deixe o sistema trabalhar com você.",
+    google: "Continuar com Google",
+    divider: "ou entre com e-mail",
+    name: "Nome",
+    namePlaceholder: "Como podemos chamar você?",
+    email: "E-mail",
+    emailPlaceholder: "voce@exemplo.com",
+    password: "Senha",
+    passwordPlaceholder: "Sua senha",
+    newPasswordPlaceholder: "Mínimo de 8 caracteres",
+    show: "Mostrar",
+    hide: "Ocultar",
+    forgot: "Esqueci minha senha",
+    signIn: "Entrar",
+    create: "Criar conta",
+    newHere: "Novo no KIVRYN?",
+    createAction: "Criar conta",
+    already: "Já tem uma conta?",
+    signInAction: "Entrar",
+    legalPrefix: "Ao continuar, você concorda com os ",
+    terms: "Termos de Serviço",
+    legalMiddle: " e a ",
+    privacy: "Política de Privacidade",
+    invalidEmail: "Informe um e-mail válido.",
+    nameRequired: "Informe como você gostaria de ser chamado.",
+    nameTooLong: "Use um nome com até 80 caracteres.",
+    passwordRequired: "Informe sua senha.",
+    passwordShort: "Crie uma senha com pelo menos 8 caracteres.",
+    confirmation: "Confirmação enviada. Confira sua caixa de entrada e o spam.",
+    resend: "Reenviar e-mail de confirmação",
+    resendIn: "Reenviar em {seconds}s",
+    resendSuccess: "Novo e-mail de confirmação solicitado.",
+    secure: "Conexão protegida",
+  },
+  en: {
+    eyebrow: "PERSONAL AI OPERATING SYSTEM",
+    title: "Your world.\nSmarter.",
+    subtitle: "Sign in to KIVRYN and continue where you left off.",
+    signupTitle: "Start with\nKIVRYN.",
+    signupSubtitle: "Create your personal space and let the system work with you.",
+    google: "Continue with Google",
+    divider: "or sign in with email",
+    name: "Name",
+    namePlaceholder: "What should we call you?",
+    email: "Email",
+    emailPlaceholder: "you@example.com",
+    password: "Password",
+    passwordPlaceholder: "Your password",
+    newPasswordPlaceholder: "At least 8 characters",
+    show: "Show",
+    hide: "Hide",
+    forgot: "Forgot password?",
+    signIn: "Sign in",
+    create: "Create account",
+    newHere: "New to KIVRYN?",
+    createAction: "Create account",
+    already: "Already have an account?",
+    signInAction: "Sign in",
+    legalPrefix: "By continuing, you agree to the ",
+    terms: "Terms of Service",
+    legalMiddle: " and ",
+    privacy: "Privacy Policy",
+    invalidEmail: "Enter a valid email address.",
+    nameRequired: "Tell us what you would like to be called.",
+    nameTooLong: "Use a name with up to 80 characters.",
+    passwordRequired: "Enter your password.",
+    passwordShort: "Create a password with at least 8 characters.",
+    confirmation: "Confirmation sent. Check your inbox and spam folder.",
+    resend: "Resend confirmation email",
+    resendIn: "Resend in {seconds}s",
+    resendSuccess: "A new confirmation email was requested.",
+    secure: "Protected connection",
+  },
+} as const;
+
 function GoogleMark() {
   return (
     <Svg accessibilityLabel="Google" width={20} height={20} viewBox="0 0 24 24">
@@ -44,7 +128,27 @@ function GoogleMark() {
   );
 }
 
+function KivrynMark() {
+  return (
+    <View style={styles.markShell}>
+      <View style={styles.markGlow} />
+      <Svg width={38} height={38} viewBox="0 0 40 40">
+        <Path
+          fill="none"
+          stroke={colors.primaryBright}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={3.2}
+          d="M11 8v24M12 20l14-12M12 20l15 12M20 14l8 6-8 6"
+        />
+      </Svg>
+    </View>
+  );
+}
+
 export function AuthScreen() {
+  const { resolvedLocale } = useLanguage();
+  const text = copy[resolvedLocale];
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -54,28 +158,29 @@ export function AuthScreen() {
   const [message, setMessage] = useState<string>();
   const [confirmationAccepted, setConfirmationAccepted] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
+  const [focusedField, setFocusedField] = useState<"name" | "email" | "password" | null>(null);
   const passwordRef = useRef<TextInput>(null);
+  const emailRef = useRef<TextInput>(null);
   const submitLock = useRef(false);
   const googleLock = useRef(false);
   const resendLock = useRef(false);
+
   useEffect(() => {
     if (!resendCooldown) return;
     const timer = setInterval(() => setResendCooldown((seconds) => Math.max(0, seconds - 1)), 1000);
     return () => clearInterval(timer);
   }, [resendCooldown]);
+
   async function submit() {
     if (submitLock.current) return;
     const normalizedEmail = email.trim().toLowerCase();
     if (!hasSupabaseConfig) return setMessage(presentAuthError(null, "CONFIGURATION").message);
-    if (!emailPattern.test(normalizedEmail)) return setMessage("Informe um e-mail válido.");
-    if (mode === "signup" && !name.trim())
-      return setMessage("Informe como você gostaria de ser chamado.");
-    if (mode === "signup" && name.trim().length > 80)
-      return setMessage("Use um nome com até 80 caracteres.");
+    if (!emailPattern.test(normalizedEmail)) return setMessage(text.invalidEmail);
+    if (mode === "signup" && !name.trim()) return setMessage(text.nameRequired);
+    if (mode === "signup" && name.trim().length > 80) return setMessage(text.nameTooLong);
     if (password.length < (mode === "signup" ? 8 : 1))
-      return setMessage(
-        mode === "signup" ? "Crie uma senha com pelo menos 8 caracteres." : "Informe sua senha.",
-      );
+      return setMessage(mode === "signup" ? text.passwordShort : text.passwordRequired);
+
     submitLock.current = true;
     setBusy("form");
     setMessage(undefined);
@@ -92,9 +197,7 @@ export function AuthScreen() {
       if (result.data.session && result.data.user) router.replace("/");
       else {
         setConfirmationAccepted(true);
-        setMessage(
-          "A solicitação de confirmação foi aceita. Confira sua caixa de entrada e o spam.",
-        );
+        setMessage(text.confirmation);
       }
     } catch (error) {
       setMessage(presentAuthError(error).message);
@@ -103,10 +206,11 @@ export function AuthScreen() {
       setBusy(null);
     }
   }
+
   async function resendConfirmation() {
     if (resendLock.current || resendCooldown) return;
     const normalizedEmail = email.trim().toLowerCase();
-    if (!emailPattern.test(normalizedEmail)) return setMessage("Informe um e-mail válido.");
+    if (!emailPattern.test(normalizedEmail)) return setMessage(text.invalidEmail);
     resendLock.current = true;
     try {
       const { error } = await supabase.auth.resend({
@@ -116,13 +220,14 @@ export function AuthScreen() {
       });
       if (error) throw error;
       setResendCooldown(60);
-      setMessage("Nova solicitação aceita. Confira sua caixa de entrada e o spam.");
+      setMessage(text.resendSuccess);
     } catch (error) {
       setMessage(presentAuthError(error).message);
     } finally {
       resendLock.current = false;
     }
   }
+
   async function google() {
     if (googleLock.current) return;
     if (!hasSupabaseConfig) return setMessage(presentAuthError(null, "CONFIGURATION").message);
@@ -144,250 +249,546 @@ export function AuthScreen() {
       setBusy(null);
     }
   }
+
   const isSignup = mode === "signup";
+  const switchMode = () => {
+    setMode(isSignup ? "login" : "signup");
+    setMessage(undefined);
+    setConfirmationAccepted(false);
+    setPassword("");
+    requestAnimationFrame(() => (isSignup ? emailRef.current?.focus() : undefined));
+  };
+
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      style={styles.page}
-    >
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
-        <View>
-          <Text style={styles.brand}>K I V R Y N</Text>
-          <Text accessibilityRole="header" style={styles.title}>
-            {isSignup ? "Crie seu espaço KIVRYN." : "Seu espaço começa aqui."}
-          </Text>
-          <Text style={styles.copy}>Organize. Execute. Avance.</Text>
-        </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Continuar com Google"
-          accessibilityState={{ disabled: Boolean(busy) }}
-          disabled={Boolean(busy)}
-          onPress={() => void google()}
-          style={styles.google}
+    <SafeAreaView style={styles.page}>
+      <View pointerEvents="none" style={styles.ambientTop} />
+      <View pointerEvents="none" style={styles.ambientSide} />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={styles.keyboard}
+      >
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.content}
         >
-          {busy === "google" ? <ActivityIndicator color={colors.text} /> : <GoogleMark />}
-          <Text style={styles.googleText}>Continuar com Google</Text>
-        </Pressable>
-        <View style={styles.separator}>
-          <View style={styles.line} />
-          <Text style={styles.separatorText}>ou continue com</Text>
-          <View style={styles.line} />
-        </View>
-        <View style={styles.form}>
-          {isSignup && (
-            <Field label="Nome">
-              <TextInput
-                autoCapitalize="words"
-                autoComplete="name"
-                maxLength={80}
-                returnKeyType="next"
-                onSubmitEditing={() => passwordRef.current?.focus()}
-                value={name}
-                onChangeText={setName}
-                style={styles.input}
-                placeholder="Seu nome"
-                placeholderTextColor={colors.textMuted}
-              />
-            </Field>
-          )}
-          <Field label="E-mail">
-            <TextInput
-              autoCapitalize="none"
-              autoComplete="email"
-              keyboardType="email-address"
-              returnKeyType="next"
-              onSubmitEditing={() => passwordRef.current?.focus()}
-              value={email}
-              onChangeText={setEmail}
-              style={styles.input}
-              placeholder="voce@exemplo.com"
-              placeholderTextColor={colors.textMuted}
-            />
-          </Field>
-          <Field label="Senha">
-            <View style={styles.password}>
-              <TextInput
-                ref={passwordRef}
-                autoCapitalize="none"
-                autoComplete={isSignup ? "new-password" : "current-password"}
-                secureTextEntry={!visible}
-                returnKeyType="done"
-                onSubmitEditing={() => void submit()}
-                value={password}
-                onChangeText={setPassword}
-                style={[styles.input, styles.passwordInput]}
-                placeholder={isSignup ? "Mínimo de 8 caracteres" : "Sua senha"}
-                placeholderTextColor={colors.textMuted}
-              />
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={visible ? "Ocultar senha" : "Mostrar senha"}
-                onPress={() => setVisible(!visible)}
-                style={styles.eye}
-              >
-                <Text style={styles.eyeText}>{visible ? "Ocultar" : "Mostrar"}</Text>
-              </Pressable>
+          <View style={styles.hero}>
+            <View style={styles.brandRow}>
+              <KivrynMark />
+              <View>
+                <Text style={styles.brand}>KIVRYN</Text>
+                <Text style={styles.eyebrow}>{text.eyebrow}</Text>
+              </View>
             </View>
-          </Field>
-          {message && (
-            <Text accessibilityLiveRegion="polite" style={styles.message}>
-              {message}
+
+            <Text accessibilityRole="header" style={styles.title}>
+              {isSignup ? text.signupTitle : text.title}
             </Text>
-          )}
-          {isSignup && confirmationAccepted ? (
+            <Text style={styles.subtitle}>{isSignup ? text.signupSubtitle : text.subtitle}</Text>
+          </View>
+
+          <View style={styles.authPanel}>
             <Pressable
               accessibilityRole="button"
-              disabled={resendCooldown > 0}
-              onPress={() => void resendConfirmation()}
-              style={styles.link}
+              accessibilityLabel={text.google}
+              accessibilityState={{ disabled: Boolean(busy) }}
+              disabled={Boolean(busy)}
+              onPress={() => void google()}
+              style={({ pressed }) => [styles.google, pressed && !busy && styles.buttonPressed]}
             >
-              <Text style={styles.switch}>
-                {resendCooldown > 0
-                  ? `Solicitar novamente em ${resendCooldown}s`
-                  : "Solicitar outro e-mail de confirmação"}
-              </Text>
+              {busy === "google" ? <ActivityIndicator color={colors.text} /> : <GoogleMark />}
+              <Text style={styles.googleText}>{text.google}</Text>
             </Pressable>
-          ) : null}
-          <Pressable
-            accessibilityRole="button"
-            accessibilityState={{ disabled: Boolean(busy) }}
-            disabled={Boolean(busy)}
-            onPress={() => void submit()}
-            style={({ pressed }) => [styles.primary, pressed && styles.pressed]}
-          >
-            {busy === "form" ? (
-              <ActivityIndicator color={colors.background} />
-            ) : (
-              <Text style={styles.primaryText}>{isSignup ? "Criar conta" : "Entrar"}</Text>
-            )}
-          </Pressable>
-          {!isSignup && (
-            <Link accessibilityRole="link" href="/auth/recovery" style={styles.link}>
-              Esqueci minha senha
-            </Link>
-          )}
-          <Pressable
-            accessibilityRole="button"
-            disabled={Boolean(busy)}
-            onPress={() => {
-              setMode(isSignup ? "login" : "signup");
-              setMessage(undefined);
-              setConfirmationAccepted(false);
-            }}
-          >
-            <Text style={styles.switch}>
-              {isSignup ? "Já tem uma conta? Entrar" : "Ainda não tem conta? Criar conta"}
-            </Text>
-          </Pressable>
-        </View>
-        <View accessibilityRole="text" style={styles.legalRow}>
-          <Text style={styles.legal}>Ao continuar, você concorda com os </Text>
-          <Pressable
-            accessibilityRole="link"
-            onPress={() => void Linking.openURL(LEGAL_URLS.termsOfService)}
-          >
-            <Text style={styles.legalLink}>Termos de Serviço</Text>
-          </Pressable>
-          <Text style={styles.legal}> e a </Text>
-          <Pressable
-            accessibilityRole="link"
-            onPress={() => void Linking.openURL(LEGAL_URLS.privacyPolicy)}
-          >
-            <Text style={styles.legalLink}>Política de Privacidade</Text>
-          </Pressable>
-          <Text style={styles.legal}>.</Text>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+
+            <View style={styles.separator}>
+              <View style={styles.line} />
+              <Text style={styles.separatorText}>{text.divider}</Text>
+              <View style={styles.line} />
+            </View>
+
+            <View style={styles.form}>
+              {isSignup && (
+                <Field label={text.name} focused={focusedField === "name"}>
+                  <TextInput
+                    autoCapitalize="words"
+                    autoComplete="name"
+                    maxLength={80}
+                    returnKeyType="next"
+                    onFocus={() => setFocusedField("name")}
+                    onBlur={() => setFocusedField(null)}
+                    onSubmitEditing={() => emailRef.current?.focus()}
+                    value={name}
+                    onChangeText={setName}
+                    style={styles.input}
+                    placeholder={text.namePlaceholder}
+                    placeholderTextColor={colors.textMuted}
+                  />
+                </Field>
+              )}
+
+              <Field label={text.email} focused={focusedField === "email"}>
+                <TextInput
+                  ref={emailRef}
+                  autoCapitalize="none"
+                  autoComplete="email"
+                  keyboardType="email-address"
+                  returnKeyType="next"
+                  onFocus={() => setFocusedField("email")}
+                  onBlur={() => setFocusedField(null)}
+                  onSubmitEditing={() => passwordRef.current?.focus()}
+                  value={email}
+                  onChangeText={setEmail}
+                  style={styles.input}
+                  placeholder={text.emailPlaceholder}
+                  placeholderTextColor={colors.textMuted}
+                />
+              </Field>
+
+              <Field label={text.password} focused={focusedField === "password"}>
+                <View style={styles.password}>
+                  <TextInput
+                    ref={passwordRef}
+                    autoCapitalize="none"
+                    autoComplete={isSignup ? "new-password" : "current-password"}
+                    secureTextEntry={!visible}
+                    returnKeyType="done"
+                    onFocus={() => setFocusedField("password")}
+                    onBlur={() => setFocusedField(null)}
+                    onSubmitEditing={() => void submit()}
+                    value={password}
+                    onChangeText={setPassword}
+                    style={[styles.input, styles.passwordInput]}
+                    placeholder={isSignup ? text.newPasswordPlaceholder : text.passwordPlaceholder}
+                    placeholderTextColor={colors.textMuted}
+                  />
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={visible ? text.hide : text.show}
+                    onPress={() => setVisible(!visible)}
+                    style={styles.eye}
+                  >
+                    <Text style={styles.eyeText}>{visible ? text.hide : text.show}</Text>
+                  </Pressable>
+                </View>
+              </Field>
+
+              {!isSignup && (
+                <View style={styles.forgotRow}>
+                  <Link accessibilityRole="link" href="/auth/recovery" style={styles.forgotLink}>
+                    {text.forgot}
+                  </Link>
+                </View>
+              )}
+
+              {message && (
+                <View style={styles.messageBox}>
+                  <View style={styles.messageDot} />
+                  <Text accessibilityLiveRegion="polite" style={styles.message}>
+                    {message}
+                  </Text>
+                </View>
+              )}
+
+              {isSignup && confirmationAccepted ? (
+                <Pressable
+                  accessibilityRole="button"
+                  disabled={resendCooldown > 0}
+                  onPress={() => void resendConfirmation()}
+                  style={styles.secondaryAction}
+                >
+                  <Text style={styles.secondaryActionText}>
+                    {resendCooldown > 0
+                      ? text.resendIn.replace("{seconds}", String(resendCooldown))
+                      : text.resend}
+                  </Text>
+                </Pressable>
+              ) : null}
+
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ disabled: Boolean(busy) }}
+                disabled={Boolean(busy)}
+                onPress={() => void submit()}
+                style={({ pressed }) => [
+                  styles.primary,
+                  Boolean(busy) && styles.buttonDisabled,
+                  pressed && !busy && styles.primaryPressed,
+                ]}
+              >
+                {busy === "form" ? (
+                  <ActivityIndicator color="#001116" />
+                ) : (
+                  <Text style={styles.primaryText}>{isSignup ? text.create : text.signIn}</Text>
+                )}
+              </Pressable>
+
+              <Pressable
+                accessibilityRole="button"
+                disabled={Boolean(busy)}
+                onPress={switchMode}
+                style={styles.switchButton}
+              >
+                <Text style={styles.switchMuted}>{isSignup ? text.already : text.newHere} </Text>
+                <Text style={styles.switchStrong}>
+                  {isSignup ? text.signInAction : text.createAction}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+
+          <View style={styles.footer}>
+            <View style={styles.secureRow}>
+              <View style={styles.secureDot} />
+              <Text style={styles.secureText}>{text.secure}</Text>
+            </View>
+            <View accessibilityRole="text" style={styles.legalRow}>
+              <Text style={styles.legal}>{text.legalPrefix}</Text>
+              <Pressable
+                accessibilityRole="link"
+                onPress={() => void Linking.openURL(LEGAL_URLS.termsOfService)}
+              >
+                <Text style={styles.legalLink}>{text.terms}</Text>
+              </Pressable>
+              <Text style={styles.legal}>{text.legalMiddle}</Text>
+              <Pressable
+                accessibilityRole="link"
+                onPress={() => void Linking.openURL(LEGAL_URLS.privacyPolicy)}
+              >
+                <Text style={styles.legalLink}>{text.privacy}</Text>
+              </Pressable>
+              <Text style={styles.legal}>.</Text>
+            </View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+
+function Field({
+  label,
+  focused,
+  children,
+}: {
+  label: string;
+  focused: boolean;
+  children: React.ReactNode;
+}) {
   return (
     <View style={styles.field}>
-      <Text style={styles.label}>{label}</Text>
-      {children}
+      <Text style={[styles.label, focused && styles.labelFocused]}>{label}</Text>
+      <View style={[styles.fieldShell, focused && styles.fieldShellFocused]}>{children}</View>
     </View>
   );
 }
+
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: colors.background },
+  page: {
+    flex: 1,
+    backgroundColor: "#03070D",
+  },
+  keyboard: { flex: 1 },
+  ambientTop: {
+    position: "absolute",
+    top: -170,
+    right: -120,
+    width: 360,
+    height: 360,
+    borderRadius: 180,
+    backgroundColor: "rgba(19, 130, 170, 0.12)",
+  },
+  ambientSide: {
+    position: "absolute",
+    top: 240,
+    left: -210,
+    width: 380,
+    height: 380,
+    borderRadius: 190,
+    backgroundColor: "rgba(91, 66, 190, 0.07)",
+  },
   content: {
     flexGrow: 1,
     justifyContent: "center",
-    gap: spacing.lg,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.xl,
+    paddingHorizontal: 22,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.lg,
+  },
+  hero: {
+    width: "100%",
+    maxWidth: 440,
+    alignSelf: "center",
+    marginBottom: 28,
+  },
+  brandRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 34,
+  },
+  markShell: {
+    width: 50,
+    height: 50,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(82, 229, 255, 0.2)",
+    backgroundColor: "rgba(8, 18, 28, 0.92)",
+    overflow: "hidden",
+    ...shadows.illuminated,
+  },
+  markGlow: {
+    position: "absolute",
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "rgba(82, 229, 255, 0.08)",
   },
   brand: {
-    ...typography.eyebrow,
-    color: colors.primaryBright,
-    letterSpacing: 5,
-    marginBottom: spacing.xl,
+    color: colors.text,
+    fontSize: 18,
+    lineHeight: 21,
+    fontWeight: "800",
+    letterSpacing: 4.3,
   },
-  title: { ...typography.display, color: colors.text, maxWidth: 360 },
-  copy: { ...typography.body, color: colors.textMuted, marginTop: spacing.sm },
+  eyebrow: {
+    marginTop: 3,
+    color: colors.textMuted,
+    fontSize: 8,
+    lineHeight: 11,
+    fontWeight: "700",
+    letterSpacing: 1.45,
+  },
+  title: {
+    color: colors.text,
+    fontSize: 42,
+    lineHeight: 46,
+    fontWeight: "700",
+    letterSpacing: -1.6,
+    maxWidth: 390,
+  },
+  subtitle: {
+    ...typography.body,
+    color: colors.textSecondary,
+    marginTop: 14,
+    maxWidth: 365,
+    lineHeight: 24,
+  },
+  authPanel: {
+    width: "100%",
+    maxWidth: 440,
+    alignSelf: "center",
+    padding: 18,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "rgba(92, 125, 150, 0.18)",
+    backgroundColor: "rgba(8, 14, 23, 0.9)",
+    ...shadows.raised,
+  },
   google: {
     minHeight: 54,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: spacing.md,
+    gap: 12,
     borderWidth: 1,
-    borderColor: "#484640",
-    borderRadius: radius.md,
-    backgroundColor: colors.surfaceRaised,
+    borderColor: "rgba(155, 180, 199, 0.2)",
+    borderRadius: 15,
+    backgroundColor: "rgba(16, 25, 37, 0.92)",
   },
-  googleText: { ...typography.label, color: colors.text },
-  separator: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-  line: { flex: 1, height: 1, backgroundColor: colors.border },
-  separatorText: { ...typography.caption, color: colors.textMuted },
-  form: { gap: spacing.md },
-  field: { gap: spacing.sm },
-  label: { ...typography.label, color: colors.text },
+  googleText: {
+    ...typography.label,
+    color: colors.text,
+    fontSize: 15,
+  },
+  separator: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginVertical: 20,
+  },
+  line: { flex: 1, height: 1, backgroundColor: "rgba(92, 125, 150, 0.16)" },
+  separatorText: {
+    ...typography.caption,
+    color: colors.textMuted,
+    fontSize: 11,
+  },
+  form: { gap: 14 },
+  field: { gap: 7 },
+  label: {
+    ...typography.label,
+    color: colors.textSecondary,
+    fontSize: 12,
+    letterSpacing: 0.25,
+  },
+  labelFocused: { color: colors.primaryBright },
+  fieldShell: {
+    minHeight: 54,
+    justifyContent: "center",
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: "rgba(92, 125, 150, 0.2)",
+    backgroundColor: "rgba(6, 12, 20, 0.94)",
+  },
+  fieldShellFocused: {
+    borderColor: "rgba(82, 229, 255, 0.62)",
+    backgroundColor: "rgba(7, 18, 27, 0.98)",
+  },
   input: {
     ...typography.body,
     minHeight: 52,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: 15,
     color: colors.text,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
+    backgroundColor: "transparent",
+    borderWidth: 0,
   },
   password: { position: "relative", justifyContent: "center" },
-  passwordInput: { paddingRight: 88 },
+  passwordInput: { paddingRight: 84 },
   eye: {
     position: "absolute",
     right: 4,
-    minWidth: 76,
+    minWidth: 74,
     minHeight: 44,
     alignItems: "center",
     justifyContent: "center",
   },
-  eyeText: { ...typography.caption, color: colors.primaryBright },
-  message: { ...typography.label, color: colors.warning },
+  eyeText: {
+    ...typography.caption,
+    color: colors.primaryBright,
+    fontWeight: "700",
+  },
+  forgotRow: {
+    alignItems: "flex-end",
+    marginTop: -2,
+  },
+  forgotLink: {
+    ...typography.label,
+    color: colors.textSecondary,
+    fontSize: 12,
+    paddingVertical: 3,
+  },
+  messageBox: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 9,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(246, 199, 110, 0.16)",
+    backgroundColor: "rgba(246, 199, 110, 0.055)",
+  },
+  messageDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginTop: 6,
+    backgroundColor: colors.warning,
+  },
+  message: {
+    ...typography.caption,
+    flex: 1,
+    color: colors.textSecondary,
+    lineHeight: 18,
+  },
   primary: {
-    minHeight: 54,
+    minHeight: 56,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 16,
+    marginTop: 2,
+    backgroundColor: colors.primaryBright,
+    shadowColor: colors.primaryBright,
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 4,
+  },
+  primaryPressed: {
+    transform: [{ scale: 0.992 }],
+    opacity: 0.92,
+  },
+  primaryText: {
+    ...typography.label,
+    color: "#001116",
+    fontSize: 15,
+    fontWeight: "800",
+    letterSpacing: 0.15,
+  },
+  buttonPressed: { opacity: 0.74 },
+  buttonDisabled: { opacity: 0.62 },
+  secondaryAction: {
+    minHeight: 44,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.md,
-    backgroundColor: colors.primaryBright,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  primaryText: { ...typography.label, color: colors.background, fontSize: 16 },
-  pressed: { opacity: 0.8 },
-  link: {
-    ...typography.label,
-    color: colors.primaryBright,
-    textAlign: "center",
-    padding: spacing.sm,
-  },
-  switch: { ...typography.label, color: colors.text, textAlign: "center", padding: spacing.sm },
-  legalRow: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center" },
-  legal: { ...typography.caption, color: colors.textMuted, textAlign: "center" },
-  legalLink: {
+  secondaryActionText: {
     ...typography.caption,
     color: colors.primaryBright,
+  },
+  switchButton: {
+    minHeight: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    flexWrap: "wrap",
+  },
+  switchMuted: {
+    ...typography.label,
+    color: colors.textMuted,
+    fontSize: 13,
+  },
+  switchStrong: {
+    ...typography.label,
+    color: colors.primaryBright,
+    fontSize: 13,
+  },
+  footer: {
+    width: "100%",
+    maxWidth: 440,
+    alignSelf: "center",
+    alignItems: "center",
+    marginTop: 20,
+    gap: 9,
+  },
+  secureRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  secureDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: colors.success,
+  },
+  secureText: {
+    ...typography.caption,
+    color: colors.textMuted,
+    fontSize: 10,
+    letterSpacing: 0.35,
+  },
+  legalRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    paddingHorizontal: 10,
+  },
+  legal: {
+    ...typography.caption,
+    color: colors.textDisabled,
+    textAlign: "center",
+    fontSize: 10,
+    lineHeight: 15,
+  },
+  legalLink: {
+    ...typography.caption,
+    color: colors.textMuted,
+    fontSize: 10,
+    lineHeight: 15,
     textDecorationLine: "underline",
   },
 });
