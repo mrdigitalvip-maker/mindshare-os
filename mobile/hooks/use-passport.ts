@@ -2,9 +2,18 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/providers/auth-provider";
 import { loadPassportHomeSnapshot } from "@/services/passport-home-service";
 import {
+  listPassportLanguageTracks,
   upsertPassportProfile,
   type UpsertPassportProfileInput,
 } from "@/services/passport-service";
+
+export function usePassportLanguageTracks() {
+  return useQuery({
+    queryKey: ["passport", "tracks"] as const,
+    queryFn: listPassportLanguageTracks,
+    staleTime: 5 * 60_000,
+  });
+}
 
 export function usePassportHome(missionDate: string) {
   const userId = useAuth().session?.user.id ?? "";
