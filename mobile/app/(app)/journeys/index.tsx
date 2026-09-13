@@ -139,8 +139,8 @@ function daysToTarget(targetDate: string | null) {
 
 export default function Journeys() {
   const { resolvedLocale } = useLanguage();
-  const c = copy[resolvedLocale === "en-US" ? "en-US" : "pt-BR"];
-  const locale = resolvedLocale === "en-US" ? "en-US" : "pt-BR";
+  const c = copy[resolvedLocale === "en" ? "en-US" : "pt-BR"];
+  const locale = resolvedLocale === "en" ? "en-US" : "pt-BR";
   const journeys = useJourneys();
   const mission = useDailyMission();
   const momentum = useMomentum();
