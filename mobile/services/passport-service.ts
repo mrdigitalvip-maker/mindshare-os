@@ -31,6 +31,16 @@ const profileFrom = (row: Record<string, unknown>): PassportProfile => ({
   updatedAt: String(row.updated_at),
 });
 
+export type UpsertPassportProfileInput = {
+  trackId: string;
+  goal: PassportProfile["goal"];
+  nativeLocale?: string | null;
+  travelDate?: string | null;
+  dailyMinutes?: number;
+  planHorizonDays?: number;
+  isPrimary?: boolean;
+};
+
 export async function listPassportLanguageTracks(): Promise<PassportLanguageTrack[]> {
   const { data, error } = await supabase
     .from("studio_tracks")
@@ -55,4 +65,26 @@ export async function listPassportProfiles(userId: string): Promise<PassportProf
 
   if (error) throw workspaceMutationError(error);
   return (data ?? []).map((row) => profileFrom(row as Record<string, unknown>));
+}
+
+export async function upsertPassportProfile(
+  userId: string,
+  input: UpsertPassportProfileInput,
+): Promise<PassportProfile> {
+  requireUser(userId);
+  const trackId = input.trackId.trim();
+  if (!trackId) throw workspaceMutationError(new Error("Language track required."));
+
+  const { data, error } = await supabase.rpc("upsert_passport_profile", {
+    p_track_id: trackId,
+    p_goal: input.goal,
+    p_native_locale: input.nativeLocale?.trim() || null,
+    p_travel_date: input.travelDate ?? null,
+    p_daily_minutes: input.dailyMinutes ?? 15,
+    p_plan_horizon_days: input.planHorizonDays ?? 90,
+    p_is_primary: input.isPrimary ?? true,
+  } as never);
+
+  if (error) throw workspaceMutationError(error);
+  return profileFrom(data as unknown as Record<string, unknown>);
 }
