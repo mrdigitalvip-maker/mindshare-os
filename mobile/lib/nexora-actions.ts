@@ -162,7 +162,6 @@ export const actionInvalidationRoots = (actions: NexoraAction[]) => {
       roots.add("tasks");
       roots.add("projects");
       roots.add("journeys");
-      roots.add("arena");
     }
     if (action.action_type.includes("project")) {
       roots.add("projects");
@@ -172,7 +171,6 @@ export const actionInvalidationRoots = (actions: NexoraAction[]) => {
       roots.add("study-subjects");
       roots.add("study-overview");
       roots.add("journeys");
-      roots.add("arena");
     }
     if (action.action_type === "create_personal_challenge") {
       roots.add("arena");
