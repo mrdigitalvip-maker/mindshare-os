@@ -1,24 +1,16 @@
-import { LocalizedCopy } from "@/components/localized-copy";
+import { Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+
 import { AppScreen } from "@/components/app-screen";
-import {
-  PremiumSurface,
-  V2Progress,
-  V2SectionHeader,
-  V2SectionState,
-} from "@/components/v2/premium-ui";
-import { NexoraAgent } from "@/components/nexora-agent";
 import { AppHeader, DrawerMenu } from "@/components/product-ui";
-import { useProfile } from "@/hooks/use-profile";
-import { homeGreeting } from "@/lib/profile-identity";
+import { V2Progress, V2SectionState } from "@/components/v2/premium-ui";
 import { useDailyMission } from "@/hooks/use-journeys";
+import { useProfile } from "@/hooks/use-profile";
 import { useSubscription } from "@/hooks/use-subscription";
 import { useProjects, useSubjects, useTasks } from "@/hooks/use-workspaces";
-import { useAuth } from "@/providers/auth-provider";
 import { resolveCapabilityTier } from "@/lib/capabilities";
-import { getDailyActions, getWeeklyChallenge, type DailyAction } from "@/lib/daily-experience";
+import { getDailyActions, getWeeklyChallenge } from "@/lib/daily-experience";
 import {
   getDueLabel,
   getHomeContextMessage,
@@ -26,59 +18,157 @@ import {
   getHomeProjects,
   getNextAction,
   getProjectProgress,
-  shouldShowSecondaryMission,
 } from "@/lib/dashboard-selectors";
-import { getDisplayProjectStatus } from "@/lib/presentation";
-import { colors, radius, spacing, typography } from "@/lib/theme";
 import { getMissionExecutionTarget, getTodayMission } from "@/lib/journeys";
+import { getDisplayProjectStatus } from "@/lib/presentation";
+import { colors, radius, shadows, spacing, typography } from "@/lib/theme";
+import { homeGreeting } from "@/lib/profile-identity";
+import { useAuth } from "@/providers/auth-provider";
+import { useLanguage } from "@/providers/language-provider";
 import type { Project, Subject, Task } from "@/services/workspace-service";
 
-// Daily Mission calm-state contract: Seu espaço está livre agora.
+const KIVRYN_ICON = require("@/assets/branding/nexora-app-icon-master.png");
+
+const copy = {
+  "pt-BR": {
+    commandCenter: "COMMAND CENTER",
+    systemReady: "Sistema pronto",
+    focusNow: "FOCO AGORA",
+    openTask: "Abrir tarefa",
+    resolve: "Resolver agora",
+    clear: "Seu espaço está livre agora.",
+    askKivryn: "Pedir próximo passo à KIVRYN",
+    today: "HOJE",
+    pending: "pendentes",
+    overdue: "atrasadas",
+    done: "concluídas",
+    quickActions: "AÇÕES RÁPIDAS",
+    assistant: "Assistente",
+    task: "Nova tarefa",
+    project: "Novo projeto",
+    studies: "Estudos",
+    projects: "PROJETOS EM MOVIMENTO",
+    seeAll: "Ver todos",
+    continue: "CONTINUAR",
+    seeStudies: "Ver estudos",
+    weekly: "DESAFIO DA SEMANA",
+    mission: "MISSÃO DE HOJE",
+    basic: "KIVRYN BASIC",
+  },
+  en: {
+    commandCenter: "COMMAND CENTER",
+    systemReady: "System ready",
+    focusNow: "FOCUS NOW",
+    openTask: "Open task",
+    resolve: "Resolve now",
+    clear: "Your space is clear right now.",
+    askKivryn: "Ask KIVRYN for the next step",
+    today: "TODAY",
+    pending: "pending",
+    overdue: "overdue",
+    done: "completed",
+    quickActions: "QUICK ACTIONS",
+    assistant: "Assistant",
+    task: "New task",
+    project: "New project",
+    studies: "Studies",
+    projects: "PROJECTS IN MOTION",
+    seeAll: "See all",
+    continue: "CONTINUE",
+    seeStudies: "See studies",
+    weekly: "WEEKLY CHALLENGE",
+    mission: "TODAY'S MISSION",
+    basic: "KIVRYN BASIC",
+  },
+} as const;
+
+function SectionHeader({
+  title,
+  action,
+  onAction,
+}: {
+  title: string;
+  action?: string;
+  onAction?: () => void;
+}) {
+  return (
+    <View style={styles.sectionHeader}>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      {action && onAction ? (
+        <Pressable accessibilityRole="button" onPress={onAction} style={styles.sectionActionHit}>
+          <Text style={styles.sectionAction}>{action}</Text>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
+function Metric({ value, label, danger }: { value: number; label: string; danger?: boolean }) {
+  return (
+    <View style={styles.metricBlock}>
+      <Text style={[styles.metricValue, danger && styles.metricDanger]}>{value}</Text>
+      <Text style={styles.metricLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function QuickAction({ label, symbol, onPress }: { label: string; symbol: string; onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      style={({ pressed }) => [styles.quickAction, pressed && styles.pressed]}
+    >
+      <View style={styles.quickIcon}>
+        <Text style={styles.quickSymbol}>{symbol}</Text>
+      </View>
+      <Text numberOfLines={1} style={styles.quickLabel}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
 function ProjectCard({ project, tasks }: { project: Project; tasks?: Task[] }) {
   const progress = tasks ? getProjectProgress(project.id, tasks) : null;
-  const nextProjectTask = tasks?.find((task) => !task.completed);
+  const nextTask = tasks?.find((task) => !task.completed);
+
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`Abrir projeto ${project.title}`}
       onPress={() => router.push(`/projects/${project.id}`)}
-      style={styles.card}
+      style={({ pressed }) => [styles.projectCard, pressed && styles.pressed]}
     >
-      <View style={styles.cardTop}>
-        <Text numberOfLines={1} style={styles.cardTitle}>
-          {project.title}
-        </Text>
-        <Text style={styles.status}>{getDisplayProjectStatus(project.status)}</Text>
+      <View style={styles.projectTop}>
+        <View style={styles.flex}>
+          <Text numberOfLines={1} style={styles.projectTitle}>
+            {project.title}
+          </Text>
+          <Text numberOfLines={1} style={styles.projectStatus}>
+            {getDisplayProjectStatus(project.status)}
+          </Text>
+        </View>
+        <Text style={styles.chevron}>›</Text>
       </View>
-      {project.objective || project.description ? (
-        <Text numberOfLines={2} style={styles.muted}>
+
+      {nextTask ? (
+        <Text numberOfLines={2} style={styles.projectNext}>
+          {nextTask.nextAction || nextTask.title}
+        </Text>
+      ) : project.objective || project.description ? (
+        <Text numberOfLines={2} style={styles.projectNext}>
           {project.objective || project.description}
         </Text>
       ) : null}
-      {nextProjectTask ? (
-        <Text numberOfLines={1} style={styles.meta}>
-          Próxima ação: {nextProjectTask.nextAction || nextProjectTask.title}
-        </Text>
-      ) : null}
-      {!tasks ? (
-        <Text style={styles.meta}>
-          <LocalizedCopy copyKey="legacy.c4cd930f29a4" />
-        </Text>
-      ) : progress ? (
-        <View>
-          <V2Progress
-            value={progress.percentage}
-            label={`${progress.completed} de ${progress.total} tarefas concluídas`}
-          />
-          <Text style={styles.meta}>
-            {progress.completed} de {progress.total} tarefas
-          </Text>
+
+      {progress ? (
+        <View style={styles.projectProgress}>
+          <V2Progress value={progress.percentage} label={`${progress.completed}/${progress.total}`} />
+          <Text style={styles.progressMeta}>{progress.percentage}%</Text>
         </View>
-      ) : (
-        <Text style={styles.meta}>
-          <LocalizedCopy copyKey="legacy.76d2bcbbae9b" />
-        </Text>
-      )}
+      ) : null}
     </Pressable>
   );
 }
@@ -89,65 +179,36 @@ function StudyCard({ subject }: { subject: Subject }) {
       accessibilityRole="button"
       accessibilityLabel={`Continuar estudando ${subject.name}`}
       onPress={() => router.push(`/studies/${subject.id}`)}
-      style={styles.studyCard}
+      style={({ pressed }) => [styles.studyCard, pressed && styles.pressed]}
     >
-      <View style={[styles.subjectColor, { backgroundColor: subject.color }]} />
+      <View style={[styles.studyAccent, { backgroundColor: subject.color }]} />
       <View style={styles.flex}>
-        <Text numberOfLines={1} style={styles.itemTitle}>
+        <Text numberOfLines={1} style={styles.studyTitle}>
           {subject.name}
         </Text>
-        <Text numberOfLines={1} style={styles.meta}>
-          {subject.nextAction ||
-            subject.objective ||
-            subject.description ||
-            getDisplayProjectStatus(subject.status)}
+        <Text numberOfLines={1} style={styles.studyMeta}>
+          {subject.nextAction || subject.objective || subject.description || getDisplayProjectStatus(subject.status)}
         </Text>
       </View>
-      <Text style={styles.arrow}>›</Text>
+      <Text style={styles.chevron}>›</Text>
     </Pressable>
   );
 }
 
-function DailyActions({ actions }: { actions: DailyAction[] }) {
-  if (!actions.length) return null;
-  return (
-    <View style={styles.dailyRows}>
-      {actions.map((action, index) => (
-        <Pressable
-          key={action.id}
-          accessibilityRole="button"
-          accessibilityLabel={`${action.title}. ${action.detail}`}
-          onPress={() => router.push(action.href)}
-          style={[styles.dailyRow, index > 0 && styles.dailyDivider]}
-        >
-          <Text style={styles.dailyBullet}>✦</Text>
-          <View style={styles.flex}>
-            <Text numberOfLines={2} style={styles.itemTitle}>
-              {action.title}
-            </Text>
-            <Text numberOfLines={2} style={styles.meta}>
-              {action.detail}
-            </Text>
-          </View>
-          <Text style={styles.arrow}>›</Text>
-        </Pressable>
-      ))}
-    </View>
-  );
-}
-
 export default function Dashboard() {
+  const { resolvedLocale } = useLanguage();
+  const text = copy[resolvedLocale];
   const { session } = useAuth();
   const [drawer, setDrawer] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+
   const profile = useProfile();
   const subscription = useSubscription();
   const tasksQuery = useTasks();
   const projectsQuery = useProjects();
   const subjectsQuery = useSubjects();
   const dailyMission = useDailyMission();
-  const todayMission = getTodayMission(dailyMission.data);
-  const missionTarget = todayMission ? getMissionExecutionTarget(todayMission) : null;
+
   const tasks = useMemo(() => tasksQuery.data ?? [], [tasksQuery.data]);
   const projects = useMemo(() => projectsQuery.data ?? [], [projectsQuery.data]);
   const nextAction = useMemo(() => getNextAction(tasks), [tasks]);
@@ -157,10 +218,7 @@ export default function Dashboard() {
     [daySummary, nextAction],
   );
   const activeProjects = useMemo(() => getHomeProjects(projects, tasks), [projects, tasks]);
-  const projectById = useMemo(
-    () => new Map(projects.map((project) => [project.id, project])),
-    [projects],
-  );
+  const projectById = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects]);
   const tasksByProject = useMemo(() => {
     const grouped = new Map<string, Task[]>();
     for (const task of tasks) {
@@ -180,16 +238,18 @@ export default function Dashboard() {
     () =>
       getDailyActions(tasks, projects, subjectsQuery.data ?? [], new Date(), {
         excludeTaskId: nextAction?.id,
-      }),
+      }).slice(0, 3),
     [nextAction?.id, projects, subjectsQuery.data, tasks],
   );
   const weeklyChallenge = useMemo(
     () => getWeeklyChallenge(tasks, session?.user.id ?? ""),
     [session?.user.id, tasks],
   );
+  const todayMission = getTodayMission(dailyMission.data);
+  const missionTarget = todayMission ? getMissionExecutionTarget(todayMission) : null;
   const greeting = homeGreeting(profile.data?.displayName);
   const tier = subscription.isError
-    ? "KIVRYN BASIC"
+    ? text.basic
     : resolveCapabilityTier(subscription.data?.plan, subscription.data?.status);
 
   async function refresh() {
@@ -209,9 +269,10 @@ export default function Dashboard() {
     <AppScreen padded={false}>
       <AppHeader onMenu={() => setDrawer(true)} />
       <DrawerMenu visible={drawer} onClose={() => setDrawer(false)} />
+
       <ScrollView
         contentContainerStyle={styles.page}
-        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -221,137 +282,45 @@ export default function Dashboard() {
           />
         }
       >
-        <View style={styles.identity}>
-          <NexoraAgent size={72} state="idle" />
-          <View style={styles.identityCopy}>
-            <Text style={styles.eyebrow}>{tier}</Text>
-            <Text style={styles.greeting}>{greeting}</Text>
-            <Text style={styles.context}>{contextMessage}</Text>
+        <View style={styles.hero}>
+          <View style={styles.heroGlowA} />
+          <View style={styles.heroGlowB} />
+          <View style={styles.heroTop}>
+            <View style={styles.brandCluster}>
+              <Image source={KIVRYN_ICON} style={styles.brandIcon} />
+              <View>
+                <Text style={styles.commandLabel}>{text.commandCenter}</Text>
+                <Text style={styles.tier}>{tier}</Text>
+              </View>
+            </View>
+            <View style={styles.systemPill}>
+              <View style={styles.liveDot} />
+              <Text style={styles.systemPillText}>{text.systemReady}</Text>
+            </View>
           </View>
+
+          <Text style={styles.greeting}>{greeting}</Text>
+          <Text style={styles.context}>{contextMessage}</Text>
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={text.assistant}
+            onPress={() => router.push("/assistant")}
+            style={({ pressed }) => [styles.aiStrip, pressed && styles.pressed]}
+          >
+            <View style={styles.aiOrb}>
+              <Text style={styles.aiSpark}>✦</Text>
+            </View>
+            <View style={styles.flex}>
+              <Text style={styles.aiTitle}>KIVRYN AI</Text>
+              <Text style={styles.aiCopy}>{contextMessage}</Text>
+            </View>
+            <Text style={styles.aiArrow}>↗</Text>
+          </Pressable>
         </View>
-        {!tasksQuery.isPending && !tasksQuery.isError && nextAction ? (
-          <View style={styles.section}>
-            <V2SectionHeader
-              title={nextAction.executionStatus === "blocked" ? "ATENÇÃO" : "SEU PRÓXIMO PASSO"}
-            />
-
-            <PremiumSurface illuminated style={styles.commandCard}>
-              <Text style={styles.nextLabel}>
-                {nextAction.executionStatus === "blocked"
-                  ? "Há algo travando seu avanço"
-                  : getDueLabel(nextAction)}
-              </Text>
-              <Text style={styles.nextTitle}>{nextAction.title}</Text>
-              {nextAction.projectId ? (
-                <Text numberOfLines={1} style={styles.meta}>
-                  {projectById.get(nextAction.projectId)?.title ?? "Projeto vinculado indisponível"}
-                </Text>
-              ) : null}
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`Abrir tarefa ${nextAction.title}`}
-                onPress={() => router.push(`/tasks/${nextAction.id}`)}
-                style={styles.commandButton}
-              >
-                <Text style={styles.commandButtonText}>
-                  {nextAction.executionStatus === "blocked" ? "Resolver" : "Abrir tarefa"}
-                </Text>
-              </Pressable>
-            </PremiumSurface>
-          </View>
-        ) : !tasksQuery.isPending && !tasksQuery.isError && dailyMission.isError ? (
-          <View style={styles.section}>
-            <V2SectionHeader title="MISSÃO DE HOJE" />
-            <View style={styles.commandCard}>
-              <Text style={styles.nextTitle}>
-                <LocalizedCopy copyKey="legacy.f8957f63a358" />
-              </Text>
-              <Text style={styles.meta}>
-                <LocalizedCopy copyKey="legacy.b2137ba2af02" />
-              </Text>
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => void dailyMission.refetch()}
-                style={styles.commandButton}
-              >
-                <Text style={styles.commandButtonText}>
-                  <LocalizedCopy copyKey="legacy.da2574475ed7" />
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-        ) : !tasksQuery.isPending && !tasksQuery.isError && todayMission && missionTarget ? (
-          <View style={styles.section}>
-            <V2SectionHeader title="MISSÃO DE HOJE" />
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => router.push(missionTarget.href)}
-              style={styles.commandCard}
-            >
-              <Text style={styles.nextLabel}>
-                <LocalizedCopy copyKey="legacy.797a9213f6a9" />
-              </Text>
-              <Text style={styles.nextTitle}>{todayMission.title}</Text>
-              <Text style={styles.commandButtonText}>{missionTarget.label}</Text>
-            </Pressable>
-          </View>
-        ) : !tasksQuery.isPending && !tasksQuery.isError ? (
-          <View style={styles.section}>
-            <View style={styles.commandCard}>
-              <Text style={styles.nextTitle}>
-                <LocalizedCopy copyKey="legacy.f100f18898c7" />
-              </Text>
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => router.push("/assistant")}
-                style={styles.commandButton}
-              >
-                <Text style={styles.commandButtonText}>
-                  <LocalizedCopy copyKey="legacy.e25547c429d2" />
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-        ) : null}
-
-        {nextAction &&
-        todayMission &&
-        missionTarget &&
-        shouldShowSecondaryMission(`/tasks/${nextAction.id}`, missionTarget.href) ? (
-          <View style={styles.section}>
-            <V2SectionHeader
-              title="MISSÃO DE HOJE"
-              action="Ver Jornada"
-              onAction={() => router.push("/journeys")}
-            />
-
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`${missionTarget.label}: ${todayMission.title}`}
-              onPress={() => router.push(missionTarget.href)}
-              style={styles.nextCard}
-            >
-              <Text style={styles.nextLabel}>
-                <LocalizedCopy copyKey="legacy.f5771a2d8108" />
-              </Text>
-              <Text style={styles.nextTitle}>{todayMission.title}</Text>
-              {todayMission.description ? (
-                <Text numberOfLines={2} style={styles.meta}>
-                  {todayMission.description}
-                </Text>
-              ) : null}
-              <Text style={styles.link}>{missionTarget.label} ›</Text>
-            </Pressable>
-          </View>
-        ) : null}
 
         <View style={styles.section}>
-          <V2SectionHeader
-            title="SEU DIA"
-            action="Ver tarefas"
-            onAction={() => router.push("/productivity")}
-          />
-
+          <SectionHeader title={text.focusNow} />
           <V2SectionState
             loading={tasksQuery.isPending}
             error={tasksQuery.isError}
@@ -359,109 +328,140 @@ export default function Dashboard() {
           />
 
           {!tasksQuery.isPending && !tasksQuery.isError ? (
-            <View style={styles.todayCard}>
-              <View style={styles.summary}>
-                <View>
-                  <Text style={styles.metric}>{daySummary.pending}</Text>
-                  <Text style={styles.meta}>
-                    {daySummary.pending === 1 ? "pendente hoje" : "pendentes hoje"}
+            nextAction ? (
+              <View style={styles.focusCard}>
+                <View style={styles.focusAccent} />
+                <View style={styles.focusContent}>
+                  <Text style={styles.focusDue}>
+                    {nextAction.executionStatus === "blocked" ? text.resolve : getDueLabel(nextAction)}
                   </Text>
-                </View>
-                <View style={styles.divider} />
-                <View>
-                  <Text style={[styles.metric, daySummary.overdue > 0 && styles.danger]}>
-                    {daySummary.overdue}
-                  </Text>
-                  <Text style={styles.meta}>
-                    {daySummary.overdue === 1 ? "atrasada" : "atrasadas"}
-                  </Text>
+                  <Text style={styles.focusTitle}>{nextAction.title}</Text>
+                  {nextAction.projectId ? (
+                    <Text numberOfLines={1} style={styles.focusMeta}>
+                      {projectById.get(nextAction.projectId)?.title ?? "KIVRYN"}
+                    </Text>
+                  ) : null}
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => router.push(`/tasks/${nextAction.id}`)}
+                    style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}
+                  >
+                    <Text style={styles.primaryButtonText}>
+                      {nextAction.executionStatus === "blocked" ? text.resolve : text.openTask}
+                    </Text>
+                    <Text style={styles.primaryButtonArrow}>→</Text>
+                  </Pressable>
                 </View>
               </View>
-              {daySummary.percentage !== null ? (
-                <View
-                  accessible
-                  accessibilityRole="progressbar"
-                  accessibilityLabel={`${daySummary.completed} de ${daySummary.total} tarefas de hoje concluídas`}
-                  accessibilityValue={{ min: 0, max: daySummary.total, now: daySummary.completed }}
-                  style={styles.dayProgress}
-                >
-                  <View style={styles.progressTrack}>
-                    <View style={[styles.progressFill, { width: `${daySummary.percentage}%` }]} />
-                  </View>
-                  <Text style={styles.meta}>
-                    {daySummary.completed} de {daySummary.total} concluídas
-                  </Text>
+            ) : (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => router.push("/assistant")}
+                style={({ pressed }) => [styles.clearCard, pressed && styles.pressed]}
+              >
+                <View style={styles.clearIcon}>
+                  <Text style={styles.clearCheck}>✓</Text>
                 </View>
-              ) : null}
-              {dailyActions.length ? (
-                <DailyActions actions={dailyActions} />
-              ) : (
-                <Text style={styles.calm}>
-                  <LocalizedCopy copyKey="legacy.56c547e03285" />
-                </Text>
-              )}
-            </View>
+                <View style={styles.flex}>
+                  <Text style={styles.clearTitle}>{text.clear}</Text>
+                  <Text style={styles.clearAction}>{text.askKivryn}</Text>
+                </View>
+                <Text style={styles.chevron}>›</Text>
+              </Pressable>
+            )
           ) : null}
         </View>
 
-        {weeklyChallenge ? (
-          <View style={styles.section}>
-            <V2SectionHeader title="DESAFIO DA SEMANA" />
-            <View style={styles.challengeCard}>
-              <Text style={styles.challengeTitle}>{weeklyChallenge.title}</Text>
-              <View
-                accessible
-                accessibilityRole="progressbar"
-                accessibilityLabel={`${weeklyChallenge.completed} de ${weeklyChallenge.target} tarefas concluídas no desafio da semana`}
-                accessibilityValue={{
-                  min: 0,
-                  max: weeklyChallenge.target,
-                  now: weeklyChallenge.completed,
-                }}
-              >
-                <View style={styles.challengeTrack}>
-                  <View
-                    style={[
-                      styles.challengeFill,
-                      { width: `${(weeklyChallenge.completed / weeklyChallenge.target) * 100}%` },
-                    ]}
-                  />
+        <View style={styles.section}>
+          <SectionHeader title={text.today} />
+          <View style={styles.dayCard}>
+            <View style={styles.metricsRow}>
+              <Metric value={daySummary.pending} label={text.pending} />
+              <View style={styles.metricDivider} />
+              <Metric value={daySummary.overdue} label={text.overdue} danger={daySummary.overdue > 0} />
+              <View style={styles.metricDivider} />
+              <Metric value={daySummary.completed} label={text.done} />
+            </View>
+
+            {daySummary.percentage !== null ? (
+              <View style={styles.dayProgressWrap}>
+                <View style={styles.dayProgressTrack}>
+                  <View style={[styles.dayProgressFill, { width: `${daySummary.percentage}%` }]} />
                 </View>
-                <Text style={styles.meta}>
-                  {weeklyChallenge.completed} de {weeklyChallenge.target} concluídas
+                <Text style={styles.dayProgressText}>{daySummary.percentage}%</Text>
+              </View>
+            ) : null}
+
+            {dailyActions.length ? (
+              <View style={styles.dailyList}>
+                {dailyActions.map((action, index) => (
+                  <Pressable
+                    key={action.id}
+                    accessibilityRole="button"
+                    onPress={() => router.push(action.href)}
+                    style={[styles.dailyRow, index > 0 && styles.dailyDivider]}
+                  >
+                    <View style={styles.dailyDot} />
+                    <View style={styles.flex}>
+                      <Text numberOfLines={1} style={styles.dailyTitle}>
+                        {action.title}
+                      </Text>
+                      <Text numberOfLines={1} style={styles.dailyMeta}>
+                        {action.detail}
+                      </Text>
+                    </View>
+                    <Text style={styles.chevron}>›</Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <SectionHeader title={text.quickActions} />
+          <View style={styles.quickGrid}>
+            <QuickAction label={text.assistant} symbol="✦" onPress={() => router.push("/assistant")} />
+            <QuickAction label={text.task} symbol="✓" onPress={() => router.push("/productivity")} />
+            <QuickAction label={text.project} symbol="◇" onPress={() => router.push("/projects")} />
+            <QuickAction label={text.studies} symbol="◫" onPress={() => router.push("/studies")} />
+          </View>
+        </View>
+
+        {todayMission && missionTarget ? (
+          <View style={styles.section}>
+            <SectionHeader title={text.mission} />
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => router.push(missionTarget.href)}
+              style={({ pressed }) => [styles.missionCard, pressed && styles.pressed]}
+            >
+              <View style={styles.missionSymbolWrap}>
+                <Text style={styles.missionSymbol}>◎</Text>
+              </View>
+              <View style={styles.flex}>
+                <Text numberOfLines={2} style={styles.missionTitle}>
+                  {todayMission.title}
+                </Text>
+                <Text numberOfLines={1} style={styles.missionAction}>
+                  {missionTarget.label}
                 </Text>
               </View>
-              <Text style={styles.muted}>{weeklyChallenge.benefit}</Text>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Ver tarefas do desafio semanal"
-                onPress={() => router.push(weeklyChallenge.href)}
-                style={styles.openButton}
-              >
-                <Text style={styles.openButtonText}>
-                  <LocalizedCopy copyKey="legacy.5f06e4587687" />
-                </Text>
-              </Pressable>
-            </View>
+              <Text style={styles.chevron}>›</Text>
+            </Pressable>
           </View>
         ) : null}
 
         <View style={styles.section}>
-          <V2SectionHeader
-            title="PROJETOS EM MOVIMENTO"
-            action="Ver todos"
-            onAction={() => router.push("/projects")}
-          />
-
+          <SectionHeader title={text.projects} action={text.seeAll} onAction={() => router.push("/projects")} />
           <V2SectionState
             loading={projectsQuery.isPending}
             error={projectsQuery.isError}
             retry={() => void projectsQuery.refetch()}
           />
-
           {!projectsQuery.isPending && !projectsQuery.isError ? (
             activeProjects.length ? (
-              <View style={styles.cardList}>
+              <View style={styles.stack}>
                 {activeProjects.map((project) => (
                   <ProjectCard
                     key={project.id}
@@ -470,30 +470,24 @@ export default function Dashboard() {
                   />
                 ))}
               </View>
-            ) : (
-              <Text style={styles.calm}>
-                <LocalizedCopy copyKey="legacy.93d458f9c515" />
-              </Text>
-            )
+            ) : null
           ) : null}
         </View>
 
         {subjectsQuery.isPending || subjectsQuery.isError || subjects.length > 0 ? (
           <View style={styles.section}>
-            <V2SectionHeader
-              title="CONTINUAR"
-              action="Ver estudos"
+            <SectionHeader
+              title={text.continue}
+              action={text.seeStudies}
               onAction={() => router.push("/studies")}
             />
-
             <V2SectionState
               loading={subjectsQuery.isPending}
               error={subjectsQuery.isError}
               retry={() => void subjectsQuery.refetch()}
             />
-
             {!subjectsQuery.isPending && !subjectsQuery.isError ? (
-              <View style={styles.cardList}>
+              <View style={styles.stack}>
                 {subjects.map((subject) => (
                   <StudyCard key={subject.id} subject={subject} />
                 ))}
@@ -501,18 +495,35 @@ export default function Dashboard() {
             ) : null}
           </View>
         ) : null}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Conversar com a KIVRYN"
-          accessibilityHint="Abre o Assistente"
-          onPress={() => router.push("/assistant")}
-          style={({ pressed }) => [styles.quickNexora, pressed && styles.quickNexoraPressed]}
-        >
-          <Text style={styles.quickChatSpark}>✦</Text>
-          <Text style={styles.quickNexoraText}>
-            <LocalizedCopy copyKey="legacy.6196c3814041" />
-          </Text>
-        </Pressable>
+
+        {weeklyChallenge ? (
+          <View style={styles.section}>
+            <SectionHeader title={text.weekly} />
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => router.push(weeklyChallenge.href)}
+              style={({ pressed }) => [styles.challengeCard, pressed && styles.pressed]}
+            >
+              <View style={styles.challengeTop}>
+                <Text style={styles.challengeTitle}>{weeklyChallenge.title}</Text>
+                <Text style={styles.challengeCount}>
+                  {weeklyChallenge.completed}/{weeklyChallenge.target}
+                </Text>
+              </View>
+              <View style={styles.challengeTrack}>
+                <View
+                  style={[
+                    styles.challengeFill,
+                    { width: `${Math.min(100, (weeklyChallenge.completed / weeklyChallenge.target) * 100)}%` },
+                  ]}
+                />
+              </View>
+              <Text numberOfLines={2} style={styles.challengeBenefit}>
+                {weeklyChallenge.benefit}
+              </Text>
+            </Pressable>
+          </View>
+        ) : null}
       </ScrollView>
     </AppScreen>
   );
@@ -521,168 +532,276 @@ export default function Dashboard() {
 const styles = StyleSheet.create({
   page: {
     paddingHorizontal: spacing.md,
-    paddingTop: spacing.xs,
-    paddingBottom: 104,
-    gap: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: 116,
+    gap: 28,
   },
   flex: { flex: 1, minWidth: 0 },
-  identity: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  identityCopy: { flex: 1, minWidth: 0 },
-  eyebrow: { ...typography.eyebrow, color: colors.primaryBright },
-  greeting: { ...typography.body, color: colors.text },
-  context: { ...typography.label, color: colors.textMuted, marginTop: 2 },
-  hero: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm },
-  spark: { fontSize: 20, color: colors.primaryBright, paddingTop: 3 },
-  title: { ...typography.heading, fontSize: 22, lineHeight: 28, color: colors.text, flex: 1 },
-  section: { gap: 12 },
-  sectionHeader: {
-    minHeight: 32,
+  pressed: { opacity: 0.78 },
+  hero: {
+    position: "relative",
+    overflow: "hidden",
+    padding: 20,
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: "rgba(82,229,255,0.13)",
+    backgroundColor: "#07101A",
+    ...shadows.raised,
+  },
+  heroGlowA: {
+    position: "absolute",
+    width: 210,
+    height: 210,
+    borderRadius: 105,
+    right: -90,
+    top: -100,
+    backgroundColor: "rgba(0,184,217,0.10)",
+  },
+  heroGlowB: {
+    position: "absolute",
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    left: -95,
+    bottom: -115,
+    backgroundColor: "rgba(139,124,246,0.08)",
+  },
+  heroTop: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     gap: spacing.sm,
   },
-  sectionTitle: { ...typography.eyebrow, color: colors.textMuted, letterSpacing: 1.5 },
-  link: { ...typography.label, color: colors.primaryBright, paddingVertical: spacing.sm },
-  skeleton: { height: 88, borderRadius: radius.md, backgroundColor: colors.surface },
-  inlineState: {
-    minHeight: 64,
-    gap: spacing.xs,
+  brandCluster: { flexDirection: "row", alignItems: "center", gap: 11, flexShrink: 1 },
+  brandIcon: { width: 42, height: 42, borderRadius: 13 },
+  commandLabel: {
+    ...typography.eyebrow,
+    color: colors.text,
+    letterSpacing: 1.8,
+  },
+  tier: { ...typography.caption, color: colors.textMuted, marginTop: 2 },
+  systemPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    minHeight: 30,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: "rgba(84,214,160,0.14)",
+    backgroundColor: "rgba(84,214,160,0.05)",
+  },
+  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.success },
+  systemPillText: { ...typography.caption, color: colors.textSecondary, fontSize: 10 },
+  greeting: {
+    color: colors.text,
+    fontSize: 31,
+    lineHeight: 36,
+    fontWeight: "700",
+    letterSpacing: -1,
+    marginTop: 26,
+  },
+  context: { ...typography.body, color: colors.textSecondary, marginTop: 7, maxWidth: 360 },
+  aiStrip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 11,
+    marginTop: 20,
+    padding: 12,
+    borderRadius: 17,
+    borderWidth: 1,
+    borderColor: "rgba(82,229,255,0.15)",
+    backgroundColor: "rgba(13,27,40,0.84)",
+  },
+  aiOrb: {
+    width: 38,
+    height: 38,
+    alignItems: "center",
     justifyContent: "center",
-    padding: spacing.md,
+    borderRadius: 19,
+    backgroundColor: "rgba(82,229,255,0.09)",
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
+    borderColor: "rgba(82,229,255,0.18)",
   },
-  muted: { ...typography.body, color: colors.textMuted },
-  calm: { ...typography.body, color: colors.textMuted, paddingVertical: spacing.sm },
-  compactState: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  todayCard: {
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.lg,
-    backgroundColor: colors.surface,
-  },
-  summary: { flexDirection: "row", alignItems: "center", gap: spacing.lg, padding: spacing.md },
-  metric: { ...typography.title, color: colors.text, fontSize: 25, lineHeight: 29 },
-  divider: { width: 1, alignSelf: "stretch", backgroundColor: colors.border },
-  itemTitle: { ...typography.body, color: colors.text },
-  meta: { ...typography.label, color: colors.textMuted },
-  danger: { color: colors.danger },
-  arrow: { fontSize: 24, color: colors.textMuted },
-  nextCard: {
-    gap: spacing.xs,
-    padding: spacing.md,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.primaryBright,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
-  },
-  commandCard: {
+  aiSpark: { color: colors.primaryBright, fontSize: 18 },
+  aiTitle: { ...typography.caption, color: colors.primaryBright, fontWeight: "800", letterSpacing: 0.8 },
+  aiCopy: { ...typography.caption, color: colors.textSecondary, marginTop: 2 },
+  aiArrow: { color: colors.textMuted, fontSize: 18 },
+  section: { gap: 11 },
+  sectionHeader: {
+    minHeight: 30,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     gap: spacing.sm,
-    padding: spacing.lg,
+  },
+  sectionTitle: { ...typography.eyebrow, color: colors.textMuted, letterSpacing: 1.7 },
+  sectionActionHit: { minHeight: 32, justifyContent: "center", paddingLeft: 12 },
+  sectionAction: { ...typography.caption, color: colors.primaryBright, fontWeight: "700" },
+  focusCard: {
+    flexDirection: "row",
+    overflow: "hidden",
+    borderRadius: 23,
     borderWidth: 1,
-    borderColor: colors.accentMuted,
-    borderRadius: radius.lg,
+    borderColor: "rgba(82,229,255,0.20)",
     backgroundColor: colors.surface,
   },
-  commandButton: {
+  focusAccent: { width: 4, backgroundColor: colors.primaryBright },
+  focusContent: { flex: 1, gap: 7, padding: 18 },
+  focusDue: { ...typography.eyebrow, color: colors.primaryBright, letterSpacing: 1.4 },
+  focusTitle: { ...typography.heading, color: colors.text, fontSize: 22, lineHeight: 28 },
+  focusMeta: { ...typography.label, color: colors.textMuted },
+  primaryButton: {
     minHeight: 48,
+    marginTop: 5,
+    paddingHorizontal: 16,
     alignSelf: "flex-start",
-    justifyContent: "center",
-    marginTop: spacing.xs,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.pill,
-    backgroundColor: colors.primaryBright,
-  },
-  commandButtonText: { ...typography.label, color: colors.background },
-  dayProgress: { paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
-  dailyRows: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
-  dailyRow: {
-    minHeight: 68,
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 12,
-  },
-  dailyDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
-  dailyBullet: { color: colors.primaryBright, fontSize: 13 },
-  challengeCard: {
-    gap: 12,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.accentMuted,
-    borderRadius: radius.lg,
-    backgroundColor: colors.surface,
-  },
-  challengeTitle: { ...typography.heading, fontSize: 19, lineHeight: 25, color: colors.text },
-  challengeTrack: {
-    height: 5,
-    marginBottom: spacing.sm,
-    overflow: "hidden",
-    borderRadius: radius.pill,
-    backgroundColor: colors.border,
-  },
-  challengeFill: {
-    height: "100%",
+    gap: 10,
     borderRadius: radius.pill,
     backgroundColor: colors.primaryBright,
   },
-  nextLabel: { ...typography.eyebrow, color: colors.primaryBright },
-  nextTitle: { ...typography.heading, color: colors.text },
-  openButton: {
-    alignSelf: "flex-start",
-    minHeight: 44,
-    justifyContent: "center",
-    paddingRight: spacing.md,
-  },
-  openButtonText: { ...typography.label, color: colors.primaryBright },
-  cardList: { gap: spacing.sm },
-  card: {
-    gap: spacing.sm,
-    padding: spacing.md,
+  primaryButtonText: { ...typography.label, color: "#001116", fontWeight: "800" },
+  primaryButtonArrow: { color: "#001116", fontSize: 18, fontWeight: "700" },
+  clearCard: {
+    minHeight: 78,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 16,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.md,
     backgroundColor: colors.surface,
   },
-  cardTop: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  cardTitle: { ...typography.heading, color: colors.text, flex: 1 },
-  status: { ...typography.label, color: colors.primaryBright, textTransform: "capitalize" },
-  progressTrack: {
-    height: 4,
-    marginBottom: spacing.xs,
+  clearIcon: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 20,
+    backgroundColor: "rgba(84,214,160,0.08)",
+  },
+  clearCheck: { color: colors.success, fontSize: 18, fontWeight: "800" },
+  clearTitle: { ...typography.label, color: colors.text },
+  clearAction: { ...typography.caption, color: colors.primaryBright, marginTop: 3 },
+  dayCard: {
     overflow: "hidden",
-    borderRadius: 2,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  metricsRow: { flexDirection: "row", alignItems: "center", padding: 16 },
+  metricBlock: { flex: 1 },
+  metricValue: { ...typography.title, color: colors.text, fontSize: 28, lineHeight: 32 },
+  metricDanger: { color: colors.danger },
+  metricLabel: { ...typography.caption, color: colors.textMuted, marginTop: 2 },
+  metricDivider: { width: 1, height: 35, backgroundColor: colors.border, marginHorizontal: 10 },
+  dayProgressWrap: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingBottom: 14 },
+  dayProgressTrack: {
+    flex: 1,
+    height: 5,
+    overflow: "hidden",
+    borderRadius: radius.pill,
     backgroundColor: colors.border,
   },
-  progressFill: { height: 4, backgroundColor: colors.primaryBright },
-  studyCard: {
-    minHeight: 64,
-    flexDirection: "row",
+  dayProgressFill: { height: "100%", borderRadius: radius.pill, backgroundColor: colors.primaryBright },
+  dayProgressText: { ...typography.caption, color: colors.textSecondary, minWidth: 34, textAlign: "right" },
+  dailyList: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
+  dailyRow: { minHeight: 65, flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 16 },
+  dailyDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
+  dailyDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.primaryBright },
+  dailyTitle: { ...typography.label, color: colors.text },
+  dailyMeta: { ...typography.caption, color: colors.textMuted, marginTop: 2 },
+  quickGrid: { flexDirection: "row", gap: 9 },
+  quickAction: {
+    flex: 1,
+    minWidth: 0,
     alignItems: "center",
-    gap: spacing.md,
-    padding: spacing.md,
-    borderRadius: radius.md,
+    gap: 8,
+    paddingVertical: 13,
+    paddingHorizontal: 5,
+    borderRadius: 17,
+    borderWidth: 1,
+    borderColor: colors.border,
     backgroundColor: colors.surface,
   },
-  subjectColor: { width: 4, height: 38, borderRadius: 2 },
-  quickNexora: {
-    minHeight: 44,
-    alignSelf: "flex-end",
+  quickIcon: {
+    width: 34,
+    height: 34,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 12,
+    backgroundColor: colors.surfaceRaised,
+  },
+  quickSymbol: { color: colors.primaryBright, fontSize: 16, fontWeight: "700" },
+  quickLabel: { ...typography.caption, color: colors.textSecondary, fontSize: 10 },
+  missionCard: {
+    minHeight: 80,
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.sm,
-    paddingHorizontal: 18,
-    borderRadius: radius.pill,
+    gap: 12,
+    padding: 15,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: colors.accentMuted,
-    backgroundColor: colors.surfaceRaised,
-    elevation: 7,
+    borderColor: "rgba(139,124,246,0.18)",
+    backgroundColor: "rgba(18,20,36,0.96)",
   },
-  quickNexoraPressed: { opacity: 0.78 },
-  quickChatSpark: { color: colors.primaryBright, fontSize: 16 },
-  quickNexoraText: { ...typography.label, color: colors.text, letterSpacing: 1 },
+  missionSymbolWrap: {
+    width: 42,
+    height: 42,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 14,
+    backgroundColor: "rgba(139,124,246,0.09)",
+  },
+  missionSymbol: { color: colors.violet, fontSize: 20 },
+  missionTitle: { ...typography.label, color: colors.text, fontSize: 15 },
+  missionAction: { ...typography.caption, color: colors.violet, marginTop: 4 },
+  stack: { gap: 9 },
+  projectCard: {
+    gap: 11,
+    padding: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  projectTop: { flexDirection: "row", alignItems: "center", gap: 10 },
+  projectTitle: { ...typography.heading, color: colors.text, fontSize: 17, lineHeight: 22 },
+  projectStatus: { ...typography.caption, color: colors.primaryBright, marginTop: 2, textTransform: "capitalize" },
+  projectNext: { ...typography.body, color: colors.textSecondary, fontSize: 14, lineHeight: 20 },
+  projectProgress: { flexDirection: "row", alignItems: "center", gap: 10 },
+  progressMeta: { ...typography.caption, color: colors.textMuted },
+  studyCard: {
+    minHeight: 72,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 14,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  studyAccent: { width: 4, height: 38, borderRadius: 2 },
+  studyTitle: { ...typography.label, color: colors.text, fontSize: 15 },
+  studyMeta: { ...typography.caption, color: colors.textMuted, marginTop: 3 },
+  challengeCard: {
+    gap: 11,
+    padding: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(82,229,255,0.13)",
+    backgroundColor: colors.surface,
+  },
+  challengeTop: { flexDirection: "row", alignItems: "center", gap: 12 },
+  challengeTitle: { ...typography.label, color: colors.text, flex: 1, fontSize: 15 },
+  challengeCount: { ...typography.caption, color: colors.primaryBright, fontWeight: "800" },
+  challengeTrack: { height: 5, overflow: "hidden", borderRadius: radius.pill, backgroundColor: colors.border },
+  challengeFill: { height: "100%", borderRadius: radius.pill, backgroundColor: colors.primaryBright },
+  challengeBenefit: { ...typography.caption, color: colors.textMuted },
+  chevron: { color: colors.textMuted, fontSize: 24 },
 });
