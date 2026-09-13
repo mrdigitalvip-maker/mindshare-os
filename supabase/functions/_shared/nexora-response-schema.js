@@ -39,6 +39,8 @@ export const NEXORA_RESPONSE_SCHEMA = {
           "value",
           "expected_updated_at",
           "target_value",
+          "challenge_period",
+          "challenge_category",
         ],
         properties: {
           action_type: { type: "string", enum: NEXORA_MUTATION_ACTIONS },
@@ -52,6 +54,8 @@ export const NEXORA_RESPONSE_SCHEMA = {
           value: nullableString,
           expected_updated_at: nullableString,
           target_value: { anyOf: [{ type: "null" }, { type: "integer" }] },
+          challenge_period: nullableString,
+          challenge_category: nullableString,
         },
       },
     },
