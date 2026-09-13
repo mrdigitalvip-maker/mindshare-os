@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { AppScreen } from "@/components/app-screen";
@@ -456,7 +456,7 @@ function stageLabel(
   return text.masteredStageLabel;
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <View style={styles.field}>
       <Text style={styles.fieldLabel}>{label}</Text>
@@ -483,7 +483,7 @@ function Meta({ label, value }: { label: string; value: string }) {
   );
 }
 
-function StateCard({ title, body, children }: { title: string; body: string; children: React.ReactNode }) {
+function StateCard({ title, body, children }: { title: string; body: string; children: ReactNode }) {
   return (
     <View style={styles.stateCard}>
       <Text style={styles.stateTitle}>{title}</Text>
