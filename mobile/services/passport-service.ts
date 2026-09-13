@@ -1,4 +1,5 @@
 import {
+  type PassportDailyMission,
   type PassportLanguageTrack,
   type PassportLesson,
   type PassportPlacementQuestion,
@@ -79,6 +80,22 @@ const vocabularyFrom = (row: Record<string, unknown>): PassportVocabularyItem =>
   repetitions: Number(row.repetitions),
   nextReviewAt: String(row.next_review_at),
   lastReviewedAt: typeof row.last_reviewed_at === "string" ? row.last_reviewed_at : null,
+});
+
+const dailyMissionFrom = (row: Record<string, unknown>): PassportDailyMission => ({
+  id: String(row.id),
+  trackId: String(row.track_id),
+  missionDate: String(row.mission_date),
+  missionKey: String(row.mission_key),
+  missionType: String(row.mission_type) as PassportDailyMission["missionType"],
+  title: String(row.title),
+  prompt: String(row.prompt ?? ""),
+  status: String(row.status) as PassportDailyMission["status"],
+  metadata:
+    row.metadata && typeof row.metadata === "object" && !Array.isArray(row.metadata)
+      ? (row.metadata as Record<string, unknown>)
+      : {},
+  completedAt: typeof row.completed_at === "string" ? row.completed_at : null,
 });
 
 export type UpsertPassportProfileInput = {
@@ -374,4 +391,31 @@ export async function addPassportVocabulary(
 
   if (error) throw workspaceMutationError(error);
   return vocabularyFrom(data as unknown as Record<string, unknown>);
+}
+
+export async function listPassportDailyMissions(
+  userId: string,
+  trackId: string,
+  missionDate: string,
+): Promise<PassportDailyMission[]> {
+  const uid = requireUser(userId);
+  const languageTrackId = trackId.trim();
+  const date = missionDate.trim();
+  if (!languageTrackId) throw workspaceMutationError(new Error("Language track required."));
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    throw workspaceMutationError(new Error("Mission date must use YYYY-MM-DD."));
+  }
+
+  const { data, error } = await supabase
+    .from("passport_daily_missions")
+    .select(
+      "id,track_id,mission_date,mission_key,mission_type,title,prompt,status,metadata,completed_at",
+    )
+    .eq("user_id", uid)
+    .eq("track_id", languageTrackId)
+    .eq("mission_date", date)
+    .order("created_at", { ascending: true });
+
+  if (error) throw workspaceMutationError(error);
+  return (data ?? []).map((row) => dailyMissionFrom(row as Record<string, unknown>));
 }
