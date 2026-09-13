@@ -1,6 +1,7 @@
 import {
   type PassportLanguageTrack,
   type PassportLesson,
+  type PassportPlacementQuestion,
   type PassportProfile,
 } from "@/lib/passport";
 import { workspaceMutationError } from "@/lib/mutation-errors";
@@ -188,4 +189,31 @@ export async function completePassportLesson(
     streak: Number(result.streak ?? 0),
     date: String(result.date ?? ""),
   };
+}
+
+export async function listPassportPlacementQuestions(
+  userId: string,
+  trackId: string,
+): Promise<PassportPlacementQuestion[]> {
+  requireUser(userId);
+  const languageTrackId = trackId.trim();
+  if (!languageTrackId) throw workspaceMutationError(new Error("Language track required."));
+
+  const { data, error } = await supabase.rpc("get_passport_placement_questions", {
+    p_track_id: languageTrackId,
+  } as never);
+
+  if (error) throw workspaceMutationError(error);
+
+  const rows = Array.isArray(data) ? data : [];
+  return rows.map((row) => {
+    const value = row as Record<string, unknown>;
+    return {
+      key: String(value.key),
+      prompt: String(value.prompt),
+      options: Array.isArray(value.options) ? value.options.map((option) => String(option)) : [],
+      difficulty: String(value.difficulty) as PassportPlacementQuestion["difficulty"],
+      orderIndex: Number(value.orderIndex ?? 0),
+    };
+  });
 }
