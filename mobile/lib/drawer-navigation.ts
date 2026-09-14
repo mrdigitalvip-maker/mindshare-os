@@ -4,6 +4,12 @@ export type DrawerRoute =
   | "/projects"
   | "/productivity"
   | "/studies"
+  | "/journeys"
+  | "/challenges"
+  | "/arena"
+  | "/passport"
+  | "/creator"
+  | "/community"
   | "/premium"
   | "/settings";
 
