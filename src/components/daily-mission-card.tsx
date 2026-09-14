@@ -1,10 +1,17 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { dailyMission, parityKeys } from "@/services/parity-service";
+import { loadDashboardDailyMission } from "@/services/dashboard-mission-service";
+import { parityKeys } from "@/services/parity-service";
 import { useLanguage } from "@/providers/language-provider";
+
 export function DailyMissionCard() {
   const { t } = useLanguage();
-  const q = useQuery({ queryKey: parityKeys.mission, queryFn: dailyMission });
+  const q = useQuery({
+    queryKey: parityKeys.mission,
+    queryFn: loadDashboardDailyMission,
+    retry: 2,
+    retryDelay: (attempt) => Math.min(500 * 2 ** attempt, 2_000),
+  });
   return (
     <section
       className="command-home__mission"
