@@ -1,0 +1,546 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { PageHeader, PageShell } from "@/components/page-shell";
+import { RouteState } from "@/components/parity-state";
+import { Button } from "@/components/ui/button";
+import { WorkspaceProgress, WorkspaceShell } from "@/components/workspace-ui";
+import { useAuth } from "@/lib/auth-context";
+import { useLanguage } from "@/providers/language-provider";
+import {
+  completeWebPassportLesson,
+  finishWebRoleplay,
+  getWebPassportProfile,
+  listWebDueVocabulary,
+  listWebPassportLessons,
+  listWebPassportMissions,
+  listWebPassportTracks,
+  listWebPlacementQuestions,
+  listWebRoleplaySessions,
+  reviewWebVocabulary,
+  saveWebPassportProfile,
+  sendWebRoleplayMessage,
+  startWebRoleplay,
+  submitWebPlacement,
+  updateWebPassportMission,
+  type WebPassportProfile,
+} from "@/services/passport-web-service";
+
+export const Route = createFileRoute("/_shell/passport")({ component: PassportWorkspace });
+
+const passportKeys = {
+  tracks: ["web-passport", "tracks"] as const,
+  profile: (userId: string) => ["web-passport", "profile", userId] as const,
+  lessons: (userId: string, trackId: string) => ["web-passport", "lessons", userId, trackId] as const,
+  placement: (userId: string, trackId: string) => ["web-passport", "placement", userId, trackId] as const,
+  vocabulary: (userId: string, trackId: string) => ["web-passport", "vocabulary", userId, trackId] as const,
+  missions: (userId: string, trackId: string) => ["web-passport", "missions", userId, trackId] as const,
+  roleplay: (userId: string, trackId: string) => ["web-passport", "roleplay", userId, trackId] as const,
+};
+
+const copy = {
+  "pt-BR": {
+    title: "KIVRYN Passport",
+    description: "Seu sistema internacional de idiomas, viagem e preparação prática — sincronizado com o app.",
+    setup: "Configurar Passport",
+    setupBody: "Escolha idioma, objetivo e ritmo. Essas preferências são salvas no mesmo perfil usado no Android.",
+    language: "Idioma",
+    goal: "Objetivo",
+    minutes: "Minutos por dia",
+    horizon: "Horizonte do plano",
+    save: "Criar Passport",
+    saving: "Salvando…",
+    travel: "Viagem",
+    work: "Trabalho",
+    study: "Estudos",
+    conversation: "Conversação",
+    culture: "Cultura",
+    placement: "Teste de nível",
+    placementBody: "Responda às perguntas e envie. O resultado é calculado no servidor; respostas corretas não são expostas ao cliente.",
+    submitPlacement: "Calcular meu nível",
+    placementPending: "Responda todas as perguntas para enviar.",
+    level: "Nível",
+    progress: "Progresso das lições",
+    lessons: "Lições",
+    minutesShort: "min",
+    completed: "Concluída",
+    complete: "Concluir lição",
+    listening: "Listening",
+    listen: "Ouvir exemplo",
+    noListening: "Nenhum exemplo de áudio disponível na próxima lição.",
+    vocabulary: "Vocabulário para revisar",
+    noVocabulary: "Tudo revisado por enquanto.",
+    again: "Novamente",
+    hard: "Difícil",
+    good: "Bom",
+    easy: "Fácil",
+    missions: "Missões de hoje",
+    noMissions: "Nenhuma missão persistida para hoje.",
+    finishMission: "Concluir",
+    skipMission: "Pular",
+    roleplay: "Role-play com IA",
+    roleplayBody: "Pratique situações reais. Não são fornecidos preços, horários, reservas ou disponibilidade ao vivo.",
+    scenario: "Cenário",
+    startRoleplay: "Iniciar prática",
+    message: "Digite sua resposta…",
+    send: "Enviar",
+    end: "Encerrar sessão",
+    noMessages: "Envie a primeira mensagem para iniciar a situação.",
+    airport: "Aeroporto",
+    hotel: "Hotel",
+    restaurant: "Restaurante",
+    transport: "Transporte",
+    directions: "Direções",
+    emergency: "Emergência",
+    shopping: "Compras",
+    social: "Social",
+    retry: "Tentar novamente",
+  },
+  en: {
+    title: "KIVRYN Passport",
+    description: "Your international language, travel and practical-readiness system — synchronized with the app.",
+    setup: "Set up Passport",
+    setupBody: "Choose a language, goal and pace. These preferences are saved to the same profile used on Android.",
+    language: "Language",
+    goal: "Goal",
+    minutes: "Minutes per day",
+    horizon: "Plan horizon",
+    save: "Create Passport",
+    saving: "Saving…",
+    travel: "Travel",
+    work: "Work",
+    study: "Study",
+    conversation: "Conversation",
+    culture: "Culture",
+    placement: "Placement test",
+    placementBody: "Answer the questions and submit. The result is calculated on the server; correct answers are never exposed to the client.",
+    submitPlacement: "Calculate my level",
+    placementPending: "Answer every question before submitting.",
+    level: "Level",
+    progress: "Lesson progress",
+    lessons: "Lessons",
+    minutesShort: "min",
+    completed: "Completed",
+    complete: "Complete lesson",
+    listening: "Listening",
+    listen: "Play example",
+    noListening: "No listening example is available in the next lesson.",
+    vocabulary: "Vocabulary to review",
+    noVocabulary: "You're all caught up for now.",
+    again: "Again",
+    hard: "Hard",
+    good: "Good",
+    easy: "Easy",
+    missions: "Today's missions",
+    noMissions: "No persisted missions for today.",
+    finishMission: "Complete",
+    skipMission: "Skip",
+    roleplay: "AI role-play",
+    roleplayBody: "Practice real situations. No live prices, schedules, bookings or availability are provided.",
+    scenario: "Scenario",
+    startRoleplay: "Start practice",
+    message: "Type your response…",
+    send: "Send",
+    end: "End session",
+    noMessages: "Send the first message to begin the situation.",
+    airport: "Airport",
+    hotel: "Hotel",
+    restaurant: "Restaurant",
+    transport: "Transport",
+    directions: "Directions",
+    emergency: "Emergency",
+    shopping: "Shopping",
+    social: "Social",
+    retry: "Try again",
+  },
+} as const;
+
+type Goal = WebPassportProfile["goal"];
+const scenarios = ["airport", "hotel", "restaurant", "transport", "directions", "emergency", "shopping", "social"] as const;
+
+function PassportWorkspace() {
+  const { user } = useAuth();
+  const { resolvedLocale } = useLanguage();
+  const text = copy[resolvedLocale];
+  const qc = useQueryClient();
+  const userId = user?.id ?? "";
+
+  const tracks = useQuery({ queryKey: passportKeys.tracks, queryFn: listWebPassportTracks });
+  const profile = useQuery({
+    queryKey: passportKeys.profile(userId),
+    queryFn: () => getWebPassportProfile(userId),
+    enabled: Boolean(userId),
+  });
+  const trackId = profile.data?.trackId ?? "";
+  const lessons = useQuery({
+    queryKey: passportKeys.lessons(userId, trackId),
+    queryFn: () => listWebPassportLessons(userId, trackId),
+    enabled: Boolean(userId && trackId && profile.data?.placementScore != null),
+  });
+  const placement = useQuery({
+    queryKey: passportKeys.placement(userId, trackId),
+    queryFn: () => listWebPlacementQuestions(userId, trackId),
+    enabled: Boolean(userId && trackId && profile.data?.placementScore == null),
+  });
+  const vocabulary = useQuery({
+    queryKey: passportKeys.vocabulary(userId, trackId),
+    queryFn: () => listWebDueVocabulary(userId, trackId),
+    enabled: Boolean(userId && trackId && profile.data?.placementScore != null),
+  });
+  const missions = useQuery({
+    queryKey: passportKeys.missions(userId, trackId),
+    queryFn: () => listWebPassportMissions(userId, trackId),
+    enabled: Boolean(userId && trackId && profile.data?.placementScore != null),
+  });
+  const roleplay = useQuery({
+    queryKey: passportKeys.roleplay(userId, trackId),
+    queryFn: () => listWebRoleplaySessions(userId, trackId),
+    enabled: Boolean(userId && trackId && profile.data?.placementScore != null),
+  });
+
+  const invalidatePassport = async () => {
+    await qc.invalidateQueries({ queryKey: ["web-passport"] });
+  };
+
+  const saveProfile = useMutation({
+    mutationFn: (input: Parameters<typeof saveWebPassportProfile>[1]) =>
+      saveWebPassportProfile(userId, input),
+    onSuccess: async () => {
+      await invalidatePassport();
+      toast.success(resolvedLocale === "en" ? "Passport created." : "Passport criado.");
+    },
+    onError: () => toast.error(resolvedLocale === "en" ? "Passport could not be saved." : "Não foi possível salvar o Passport."),
+  });
+  const submitPlacement = useMutation({
+    mutationFn: (answers: Record<string, number>) => submitWebPlacement(userId, trackId, answers),
+    onSuccess: async () => {
+      await invalidatePassport();
+      toast.success(resolvedLocale === "en" ? "Level updated." : "Nível atualizado.");
+    },
+    onError: () => toast.error(resolvedLocale === "en" ? "Placement could not be submitted." : "Não foi possível enviar o teste."),
+  });
+  const completeLesson = useMutation({
+    mutationFn: (lessonId: string) => completeWebPassportLesson(userId, lessonId),
+    onSuccess: invalidatePassport,
+    onError: () => toast.error(resolvedLocale === "en" ? "Lesson could not be completed." : "Não foi possível concluir a lição."),
+  });
+  const reviewVocabulary = useMutation({
+    mutationFn: ({ id, grade }: { id: string; grade: number }) => reviewWebVocabulary(userId, id, grade),
+    onSuccess: invalidatePassport,
+    onError: () => toast.error(resolvedLocale === "en" ? "Review could not be saved." : "Não foi possível salvar a revisão."),
+  });
+  const updateMission = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: "completed" | "skipped" }) =>
+      updateWebPassportMission(userId, id, status),
+    onSuccess: invalidatePassport,
+    onError: () => toast.error(resolvedLocale === "en" ? "Mission could not be updated." : "Não foi possível atualizar a missão."),
+  });
+  const startRoleplay = useMutation({
+    mutationFn: (scenario: string) => startWebRoleplay(userId, trackId, scenario),
+    onSuccess: invalidatePassport,
+    onError: () => toast.error(resolvedLocale === "en" ? "Role-play could not be started." : "Não foi possível iniciar o role-play."),
+  });
+  const sendRoleplay = useMutation({
+    mutationFn: ({ sessionId, message }: { sessionId: string; message: string }) =>
+      sendWebRoleplayMessage(userId, sessionId, message),
+    onSuccess: invalidatePassport,
+    onError: () => toast.error(resolvedLocale === "en" ? "Message could not be sent." : "Não foi possível enviar a mensagem."),
+  });
+  const endRoleplay = useMutation({
+    mutationFn: (sessionId: string) => finishWebRoleplay(userId, sessionId),
+    onSuccess: invalidatePassport,
+  });
+
+  if (!userId) return null;
+
+  return (
+    <PageShell>
+      <PageHeader title={text.title} description={text.description} />
+      <WorkspaceShell>
+        <RouteState
+          loading={tracks.isLoading || profile.isLoading}
+          error={tracks.isError || profile.isError}
+          empty={false}
+          onRetry={() => {
+            void tracks.refetch();
+            void profile.refetch();
+          }}
+        >
+          {!profile.data ? (
+            <PassportSetup
+              tracks={tracks.data ?? []}
+              locale={resolvedLocale}
+              pending={saveProfile.isPending}
+              onSave={(input) => saveProfile.mutate(input)}
+            />
+          ) : profile.data.placementScore == null ? (
+            <PlacementPanel
+              locale={resolvedLocale}
+              questions={placement.data ?? []}
+              loading={placement.isLoading}
+              error={placement.isError}
+              pending={submitPlacement.isPending}
+              onRetry={() => void placement.refetch()}
+              onSubmit={(answers) => submitPlacement.mutate(answers)}
+            />
+          ) : (
+            <PassportReady
+              locale={resolvedLocale}
+              profile={profile.data}
+              track={tracks.data?.find((item) => item.id === trackId)}
+              lessons={lessons.data ?? []}
+              vocabulary={vocabulary.data ?? []}
+              missions={missions.data ?? []}
+              sessions={roleplay.data ?? []}
+              loading={lessons.isLoading || vocabulary.isLoading || missions.isLoading || roleplay.isLoading}
+              completeLesson={(id) => completeLesson.mutate(id)}
+              reviewVocabulary={(id, grade) => reviewVocabulary.mutate({ id, grade })}
+              updateMission={(id, status) => updateMission.mutate({ id, status })}
+              startRoleplay={(scenario) => startRoleplay.mutate(scenario)}
+              sendRoleplay={(sessionId, message) => sendRoleplay.mutate({ sessionId, message })}
+              endRoleplay={(sessionId) => endRoleplay.mutate(sessionId)}
+              roleplayBusy={startRoleplay.isPending || sendRoleplay.isPending || endRoleplay.isPending}
+            />
+          )}
+        </RouteState>
+      </WorkspaceShell>
+    </PageShell>
+  );
+}
+
+function PassportSetup({
+  tracks,
+  locale,
+  pending,
+  onSave,
+}: {
+  tracks: Awaited<ReturnType<typeof listWebPassportTracks>>;
+  locale: "pt-BR" | "en";
+  pending: boolean;
+  onSave(input: Parameters<typeof saveWebPassportProfile>[1]): void;
+}) {
+  const text = copy[locale];
+  const [trackId, setTrackId] = useState(tracks[0]?.id ?? "");
+  const [goal, setGoal] = useState<Goal>("travel");
+  const [dailyMinutes, setDailyMinutes] = useState(15);
+  const [planHorizonDays, setPlanHorizonDays] = useState(90);
+  const goals: Goal[] = ["travel", "work", "study", "conversation", "culture"];
+
+  return (
+    <section className="v2-surface rounded-3xl p-6">
+      <h2 className="text-2xl font-semibold">{text.setup}</h2>
+      <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{text.setupBody}</p>
+      <div className="mt-6 grid gap-4 md:grid-cols-2">
+        <label className="grid gap-2 text-sm">
+          <span className="text-muted-foreground">{text.language}</span>
+          <select className="rounded-xl border border-border bg-background px-3 py-3" value={trackId} onChange={(e) => setTrackId(e.target.value)}>
+            {tracks.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
+          </select>
+        </label>
+        <label className="grid gap-2 text-sm">
+          <span className="text-muted-foreground">{text.goal}</span>
+          <select className="rounded-xl border border-border bg-background px-3 py-3" value={goal} onChange={(e) => setGoal(e.target.value as Goal)}>
+            {goals.map((item) => <option key={item} value={item}>{text[item]}</option>)}
+          </select>
+        </label>
+        <label className="grid gap-2 text-sm">
+          <span className="text-muted-foreground">{text.minutes}</span>
+          <select className="rounded-xl border border-border bg-background px-3 py-3" value={dailyMinutes} onChange={(e) => setDailyMinutes(Number(e.target.value))}>
+            {[5, 15, 30, 45, 60].map((item) => <option key={item} value={item}>{item}</option>)}
+          </select>
+        </label>
+        <label className="grid gap-2 text-sm">
+          <span className="text-muted-foreground">{text.horizon}</span>
+          <select className="rounded-xl border border-border bg-background px-3 py-3" value={planHorizonDays} onChange={(e) => setPlanHorizonDays(Number(e.target.value))}>
+            {[30, 60, 90, 180, 365].map((item) => <option key={item} value={item}>{item} {locale === "en" ? "days" : "dias"}</option>)}
+          </select>
+        </label>
+      </div>
+      <Button className="mt-6" disabled={!trackId || pending} onClick={() => onSave({ trackId, goal, dailyMinutes, planHorizonDays, nativeLocale: locale })}>
+        {pending ? text.saving : text.save}
+      </Button>
+    </section>
+  );
+}
+
+function PlacementPanel({
+  locale,
+  questions,
+  loading,
+  error,
+  pending,
+  onRetry,
+  onSubmit,
+}: {
+  locale: "pt-BR" | "en";
+  questions: Awaited<ReturnType<typeof listWebPlacementQuestions>>;
+  loading: boolean;
+  error: boolean;
+  pending: boolean;
+  onRetry(): void;
+  onSubmit(answers: Record<string, number>): void;
+}) {
+  const text = copy[locale];
+  const [answers, setAnswers] = useState<Record<string, number>>({});
+  if (loading) return <p className="text-sm text-muted-foreground">{locale === "en" ? "Loading placement test…" : "Carregando teste de nível…"}</p>;
+  if (error)
+    return <div className="v2-surface rounded-2xl p-5"><p>{locale === "en" ? "The placement test could not be loaded." : "Não foi possível carregar o teste de nível."}</p><Button className="mt-4" onClick={onRetry}>{text.retry}</Button></div>;
+
+  const complete = questions.length > 0 && questions.every((item) => Number.isInteger(answers[item.key]));
+  return (
+    <section className="v2-surface rounded-3xl p-6">
+      <h2 className="text-2xl font-semibold">{text.placement}</h2>
+      <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{text.placementBody}</p>
+      <div className="mt-6 grid gap-4">
+        {questions.map((question, index) => (
+          <article key={question.key} className="rounded-2xl border border-border bg-background/40 p-5">
+            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">{index + 1}/{questions.length} · {question.difficulty}</p>
+            <h3 className="mt-2 font-medium">{question.prompt}</h3>
+            <div className="mt-4 grid gap-2 md:grid-cols-2">
+              {question.options.map((option, optionIndex) => (
+                <button
+                  key={`${question.key}-${optionIndex}`}
+                  type="button"
+                  onClick={() => setAnswers((current) => ({ ...current, [question.key]: optionIndex }))}
+                  className={`rounded-xl border px-4 py-3 text-left text-sm transition ${answers[question.key] === optionIndex ? "border-primary bg-primary/10" : "border-border hover:bg-accent"}`}
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
+          </article>
+        ))}
+      </div>
+      {!complete ? <p className="mt-4 text-sm text-muted-foreground">{text.placementPending}</p> : null}
+      <Button className="mt-5" disabled={!complete || pending} onClick={() => onSubmit(answers)}>{text.submitPlacement}</Button>
+    </section>
+  );
+}
+
+function PassportReady({
+  locale,
+  profile,
+  track,
+  lessons,
+  vocabulary,
+  missions,
+  sessions,
+  loading,
+  completeLesson,
+  reviewVocabulary,
+  updateMission,
+  startRoleplay,
+  sendRoleplay,
+  endRoleplay,
+  roleplayBusy,
+}: {
+  locale: "pt-BR" | "en";
+  profile: NonNullable<Awaited<ReturnType<typeof getWebPassportProfile>>>;
+  track?: Awaited<ReturnType<typeof listWebPassportTracks>>[number];
+  lessons: Awaited<ReturnType<typeof listWebPassportLessons>>;
+  vocabulary: Awaited<ReturnType<typeof listWebDueVocabulary>>;
+  missions: Awaited<ReturnType<typeof listWebPassportMissions>>;
+  sessions: Awaited<ReturnType<typeof listWebRoleplaySessions>>;
+  loading: boolean;
+  completeLesson(id: string): void;
+  reviewVocabulary(id: string, grade: number): void;
+  updateMission(id: string, status: "completed" | "skipped"): void;
+  startRoleplay(scenario: string): void;
+  sendRoleplay(sessionId: string, message: string): void;
+  endRoleplay(sessionId: string): void;
+  roleplayBusy: boolean;
+}) {
+  const text = copy[locale];
+  const completed = lessons.filter((lesson) => lesson.status === "completed").length;
+  const progress = lessons.length ? (completed / lessons.length) * 100 : 0;
+  const nextLesson = lessons.find((lesson) => lesson.status !== "completed");
+  const listeningText = String(nextLesson?.content.listening ?? nextLesson?.content.example ?? "").trim();
+  const activeSession = sessions.find((session) => session.status === "active") ?? null;
+  const [scenario, setScenario] = useState<(typeof scenarios)[number]>("airport");
+  const [message, setMessage] = useState("");
+
+  const playListening = () => {
+    if (!listeningText || typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    const utterance = new SpeechSynthesisUtterance(listeningText);
+    const slug = track?.slug.toLowerCase() ?? "english";
+    utterance.lang = slug === "spanish" ? "es-ES" : slug === "portuguese" ? "pt-BR" : slug === "french" ? "fr-FR" : "en-US";
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
+  };
+
+  return (
+    <div className="grid gap-5">
+      <section className="v2-surface rounded-3xl p-6">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">{track?.title ?? text.language}</p>
+            <h2 className="mt-2 text-3xl font-semibold">{text.level} {profile.currentLevel}</h2>
+          </div>
+          <div className="text-right"><p className="text-2xl font-semibold">{Math.round(progress)}%</p><p className="text-xs text-muted-foreground">{text.progress}</p></div>
+        </div>
+        <div className="mt-5"><WorkspaceProgress label={text.progress} value={progress} /></div>
+      </section>
+
+      {loading ? <p className="text-sm text-muted-foreground">{locale === "en" ? "Synchronizing Passport…" : "Sincronizando Passport…"}</p> : null}
+
+      <section className="grid gap-4 lg:grid-cols-2">
+        <article className="v2-surface rounded-2xl p-5">
+          <h3 className="text-lg font-semibold">{text.lessons}</h3>
+          <div className="mt-4 grid gap-3">
+            {lessons.map((lesson) => (
+              <div key={lesson.id} className="rounded-xl border border-border p-4">
+                <div className="flex items-start justify-between gap-3"><div><p className="font-medium">{lesson.title}</p><p className="mt-1 text-xs text-muted-foreground">{lesson.difficulty} · {lesson.estimatedMinutes} {text.minutesShort}</p></div><span className="text-xs text-muted-foreground">{lesson.status === "completed" ? text.completed : ""}</span></div>
+                <p className="mt-2 text-sm text-muted-foreground">{lesson.description}</p>
+                {lesson.status !== "completed" ? <Button className="mt-3" size="sm" onClick={() => completeLesson(lesson.id)}>{text.complete}</Button> : null}
+              </div>
+            ))}
+          </div>
+        </article>
+
+        <article className="v2-surface rounded-2xl p-5">
+          <h3 className="text-lg font-semibold">{text.listening}</h3>
+          <p className="mt-2 text-sm text-muted-foreground">{listeningText || text.noListening}</p>
+          {listeningText ? <Button className="mt-4" onClick={playListening}>{text.listen}</Button> : null}
+        </article>
+      </section>
+
+      <section className="grid gap-4 lg:grid-cols-2">
+        <article className="v2-surface rounded-2xl p-5">
+          <h3 className="text-lg font-semibold">{text.vocabulary}</h3>
+          {!vocabulary.length ? <p className="mt-3 text-sm text-muted-foreground">{text.noVocabulary}</p> : null}
+          <div className="mt-4 grid gap-3">
+            {vocabulary.map((item) => (
+              <div key={item.id} className="rounded-xl border border-border p-4">
+                <p className="font-medium">{item.term}</p><p className="text-sm text-muted-foreground">{item.translation}</p>{item.context ? <p className="mt-1 text-xs text-muted-foreground">{item.context}</p> : null}
+                <div className="mt-3 flex flex-wrap gap-2">{[[1, text.again], [3, text.hard], [4, text.good], [5, text.easy]].map(([grade, label]) => <Button key={String(grade)} size="sm" variant="outline" onClick={() => reviewVocabulary(item.id, Number(grade))}>{label}</Button>)}</div>
+              </div>
+            ))}
+          </div>
+        </article>
+
+        <article className="v2-surface rounded-2xl p-5">
+          <h3 className="text-lg font-semibold">{text.missions}</h3>
+          {!missions.length ? <p className="mt-3 text-sm text-muted-foreground">{text.noMissions}</p> : null}
+          <div className="mt-4 grid gap-3">{missions.map((mission) => <div key={mission.id} className="rounded-xl border border-border p-4"><p className="font-medium">{mission.title}</p><p className="mt-1 text-sm text-muted-foreground">{mission.prompt}</p>{mission.status === "pending" ? <div className="mt-3 flex gap-2"><Button size="sm" onClick={() => updateMission(mission.id, "completed")}>{text.finishMission}</Button><Button size="sm" variant="outline" onClick={() => updateMission(mission.id, "skipped")}>{text.skipMission}</Button></div> : <p className="mt-2 text-xs uppercase text-muted-foreground">{mission.status}</p>}</div>)}</div>
+        </article>
+      </section>
+
+      <section className="v2-surface rounded-3xl p-6">
+        <h3 className="text-xl font-semibold">{text.roleplay}</h3>
+        <p className="mt-2 text-sm text-muted-foreground">{text.roleplayBody}</p>
+        {!activeSession ? (
+          <div className="mt-5 flex flex-wrap items-end gap-3">
+            <label className="grid min-w-52 gap-2 text-sm"><span className="text-muted-foreground">{text.scenario}</span><select className="rounded-xl border border-border bg-background px-3 py-3" value={scenario} onChange={(e) => setScenario(e.target.value as (typeof scenarios)[number])}>{scenarios.map((item) => <option key={item} value={item}>{text[item]}</option>)}</select></label>
+            <Button disabled={roleplayBusy} onClick={() => startRoleplay(scenario)}>{text.startRoleplay}</Button>
+          </div>
+        ) : (
+          <div className="mt-5">
+            <div className="max-h-96 space-y-3 overflow-y-auto rounded-2xl border border-border bg-background/40 p-4">{activeSession.transcript.length ? activeSession.transcript.map((entry, index) => <div key={`${entry.createdAt}-${index}`} className={`max-w-[85%] rounded-xl px-4 py-3 text-sm ${entry.role === "user" ? "ml-auto bg-primary/15" : "bg-surface"}`}><p className="text-xs uppercase tracking-wide text-muted-foreground">{entry.role === "user" ? (locale === "en" ? "You" : "Você") : "KIVRYN"}</p><p className="mt-1 whitespace-pre-wrap">{entry.content}</p></div>) : <p className="text-sm text-muted-foreground">{text.noMessages}</p>}</div>
+            <div className="mt-4 flex gap-2"><input className="min-w-0 flex-1 rounded-xl border border-border bg-background px-4 py-3" value={message} maxLength={1200} placeholder={text.message} onChange={(e) => setMessage(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && message.trim() && !roleplayBusy) { sendRoleplay(activeSession.id, message.trim()); setMessage(""); } }} /><Button disabled={!message.trim() || roleplayBusy} onClick={() => { sendRoleplay(activeSession.id, message.trim()); setMessage(""); }}>{text.send}</Button><Button variant="outline" disabled={roleplayBusy} onClick={() => endRoleplay(activeSession.id)}>{text.end}</Button></div>
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
