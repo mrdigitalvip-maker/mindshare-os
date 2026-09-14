@@ -20,7 +20,7 @@ import { presentAuthError } from "@/lib/auth-errors";
 import { authCallbackUrl } from "@/lib/auth-links";
 import { LEGAL_URLS } from "@/lib/legal";
 import { hasSupabaseConfig, supabase } from "@/lib/supabase";
-import { colors, radius, shadows, spacing, typography } from "@/lib/theme";
+import { colors, shadows } from "@/lib/theme";
 import { useLanguage } from "@/providers/language-provider";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
