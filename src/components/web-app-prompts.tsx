@@ -24,15 +24,22 @@ type BeforeInstallPromptEvent = Event & {
   userChoice: Promise<InstallChoice>;
 };
 
-type NavigatorWithStandalone = Navigator & {
+type RelatedApplication = {
+  id?: string;
+  platform?: string;
+  url?: string;
+};
+
+type NavigatorWithInstallState = Navigator & {
   standalone?: boolean;
+  getInstalledRelatedApps?: () => Promise<RelatedApplication[]>;
 };
 
 function isStandaloneDisplay() {
   if (typeof window === "undefined") return false;
   return (
     window.matchMedia("(display-mode: standalone)").matches ||
-    (navigator as NavigatorWithStandalone).standalone === true
+    (navigator as NavigatorWithInstallState).standalone === true
   );
 }
 
@@ -70,6 +77,7 @@ export function WebAppPrompts() {
       ? false
       : isStandaloneDisplay() || readStorage(INSTALLED_STORAGE_KEY) === "1",
   );
+  const [nativeAndroidInstalled, setNativeAndroidInstalled] = useState(false);
   const [showInstall, setShowInstall] = useState(false);
   const [showAndroidPromo, setShowAndroidPromo] = useState(false);
 
@@ -113,6 +121,41 @@ export function WebAppPrompts() {
   }, []);
 
   useEffect(() => {
+    const relatedApps = (navigator as NavigatorWithInstallState).getInstalledRelatedApps;
+    if (!relatedApps) return;
+
+    let active = true;
+    const refresh = () => {
+      void relatedApps
+        .call(navigator)
+        .then((apps) => {
+          if (!active) return;
+          setNativeAndroidInstalled(
+            apps.some(
+              (app) =>
+                app.id === "kivryn.app" ||
+                (typeof app.url === "string" && app.url.includes("id=kivryn.app")),
+            ),
+          );
+        })
+        .catch(() => {
+          // Detection is an enhancement only; never block the web experience.
+        });
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+
+    refresh();
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      active = false;
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, []);
+
+  useEffect(() => {
     if (loading || !isAuthenticated || installed || !deferredInstall) {
       setShowInstall(false);
       return;
@@ -142,7 +185,7 @@ export function WebAppPrompts() {
   }, [deferredInstall, installed, isAuthenticated, loading]);
 
   useEffect(() => {
-    if (loading || !isAuthenticated) {
+    if (loading || !isAuthenticated || nativeAndroidInstalled) {
       setShowAndroidPromo(false);
       return;
     }
@@ -161,7 +204,7 @@ export function WebAppPrompts() {
       window.clearTimeout(showTimer);
       if (hideTimer) window.clearTimeout(hideTimer);
     };
-  }, [isAuthenticated, loading]);
+  }, [isAuthenticated, loading, nativeAndroidInstalled]);
 
   const installKivryn = async () => {
     const prompt = deferredInstall;
