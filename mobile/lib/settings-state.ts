@@ -10,6 +10,13 @@ export type NotificationReadiness =
   | "undetermined"
   | "unsupported";
 
+export type SettingsLocale = "pt-BR" | "en";
+
+type NotificationCopy = Record<
+  NotificationReadiness,
+  { title: string; description: string; action?: string }
+>;
+
 export function notificationReadiness(
   permission: "granted" | "denied" | "blocked" | "undetermined" | "unsupported",
   registered: boolean,
@@ -24,10 +31,7 @@ export function notificationReadiness(
   return permission;
 }
 
-export const notificationCopy: Record<
-  NotificationReadiness,
-  { title: string; description: string; action?: string }
-> = {
+export const notificationCopy: NotificationCopy = {
   active: {
     title: "Notificações prontas neste dispositivo",
     description:
@@ -68,14 +72,69 @@ export const notificationCopy: Record<
   },
 };
 
-export function subscriptionPlanLabel(entitlement?: Entitlement): "Gratuito" | "Premium" {
-  return entitlement === "active" || entitlement === "trialing" ? "Premium" : "Gratuito";
+export const notificationCopyEn: NotificationCopy = {
+  active: {
+    title: "Notifications ready on this device",
+    description:
+      "Permission, Android channel, Expo/EAS project and remote registration are ready. Final delivery will be confirmed during the physical test.",
+  },
+  "needs-registration": {
+    title: "Permission enabled",
+    description: "Permission is enabled, but this device still needs to be registered.",
+    action: "Complete activation",
+  },
+  "channel-error": {
+    title: "Notification channel unavailable",
+    description: "KIVRYN couldn't prepare notifications on this device.",
+    action: "Try again",
+  },
+  "project-config": {
+    title: "Remote push unavailable",
+    description: "The Expo/EAS configuration required for remote push was not found in this installation.",
+  },
+  denied: {
+    title: "Permission not granted",
+    description: "Android still allows KIVRYN to request permission again.",
+    action: "Try again",
+  },
+  blocked: {
+    title: "Blocked by Android",
+    description: "Allow notifications in your device settings.",
+    action: "Open Android settings",
+  },
+  undetermined: {
+    title: "Not enabled yet",
+    description: "Enable notifications to receive reminders and important updates.",
+    action: "Enable notifications",
+  },
+  unsupported: {
+    title: "Unavailable on this device",
+    description: "This device does not support native notifications.",
+  },
+};
+
+export function notificationCopyFor(locale: SettingsLocale): NotificationCopy {
+  return locale === "en" ? notificationCopyEn : notificationCopy;
 }
 
-export function validateProfileName(value: string): string | null {
+export function subscriptionPlanLabel(
+  entitlement?: Entitlement,
+  locale: SettingsLocale = "pt-BR",
+): "Gratuito" | "Free" | "Premium" {
+  if (entitlement === "active" || entitlement === "trialing") return "Premium";
+  return locale === "en" ? "Free" : "Gratuito";
+}
+
+export function validateProfileName(value: string, locale: SettingsLocale = "pt-BR"): string | null {
   const name = value.trim();
-  if (name.length < 2) return "Informe um nome com pelo menos 2 caracteres.";
-  if (name.length > 80) return "O nome deve ter no máximo 80 caracteres.";
+  if (name.length < 2)
+    return locale === "en"
+      ? "Enter a name with at least 2 characters."
+      : "Informe um nome com pelo menos 2 caracteres.";
+  if (name.length > 80)
+    return locale === "en"
+      ? "The name must have no more than 80 characters."
+      : "O nome deve ter no máximo 80 caracteres.";
   return null;
 }
 
