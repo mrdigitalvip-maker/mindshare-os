@@ -1,18 +1,30 @@
 import { supabase } from "@/lib/supabase";
 
-export async function getRequiredUserId(): Promise<string> {
-  // Route queries used to make a fresh auth network request even though the
-  // shell had already restored a valid session. On cold navigation that second
-  // request could transiently fail and reject every module query. Prefer the
-  // locally restored session; database RLS still authorizes every operation.
+let requiredUserIdRequest: Promise<string> | null = null;
+
+async function resolveRequiredUserId(): Promise<string> {
+  // Prefer the locally restored session. Several dashboard modules can mount at
+  // once after OAuth/cold navigation; sharing one auth resolution avoids a burst
+  // of competing session reads while the browser storage lock is settling.
   const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-  if (sessionError) throw sessionError;
   if (sessionData.session?.user.id) return sessionData.session.user.id;
 
+  // A transient getSession failure should not make every module fail together.
+  // getUser performs the authoritative fallback before we surface an auth error.
   const { data, error } = await supabase.auth.getUser();
+  if (data.user?.id) return data.user.id;
   if (error) throw error;
-  if (!data.user) throw new Error("An authenticated user is required for this operation.");
-  return data.user.id;
+  if (sessionError) throw sessionError;
+  throw new Error("An authenticated user is required for this operation.");
+}
+
+export function getRequiredUserId(): Promise<string> {
+  if (!requiredUserIdRequest) {
+    requiredUserIdRequest = resolveRequiredUserId().finally(() => {
+      requiredUserIdRequest = null;
+    });
+  }
+  return requiredUserIdRequest;
 }
 
 export function throwUnsyncedSchema(feature: string, tables: string[]): never {
