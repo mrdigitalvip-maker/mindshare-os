@@ -75,8 +75,40 @@ async function errorFromInvoke(error: unknown): Promise<AIServiceError> {
     if (payload?.error?.code) {
       return new AIServiceError(payload.error.code, payload.error.message, payload.error.requestId);
     }
+    if (context.status === 401 || context.status === 403) {
+      return new AIServiceError("unauthorized", "Your session expired. Please sign in again.");
+    }
+    if (context.status === 429) {
+      return new AIServiceError("provider_rate_limited", "KIVRYN is busy right now. Please try again shortly.");
+    }
   }
   return new AIServiceError("provider_unavailable", "The assistant is temporarily unavailable.");
+}
+
+async function functionAccessToken(forceRefresh = false): Promise<string> {
+  if (forceRefresh) {
+    const { data, error } = await supabase.auth.refreshSession();
+    if (error || !data.session?.access_token) {
+      throw new AIServiceError("unauthorized", "Your session expired. Please sign in again.");
+    }
+    return data.session.access_token;
+  }
+
+  const { data, error } = await supabase.auth.getSession();
+  if (error || !data.session?.access_token) {
+    throw new AIServiceError("unauthorized", "Your session expired. Please sign in again.");
+  }
+
+  const session = data.session;
+  if (session.expires_at && session.expires_at * 1000 - Date.now() < 60_000) {
+    const refreshed = await supabase.auth.refreshSession();
+    if (refreshed.error || !refreshed.data.session?.access_token) {
+      throw new AIServiceError("unauthorized", "Your session expired. Please sign in again.");
+    }
+    return refreshed.data.session.access_token;
+  }
+
+  return session.access_token;
 }
 
 async function invoke<T>(body: Record<string, unknown>): Promise<T> {
@@ -85,15 +117,26 @@ async function invoke<T>(body: Record<string, unknown>): Promise<T> {
   }
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), 35_000);
+
+  const call = async (forceRefresh = false) => {
+    const accessToken = await functionAccessToken(forceRefresh);
+    return supabase.functions.invoke<EdgeSuccess<T> | EdgeFailure>("ai-chat", {
+      body,
+      signal: controller.signal,
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+  };
+
   try {
-    const { data, error } = await supabase.functions.invoke<EdgeSuccess<T> | EdgeFailure>(
-      "ai-chat",
-      {
-        body,
-        signal: controller.signal,
-      },
-    );
-    if (error) throw await errorFromInvoke(error);
+    let result = await call();
+    if (result.error) {
+      const firstError = await errorFromInvoke(result.error);
+      if (firstError.code !== "unauthorized") throw firstError;
+      result = await call(true);
+      if (result.error) throw await errorFromInvoke(result.error);
+    }
+
+    const data = result.data;
     if (!data?.ok) {
       const failure = data as EdgeFailure | null;
       throw new AIServiceError(
