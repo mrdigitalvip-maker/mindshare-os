@@ -1,4 +1,3 @@
-import { LocalizedCopy } from "@/components/localized-copy";
 import { useCallback, useState, type ReactNode } from "react";
 import {
   Alert,
@@ -22,7 +21,7 @@ import { useSubscription } from "@/hooks/use-subscription";
 import { LEGAL_URLS } from "@/lib/legal";
 import { queryKeys } from "@/lib/query-keys";
 import {
-  notificationCopy,
+  notificationCopyFor,
   notificationReadiness,
   subscriptionPlanLabel,
   testPushSucceeded,
@@ -43,9 +42,165 @@ import { updateProfileName } from "@/services/profile-service";
 import { useLanguage } from "@/providers/language-provider";
 import type { LanguagePreference } from "@/i18n";
 
-// NXR-033 invariant copy: notificação local, sem verificar a entrega por servidor
+const settingsCopy = {
+  "pt-BR": {
+    subtitle: "Conta, idioma, notificações, privacidade e estado do dispositivo.",
+    account: "CONTA",
+    accountLabel: "Conta KIVRYN",
+    emailUnavailable: "email indisponível",
+    planLower: "plano",
+    loadingProfile: "Carregando perfil…",
+    nameMissing: "Nome não informado",
+    emailMissing: "Email indisponível",
+    plan: "Plano",
+    loading: "carregando…",
+    profileLoadError: "Não foi possível carregar os dados do perfil.",
+    profile: "PERFIL",
+    profileHelp: "Seu nome é usado para personalizar sua experiência na KIVRYN.",
+    editName: "Editar nome",
+    nameUpdated: "Nome atualizado.",
+    nameUpdateError: "Não foi possível atualizar o nome. Tente novamente.",
+    notifications: "NOTIFICAÇÕES",
+    notificationCheckError: "Não foi possível verificar as notificações.",
+    permission: "Permissão do sistema",
+    channel: "Canal KIVRYN",
+    expoProject: "Projeto Expo/EAS",
+    deviceRegistration: "Registro deste aparelho",
+    remotePush: "Push remoto",
+    ready: "Pronto",
+    pending: "Pendente",
+    configured: "Configurado",
+    missing: "Ausente",
+    confirmed: "Confirmado",
+    prepared: "Preparado",
+    localTest: "TESTE LOCAL",
+    localTestHelp: "Agenda uma notificação local em poucos segundos. Isso valida permissão, canal e agendamento no aparelho, não o servidor remoto.",
+    scheduleLocal: "Agendar teste local",
+    remoteTest: "TESTE REMOTO",
+    remoteTestHelp: "Solicita ao backend um push para este usuário. Aceite do provedor não é prova de entrega física.",
+    requestRemote: "Solicitar teste remoto",
+    disableDevice: "Desativar neste dispositivo",
+    disableTitle: "Desativar neste dispositivo",
+    disableBody: "A KIVRYN deixará de usar o registro deste aparelho. A permissão do Android poderá continuar ativa.",
+    cancel: "Cancelar",
+    disable: "Desativar",
+    noticeUnavailable: "O estado das notificações ainda não está disponível.",
+    settingsOpenError: "Não foi possível abrir as configurações do aparelho.",
+    registered: "Registro confirmado neste dispositivo. A entrega será validada no teste físico.",
+    permissionIncomplete: "A permissão não foi concluída neste dispositivo.",
+    projectMissing: "O projeto Expo/EAS necessário para push remoto não foi encontrado.",
+    channelError: "Não foi possível preparar o canal de notificações neste aparelho.",
+    tokenError: "Não foi possível obter a identificação deste aparelho para push remoto.",
+    registrationError: "Não foi possível confirmar o registro deste aparelho.",
+    activationError: "Não foi possível ativar as notificações.",
+    providerAccepted: "Envio aceito pelo provedor. A entrega física ainda precisa ser confirmada neste aparelho.",
+    providerRejected: "O provedor não aceitou o teste remoto neste momento.",
+    remoteRequestError: "Não foi possível solicitar o teste remoto neste momento.",
+    localScheduled: "Teste local agendado. A entrega será confirmada no teste físico do app.",
+    localScheduleError: "Não foi possível agendar o teste neste aparelho.",
+    deviceDisabled: "Este dispositivo foi desativado. A permissão do Android permanece ativa.",
+    deviceDisableError: "Não foi possível desativar este dispositivo. Tente novamente.",
+    premium: "PREMIUM",
+    checkingPlan: "Verificando seu plano…",
+    planError: "Não foi possível verificar seu plano.",
+    currentPlan: "Plano atual",
+    premiumInfo: "A compra e o gerenciamento de novas assinaturas ficam para a próxima versão. Nesta versão, esta área é informativa.",
+    premiumBenefits: "Ver benefícios do Premium",
+    privacy: "PRIVACIDADE E SEGURANÇA",
+    privacyPolicy: "Política de Privacidade",
+    terms: "Termos de Serviço",
+    documentOpenError: "Não foi possível abrir este documento agora.",
+    session: "SESSÃO",
+    sessionHelp: "Encerre sua sessão neste dispositivo com segurança.",
+    logoutTitle: "Sair da conta",
+    logoutBody: "Deseja sair desta conta?",
+    logout: "Sair",
+    logoutError: "Não foi possível sair. Verifique sua conexão e tente novamente.",
+    fullName: "Seu nome completo",
+    retry: "Tentar novamente",
+  },
+  en: {
+    subtitle: "Account, language, notifications, privacy and device status.",
+    account: "ACCOUNT",
+    accountLabel: "KIVRYN account",
+    emailUnavailable: "email unavailable",
+    planLower: "plan",
+    loadingProfile: "Loading profile…",
+    nameMissing: "Name not provided",
+    emailMissing: "Email unavailable",
+    plan: "Plan",
+    loading: "loading…",
+    profileLoadError: "We couldn't load your profile data.",
+    profile: "PROFILE",
+    profileHelp: "Your name is used to personalize your KIVRYN experience.",
+    editName: "Edit name",
+    nameUpdated: "Name updated.",
+    nameUpdateError: "We couldn't update your name. Please try again.",
+    notifications: "NOTIFICATIONS",
+    notificationCheckError: "We couldn't check notifications.",
+    permission: "System permission",
+    channel: "KIVRYN channel",
+    expoProject: "Expo/EAS project",
+    deviceRegistration: "This device registration",
+    remotePush: "Remote push",
+    ready: "Ready",
+    pending: "Pending",
+    configured: "Configured",
+    missing: "Missing",
+    confirmed: "Confirmed",
+    prepared: "Ready",
+    localTest: "LOCAL TEST",
+    localTestHelp: "Schedules a local notification in a few seconds. This validates permission, channel and device scheduling, not the remote server.",
+    scheduleLocal: "Schedule local test",
+    remoteTest: "REMOTE TEST",
+    remoteTestHelp: "Asks the backend to send a push to this user. Provider acceptance is not proof of physical delivery.",
+    requestRemote: "Request remote test",
+    disableDevice: "Disable on this device",
+    disableTitle: "Disable on this device",
+    disableBody: "KIVRYN will stop using this device registration. Android notification permission may remain enabled.",
+    cancel: "Cancel",
+    disable: "Disable",
+    noticeUnavailable: "Notification status is not available yet.",
+    settingsOpenError: "We couldn't open the device settings.",
+    registered: "Registration confirmed on this device. Delivery will be validated during the physical test.",
+    permissionIncomplete: "Permission was not completed on this device.",
+    projectMissing: "The Expo/EAS project required for remote push was not found.",
+    channelError: "We couldn't prepare the notification channel on this device.",
+    tokenError: "We couldn't obtain this device identifier for remote push.",
+    registrationError: "We couldn't confirm this device registration.",
+    activationError: "We couldn't enable notifications.",
+    providerAccepted: "The provider accepted the send request. Physical delivery still needs to be confirmed on this device.",
+    providerRejected: "The provider did not accept the remote test right now.",
+    remoteRequestError: "We couldn't request the remote test right now.",
+    localScheduled: "Local test scheduled. Delivery will be confirmed during the physical app test.",
+    localScheduleError: "We couldn't schedule the test on this device.",
+    deviceDisabled: "This device was disabled. Android notification permission remains enabled.",
+    deviceDisableError: "We couldn't disable this device. Please try again.",
+    premium: "PREMIUM",
+    checkingPlan: "Checking your plan…",
+    planError: "We couldn't check your plan.",
+    currentPlan: "Current plan",
+    premiumInfo: "Purchasing and managing new subscriptions will be enabled in the next Android version. In this version, this area is informational.",
+    premiumBenefits: "View Premium benefits",
+    privacy: "PRIVACY & SECURITY",
+    privacyPolicy: "Privacy Policy",
+    terms: "Terms of Service",
+    documentOpenError: "We couldn't open this document right now.",
+    session: "SESSION",
+    sessionHelp: "Safely end your session on this device.",
+    logoutTitle: "Sign out",
+    logoutBody: "Do you want to sign out of this account?",
+    logout: "Sign out",
+    logoutError: "We couldn't sign you out. Check your connection and try again.",
+    fullName: "Your full name",
+    retry: "Try again",
+  },
+} as const;
+
+// NXR-033 invariant: local notification test never claims remote delivery.
 export default function Settings() {
-  const { languagePreference, setLanguagePreference, t } = useLanguage();
+  const { languagePreference, setLanguagePreference, resolvedLocale, t } = useLanguage();
+  const text = settingsCopy[resolvedLocale];
   const { session } = useAuth();
   const profile = useProfile();
   const subscription = useSubscription();
@@ -101,7 +256,7 @@ export default function Settings() {
 
   async function saveName() {
     if (!session || busy) return;
-    const error = validateProfileName(name);
+    const error = validateProfileName(name, resolvedLocale);
     if (error) {
       setProfileError(error);
       return;
@@ -117,9 +272,9 @@ export default function Settings() {
       await client.invalidateQueries({ queryKey: queryKeys.profile });
       await profile.refetch();
       setProfileOpen(false);
-      setProfileMessage("Nome atualizado.");
+      setProfileMessage(text.nameUpdated);
     } catch {
-      setProfileError("Não foi possível atualizar o nome. Tente novamente.");
+      setProfileError(text.nameUpdateError);
     } finally {
       setBusy(false);
     }
@@ -131,7 +286,7 @@ export default function Settings() {
       try {
         await Linking.openSettings();
       } catch {
-        setNoticeMessage("Não foi possível abrir as configurações do aparelho.");
+        setNoticeMessage(text.settingsOpenError);
       }
       return;
     }
@@ -139,24 +294,20 @@ export default function Settings() {
     try {
       const result = await registerNativeNotifications(session.user.id);
       await refreshNotifications();
-      setNoticeMessage(
-        result.registered
-          ? "Registro confirmado neste dispositivo. A entrega será validada no teste físico."
-          : "A permissão não foi concluída neste dispositivo.",
-      );
+      setNoticeMessage(result.registered ? text.registered : text.permissionIncomplete);
     } catch (error) {
       await refreshNotifications().catch(() => undefined);
       const category = error instanceof Error ? error.message : "unexpected";
       setNoticeMessage(
         category === "project-config"
-          ? "O projeto Expo/EAS necessário para push remoto não foi encontrado."
+          ? text.projectMissing
           : category === "channel"
-            ? "Não foi possível preparar o canal de notificações neste aparelho."
+            ? text.channelError
             : category === "token"
-              ? "Não foi possível obter a identificação deste aparelho para push remoto."
+              ? text.tokenError
               : category === "registration"
-                ? "Não foi possível confirmar o registro deste aparelho."
-                : "Não foi possível ativar as notificações.",
+                ? text.registrationError
+                : text.activationError,
       );
     } finally {
       setBusy(false);
@@ -168,25 +319,29 @@ export default function Settings() {
     setBusy(true);
     try {
       setNoticeMessage(
-        testPushSucceeded(await sendTestNotification())
-          ? "Envio aceito pelo provedor. A entrega física ainda precisa ser confirmada neste aparelho."
-          : "O provedor não aceitou o teste remoto neste momento.",
+        testPushSucceeded(await sendTestNotification()) ? text.providerAccepted : text.providerRejected,
       );
     } catch {
-      setNoticeMessage("Não foi possível solicitar o teste remoto neste momento.");
+      setNoticeMessage(text.remoteRequestError);
     } finally {
       setBusy(false);
     }
   }
 
   async function testLocalNotice() {
-    if (busy || (noticeState !== "active" && noticeState !== "needs-registration" && noticeState !== "project-config")) return;
+    if (
+      busy ||
+      (noticeState !== "active" &&
+        noticeState !== "needs-registration" &&
+        noticeState !== "project-config")
+    )
+      return;
     setBusy(true);
     try {
       await scheduleLocalNotificationTest();
-      setNoticeMessage("Teste local agendado. A entrega será confirmada no teste físico do app.");
+      setNoticeMessage(text.localScheduled);
     } catch {
-      setNoticeMessage("Não foi possível agendar o teste neste aparelho.");
+      setNoticeMessage(text.localScheduleError);
     } finally {
       setBusy(false);
     }
@@ -198,9 +353,9 @@ export default function Settings() {
     try {
       await disableCurrentPushDevice(session.user.id);
       await refreshNotifications();
-      setNoticeMessage("Este dispositivo foi desativado. A permissão do Android permanece ativa.");
+      setNoticeMessage(text.deviceDisabled);
     } catch {
-      setNoticeMessage("Não foi possível desativar este dispositivo. Tente novamente.");
+      setNoticeMessage(text.deviceDisableError);
     } finally {
       setBusy(false);
     }
@@ -212,13 +367,14 @@ export default function Settings() {
     try {
       await logout();
     } catch {
-      setSessionError("Não foi possível sair. Verifique sua conexão e tente novamente.");
+      setSessionError(text.logoutError);
       setBusy(false);
     }
   }
 
-  const plan = subscriptionPlanLabel(subscription.data?.entitlement),
-    notice = noticeState ? notificationCopy[noticeState] : null;
+  const plan = subscriptionPlanLabel(subscription.data?.entitlement, resolvedLocale);
+  const noticeCopy = notificationCopyFor(resolvedLocale);
+  const notice = noticeState ? noticeCopy[noticeState] : null;
 
   return (
     <AppScreen padded={false}>
@@ -233,10 +389,7 @@ export default function Settings() {
         contentContainerStyle={s.page}
         showsVerticalScrollIndicator={false}
       >
-        <StandardHeader
-          title={t("settings.title")}
-          subtitle="Conta, idioma, notificações, privacidade e estado do dispositivo."
-        />
+        <StandardHeader title={t("settings.title")} subtitle={text.subtitle} />
 
         <Section title={t("settings.language").toUpperCase()}>
           <Text style={s.help}>{t("settings.languageHelp")}</Text>
@@ -249,11 +402,11 @@ export default function Settings() {
           ))}
         </Section>
 
-        <Section title="CONTA">
+        <Section title={text.account}>
           <View
             style={s.account}
             accessible
-            accessibilityLabel={`${profile.data?.displayName ?? "Conta KIVRYN"}, ${session?.user.email ?? "email indisponível"}, plano ${plan}`}
+            accessibilityLabel={`${profile.data?.displayName ?? text.accountLabel}, ${session?.user.email ?? text.emailUnavailable}, ${text.planLower} ${plan}`}
           >
             <ProfileAvatar
               imageUrl={profile.data?.avatarUrl}
@@ -263,34 +416,27 @@ export default function Settings() {
             />
             <View style={s.accountCopy}>
               <Text style={s.name}>
-                {profile.isPending
-                  ? "Carregando perfil…"
-                  : (profile.data?.fullName ?? "Nome não informado")}
+                {profile.isPending ? text.loadingProfile : (profile.data?.fullName ?? text.nameMissing)}
               </Text>
-              <Text style={s.email}>{session?.user.email ?? "Email indisponível"}</Text>
+              <Text style={s.email}>{session?.user.email ?? text.emailMissing}</Text>
               {subscription.isError ? (
-                <Text style={s.error}>
-                  <LocalizedCopy copyKey="legacy.8858e8bd29be" />
-                </Text>
+                <Text style={s.error}>{text.planError}</Text>
               ) : (
-                <Text style={s.badge}>Plano {subscription.isPending ? "carregando…" : plan}</Text>
+                <Text style={s.badge}>
+                  {text.plan} {subscription.isPending ? text.loading : plan}
+                </Text>
               )}
             </View>
           </View>
           {profile.isError ? (
-            <Retry
-              text="Não foi possível carregar os dados do perfil."
-              action={() => void profile.refetch()}
-            />
+            <Retry text={text.profileLoadError} action={() => void profile.refetch()} retryLabel={text.retry} />
           ) : null}
         </Section>
 
-        <Section title="PERFIL">
-          <Text style={s.help}>
-            <LocalizedCopy copyKey="legacy.43ec607cb178" />
-          </Text>
+        <Section title={text.profile}>
+          <Text style={s.help}>{text.profileHelp}</Text>
           <Action
-            label="Editar nome"
+            label={text.editName}
             disabled={busy || profile.isError}
             action={() => {
               setName(profile.data?.fullName ?? "");
@@ -301,11 +447,12 @@ export default function Settings() {
           {profileMessage ? <Feedback text={profileMessage} /> : null}
         </Section>
 
-        <Section title="NOTIFICAÇÕES">
+        <Section title={text.notifications}>
           {noticeError ? (
             <Retry
-              text="Não foi possível verificar as notificações."
+              text={text.notificationCheckError}
               action={() => void refreshNotifications()}
+              retryLabel={text.retry}
             />
           ) : notice ? (
             <>
@@ -320,28 +467,28 @@ export default function Settings() {
               {noticeDetails ? (
                 <View style={s.diagnostics}>
                   <DiagnosticRow
-                    label="Permissão do sistema"
-                    value={permissionLabel(noticeDetails.permission)}
+                    label={text.permission}
+                    value={permissionLabel(noticeDetails.permission, resolvedLocale)}
                     ready={noticeDetails.permission === "granted"}
                   />
                   <DiagnosticRow
-                    label="Canal KIVRYN"
-                    value={noticeDetails.channelReady ? "Pronto" : "Pendente"}
+                    label={text.channel}
+                    value={noticeDetails.channelReady ? text.ready : text.pending}
                     ready={noticeDetails.channelReady}
                   />
                   <DiagnosticRow
-                    label="Projeto Expo/EAS"
-                    value={noticeDetails.projectConfigAvailable ? "Configurado" : "Ausente"}
+                    label={text.expoProject}
+                    value={noticeDetails.projectConfigAvailable ? text.configured : text.missing}
                     ready={noticeDetails.projectConfigAvailable}
                   />
                   <DiagnosticRow
-                    label="Registro deste aparelho"
-                    value={noticeDetails.deviceRegistered ? "Confirmado" : "Pendente"}
+                    label={text.deviceRegistration}
+                    value={noticeDetails.deviceRegistered ? text.confirmed : text.pending}
                     ready={noticeDetails.deviceRegistered}
                   />
                   <DiagnosticRow
-                    label="Push remoto"
-                    value={noticeDetails.remotePushReady ? "Preparado" : "Pendente"}
+                    label={text.remotePush}
+                    value={noticeDetails.remotePushReady ? text.prepared : text.pending}
                     ready={noticeDetails.remotePushReady}
                   />
                 </View>
@@ -355,46 +502,38 @@ export default function Settings() {
               noticeState === "needs-registration" ||
               noticeState === "project-config" ? (
                 <>
-                  <Text style={s.subheading}>TESTE LOCAL</Text>
-                  <Text style={s.help}>
-                    Agenda uma notificação local em poucos segundos. Isso valida permissão, canal e agendamento no aparelho, não o servidor remoto.
-                  </Text>
+                  <Text style={s.subheading}>{text.localTest}</Text>
+                  <Text style={s.help}>{text.localTestHelp}</Text>
                   <Action
                     secondary
-                    label="Agendar teste local"
+                    label={text.scheduleLocal}
                     disabled={busy}
                     action={() => void testLocalNotice()}
                   />
 
                   {noticeState === "active" ? (
                     <>
-                      <Text style={s.subheading}>TESTE REMOTO</Text>
-                      <Text style={s.help}>
-                        Solicita ao backend um push para este usuário. Aceite do provedor não é prova de entrega física.
-                      </Text>
+                      <Text style={s.subheading}>{text.remoteTest}</Text>
+                      <Text style={s.help}>{text.remoteTestHelp}</Text>
                       <Action
                         secondary
-                        label="Solicitar teste remoto"
+                        label={text.requestRemote}
                         disabled={busy}
                         action={() => void testNotice()}
                       />
                       <Action
                         secondary
-                        label="Desativar neste dispositivo"
+                        label={text.disableDevice}
                         disabled={busy}
                         action={() =>
-                          Alert.alert(
-                            "Desativar neste dispositivo",
-                            "A KIVRYN deixará de usar o registro deste aparelho. A permissão do Android poderá continuar ativa.",
-                            [
-                              { text: "Cancelar", style: "cancel" },
-                              {
-                                text: "Desativar",
-                                style: "destructive",
-                                onPress: () => void disableDevice(),
-                              },
-                            ],
-                          )
+                          Alert.alert(text.disableTitle, text.disableBody, [
+                            { text: text.cancel, style: "cancel" },
+                            {
+                              text: text.disable,
+                              style: "destructive",
+                              onPress: () => void disableDevice(),
+                            },
+                          ])
                         }
                       />
                     </>
@@ -403,74 +542,67 @@ export default function Settings() {
               ) : null}
             </>
           ) : (
-            <Text style={s.help}>
-              <LocalizedCopy copyKey="legacy.4da041399fb9" />
-            </Text>
+            <Text style={s.help}>{text.noticeUnavailable}</Text>
           )}
           {noticeMessage ? <Feedback text={noticeMessage} /> : null}
         </Section>
 
-        <Section title="PREMIUM">
+        <Section title={text.premium}>
           {subscription.isPending ? (
-            <Text style={s.help}>
-              <LocalizedCopy copyKey="legacy.e4c00da111a2" />
-            </Text>
+            <Text style={s.help}>{text.checkingPlan}</Text>
           ) : subscription.isError ? (
             <Retry
-              text="Não foi possível verificar seu plano."
+              text={text.planError}
               action={() => void subscription.refetch()}
+              retryLabel={text.retry}
             />
           ) : (
             <>
-              <Text style={s.value}>Plano atual: {plan}</Text>
-              <Text style={s.help}>
-                A compra e o gerenciamento de novas assinaturas ficam para a próxima versão. Nesta versão, esta área é informativa.
+              <Text style={s.value}>
+                {text.currentPlan}: {plan}
               </Text>
-              <Action label="Ver benefícios do Premium" action={() => router.push("/premium")} />
+              <Text style={s.help}>{text.premiumInfo}</Text>
+              <Action label={text.premiumBenefits} action={() => router.push("/premium")} />
             </>
           )}
         </Section>
 
-        <Section title="PRIVACIDADE E SEGURANÇA">
+        <Section title={text.privacy}>
           <Action
             secondary
-            label="Política de Privacidade"
+            label={text.privacyPolicy}
             action={() =>
               void Linking.openURL(LEGAL_URLS.privacyPolicy).catch(() =>
-                setSessionError("Não foi possível abrir este documento agora."),
+                setSessionError(text.documentOpenError),
               )
             }
           />
           <Action
             secondary
-            label="Termos de Serviço"
+            label={text.terms}
             action={() =>
               void Linking.openURL(LEGAL_URLS.termsOfService).catch(() =>
-                setSessionError("Não foi possível abrir este documento agora."),
+                setSessionError(text.documentOpenError),
               )
             }
           />
         </Section>
 
-        <Section title="SESSÃO">
-          <Text style={s.help}>
-            <LocalizedCopy copyKey="legacy.96d53984b909" />
-          </Text>
+        <Section title={text.session}>
+          <Text style={s.help}>{text.sessionHelp}</Text>
           <Pressable
             accessibilityRole="button"
             accessibilityState={{ disabled: busy }}
             disabled={busy}
             onPress={() =>
-              Alert.alert("Sair da conta", "Deseja sair desta conta?", [
-                { text: "Cancelar", style: "cancel" },
-                { text: "Sair", style: "destructive", onPress: () => void signOut() },
+              Alert.alert(text.logoutTitle, text.logoutBody, [
+                { text: text.cancel, style: "cancel" },
+                { text: text.logout, style: "destructive", onPress: () => void signOut() },
               ])
             }
             style={s.logout}
           >
-            <Text style={s.logoutText}>
-              <LocalizedCopy copyKey="legacy.c7db4037eac6" />
-            </Text>
+            <Text style={s.logoutText}>{text.logout}</Text>
           </Pressable>
           {sessionError ? <Feedback error text={sessionError} /> : null}
         </Section>
@@ -478,8 +610,8 @@ export default function Settings() {
 
       <NativeFormModal
         visible={profileOpen}
-        title="Editar nome"
-        placeholder="Seu nome completo"
+        title={text.editName}
+        placeholder={text.fullName}
         value={name}
         onChange={(value) => {
           setName(value);
@@ -494,12 +626,16 @@ export default function Settings() {
   );
 }
 
-function permissionLabel(permission: NotificationDeviceState["permission"]) {
-  if (permission === "granted") return "Concedida";
-  if (permission === "blocked") return "Bloqueada";
-  if (permission === "denied") return "Negada";
-  if (permission === "undetermined") return "Não solicitada";
-  return "Sem suporte";
+function permissionLabel(
+  permission: NotificationDeviceState["permission"],
+  locale: "pt-BR" | "en",
+) {
+  const en = locale === "en";
+  if (permission === "granted") return en ? "Granted" : "Concedida";
+  if (permission === "blocked") return en ? "Blocked" : "Bloqueada";
+  if (permission === "denied") return en ? "Denied" : "Negada";
+  if (permission === "undetermined") return en ? "Not requested" : "Não solicitada";
+  return en ? "Unsupported" : "Sem suporte";
 }
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
@@ -529,11 +665,19 @@ function Feedback({ text, error }: { text: string; error?: boolean }) {
   );
 }
 
-function Retry({ text, action }: { text: string; action(): void }) {
+function Retry({
+  text,
+  action,
+  retryLabel,
+}: {
+  text: string;
+  action(): void;
+  retryLabel: string;
+}) {
   return (
     <View style={s.inline}>
       <Text style={s.error}>{text}</Text>
-      <Action secondary label="Tentar novamente" action={action} />
+      <Action secondary label={retryLabel} action={action} />
     </View>
   );
 }
