@@ -36,6 +36,13 @@ export default function AppLayout() {
       <Stack.Screen name="arena" options={{ headerShown: false }} />
       <Stack.Screen name="challenges" options={{ headerShown: false }} />
       <Stack.Screen name="community" options={{ headerShown: false }} />
+      <Stack.Screen name="passport/index" options={{ headerShown: false }} />
+      <Stack.Screen name="passport/setup" options={{ headerShown: false }} />
+      <Stack.Screen name="passport/placement" options={{ headerShown: false }} />
+      <Stack.Screen name="passport/review" options={{ headerShown: false }} />
+      <Stack.Screen name="passport/roleplay" options={{ headerShown: false }} />
+      <Stack.Screen name="passport/missions" options={{ headerShown: false }} />
+      <Stack.Screen name="passport/lesson/[lessonId]" options={{ headerShown: false }} />
       <Stack.Screen name="creator/index" options={{ title: t("creator.title") }} />
       <Stack.Screen name="creator/new" options={{ title: t("creator.new") }} />
       <Stack.Screen name="creator/[projectId]" options={{ title: t("creator.studio") }} />
