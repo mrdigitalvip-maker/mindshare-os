@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { useProfile } from "@/hooks/use-profile";
 import { useLanguage } from "@/providers/language-provider";
 import { listJourneys, parityKeys } from "@/services/parity-service";
+import { getRequiredUserId } from "@/services/supabase-service";
 import { ProductivityService, ProjectService, StudyService } from "@/services/workspace-services";
 
 export const Route = createFileRoute("/_shell/dashboard")({
@@ -21,16 +22,37 @@ export const Route = createFileRoute("/_shell/dashboard")({
   component: Dashboard,
 });
 
+const dashboardRetry = {
+  retry: 2,
+  retryDelay: (attempt: number) => Math.min(500 * 2 ** attempt, 2_000),
+};
+
 function Dashboard() {
   const { t, resolvedLocale } = useLanguage();
   const profile = useProfile();
-  const projects = useQuery({ queryKey: ["workspace", "projects"], queryFn: ProjectService.list });
+  const projects = useQuery({
+    queryKey: ["workspace", "projects"],
+    queryFn: ProjectService.list,
+    ...dashboardRetry,
+  });
   const tasks = useQuery({
     queryKey: ["workspace", "tasks", "open"],
     queryFn: () => ProductivityService.listTasks({ status: "open" }),
+    ...dashboardRetry,
   });
-  const studies = useQuery({ queryKey: ["workspace", "studies"], queryFn: StudyService.listPlans });
-  const journeys = useQuery({ queryKey: parityKeys.journeys, queryFn: listJourneys });
+  const studies = useQuery({
+    queryKey: ["workspace", "studies"],
+    queryFn: StudyService.listPlans,
+    ...dashboardRetry,
+  });
+  const journeys = useQuery({
+    queryKey: parityKeys.journeys,
+    queryFn: async () => {
+      await getRequiredUserId();
+      return listJourneys();
+    },
+    ...dashboardRetry,
+  });
   const name = profile.data?.full_name?.trim().split(/\s+/)[0];
   const priorityTasks = [...(tasks.data ?? [])]
     .sort((a, b) => {
@@ -43,8 +65,8 @@ function Dashboard() {
     day: "numeric",
     month: "long",
   }).format(new Date());
-  const loading = tasks.isLoading || projects.isLoading || studies.isLoading || journeys.isLoading;
-  const error = tasks.isError || projects.isError || studies.isError || journeys.isError;
+  const activeWorkLoading = projects.isLoading || studies.isLoading || journeys.isLoading;
+  const activeWorkUnavailable = projects.isError && studies.isError && journeys.isError;
 
   return (
     <main className="command-home">
@@ -141,9 +163,9 @@ function Dashboard() {
           title={t("workspace.activeWork")}
           id="active-heading"
         />
-        {loading ? (
+        {activeWorkLoading ? (
           <CommandState text={t("common.loading")} />
-        ) : error ? (
+        ) : activeWorkUnavailable ? (
           <CommandState text={t("common.error")} error />
         ) : (
           <div className="command-home__work-list">
@@ -153,7 +175,7 @@ function Dashboard() {
               label={t("nav.projects")}
               count={projects.data?.length ?? 0}
               detail={projects.data?.[0]?.title}
-              empty={t("projects.empty")}
+              empty={projects.isError ? t("common.error") : t("projects.empty")}
             />
             <WorkLink
               to="/studies"
@@ -161,7 +183,7 @@ function Dashboard() {
               label={t("nav.studies")}
               count={studies.data?.length ?? 0}
               detail={studies.data?.[0]?.title}
-              empty={t("studies.empty")}
+              empty={studies.isError ? t("common.error") : t("studies.empty")}
             />
             <WorkLink
               to="/journeys"
@@ -169,7 +191,7 @@ function Dashboard() {
               label={t("nav.journeys")}
               count={journeys.data?.length ?? 0}
               detail={journeys.data?.[0]?.title}
-              empty={t("home.noJourneys")}
+              empty={journeys.isError ? t("common.error") : t("home.noJourneys")}
             />
           </div>
         )}
