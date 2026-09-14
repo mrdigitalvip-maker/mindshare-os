@@ -6,7 +6,6 @@ import { useAuth } from "@/providers/auth-provider";
 import { useLanguage } from "@/providers/language-provider";
 import {
   cancelCreatorJob,
-  createOutputSignedUrl,
   getCreatorProject,
   getLatestCreatorJob,
   listCreatorClips,
@@ -14,6 +13,7 @@ import {
   type CreatorJob,
   type CreatorProject,
 } from "@/services/creator-service";
+import { requestCreatorExport, shareCreatorExport } from "@/services/creator-export-service";
 import { colors, radius, shadows, spacing, typography } from "@/lib/theme";
 
 const copy = {
@@ -29,9 +29,11 @@ const copy = {
     potential: "Content Potential",
     signal: "Sinal interno — não é garantia de viralidade.",
     excerpt: "TRECHO",
-    open: "Abrir export",
-    opening: "Abrindo…",
-    package: "Criar pacote de postagem",
+    download: "Baixar vídeo",
+    downloading: "Preparando download…",
+    share: "Compartilhar",
+    sharing: "Preparando compartilhamento…",
+    package: "Criar descrição e pacote de postagem",
     projectAI: "Analisar projeto com KIVRYN",
     aiCopy: "Compare os cortes reais deste projeto e decida qual merece ser trabalhado primeiro.",
     outputReady: "Export renderizado",
@@ -55,9 +57,11 @@ const copy = {
     potential: "Content Potential",
     signal: "Internal signal — not a virality guarantee.",
     excerpt: "EXCERPT",
-    open: "Open export",
-    opening: "Opening…",
-    package: "Create posting package",
+    download: "Download video",
+    downloading: "Preparing download…",
+    share: "Share",
+    sharing: "Preparing share…",
+    package: "Create caption and posting package",
     projectAI: "Analyze project with KIVRYN",
     aiCopy: "Compare the real clips in this project and decide which one deserves work first.",
     outputReady: "Rendered export",
@@ -84,7 +88,8 @@ export default function CreatorProjectScreen() {
   const [project, setProject] = useState<CreatorProject | null>();
   const [job, setJob] = useState<CreatorJob | null>(null);
   const [clips, setClips] = useState<CreatorClip[]>([]);
-  const [openingClip, setOpeningClip] = useState<string | null>(null);
+  const [exportingClip, setExportingClip] = useState<string | null>(null);
+  const [sharingClip, setSharingClip] = useState<string | null>(null);
 
   useEffect(() => {
     if (!session?.user.id || !id) {
@@ -118,22 +123,36 @@ export default function CreatorProjectScreen() {
   const pipelineProgress = stage === "completed" ? 100 : stageIndex >= 0 ? Math.max(8, Math.round(((stageIndex + 1) / stageOrder.length) * 100)) : 0;
   const bestClip = useMemo(() => [...clips].sort((a, b) => a.rank - b.rank)[0] ?? null, [clips]);
 
-  const openExport = async (clip: CreatorClip) => {
-    if (!clip.outputPath || openingClip) return;
-    setOpeningClip(clip.id);
+  const downloadExport = async (clip: CreatorClip) => {
+    if (!clip.outputPath || exportingClip) return;
+    setExportingClip(clip.id);
     try {
-      const url = await createOutputSignedUrl(clip.outputPath);
-      await Linking.openURL(url);
+      const exported = await requestCreatorExport(clip.id);
+      await Linking.openURL(exported.signedUrl);
     } finally {
-      setOpeningClip(null);
+      setExportingClip(null);
+    }
+  };
+
+  const shareExport = async (clip: CreatorClip) => {
+    if (!clip.outputPath || sharingClip) return;
+    setSharingClip(clip.id);
+    try {
+      const message =
+        language === "en"
+          ? `KIVRYN Creator Studio export · ${project?.title ?? "Video"}`
+          : `Export do KIVRYN Creator Studio · ${project?.title ?? "Vídeo"}`;
+      await shareCreatorExport(clip.id, message);
+    } finally {
+      setSharingClip(null);
     }
   };
 
   const openClipAI = (clip: CreatorClip) => {
     const context =
       language === "en"
-        ? `Create a posting package for this real Creator Studio clip. Project: ${project?.title ?? ""}. Duration: ${Math.round(clip.durationMs / 1000)} seconds. Aspect ratio: ${clip.aspectRatio}. Content Potential signal: ${clip.score}/100. Selection reason: ${clip.scoreReason}. Transcript excerpt: ${clip.transcriptExcerpt}. Return strong hook/title options, caption, CTA, platform adaptation and a compact hashtag set. Do not promise virality or invent analytics.`
-        : `Crie um pacote de postagem para este corte real do Creator Studio. Projeto: ${project?.title ?? ""}. Duração: ${Math.round(clip.durationMs / 1000)} segundos. Formato: ${clip.aspectRatio}. Sinal Content Potential: ${clip.score}/100. Motivo da seleção: ${clip.scoreReason}. Trecho da transcrição: ${clip.transcriptExcerpt}. Entregue opções fortes de hook/título, descrição, CTA, adaptação por plataforma e um conjunto compacto de hashtags. Não prometa viralidade nem invente analytics.`;
+        ? `Create a complete posting package for this real Creator Studio clip. Project: ${project?.title ?? ""}. Duration: ${Math.round(clip.durationMs / 1000)} seconds. Aspect ratio: ${clip.aspectRatio}. Content Potential signal: ${clip.score}/100. Selection reason: ${clip.scoreReason}. Transcript excerpt: ${clip.transcriptExcerpt}. Return: 3 strong hook/title options, one ready-to-copy caption/description, CTA, platform adaptations for YouTube Shorts, Instagram Reels, TikTok and Facebook, and a compact hashtag set. Put the final ready-to-copy description in its own block. Do not promise virality or invent analytics.`
+        : `Crie um pacote de postagem completo para este corte real do Creator Studio. Projeto: ${project?.title ?? ""}. Duração: ${Math.round(clip.durationMs / 1000)} segundos. Formato: ${clip.aspectRatio}. Sinal Content Potential: ${clip.score}/100. Motivo da seleção: ${clip.scoreReason}. Trecho da transcrição: ${clip.transcriptExcerpt}. Entregue: 3 opções fortes de hook/título, uma descrição pronta para copiar, CTA, adaptações para YouTube Shorts, Instagram Reels, TikTok e Facebook e um conjunto compacto de hashtags. Coloque a descrição final pronta para copiar em um bloco próprio. Não prometa viralidade nem invente analytics.`;
     router.push({ pathname: "/assistant", params: { context } });
   };
 
@@ -225,13 +244,22 @@ export default function CreatorProjectScreen() {
                 </Text>
                 <View style={s.actions}>
                   {clip.outputPath ? (
-                    <Pressable
-                      style={s.primaryButton}
-                      disabled={openingClip === clip.id}
-                      onPress={() => void openExport(clip)}
-                    >
-                      <Text style={s.primaryText}>{openingClip === clip.id ? c.opening : c.open}</Text>
-                    </Pressable>
+                    <>
+                      <Pressable
+                        style={s.primaryButton}
+                        disabled={exportingClip === clip.id}
+                        onPress={() => void downloadExport(clip)}
+                      >
+                        <Text style={s.primaryText}>{exportingClip === clip.id ? c.downloading : c.download}</Text>
+                      </Pressable>
+                      <Pressable
+                        style={s.outlineButton}
+                        disabled={sharingClip === clip.id}
+                        onPress={() => void shareExport(clip)}
+                      >
+                        <Text style={s.outlineText}>{sharingClip === clip.id ? c.sharing : c.share}</Text>
+                      </Pressable>
+                    </>
                   ) : null}
                   <Pressable style={s.outlineButton} onPress={() => openClipAI(clip)}>
                     <Text style={s.outlineText}>{c.package}</Text>
