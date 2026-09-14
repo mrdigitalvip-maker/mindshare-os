@@ -60,6 +60,7 @@ describe("NXR-033 notification lifecycle", () => {
   });
   test("8 backend confirmation required", () => {
     expect(service).toContain("await isCurrentDeviceRegistered(userId)");
+    expect(settings).toContain("await refreshNotifications()");
   });
   test("9 device upsert idempotent", () => {
     expect(service).toContain('onConflict: "user_id,provider,device_id"');
@@ -91,7 +92,7 @@ describe("NXR-033 notification lifecycle", () => {
   });
   test("16 provider acceptance not physical delivery", () => {
     expect(testPushSucceeded({ accepted: 1, failed: 0 })).toBeTrue();
-    expect(settings).toContain("Confirme o recebimento neste aparelho");
+    expect(settings).toContain("entrega física ainda precisa ser confirmada");
     expect(settings).not.toContain("Notificação recebida");
   });
   test("17 provider secrets stay server-side", () => {
@@ -114,5 +115,12 @@ describe("NXR-033 notification lifecycle", () => {
     );
     expect(routing).toContain('statusRef.current === "initializing"');
     expect(routing).toContain('status === "unauthenticated"');
+  });
+  test("21 Settings exposes truthful readiness diagnostics", () => {
+    expect(settings).toContain("Permissão do sistema");
+    expect(settings).toContain("Canal KIVRYN");
+    expect(settings).toContain("Projeto Expo/EAS");
+    expect(settings).toContain("Registro deste aparelho");
+    expect(settings).toContain("Push remoto");
   });
 });
