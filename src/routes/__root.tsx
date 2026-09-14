@@ -15,6 +15,7 @@ import { RuntimeErrorService } from "../services/runtime-error-service";
 import { AuthProvider } from "../lib/auth-context";
 import { Toaster } from "sonner";
 import { LanguageProvider } from "@/providers/language-provider";
+import { ModuleAtmosphere } from "@/components/module-atmosphere";
 import { WebAppPrompts } from "@/components/web-app-prompts";
 
 function NotFoundComponent() {
@@ -200,6 +201,7 @@ function RootComponent() {
       <LanguageProvider>
         <AuthProvider queryClient={queryClient}>
           <Outlet />
+          <ModuleAtmosphere />
           <WebAppPrompts />
           <Toaster theme="dark" position="top-center" richColors />
         </AuthProvider>
