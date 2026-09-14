@@ -33,6 +33,14 @@
       "purpose": "maskable"
     }
   ],
+  "related_applications": [
+    {
+      "platform": "play",
+      "url": "https://play.google.com/store/apps/details?id=kivryn.app",
+      "id": "kivryn.app"
+    }
+  ],
+  "prefer_related_applications": false,
   "shortcuts": [
     {
       "name": "Assistant",
