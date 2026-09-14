@@ -12,8 +12,10 @@ export function PageHeader({
   description?: string;
   actions?: ReactNode;
 }) {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const creatorMasthead = pathname.startsWith("/creator") ? " creator-studio__masthead" : "";
   return (
-    <header className="command-page-header flex flex-col gap-4 pb-6 md:flex-row md:items-end md:justify-between">
+    <header className={`command-page-header flex flex-col gap-4 pb-6 md:flex-row md:items-end md:justify-between${creatorMasthead}`}>
       <div className="min-w-0 flex-1">
         {eyebrow && (
           <p className="text-[10px] uppercase tracking-[0.28em] text-muted-foreground md:text-xs">
