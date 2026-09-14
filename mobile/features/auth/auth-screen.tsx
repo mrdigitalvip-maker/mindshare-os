@@ -24,7 +24,7 @@ import { colors, radius, shadows, spacing, typography } from "@/lib/theme";
 import { useLanguage } from "@/providers/language-provider";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const officialAppIcon = require("../../assets/branding/nexora-app-icon-master.png");
+const officialAppIcon = require("../../assets/branding/kivryn-app-icon.png");
 
 const copy = {
   "pt-BR": {
@@ -258,114 +258,96 @@ export function AuthScreen() {
 
             <View style={styles.form}>
               {isSignup && (
-                <Field label={text.name} focused={focusedField === "name"}>
-                  <TextInput autoCapitalize="words" autoComplete="name" maxLength={80} returnKeyType="next" onFocus={() => setFocusedField("name")} onBlur={() => setFocusedField(null)} onSubmitEditing={() => emailRef.current?.focus()} value={name} onChangeText={setName} style={styles.input} placeholder={text.namePlaceholder} placeholderTextColor={colors.textMuted} />
-                </Field>
-              )}
-
-              <Field label={text.email} focused={focusedField === "email"}>
-                <TextInput ref={emailRef} autoCapitalize="none" autoComplete="email" keyboardType="email-address" returnKeyType="next" onFocus={() => setFocusedField("email")} onBlur={() => setFocusedField(null)} onSubmitEditing={() => passwordRef.current?.focus()} value={email} onChangeText={setEmail} style={styles.input} placeholder={text.emailPlaceholder} placeholderTextColor={colors.textMuted} />
-              </Field>
-
-              <Field label={text.password} focused={focusedField === "password"}>
-                <View style={styles.password}>
-                  <TextInput ref={passwordRef} autoCapitalize="none" autoComplete={isSignup ? "new-password" : "current-password"} secureTextEntry={!visible} returnKeyType="done" onFocus={() => setFocusedField("password")} onBlur={() => setFocusedField(null)} onSubmitEditing={() => void submit()} value={password} onChangeText={setPassword} style={[styles.input, styles.passwordInput]} placeholder={isSignup ? text.newPasswordPlaceholder : text.passwordPlaceholder} placeholderTextColor={colors.textMuted} />
-                  <Pressable accessibilityRole="button" accessibilityLabel={visible ? text.hide : text.show} onPress={() => setVisible(!visible)} style={styles.eye}><Text style={styles.eyeText}>{visible ? text.hide : text.show}</Text></Pressable>
+                <View style={styles.field}>
+                  <Text style={styles.label}>{text.name}</Text>
+                  <TextInput value={name} onChangeText={setName} returnKeyType="next" onSubmitEditing={() => emailRef.current?.focus()} onFocus={() => setFocusedField("name")} onBlur={() => setFocusedField(null)} placeholder={text.namePlaceholder} placeholderTextColor={colors.textMuted} style={[styles.input, focusedField === "name" && styles.inputFocused]} maxLength={80} autoCapitalize="words" />
                 </View>
-              </Field>
+              )}
+              <View style={styles.field}>
+                <Text style={styles.label}>{text.email}</Text>
+                <TextInput ref={emailRef} value={email} onChangeText={setEmail} keyboardType="email-address" textContentType="emailAddress" autoCapitalize="none" autoCorrect={false} returnKeyType="next" onSubmitEditing={() => passwordRef.current?.focus()} onFocus={() => setFocusedField("email")} onBlur={() => setFocusedField(null)} placeholder={text.emailPlaceholder} placeholderTextColor={colors.textMuted} style={[styles.input, focusedField === "email" && styles.inputFocused]} />
+              </View>
+              <View style={styles.field}>
+                <Text style={styles.label}>{text.password}</Text>
+                <View style={[styles.passwordShell, focusedField === "password" && styles.inputFocused]}>
+                  <TextInput ref={passwordRef} value={password} onChangeText={setPassword} secureTextEntry={!visible} textContentType={isSignup ? "newPassword" : "password"} autoCapitalize="none" autoCorrect={false} returnKeyType="go" onSubmitEditing={() => void submit()} onFocus={() => setFocusedField("password")} onBlur={() => setFocusedField(null)} placeholder={isSignup ? text.newPasswordPlaceholder : text.passwordPlaceholder} placeholderTextColor={colors.textMuted} style={styles.passwordInput} />
+                  <Pressable accessibilityRole="button" onPress={() => setVisible((value) => !value)} hitSlop={10}>
+                    <Text style={styles.visibility}>{visible ? text.hide : text.show}</Text>
+                  </Pressable>
+                </View>
+                {!isSignup ? <Link href="/auth/forgot-password" style={styles.forgot}>{text.forgot}</Link> : null}
+              </View>
 
-              {!isSignup && <View style={styles.forgotRow}><Link accessibilityRole="link" href="/auth/recovery" style={styles.forgotLink}>{text.forgot}</Link></View>}
+              {message ? <View style={[styles.message, confirmationAccepted && styles.messageSuccess]}><Text style={styles.messageText}>•  {message}</Text></View> : null}
 
-              {message && <View style={styles.messageBox}><View style={styles.messageDot} /><Text accessibilityLiveRegion="polite" style={styles.message}>{message}</Text></View>}
+              <Pressable accessibilityRole="button" accessibilityState={{ disabled: Boolean(busy) }} disabled={Boolean(busy)} onPress={() => void submit()} style={({ pressed }) => [styles.primary, (pressed || busy) && styles.buttonPressed]}>
+                {busy === "form" ? <ActivityIndicator color="#041014" /> : <Text style={styles.primaryText}>{isSignup ? text.create : text.signIn}</Text>}
+              </Pressable>
 
-              {isSignup && confirmationAccepted ? (
-                <Pressable accessibilityRole="button" disabled={resendCooldown > 0} onPress={() => void resendConfirmation()} style={styles.secondaryAction}>
-                  <Text style={styles.secondaryActionText}>{resendCooldown > 0 ? text.resendIn.replace("{seconds}", String(resendCooldown)) : text.resend}</Text>
+              {confirmationAccepted ? (
+                <Pressable disabled={Boolean(resendCooldown) || resendLock.current} onPress={() => void resendConfirmation()} style={styles.resendButton}>
+                  <Text style={styles.resendText}>{resendCooldown ? text.resendIn.replace("{seconds}", String(resendCooldown)) : text.resend}</Text>
                 </Pressable>
               ) : null}
-
-              <Pressable accessibilityRole="button" accessibilityState={{ disabled: Boolean(busy) }} disabled={Boolean(busy)} onPress={() => void submit()} style={({ pressed }) => [styles.primary, Boolean(busy) && styles.buttonDisabled, pressed && !busy && styles.primaryPressed]}>
-                {busy === "form" ? <ActivityIndicator color="#001116" /> : <Text style={styles.primaryText}>{isSignup ? text.create : text.signIn}</Text>}
-              </Pressable>
-
-              <Pressable accessibilityRole="button" disabled={Boolean(busy)} onPress={switchMode} style={styles.switchButton}>
-                <Text style={styles.switchMuted}>{isSignup ? text.already : text.newHere} </Text>
-                <Text style={styles.switchStrong}>{isSignup ? text.signInAction : text.createAction}</Text>
-              </Pressable>
             </View>
+
+            <Pressable accessibilityRole="button" onPress={switchMode} style={styles.switch}>
+              <Text style={styles.switchMuted}>{isSignup ? text.already : text.newHere} </Text>
+              <Text style={styles.switchAction}>{isSignup ? text.signInAction : text.createAction}</Text>
+            </Pressable>
           </View>
 
-          <View style={styles.footer}>
-            <View style={styles.secureRow}><View style={styles.secureDot} /><Text style={styles.secureText}>{text.secure}</Text></View>
-            <View accessibilityRole="text" style={styles.legalRow}>
-              <Text style={styles.legal}>{text.legalPrefix}</Text>
-              <Pressable accessibilityRole="link" onPress={() => void Linking.openURL(LEGAL_URLS.termsOfService)}><Text style={styles.legalLink}>{text.terms}</Text></Pressable>
-              <Text style={styles.legal}>{text.legalMiddle}</Text>
-              <Pressable accessibilityRole="link" onPress={() => void Linking.openURL(LEGAL_URLS.privacyPolicy)}><Text style={styles.legalLink}>{text.privacy}</Text></Pressable>
-              <Text style={styles.legal}>.</Text>
-            </View>
-          </View>
+          <Text style={styles.legal}>{text.legalPrefix}<Text style={styles.legalLink} onPress={() => void Linking.openURL(LEGAL_URLS.terms)}>{text.terms}</Text>{text.legalMiddle}<Text style={styles.legalLink} onPress={() => void Linking.openURL(LEGAL_URLS.privacy)}>{text.privacy}</Text>.</Text>
+          <View style={styles.secure}><View style={styles.secureDot} /><Text style={styles.secureText}>{text.secure}</Text></View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
-function Field({ label, focused, children }: { label: string; focused: boolean; children: React.ReactNode }) {
-  return <View style={styles.field}><Text style={[styles.label, focused && styles.labelFocused]}>{label}</Text><View style={[styles.fieldShell, focused && styles.fieldShellFocused]}>{children}</View></View>;
-}
-
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: "#03070D" },
+  page: { flex: 1, backgroundColor: "#02050A" },
   keyboard: { flex: 1 },
-  ambientTop: { position: "absolute", top: -170, right: -120, width: 360, height: 360, borderRadius: 180, backgroundColor: "rgba(19, 130, 170, 0.12)" },
-  ambientSide: { position: "absolute", top: 240, left: -210, width: 380, height: 380, borderRadius: 190, backgroundColor: "rgba(91, 66, 190, 0.07)" },
-  content: { flexGrow: 1, justifyContent: "center", paddingHorizontal: 22, paddingTop: spacing.xl, paddingBottom: spacing.lg },
-  hero: { width: "100%", maxWidth: 440, alignSelf: "center", marginBottom: 28 },
-  brandRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 34 },
-  markShell: { width: 50, height: 50, borderRadius: 16, overflow: "hidden", borderWidth: 1, borderColor: "rgba(82, 229, 255, 0.18)", backgroundColor: colors.surface, ...shadows.illuminated },
+  content: { flexGrow: 1, paddingHorizontal: 24, paddingTop: 18, paddingBottom: 26, justifyContent: "center" },
+  ambientTop: { position: "absolute", top: -130, right: -80, width: 360, height: 360, borderRadius: 999, backgroundColor: "#06243A", opacity: 0.64 },
+  ambientSide: { position: "absolute", bottom: 150, left: -150, width: 320, height: 320, borderRadius: 999, backgroundColor: "#0A1730", opacity: 0.4 },
+  hero: { marginBottom: 28 },
+  brandRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 32 },
+  markShell: { width: 48, height: 48, borderRadius: 14, overflow: "hidden", borderWidth: 1, borderColor: "#18425A", backgroundColor: "#071019", ...shadows.raised },
   markImage: { width: "100%", height: "100%" },
-  brand: { color: colors.text, fontSize: 18, lineHeight: 21, fontWeight: "800", letterSpacing: 4.3 },
-  eyebrow: { marginTop: 3, color: colors.textMuted, fontSize: 8, lineHeight: 11, fontWeight: "700", letterSpacing: 1.45 },
-  title: { color: colors.text, fontSize: 42, lineHeight: 46, fontWeight: "700", letterSpacing: -1.6, maxWidth: 390 },
-  subtitle: { ...typography.body, color: colors.textSecondary, marginTop: 14, maxWidth: 365, lineHeight: 24 },
-  authPanel: { width: "100%", maxWidth: 440, alignSelf: "center", padding: 18, borderRadius: 24, borderWidth: 1, borderColor: "rgba(92, 125, 150, 0.18)", backgroundColor: "rgba(8, 14, 23, 0.9)", ...shadows.raised },
-  google: { minHeight: 54, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 12, borderWidth: 1, borderColor: "rgba(155, 180, 199, 0.2)", borderRadius: 15, backgroundColor: "rgba(16, 25, 37, 0.92)" },
-  googleText: { ...typography.label, color: colors.text, fontSize: 15 },
-  separator: { flexDirection: "row", alignItems: "center", gap: 12, marginVertical: 20 },
-  line: { flex: 1, height: 1, backgroundColor: "rgba(92, 125, 150, 0.16)" },
-  separatorText: { ...typography.caption, color: colors.textMuted, fontSize: 11 },
-  form: { gap: 14 },
-  field: { gap: 7 },
-  label: { ...typography.label, color: colors.textSecondary, fontSize: 12, letterSpacing: 0.25 },
-  labelFocused: { color: colors.primaryBright },
-  fieldShell: { minHeight: 54, justifyContent: "center", borderRadius: 15, borderWidth: 1, borderColor: "rgba(92, 125, 150, 0.2)", backgroundColor: "rgba(6, 12, 20, 0.94)" },
-  fieldShellFocused: { borderColor: "rgba(82, 229, 255, 0.62)", backgroundColor: "rgba(7, 18, 27, 0.98)" },
-  input: { ...typography.body, minHeight: 52, paddingHorizontal: 15, color: colors.text, backgroundColor: "transparent", borderWidth: 0 },
-  password: { position: "relative", justifyContent: "center" },
-  passwordInput: { paddingRight: 84 },
-  eye: { position: "absolute", right: 4, minWidth: 74, minHeight: 44, alignItems: "center", justifyContent: "center" },
-  eyeText: { ...typography.caption, color: colors.primaryBright, fontWeight: "700" },
-  forgotRow: { alignItems: "flex-end", marginTop: -2 },
-  forgotLink: { ...typography.label, color: colors.textSecondary, fontSize: 12, paddingVertical: 3 },
-  messageBox: { flexDirection: "row", alignItems: "flex-start", gap: 9, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: "rgba(246, 199, 110, 0.16)", backgroundColor: "rgba(246, 199, 110, 0.055)" },
-  messageDot: { width: 6, height: 6, borderRadius: 3, marginTop: 6, backgroundColor: colors.warning },
-  message: { ...typography.caption, flex: 1, color: colors.textSecondary, lineHeight: 18 },
-  primary: { minHeight: 56, alignItems: "center", justifyContent: "center", borderRadius: 16, marginTop: 2, backgroundColor: colors.primaryBright, shadowColor: colors.primaryBright, shadowOpacity: 0.18, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 4 },
-  primaryPressed: { transform: [{ scale: 0.992 }], opacity: 0.92 },
-  primaryText: { ...typography.label, color: "#001116", fontSize: 15, fontWeight: "800", letterSpacing: 0.15 },
-  buttonPressed: { opacity: 0.74 },
-  buttonDisabled: { opacity: 0.62 },
-  secondaryAction: { minHeight: 44, alignItems: "center", justifyContent: "center", borderRadius: radius.md, borderWidth: 1, borderColor: colors.border },
-  secondaryActionText: { ...typography.caption, color: colors.primaryBright },
-  switchButton: { minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "center", flexWrap: "wrap" },
-  switchMuted: { ...typography.label, color: colors.textMuted, fontSize: 13 },
-  switchStrong: { ...typography.label, color: colors.primaryBright, fontSize: 13 },
-  footer: { width: "100%", maxWidth: 440, alignSelf: "center", alignItems: "center", marginTop: 20, gap: 9 },
-  secureRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  secureDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: colors.success },
-  secureText: { ...typography.caption, color: colors.textMuted, fontSize: 10, letterSpacing: 0.35 },
-  legalRow: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", paddingHorizontal: 10 },
-  legal: { ...typography.caption, color: colors.textDisabled, textAlign: "center", fontSize: 10, lineHeight: 15 },
-  legalLink: { ...typography.caption, color: colors.textMuted, fontSize: 10, lineHeight: 15, textDecorationLine: "underline" },
+  brand: { color: colors.text, fontSize: 23, fontWeight: "800", letterSpacing: 3 },
+  eyebrow: { color: "#8DA3B3", fontSize: 10, fontWeight: "800", letterSpacing: 2.4, marginTop: 2 },
+  title: { color: "#F6F9FB", fontSize: 42, lineHeight: 47, fontWeight: "800", letterSpacing: -1.8 },
+  subtitle: { color: "#A7B1BB", fontSize: 16, lineHeight: 24, fontWeight: "500", marginTop: 13, maxWidth: 470 },
+  authPanel: { padding: 20, borderRadius: 28, borderWidth: 1, borderColor: "#152330", backgroundColor: "#071018", ...shadows.raised },
+  google: { minHeight: 58, borderRadius: 18, borderWidth: 1, borderColor: "#203242", backgroundColor: "#101B26", alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 12 },
+  googleText: { color: "#F6F9FB", fontSize: 16, fontWeight: "700" },
+  separator: { flexDirection: "row", alignItems: "center", gap: 12, marginVertical: 22 },
+  line: { flex: 1, height: 1, backgroundColor: "#17232D" },
+  separatorText: { color: "#687685", fontSize: 13, fontWeight: "600" },
+  form: { gap: 17 },
+  field: { gap: 8 },
+  label: { color: "#D6DEE5", fontSize: 13, fontWeight: "700" },
+  input: { minHeight: 56, borderRadius: 17, borderWidth: 1, borderColor: "#1B2A38", backgroundColor: "#050B11", color: "#F4F7F9", paddingHorizontal: 16, fontSize: 16 },
+  inputFocused: { borderColor: "#55D8F5", shadowColor: "#30CFF0", shadowOpacity: 0.18, shadowRadius: 8 },
+  passwordShell: { minHeight: 56, borderRadius: 17, borderWidth: 1, borderColor: "#1B2A38", backgroundColor: "#050B11", paddingHorizontal: 16, flexDirection: "row", alignItems: "center", gap: 10 },
+  passwordInput: { flex: 1, minHeight: 54, color: "#F4F7F9", fontSize: 16 },
+  visibility: { color: "#55D8F5", fontSize: 13, fontWeight: "800" },
+  forgot: { color: "#B8C3CD", fontSize: 13, fontWeight: "700", alignSelf: "flex-end", marginTop: 2 },
+  message: { minHeight: 48, borderRadius: 15, borderWidth: 1, borderColor: "#4B4030", backgroundColor: "#1A1815", justifyContent: "center", paddingHorizontal: 15 },
+  messageSuccess: { borderColor: "#1E5647", backgroundColor: "#0D211C" },
+  messageText: { color: "#C7CFD6", fontSize: 13, lineHeight: 19, fontWeight: "600" },
+  primary: { minHeight: 58, borderRadius: 18, backgroundColor: "#55D8F5", alignItems: "center", justifyContent: "center", marginTop: 2, shadowColor: "#38CDEB", shadowOpacity: 0.22, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 4 },
+  primaryText: { color: "#041014", fontSize: 16, fontWeight: "900", letterSpacing: 0.2 },
+  resendButton: { minHeight: 44, alignItems: "center", justifyContent: "center" },
+  resendText: { color: "#7FDFF4", fontSize: 13, fontWeight: "700" },
+  switch: { minHeight: 48, alignItems: "center", justifyContent: "center", flexDirection: "row", marginTop: 18 },
+  switchMuted: { color: "#7E8A96", fontSize: 14, fontWeight: "600" },
+  switchAction: { color: "#55D8F5", fontSize: 14, fontWeight: "800" },
+  legal: { color: "#687685", fontSize: 11, lineHeight: 17, textAlign: "center", marginTop: 20, paddingHorizontal: 10 },
+  legalLink: { color: "#B9C5CF", textDecorationLine: "underline" },
+  secure: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, marginTop: 14 },
+  secureDot: { width: 7, height: 7, borderRadius: 7, backgroundColor: "#52E0A0" },
+  secureText: { color: "#788794", fontSize: 11, fontWeight: "700" },
+  buttonPressed: { opacity: 0.72, transform: [{ scale: 0.992 }] },
 });
