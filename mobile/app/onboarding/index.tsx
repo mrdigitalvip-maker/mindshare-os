@@ -4,39 +4,37 @@ import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { Redirect, router } from "expo-router";
 import { NexoraAgent } from "@/components/nexora-agent";
 import { AppScreen } from "@/components/app-screen";
-import { ErrorState, LoadingState } from "@/components/screen-state";
+import { LoadingState } from "@/components/screen-state";
 import { colors, radius, spacing, typography } from "@/lib/theme";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/providers/auth-provider";
 import { useLanguage } from "@/providers/language-provider";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
-import { useAccountLifecycle, useProfile } from "@/hooks/use-profile";
+import { useProfile } from "@/hooks/use-profile";
+import type { ProfileIdentity } from "@/lib/profile-identity";
 
 const onboardingCopy = {
   "pt-BR": {
-    preparing: "Preparando seu espaço…",
-    errorTitle: "Não foi possível preparar seu espaço.",
-    connectionError: "Verifique sua conexão e tente novamente.",
-    retry: "Tentar novamente",
+    preparing: "Restaurando sua sessão…",
     namePlaceholder: "Seu nome",
     saving: "Salvando…",
     start: "Começar",
-    confirmError: "Não foi possível confirmar seu perfil. Tente novamente.",
     completeError: "Não foi possível concluir agora. Seu nome foi mantido; tente novamente.",
   },
   en: {
-    preparing: "Preparing your space…",
-    errorTitle: "We couldn't prepare your space.",
-    connectionError: "Check your connection and try again.",
-    retry: "Try again",
+    preparing: "Restoring your session…",
     namePlaceholder: "Your name",
     saving: "Saving…",
     start: "Start",
-    confirmError: "We couldn't confirm your profile. Please try again.",
     completeError: "We couldn't finish right now. Your name was kept; please try again.",
   },
 } as const;
+
+const metadataName = (metadata: Record<string, unknown> | undefined) => {
+  const value = metadata?.full_name ?? metadata?.name;
+  return typeof value === "string" && value.trim() ? value.trim() : "";
+};
 
 export default function Onboarding() {
   const { session, status } = useAuth();
@@ -44,27 +42,21 @@ export default function Onboarding() {
   const text = onboardingCopy[resolvedLocale];
   const client = useQueryClient();
   const profile = useProfile();
-  const lifecycle = useAccountLifecycle();
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>();
   const submitLock = useRef(false);
+
   useEffect(() => {
-    if (!name && profile.data?.displayName) setName(profile.data.displayName);
-  }, [name, profile.data?.displayName]);
+    if (name) return;
+    const suggested = profile.data?.displayName ?? metadataName(session?.user.user_metadata);
+    if (suggested) setName(suggested);
+  }, [name, profile.data?.displayName, session?.user.user_metadata]);
+
   if (status === "initializing") return <LoadingState title={text.preparing} />;
-  if (status === "unauthenticated") return <Redirect href="/auth" />;
-  if (lifecycle.state === "provisioning") return <LoadingState title={text.preparing} />;
-  if (lifecycle.state === "recoverable_error")
-    return (
-      <ErrorState
-        title={text.errorTitle}
-        message={text.connectionError}
-        actionLabel={text.retry}
-        onAction={() => void lifecycle.retry()}
-      />
-    );
-  if (lifecycle.state === "ready") return <Redirect href="/dashboard" />;
+  if (status === "unauthenticated" || !session) return <Redirect href="/auth" />;
+  if (profile.data?.onboarded) return <Redirect href="/dashboard" />;
+
   async function complete() {
     const normalizedName = name.trim();
     if (!session || !normalizedName || normalizedName.length > 80 || submitLock.current) return;
@@ -76,10 +68,23 @@ export default function Onboarding() {
         .from("profiles")
         .upsert({ id: session.user.id, full_name: normalizedName, onboarded: true });
       if (error) throw error;
-      await client.invalidateQueries({ queryKey: queryKeys.profile });
-      const refreshed = await profile.refetch();
-      if (refreshed.data?.onboarded) router.replace("/dashboard");
-      else setErrorMessage(text.confirmError);
+
+      const cached: ProfileIdentity = {
+        id: session.user.id,
+        fullName: normalizedName,
+        avatarUrl: profile.data?.avatarUrl ?? null,
+        onboarded: true,
+        displayName: normalizedName,
+        email: session.user.email ?? null,
+        provider:
+          profile.data?.provider ??
+          (typeof session.user.app_metadata?.provider === "string"
+            ? session.user.app_metadata.provider
+            : "email"),
+      };
+      client.setQueryData([...queryKeys.profile, session.user.id], cached);
+      router.replace("/dashboard");
+      void client.invalidateQueries({ queryKey: queryKeys.profile });
     } catch {
       setErrorMessage(text.completeError);
     } finally {
@@ -87,6 +92,7 @@ export default function Onboarding() {
       setBusy(false);
     }
   }
+
   return (
     <AppScreen keyboard includeBottomInset contentContainerStyle={s.page}>
       <NexoraAgent size={160} state={name ? "attention" : "quiet"} />
@@ -118,6 +124,7 @@ export default function Onboarding() {
     </AppScreen>
   );
 }
+
 const s = StyleSheet.create({
   page: {
     flex: 1,
