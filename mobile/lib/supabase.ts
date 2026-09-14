@@ -2,10 +2,18 @@ import "react-native-url-polyfill/auto";
 
 import { AppState, type AppStateStatus } from "react-native";
 import * as SecureStore from "expo-secure-store";
+import Constants from "expo-constants";
 import { createClient } from "@supabase/supabase-js";
 
-const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const publishableKey = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+type KivrynExpoExtra = {
+  publicSupabaseUrl?: string;
+  publicSupabasePublishableKey?: string;
+};
+
+const extra = (Constants.expoConfig?.extra ?? {}) as KivrynExpoExtra;
+const url = process.env.EXPO_PUBLIC_SUPABASE_URL ?? extra.publicSupabaseUrl;
+const publishableKey =
+  process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? extra.publicSupabasePublishableKey;
 
 export const hasSupabaseConfig = Boolean(url && publishableKey);
 
