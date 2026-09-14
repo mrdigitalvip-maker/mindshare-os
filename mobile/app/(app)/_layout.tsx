@@ -82,13 +82,7 @@ export default function AppLayout() {
           contentStyle: { backgroundColor: colors.background, paddingBottom: insets.bottom },
         }}
       />
-      <Stack.Screen
-        name="settings"
-        options={{
-          title: "Configurações",
-          contentStyle: { backgroundColor: colors.background, paddingBottom: insets.bottom },
-        }}
-      />
+      <Stack.Screen name="settings" options={{ headerShown: false }} />
       <Stack.Screen
         name="premium"
         options={{
