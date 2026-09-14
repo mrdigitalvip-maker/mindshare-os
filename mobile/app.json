@@ -52,9 +52,9 @@
           ]
         }
       ],
-      "icon": "./assets/branding/nexora-app-icon-master.png",
+      "icon": "./assets/branding/kivryn-app-icon.png",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/branding/nexora-app-icon-master.png",
+        "foregroundImage": "./assets/branding/kivryn-app-icon.png",
         "backgroundColor": "#000000"
       }
     },
@@ -81,6 +81,6 @@
       },
       "router": {}
     },
-    "icon": "./assets/branding/nexora-app-icon-master.png"
+    "icon": "./assets/branding/kivryn-app-icon.png"
   }
 }
