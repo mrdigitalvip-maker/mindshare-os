@@ -5,7 +5,22 @@ export const WEB_AUTH_PATHS = {
   passwordRecovery: "/reset-password",
 } as const;
 
+export const CANONICAL_WEB_ORIGIN = "https://kivryn.co";
+
+function trustedWebOrigin(origin: string): string {
+  try {
+    const parsed = new URL(origin);
+    if (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1") return parsed.origin;
+  } catch {
+    // Fall through to the canonical production origin.
+  }
+  return CANONICAL_WEB_ORIGIN;
+}
+
+/**
+ * Authentication must never inherit a Vercel preview/deployment hostname.
+ * Supabase callbacks always return to the stable KIVRYN origin in production.
+ */
 export function webAuthDestination(kind: keyof typeof WEB_AUTH_PATHS, origin: string): string {
-  const trustedOrigin = new URL(origin).origin;
-  return new URL(WEB_AUTH_PATHS[kind], trustedOrigin).toString();
+  return new URL(WEB_AUTH_PATHS[kind], trustedWebOrigin(origin)).toString();
 }
