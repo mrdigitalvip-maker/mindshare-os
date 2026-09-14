@@ -30,7 +30,8 @@ export const notificationCopy: Record<
 > = {
   active: {
     title: "Notificações prontas neste dispositivo",
-    description: "Este aparelho está pronto para receber lembretes da KIVRYN.",
+    description:
+      "Permissão, canal Android, projeto Expo/EAS e registro remoto estão prontos. A entrega final será confirmada no teste físico.",
   },
   "needs-registration": {
     title: "Permissão ativa",
@@ -44,7 +45,7 @@ export const notificationCopy: Record<
   },
   "project-config": {
     title: "Push remoto indisponível",
-    description: "A configuração do serviço remoto ainda não está disponível nesta versão.",
+    description: "A configuração Expo/EAS necessária para push remoto não foi encontrada nesta instalação.",
   },
   denied: {
     title: "Permissão não concedida",
