@@ -92,6 +92,21 @@ type ListeningItem = {
   source: "lesson" | "vocabulary";
 };
 
+type SpeechOptionsCompat = {
+  language?: string;
+  rate?: number;
+  pitch?: number;
+  onStart?: () => void;
+  onDone?: () => void;
+  onStopped?: () => void;
+  onError?: () => void;
+};
+
+const speakWithOptions = Speech.speak as unknown as (
+  text: string,
+  options?: SpeechOptionsCompat,
+) => void;
+
 function localDateKey() {
   const now = new Date();
   const year = now.getFullYear();
@@ -122,7 +137,6 @@ export default function PassportListening() {
   const [rate, setRate] = useState<0.72 | 0.94>(0.94);
   const [speaking, setSpeaking] = useState(false);
   const [speechError, setSpeechError] = useState(false);
-  const [voiceIdentifier, setVoiceIdentifier] = useState<string | undefined>();
 
   const profile = passport.data?.profile ?? null;
   const track = profile
@@ -164,26 +178,6 @@ export default function PassportListening() {
 
   const safeIndex = Math.min(currentIndex, Math.max(0, items.length - 1));
   const current = items[safeIndex] ?? null;
-
-  useEffect(() => {
-    let alive = true;
-    void Speech.getAvailableVoicesAsync()
-      .then((voices) => {
-        if (!alive) return;
-        const wanted = locale.toLowerCase();
-        const prefix = wanted.split("-")[0];
-        const voice =
-          voices.find((item) => item.language.toLowerCase() === wanted) ??
-          voices.find((item) => item.language.toLowerCase().startsWith(`${prefix}-`));
-        setVoiceIdentifier(voice?.identifier);
-      })
-      .catch(() => {
-        if (alive) setVoiceIdentifier(undefined);
-      });
-    return () => {
-      alive = false;
-    };
-  }, [locale]);
 
   useEffect(() => {
     return () => {
@@ -242,9 +236,8 @@ export default function PassportListening() {
     if (!current) return;
     setSpeechError(false);
     await Speech.stop();
-    Speech.speak(current.text, {
+    speakWithOptions(current.text, {
       language: locale,
-      voice: voiceIdentifier,
       rate,
       pitch: 1,
       onStart: () => setSpeaking(true),
