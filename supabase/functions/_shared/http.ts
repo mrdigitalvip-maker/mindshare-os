@@ -1,5 +1,7 @@
 const ALLOWED_HEADERS = "authorization, x-client-info, apikey, content-type";
 const ALLOWED_METHODS = "POST, OPTIONS";
+const CANONICAL_PRODUCTION_ORIGIN = "https://kivryn.co";
+const DEVELOPMENT_ORIGINS = new Set(["http://localhost:5173", "http://localhost:8080"]);
 
 function configuredOrigin(): string | null {
   const value = Deno.env.get("APP_URL");
@@ -12,11 +14,18 @@ function configuredOrigin(): string | null {
   }
 }
 
+function allowedOrigins(): Set<string> {
+  const origins = new Set<string>([CANONICAL_PRODUCTION_ORIGIN, ...DEVELOPMENT_ORIGINS]);
+  const configured = configuredOrigin();
+  if (configured) origins.add(configured);
+  return origins;
+}
+
 export function isOriginAllowed(request: Request): boolean {
   const origin = request.headers.get("Origin");
   // CORS protects browser requests. Stripe, schedulers, and server-to-server callers omit Origin.
   if (!origin) return true;
-  return configuredOrigin() === origin;
+  return allowedOrigins().has(origin);
 }
 
 export function corsHeaders(request: Request): Headers {
