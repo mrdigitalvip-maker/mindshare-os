@@ -30,6 +30,8 @@ function initials(name?: string | null) {
 
 function Settings() {
   const { languagePreference, resolvedLocale, setLanguagePreference, t } = useLanguage();
+  const en = resolvedLocale === "en";
+  const c = (pt: string, english: string) => (en ? english : pt);
   const { user, signOut } = useAuth();
   const { data: profile } = useProfile();
   const updateProfile = useUpdateProfile();
@@ -53,11 +55,11 @@ function Settings() {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith("image/")) {
-      toast.error("Please choose an image file");
+      toast.error(c("Escolha um arquivo de imagem.", "Please choose an image file."));
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      toast.error("Image must be under 5MB");
+      toast.error(c("A imagem deve ter menos de 5 MB.", "Image must be under 5MB."));
       return;
     }
     setAvatarFile(file);
@@ -69,9 +71,7 @@ function Settings() {
     setSaving(true);
     try {
       let avatar_url = profile?.avatar_url ?? undefined;
-      if (avatarFile) {
-        avatar_url = await uploadAvatar(user.id, avatarFile);
-      }
+      if (avatarFile) avatar_url = await uploadAvatar(user.id, avatarFile);
       await updateProfile.mutateAsync({
         full_name: name.trim() || null,
         avatar_url: avatar_url ?? null,
@@ -82,13 +82,27 @@ function Settings() {
       });
       setAvatarFile(null);
       setAvatarPreview(null);
-      toast.success("Profile updated");
+      toast.success(c("Perfil atualizado.", "Profile updated."));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Couldn't update your profile");
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : c("Não foi possível atualizar seu perfil.", "Couldn't update your profile."),
+      );
     } finally {
       setSaving(false);
     }
   }
+
+  const planLabel = subscription.isLoading
+    ? c("Verificando plano…", "Checking plan…")
+    : subscription.data?.status === "trialing"
+      ? c("Teste Premium", "Premium trial")
+      : subscription.data?.isPremium
+        ? c("Plano Premium", "Premium plan")
+        : subscription.data?.status === "canceled"
+          ? c("Plano cancelado", "Canceled plan")
+          : c("Plano gratuito", "Free plan");
 
   return (
     <PageShell>
@@ -132,7 +146,10 @@ function Settings() {
           </div>
         </Section>
 
-        <Section title="Profile" description="Update your public info.">
+        <Section
+          title={c("Perfil", "Profile")}
+          description={c("Atualize suas informações públicas.", "Update your public info.")}
+        >
           <div className="flex flex-col items-center gap-3 sm:flex-row sm:items-start">
             <Avatar className="h-20 w-20 border border-border">
               <AvatarImage src={avatarPreview ?? profile?.avatar_url ?? undefined} alt="" />
@@ -154,16 +171,22 @@ function Settings() {
                 onClick={() => fileInputRef.current?.click()}
               >
                 <Camera className="mr-2 h-3.5 w-3.5" />
-                Change photo
+                {c("Trocar foto", "Change photo")}
               </Button>
-              <p className="text-xs text-muted-foreground">JPG or PNG, up to 5MB.</p>
+              <p className="text-xs text-muted-foreground">
+                {c("JPG ou PNG, até 5 MB.", "JPG or PNG, up to 5MB.")}
+              </p>
             </div>
             <div className="mt-4 flex items-center justify-between gap-4 rounded-xl border border-border p-4">
               <div>
-                <Label htmlFor="proactive-reminders">Proactive KIVRYN reminders</Label>
+                <Label htmlFor="proactive-reminders">
+                  {c("Lembretes proativos da KIVRYN", "Proactive KIVRYN reminders")}
+                </Label>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Allow the assistant to surface relevant follow-ups. Browser delivery is managed
-                  below.
+                  {c(
+                    "Permita que o assistente mostre acompanhamentos relevantes. A entrega no navegador é gerenciada abaixo.",
+                    "Allow the assistant to surface relevant follow-ups. Browser delivery is managed below.",
+                  )}
                 </p>
               </div>
               <Switch
@@ -176,7 +199,7 @@ function Settings() {
 
           <div className="mt-6 grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label>Name</Label>
+              <Label>{c("Nome", "Name")}</Label>
               <Input value={name} onChange={(e) => setName(e.target.value)} />
             </div>
             <div className="space-y-1.5">
@@ -190,61 +213,71 @@ function Settings() {
             disabled={saving}
             aria-busy={saving}
           >
-            {saving ? "Saving…" : "Save changes"}
+            {saving ? c("Salvando…", "Saving…") : c("Salvar alterações", "Save changes")}
           </Button>
         </Section>
 
-        <Section title="Notifications" description="Choose useful, local-time reminders.">
+        <Section
+          title={c("Notificações", "Notifications")}
+          description={c("Escolha lembretes úteis no seu horário local.", "Choose useful, local-time reminders.")}
+        >
           <NotificationSettings />
         </Section>
 
-        <Section title="AI & Usage" description="Real backend usage and daily entitlements.">
+        <Section
+          title={c("IA e uso", "AI & Usage")}
+          description={c("Uso real do backend e permissões diárias.", "Real backend usage and daily entitlements.")}
+        >
           <UsageSettings />
         </Section>
 
-        <Section title="Plan" description="Manage your KIVRYN subscription.">
+        <Section
+          title={c("Plano", "Plan")}
+          description={c("Gerencie sua assinatura KIVRYN.", "Manage your KIVRYN subscription.")}
+        >
           <div className="flex items-center justify-between rounded-xl border border-border bg-surface p-4">
             <div>
-              <p className="font-medium">
-                {subscription.isLoading
-                  ? "Checking plan…"
-                  : subscription.data?.status === "trialing"
-                    ? "Premium trial"
-                    : subscription.data?.isPremium
-                      ? "Premium plan"
-                      : subscription.data?.status === "canceled"
-                        ? "Canceled plan"
-                        : "Free plan"}
-              </p>
+              <p className="font-medium">{planLabel}</p>
               <p className="text-xs text-muted-foreground">
                 {subscription.data?.isPremium
-                  ? "Your subscription is active."
-                  : "Upgrade to unlock everything."}
+                  ? c("Sua assinatura está ativa.", "Your subscription is active.")
+                  : c("Faça upgrade para desbloquear tudo.", "Upgrade to unlock everything.")}
               </p>
             </div>
             {!subscription.data?.isPremium && (
               <Link to="/premium">
                 <Button size="sm" className="rounded-full">
-                  <Crown className="mr-1 h-3.5 w-3.5" /> Upgrade
+                  <Crown className="mr-1 h-3.5 w-3.5" /> {c("Fazer upgrade", "Upgrade")}
                 </Button>
               </Link>
             )}
           </div>
         </Section>
 
-        <Section title="Data & History" description="Control your Assistant conversation data.">
+        <Section
+          title={c("Dados e histórico", "Data & History")}
+          description={c(
+            "Controle os dados das conversas do Assistente.",
+            "Control your Assistant conversation data.",
+          )}
+        >
           <div className="rounded-xl border border-border bg-surface p-4">
-            <p className="text-sm font-medium">Assistant retention</p>
+            <p className="text-sm font-medium">{c("Retenção do Assistente", "Assistant retention")}</p>
             <p className="mt-1 text-sm leading-6 text-muted-foreground">
               {subscription.data?.isPremium
-                ? "Your chat history is retained without a time limit while Premium is active."
-                : "Chat history is retained for 30 days."}
+                ? c(
+                    "Seu histórico de conversas é mantido sem limite de tempo enquanto o Premium estiver ativo.",
+                    "Your chat history is retained without a time limit while Premium is active.",
+                  )
+                : c("O histórico de conversas é mantido por 30 dias.", "Chat history is retained for 30 days.")}
             </p>
             {(subscription.data?.cancelAtPeriodEnd ||
               (!subscription.data?.isPremium && subscription.data?.status)) && (
               <p className="mt-3 rounded-lg border border-warning/30 bg-warning/5 p-3 text-sm">
-                When Premium ends, conversations older than 30 days become eligible for permanent
-                deletion. Deleted history cannot be recovered.
+                {c(
+                  "Quando o Premium termina, conversas com mais de 30 dias podem ser excluídas permanentemente. Histórico excluído não pode ser recuperado.",
+                  "When Premium ends, conversations older than 30 days become eligible for permanent deletion. Deleted history cannot be recovered.",
+                )}
               </p>
             )}
           </div>
@@ -253,36 +286,52 @@ function Settings() {
             onClick={async () => {
               if (
                 !window.confirm(
-                  "Permanently delete all Assistant conversations? This cannot be undone.",
+                  c(
+                    "Excluir permanentemente todas as conversas do Assistente? Esta ação não pode ser desfeita.",
+                    "Permanently delete all Assistant conversations? This cannot be undone.",
+                  ),
                 )
               )
                 return;
               try {
                 await AIService.clearHistory();
-                toast.success("Assistant history deleted");
+                toast.success(c("Histórico do Assistente excluído.", "Assistant history deleted."));
               } catch (error) {
                 toast.error(
-                  error instanceof Error ? error.message : "Couldn't delete Assistant history",
+                  error instanceof Error
+                    ? error.message
+                    : c(
+                        "Não foi possível excluir o histórico do Assistente.",
+                        "Couldn't delete Assistant history.",
+                      ),
                 );
               }
             }}
           >
-            <TrashHistoryIcon /> Clear Assistant history
+            <TrashHistoryIcon /> {c("Limpar histórico do Assistente", "Clear Assistant history")}
           </Button>
           <p className="text-xs leading-5 text-muted-foreground">
-            This action only removes Assistant conversations and messages. Projects, tasks,
-            documents, studies, finances, agents, files, and settings are not affected.
+            {c(
+              "Esta ação remove apenas conversas e mensagens do Assistente. Projetos, tarefas, documentos, estudos, finanças, agentes, arquivos e configurações não são afetados.",
+              "This action only removes Assistant conversations and messages. Projects, tasks, documents, studies, finances, agents, files, and settings are not affected.",
+            )}
           </p>
         </Section>
 
-        <Section title="Privacy & Legal" description="Review KIVRYN's public legal policies.">
+        <Section
+          title={c("Privacidade e legal", "Privacy & Legal")}
+          description={c("Revise as políticas públicas da KIVRYN.", "Review KIVRYN's public legal policies.")}
+        >
           <div className="divide-y divide-border rounded-xl border border-border bg-surface">
-            <LegalLink label="Privacy Policy" href={LEGAL_URLS.privacyPolicy} />
-            <LegalLink label="Terms of Service" href={LEGAL_URLS.termsOfService} />
+            <LegalLink label={c("Política de Privacidade", "Privacy Policy")} href={LEGAL_URLS.privacyPolicy} />
+            <LegalLink label={c("Termos de Serviço", "Terms of Service")} href={LEGAL_URLS.termsOfService} />
           </div>
         </Section>
 
-        <Section title="Sign out" description="End this session on this device.">
+        <Section
+          title={c("Sair", "Sign out")}
+          description={c("Encerre esta sessão neste dispositivo.", "End this session on this device.")}
+        >
           <Button
             variant="outline"
             className="rounded-full"
@@ -291,11 +340,15 @@ function Settings() {
                 await signOut();
                 navigate({ to: "/auth", search: { mode: "signin" }, replace: true });
               } catch (error) {
-                toast.error(error instanceof Error ? error.message : "Couldn't sign out");
+                toast.error(
+                  error instanceof Error
+                    ? error.message
+                    : c("Não foi possível sair.", "Couldn't sign out."),
+                );
               }
             }}
           >
-            <LogOut className="mr-1 h-4 w-4" /> Sign out
+            <LogOut className="mr-1 h-4 w-4" /> {c("Sair", "Sign out")}
           </Button>
         </Section>
       </div>
