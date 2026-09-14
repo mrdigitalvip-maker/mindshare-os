@@ -9,6 +9,7 @@ import {
 import { useEffect, useState, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
+import experienceCss from "../experience-modules.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { RuntimeErrorService } from "../services/runtime-error-service";
 import { AuthProvider } from "../lib/auth-context";
@@ -127,6 +128,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     ],
     links: [
       { rel: "stylesheet", href: appCss },
+      { rel: "stylesheet", href: experienceCss },
       { rel: "icon", type: "image/png", href: "/icon-512.png" },
       { rel: "apple-touch-icon", href: "/icon-512.png" },
       { rel: "manifest", href: "/manifest.webmanifest" },
