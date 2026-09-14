@@ -142,7 +142,7 @@ export function WebAppPrompts() {
   }, [deferredInstall, installed, isAuthenticated, loading]);
 
   useEffect(() => {
-    if (loading || !isAuthenticated || showInstall) {
+    if (loading || !isAuthenticated) {
       setShowAndroidPromo(false);
       return;
     }
@@ -161,7 +161,7 @@ export function WebAppPrompts() {
       window.clearTimeout(showTimer);
       if (hideTimer) window.clearTimeout(hideTimer);
     };
-  }, [isAuthenticated, loading, showInstall]);
+  }, [isAuthenticated, loading]);
 
   const installKivryn = async () => {
     const prompt = deferredInstall;
