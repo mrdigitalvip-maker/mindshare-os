@@ -11,8 +11,7 @@
     "ios": {
       "supportsTablet": true,
       "associatedDomains": [
-        "applinks:kivryn.co",
-        "applinks:www.kivryn.co"
+        "applinks:kivryn.co"
       ]
     },
     "android": {
@@ -44,11 +43,6 @@
             {
               "scheme": "https",
               "host": "kivryn.co",
-              "pathPrefix": "/"
-            },
-            {
-              "scheme": "https",
-              "host": "www.kivryn.co",
               "pathPrefix": "/"
             }
           ],
