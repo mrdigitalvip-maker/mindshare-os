@@ -12,7 +12,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import Svg, { Circle, Path, Polyline, Rect } from "react-native-svg";
+import Svg, { Circle, Path, Polyline } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ProfileAvatar } from "@/components/profile-avatar";
@@ -25,7 +25,20 @@ import { colors, radius, spacing, typography } from "@/lib/theme";
 import { useAuth } from "@/providers/auth-provider";
 
 type IconName =
-  "home" | "assistant" | "projects" | "tasks" | "studies" | "premium" | "settings" | "logout";
+  | "home"
+  | "assistant"
+  | "projects"
+  | "tasks"
+  | "studies"
+  | "journeys"
+  | "challenges"
+  | "arena"
+  | "passport"
+  | "creator"
+  | "community"
+  | "premium"
+  | "settings"
+  | "logout";
 type Item = { label: string; href: DrawerRoute; icon: IconName };
 
 export const drawerSections: Array<{ title: string; items: Item[] }> = [
@@ -37,13 +50,29 @@ export const drawerSections: Array<{ title: string; items: Item[] }> = [
     ],
   },
   {
-    title: "TRABALHO",
+    title: "ORGANIZAÇÃO",
     items: [
       { label: "Projetos", href: "/projects", icon: "projects" },
       { label: "Tarefas", href: "/productivity", icon: "tasks" },
+      { label: "Estudos", href: "/studies", icon: "studies" },
     ],
   },
-  { title: "DESENVOLVIMENTO", items: [{ label: "Estudos", href: "/studies", icon: "studies" }] },
+  {
+    title: "EVOLUÇÃO",
+    items: [
+      { label: "Jornadas", href: "/journeys", icon: "journeys" },
+      { label: "Challenges", href: "/challenges", icon: "challenges" },
+      { label: "Arena", href: "/arena", icon: "arena" },
+      { label: "Passport", href: "/passport", icon: "passport" },
+    ],
+  },
+  {
+    title: "CRIAR & CONECTAR",
+    items: [
+      { label: "Creator", href: "/creator", icon: "creator" },
+      { label: "Community", href: "/community", icon: "community" },
+    ],
+  },
   {
     title: "CONTA",
     items: [
@@ -76,7 +105,6 @@ function DrawerIcon({ name, active = false }: { name: IconName; active?: boolean
             {...common}
             d="M12 3l1.3 4.2L17.5 8.5l-4.2 1.3L12 14l-1.3-4.2-4.2-1.3 4.2-1.3L12 3Z"
           />
-
           <Path {...common} d="m18 14 .8 2.2L21 17l-2.2.8L18 20l-.8-2.2L15 17l2.2-.8L18 14Z" />
         </>
       )}
@@ -91,6 +119,45 @@ function DrawerIcon({ name, active = false }: { name: IconName; active?: boolean
         <>
           <Path {...common} d="M4 5.5A3.5 3.5 0 0 1 7.5 4H12v16H7.5A3.5 3.5 0 0 0 4 21V5.5Z" />
           <Path {...common} d="M20 5.5A3.5 3.5 0 0 0 16.5 4H12v16h4.5A3.5 3.5 0 0 1 20 21V5.5Z" />
+        </>
+      )}
+      {name === "journeys" && (
+        <>
+          <Circle {...common} cx="5" cy="18" r="2" />
+          <Circle {...common} cx="19" cy="6" r="2" />
+          <Path {...common} d="M7 17c2.5-1 3-3 3-5s1-4 3.5-4.5L17 6.5" />
+        </>
+      )}
+      {name === "challenges" && (
+        <>
+          <Circle {...common} cx="12" cy="12" r="8" />
+          <Path {...common} d="m8.5 12 2.2 2.2L15.8 9" />
+        </>
+      )}
+      {name === "arena" && (
+        <>
+          <Circle {...common} cx="12" cy="12" r="8" />
+          <Path {...common} d="M8 16 16 8M8 8l8 8" />
+        </>
+      )}
+      {name === "passport" && (
+        <>
+          <Circle {...common} cx="12" cy="12" r="8.5" />
+          <Path {...common} d="M3.5 12h17M12 3.5c2.4 2.3 3.6 5.1 3.6 8.5S14.4 18.2 12 20.5M12 3.5C9.6 5.8 8.4 8.6 8.4 12s1.2 6.2 3.6 8.5" />
+        </>
+      )}
+      {name === "creator" && (
+        <>
+          <Circle {...common} cx="7" cy="7" r="2.5" />
+          <Circle {...common} cx="7" cy="17" r="2.5" />
+          <Path {...common} d="m9 8.5 10 7M9 15.5l10-7" />
+        </>
+      )}
+      {name === "community" && (
+        <>
+          <Circle {...common} cx="9" cy="9" r="3" />
+          <Circle {...common} cx="17" cy="10" r="2.2" />
+          <Path {...common} d="M3.5 19c.7-3.2 2.6-5 5.5-5s4.8 1.8 5.5 5M14 15c2.8-.5 4.8.8 5.7 3.3" />
         </>
       )}
       {name === "premium" && (
@@ -140,7 +207,6 @@ export function DrawerMenu({ visible, onClose }: { visible: boolean; onClose(): 
     if (actionLocked.current) return;
     actionLocked.current = true;
     onClose();
-    // Let Android dismiss the native Modal before changing the router state.
     requestAnimationFrame(() => {
       router.navigate(href);
       actionLocked.current = false;
