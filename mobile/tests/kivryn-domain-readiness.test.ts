@@ -18,7 +18,7 @@ describe("KIVRYN canonical domain readiness", () => {
     expect(robots).toContain("Sitemap: https://kivryn.co/sitemap.xml");
   });
 
-  test("Android and Digital Asset Links agree on the KIVRYN package", () => {
+  test("Android and Digital Asset Links agree on the canonical KIVRYN host", () => {
     const app = JSON.parse(source("../app.json")) as {
       expo: {
         android: {
@@ -44,7 +44,6 @@ describe("KIVRYN canonical domain readiness", () => {
       .filter((entry) => entry.scheme === "https")
       .map((entry) => entry.host);
 
-    expect(verifiedHosts).toContain("kivryn.co");
-    expect(verifiedHosts).toContain("www.kivryn.co");
+    expect(verifiedHosts).toEqual(["kivryn.co"]);
   });
 });
