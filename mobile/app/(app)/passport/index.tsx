@@ -13,6 +13,9 @@ const copy = {
     title: "KIVRYN Passport",
     subtitle: "Prepare-se para se comunicar, viajar e agir com confiança.",
     system: "INTERNATIONAL READINESS SYSTEM",
+    loading: "Preparando o KIVRYN Passport…",
+    errorTitle: "Não foi possível sincronizar o KIVRYN Passport.",
+    errorBody: "Seus dados do Passport não foram alterados. Verifique a conexão e tente novamente.",
     noProfile: "Seu Passport ainda não foi configurado",
     noProfileCopy: "Escolha um idioma, faça o teste de nível e deixe a KIVRYN montar seu plano internacional.",
     language: "Idioma",
@@ -47,10 +50,13 @@ const copy = {
     completed: "concluídas",
     pending: "pendentes",
   },
-  "en-US": {
+  en: {
     title: "KIVRYN Passport",
     subtitle: "Get ready to communicate, travel and act with confidence.",
     system: "INTERNATIONAL READINESS SYSTEM",
+    loading: "Preparing KIVRYN Passport…",
+    errorTitle: "KIVRYN Passport could not be synchronized.",
+    errorBody: "Your Passport data was not changed. Check your connection and try again.",
     noProfile: "Your Passport is not configured yet",
     noProfileCopy: "Choose a language, take the placement test and let KIVRYN build your international plan.",
     language: "Language",
@@ -97,16 +103,16 @@ function localDateKey() {
 
 export default function PassportHome() {
   const { resolvedLocale } = useLanguage();
-  const c = copy[resolvedLocale === "en" ? "en-US" : "pt-BR"];
+  const c = copy[resolvedLocale];
   const missionDate = useMemo(localDateKey, []);
   const passport = usePassportHome(missionDate);
 
-  if (passport.isPending) return <LoadingState title="Preparing KIVRYN Passport…" />;
+  if (passport.isPending) return <LoadingState title={c.loading} />;
   if (passport.isError) {
     return (
       <ErrorState
-        title="KIVRYN Passport could not be synchronized."
-        message="Your Passport data was not changed. Check the connection and try again."
+        title={c.errorTitle}
+        message={c.errorBody}
         actionLabel={c.refresh}
         onAction={() => passport.refetch()}
       />
