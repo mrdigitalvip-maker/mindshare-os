@@ -1,10 +1,9 @@
-const CACHE_NAME = "nexora-shell-v3";
+const CACHE_NAME = "kivryn-shell-v4";
 const OFFLINE_URL = "/offline.html";
 
 const APP_SHELL = [
   OFFLINE_URL,
   "/manifest.webmanifest",
-  "/nexora-icon.png",
   "/icon-192.png",
   "/icon-512.png",
   "/icon-maskable-512.png",
