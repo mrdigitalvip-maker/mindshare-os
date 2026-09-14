@@ -10,7 +10,9 @@ export const CANONICAL_WEB_ORIGIN = "https://kivryn.co";
 function trustedWebOrigin(origin: string): string {
   try {
     const parsed = new URL(origin);
-    if (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1") return parsed.origin;
+    const localHost = parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1";
+    const safeProtocol = parsed.protocol === "http:" || parsed.protocol === "https:";
+    if (localHost && safeProtocol) return parsed.origin;
   } catch {
     // Fall through to the canonical production origin.
   }
