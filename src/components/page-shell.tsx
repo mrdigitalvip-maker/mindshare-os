@@ -66,7 +66,11 @@ export function EmptyState({
 
 export function PageShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const experienceClass = pathname.startsWith("/passport") ? " passport-experience" : "";
+  const experienceClass = pathname.startsWith("/passport")
+    ? " passport-experience"
+    : pathname.startsWith("/creator")
+      ? " creator-studio"
+      : "";
 
   return (
     <main
