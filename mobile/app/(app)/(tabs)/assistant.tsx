@@ -4,6 +4,7 @@ import { router } from "expo-router";
 
 import { AppScreen } from "@/components/app-screen";
 import { KivrynCore } from "@/components/kivryn-core";
+import { MenuButton } from "@/components/product-ui";
 import { useConversations } from "@/hooks/use-chat";
 import { isGenericConversationTitle } from "@/lib/assistant-conversations";
 import { colors, radius, shadows, spacing, typography } from "@/lib/theme";
@@ -105,6 +106,7 @@ export default function AssistantHome() {
               <View pointerEvents="none" style={styles.glowA} />
               <View pointerEvents="none" style={styles.glowB} />
               <View style={styles.heroTop}>
+                <MenuButton />
                 <View style={styles.identity}>
                   <KivrynCore size={64} state="idle" />
                   <View style={styles.identityCopy}>
@@ -282,7 +284,7 @@ const styles = StyleSheet.create({
     borderRadius: 85,
     backgroundColor: "rgba(139,124,246,0.08)",
   },
-  heroTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
+  heroTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
   identity: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1 },
   identityCopy: { flex: 1, minWidth: 0 },
   coreLabel: { ...typography.eyebrow, color: colors.text, letterSpacing: 2 },
