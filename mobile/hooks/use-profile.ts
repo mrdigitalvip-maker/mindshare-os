@@ -47,10 +47,20 @@ export function useAccountLifecycle() {
     return refetch();
   }, [refetch]);
 
+  // Once a profile has been resolved, keep it authoritative even when a later
+  // background refresh fails. A transient refetch must never throw an already
+  // onboarded user back into the account-preparation gate.
+  const provisioning = profile.data
+    ? "success"
+    : provisioningTimedOut || profile.isError
+      ? "error"
+      : profile.isPending
+        ? "pending"
+        : "success";
+
   const state = resolveAccountLifecycle({
     authStatus: status,
-    provisioning:
-      provisioningTimedOut || profile.isError ? "error" : profile.isPending ? "pending" : "success",
+    provisioning,
     onboarded: profile.data?.onboarded,
   });
 
