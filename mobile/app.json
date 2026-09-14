@@ -76,6 +76,8 @@
     },
     "extra": {
       "publicSiteUrl": "https://kivryn.co",
+      "publicSupabaseUrl": "https://qoxtwbhpovkxfiambwgz.supabase.co",
+      "publicSupabasePublishableKey": "sb_publishable_vf_1JBAWhhpM9gP2XrP_JA_KyzMKEww",
       "eas": {
         "projectId": "4912bde3-e229-49c6-a9ae-aa529af24fd3"
       },
