@@ -12,9 +12,11 @@ export default function AppLayout() {
   const insets = useSafeAreaInsets();
   const { status } = useAuth();
   const lifecycle = useAccountLifecycle();
-  const { t } = useLanguage();
+  const { t, resolvedLocale } = useLanguage();
+  const en = resolvedLocale === "en";
   useUsageTracker();
-  if (status === "initializing") return <LoadingState title="Preparando a KIVRYN…" />;
+  if (status === "initializing")
+    return <LoadingState title={en ? "Preparing KIVRYN…" : "Preparando a KIVRYN…"} />;
   if (status === "unauthenticated") return <Redirect href="/auth" />;
   if (lifecycle.state !== "ready") return <Redirect href="/" />;
   return (
@@ -30,9 +32,9 @@ export default function AppLayout() {
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="tasks/[taskId]" options={{ headerShown: false }} />
       <Stack.Screen name="journeys/index" options={{ headerShown: false }} />
-      <Stack.Screen name="journeys/[journeyId]" options={{ title: "Jornada" }} />
+      <Stack.Screen name="journeys/[journeyId]" options={{ title: en ? "Journey" : "Jornada" }} />
       <Stack.Screen name="packs/index" options={{ headerShown: false }} />
-      <Stack.Screen name="packs/[slug]" options={{ title: "Programa" }} />
+      <Stack.Screen name="packs/[slug]" options={{ title: en ? "Program" : "Programa" }} />
       <Stack.Screen name="arena" options={{ headerShown: false }} />
       <Stack.Screen name="challenges" options={{ headerShown: false }} />
       <Stack.Screen name="community" options={{ headerShown: false }} />
@@ -63,22 +65,25 @@ export default function AppLayout() {
       <Stack.Screen
         name="projects/[projectId]"
         options={{
-          title: "Projeto",
+          title: en ? "Project" : "Projeto",
           contentStyle: { backgroundColor: colors.background, paddingBottom: insets.bottom },
         }}
       />
       <Stack.Screen
         name="studies/index"
         options={{
-          title: "Estudos",
+          title: en ? "Studies" : "Estudos",
           contentStyle: { backgroundColor: colors.background, paddingBottom: insets.bottom },
         }}
       />
-      <Stack.Screen name="studies/[subjectId]/session" options={{ title: "Sessão de estudo" }} />
+      <Stack.Screen
+        name="studies/[subjectId]/session"
+        options={{ title: en ? "Study session" : "Sessão de estudo" }}
+      />
       <Stack.Screen
         name="studies/[subjectId]"
         options={{
-          title: "Matéria",
+          title: en ? "Subject" : "Matéria",
           contentStyle: { backgroundColor: colors.background, paddingBottom: insets.bottom },
         }}
       />
