@@ -1,13 +1,32 @@
 import { LocalizedCopy } from "@/components/localized-copy";
 import { router, type Href } from "expo-router";
+import { useState, type ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, radius, spacing, typography } from "@/lib/theme";
-import { useProfile } from "@/hooks/use-profile";
-import { useAuth } from "@/providers/auth-provider";
+import { DrawerMenu } from "@/components/drawer-menu";
 import { ProfileAvatar } from "@/components/profile-avatar";
+import { useProfile } from "@/hooks/use-profile";
+import { colors, radius, spacing, typography } from "@/lib/theme";
+import { useAuth } from "@/providers/auth-provider";
 
-export { DrawerMenu } from "@/components/drawer-menu";
+export { DrawerMenu };
+
+export function MenuButton() {
+  const [visible, setVisible] = useState(false);
+  return (
+    <>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Abrir menu de navegação"
+        onPress={() => setVisible(true)}
+        style={({ pressed }) => [styles.icon, pressed && styles.pressed]}
+      >
+        <Text style={styles.iconText}>☰</Text>
+      </Pressable>
+      <DrawerMenu visible={visible} onClose={() => setVisible(false)} />
+    </>
+  );
+}
 
 export function AppHeader({ onMenu }: { onMenu(): void }) {
   const profile = useProfile();
@@ -55,18 +74,23 @@ export function StandardHeader({
   title,
   subtitle,
   action,
+  showMenu = false,
 }: {
   title: string;
   subtitle?: string;
-  action?: React.ReactNode;
+  action?: ReactNode;
+  showMenu?: boolean;
 }) {
   return (
     <View style={styles.standardHeader}>
-      <View style={styles.standardHeaderCopy}>
-        <Text accessibilityRole="header" style={styles.title}>
-          {title}
-        </Text>
-        {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+      <View style={styles.standardHeaderLead}>
+        {showMenu ? <MenuButton /> : null}
+        <View style={styles.standardHeaderCopy}>
+          <Text accessibilityRole="header" style={styles.title}>
+            {title}
+          </Text>
+          {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+        </View>
       </View>
       {action}
     </View>
@@ -120,6 +144,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     gap: spacing.md,
+  },
+  standardHeaderLead: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
   },
   standardHeaderCopy: { flex: 1, minWidth: 0 },
   title: { ...typography.title, color: colors.text, flexShrink: 1 },
