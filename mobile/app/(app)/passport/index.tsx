@@ -35,6 +35,10 @@ const copy = {
     reviewQueue: "VOCABULÁRIO PARA REVISAR",
     allClear: "Tudo revisado por enquanto.",
     reviewNow: "Revisar agora",
+    listening: "LISTENING",
+    listeningTitle: "Treine sua compreensão auditiva",
+    listeningBody: "Ouça exemplos reais das suas lições com voz sintetizada no idioma do Passport, em velocidade normal ou lenta.",
+    listeningAction: "Praticar listening",
     roleplay: "ROLE-PLAY COM IA",
     roleplayTitle: "Pratique situações reais",
     roleplayBody: "Aeroporto, hotel, restaurante, transporte e outros cenários no seu idioma e nível atuais.",
@@ -69,6 +73,10 @@ const copy = {
     reviewQueue: "VOCABULARY TO REVIEW",
     allClear: "You're all caught up for now.",
     reviewNow: "Review now",
+    listening: "LISTENING",
+    listeningTitle: "Train your listening comprehension",
+    listeningBody: "Listen to real examples from your lessons with synthesized speech in your Passport language at normal or slow speed.",
+    listeningAction: "Practice listening",
     roleplay: "AI ROLE-PLAY",
     roleplayTitle: "Practice real situations",
     roleplayBody: "Airport, hotel, restaurant, transport and other scenarios at your current language and level.",
@@ -195,6 +203,13 @@ export default function PassportHome() {
               body={dueVocabulary.length ? `${dueVocabulary.length} ${c.pending}` : ""}
               actionLabel={dueVocabulary.length ? c.reviewNow : undefined}
               onPress={dueVocabulary.length ? () => router.push("/passport/review") : undefined}
+            />
+            <Section
+              label={c.listening}
+              title={c.listeningTitle}
+              body={c.listeningBody}
+              actionLabel={c.listeningAction}
+              onPress={() => router.push("/passport/listening")}
             />
             <Section
               label={c.roleplay}
