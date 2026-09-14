@@ -40,6 +40,10 @@ test("native identity is prepared for canonical kivryn.co app links", () => {
     "./assets/branding/kivryn-app-icon.png",
   );
 
+  const authScreen = readFileSync("features/auth/auth-screen.tsx", "utf8");
+  expect(authScreen).toContain('require("../../assets/branding/kivryn-app-icon.png")');
+  expect(authScreen).not.toContain("nexora-app-icon-master.png");
+
   const verifiedHosts = app.expo.android.intentFilters
     .filter((filter) => filter.autoVerify)
     .flatMap((filter) => filter.data ?? [])
