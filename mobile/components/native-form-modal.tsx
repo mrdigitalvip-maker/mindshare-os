@@ -1,4 +1,3 @@
-import { LocalizedCopy } from "@/components/localized-copy";
 import type { ReactNode } from "react";
 import {
   KeyboardAvoidingView,
@@ -13,6 +12,8 @@ import {
 } from "react-native";
 import { colors, radius, spacing, typography } from "@/lib/theme";
 import { NativeDateField } from "@/components/native-date-field";
+import { useLanguage } from "@/providers/language-provider";
+
 export function NativeFormModal({
   visible,
   title,
@@ -56,6 +57,9 @@ export function NativeFormModal({
   valueMaxLength?: number;
   secondaryMaxLength?: number;
 }) {
+  const { resolvedLocale } = useLanguage();
+  const en = resolvedLocale === "en";
+
   return (
     <Modal
       animationType="slide"
@@ -108,9 +112,7 @@ export function NativeFormModal({
               onPress={onClose}
               style={styles.secondary}
             >
-              <Text style={styles.secondaryText}>
-                <LocalizedCopy copyKey="legacy.e7203b8ff9df" />
-              </Text>
+              <Text style={styles.secondaryText}>{en ? "Cancel" : "Cancelar"}</Text>
             </Pressable>
             <Pressable
               accessibilityRole="button"
@@ -118,7 +120,9 @@ export function NativeFormModal({
               onPress={onSave}
               style={styles.primary}
             >
-              <Text style={styles.primaryText}>{busy ? "Salvando…" : "Salvar"}</Text>
+              <Text style={styles.primaryText}>
+                {busy ? (en ? "Saving…" : "Salvando…") : en ? "Save" : "Salvar"}
+              </Text>
             </Pressable>
           </View>
           {destructiveAction ? (
