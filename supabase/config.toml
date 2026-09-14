@@ -1,0 +1,12 @@
+project_id = "kivryn"
+
+[auth]
+enabled = true
+site_url = "https://kivryn.co"
+additional_redirect_urls = [
+  "https://kivryn.co/auth/callback",
+  "https://kivryn.co/confirm-email",
+  "https://kivryn.co/reset-password",
+  "kivryn://auth/callback",
+  "kivryn://auth/callback**"
+]
