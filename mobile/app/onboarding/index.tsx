@@ -8,11 +8,40 @@ import { ErrorState, LoadingState } from "@/components/screen-state";
 import { colors, radius, spacing, typography } from "@/lib/theme";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/providers/auth-provider";
+import { useLanguage } from "@/providers/language-provider";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import { useAccountLifecycle, useProfile } from "@/hooks/use-profile";
+
+const onboardingCopy = {
+  "pt-BR": {
+    preparing: "Preparando seu espaço…",
+    errorTitle: "Não foi possível preparar seu espaço.",
+    connectionError: "Verifique sua conexão e tente novamente.",
+    retry: "Tentar novamente",
+    namePlaceholder: "Seu nome",
+    saving: "Salvando…",
+    start: "Começar",
+    confirmError: "Não foi possível confirmar seu perfil. Tente novamente.",
+    completeError: "Não foi possível concluir agora. Seu nome foi mantido; tente novamente.",
+  },
+  en: {
+    preparing: "Preparing your space…",
+    errorTitle: "We couldn't prepare your space.",
+    connectionError: "Check your connection and try again.",
+    retry: "Try again",
+    namePlaceholder: "Your name",
+    saving: "Saving…",
+    start: "Start",
+    confirmError: "We couldn't confirm your profile. Please try again.",
+    completeError: "We couldn't finish right now. Your name was kept; please try again.",
+  },
+} as const;
+
 export default function Onboarding() {
   const { session, status } = useAuth();
+  const { resolvedLocale } = useLanguage();
+  const text = onboardingCopy[resolvedLocale];
   const client = useQueryClient();
   const profile = useProfile();
   const lifecycle = useAccountLifecycle();
@@ -23,15 +52,15 @@ export default function Onboarding() {
   useEffect(() => {
     if (!name && profile.data?.displayName) setName(profile.data.displayName);
   }, [name, profile.data?.displayName]);
-  if (status === "initializing") return <LoadingState title="Preparando seu espaço…" />;
+  if (status === "initializing") return <LoadingState title={text.preparing} />;
   if (status === "unauthenticated") return <Redirect href="/auth" />;
-  if (lifecycle.state === "provisioning") return <LoadingState title="Preparando seu espaço…" />;
+  if (lifecycle.state === "provisioning") return <LoadingState title={text.preparing} />;
   if (lifecycle.state === "recoverable_error")
     return (
       <ErrorState
-        title="Não foi possível preparar seu espaço."
-        message="Verifique sua conexão e tente novamente."
-        actionLabel="Tentar novamente"
+        title={text.errorTitle}
+        message={text.connectionError}
+        actionLabel={text.retry}
         onAction={() => void lifecycle.retry()}
       />
     );
@@ -50,9 +79,9 @@ export default function Onboarding() {
       await client.invalidateQueries({ queryKey: queryKeys.profile });
       const refreshed = await profile.refetch();
       if (refreshed.data?.onboarded) router.replace("/dashboard");
-      else setErrorMessage("Não foi possível confirmar seu perfil. Tente novamente.");
+      else setErrorMessage(text.confirmError);
     } catch {
-      setErrorMessage("Não foi possível concluir agora. Seu nome foi mantido; tente novamente.");
+      setErrorMessage(text.completeError);
     } finally {
       submitLock.current = false;
       setBusy(false);
@@ -76,13 +105,13 @@ export default function Onboarding() {
           value={name}
           onChangeText={setName}
           maxLength={80}
-          placeholder="Seu nome"
+          placeholder={text.namePlaceholder}
           placeholderTextColor={colors.textMuted}
           style={s.input}
         />
 
         <Pressable disabled={!name.trim() || busy} onPress={() => void complete()} style={s.send}>
-          <Text style={s.sendText}>{busy ? "Salvando…" : "Começar"}</Text>
+          <Text style={s.sendText}>{busy ? text.saving : text.start}</Text>
         </Pressable>
       </View>
       {errorMessage ? <Text style={s.error}>{errorMessage}</Text> : null}
