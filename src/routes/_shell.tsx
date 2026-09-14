@@ -37,9 +37,9 @@ const SIDEBAR_STORAGE_KEY = "nexora.web.sidebar.v1";
 const navigationGroups = [
   { id: "command", modules: ["dashboard", "assistant", "search"] },
   { id: "execute", modules: ["projects", "productivity"] },
-  { id: "learn", modules: ["studies", "journeys", "packs"] },
+  { id: "learn", modules: ["studies", "journeys", "passport", "packs"] },
   { id: "create", modules: ["creator"] },
-  { id: "connect", modules: ["community", "arena"] },
+  { id: "connect", modules: ["community", "challenges", "arena"] },
   { id: "system", modules: ["premium", "settings"] },
 ] as const;
 
@@ -54,7 +54,7 @@ function initials(name?: string | null) {
 }
 
 function ShellLayout() {
-  const { t } = useLanguage();
+  const { t, resolvedLocale } = useLanguage();
   const { user, loading: authLoading, isAuthenticated, signOut } = useAuth();
   const {
     data: profile,
@@ -73,17 +73,18 @@ function ShellLayout() {
       window.localStorage.getItem(SIDEBAR_STORAGE_KEY) === "compact",
   );
 
-  // Guard 1: real Supabase session (replaces the old "nexora.session"
-  // localStorage flag, which was never written anywhere).
+  const moduleLabel = (id: string) => {
+    if (id === "passport") return "Passport";
+    if (id === "challenges") return resolvedLocale === "en" ? "Challenges" : "Desafios";
+    return t(`nav.${id}` as TranslationKey);
+  };
+
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
       navigate({ to: "/auth", search: { mode: "signin" }, replace: true });
     }
   }, [authLoading, isAuthenticated, navigate]);
 
-  // Guard 2: onboarding must be completed before any protected module is
-  // reachable. Single source of truth — every route nested under this
-  // layout goes through it.
   useEffect(() => {
     if (!authLoading && isAuthenticated && !profileLoading && profile && !profile.onboarded) {
       navigate({ to: "/onboarding", replace: true });
@@ -106,9 +107,7 @@ function ShellLayout() {
     );
   }
 
-  if (!ready) {
-    return <FullPageLoader />;
-  }
+  if (!ready) return <FullPageLoader />;
 
   const displayName = profile?.full_name ?? user?.name ?? undefined;
 
@@ -125,7 +124,7 @@ function ShellLayout() {
   const Sidebar = (
     <aside className="command-sidebar flex h-full w-full flex-col bg-sidebar text-sidebar-foreground">
       <div className="flex h-16 shrink-0 items-center gap-2 px-5">
-        <img src="/nexora-icon.png" alt="" width={26} height={26} className="rounded-md" />
+        <img src="/icon-512.png" alt="" width={26} height={26} className="rounded-md" />
         {!compact && (
           <div>
             <span className="block font-display text-xl leading-none">KIVRYN</span>
@@ -152,6 +151,7 @@ function ShellLayout() {
                   {groupModules.map((m) => {
                     if (!m) return null;
                     const active = pathname.startsWith(m.path);
+                    const label = moduleLabel(m.id);
                     if (m.id === "search") {
                       return (
                         <li key={m.id}>
@@ -161,12 +161,12 @@ function ShellLayout() {
                               setMobileOpen(false);
                               setSearchOpen(true);
                             }}
-                            title={compact ? t(`nav.${m.id}` as TranslationKey) : undefined}
-                            aria-label={t(`nav.${m.id}` as TranslationKey)}
+                            title={compact ? label : undefined}
+                            aria-label={label}
                             className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-muted-foreground transition hover:bg-sidebar-accent hover:text-foreground"
                           >
                             <m.icon className="h-4 w-4" />
-                            {!compact && <span>{t(`nav.${m.id}` as TranslationKey)}</span>}
+                            {!compact && <span>{label}</span>}
                           </button>
                         </li>
                       );
@@ -175,7 +175,7 @@ function ShellLayout() {
                       <li key={m.id}>
                         <Link
                           to={m.path}
-                          title={compact ? t(`nav.${m.id}` as TranslationKey) : undefined}
+                          title={compact ? label : undefined}
                           aria-current={active ? "page" : undefined}
                           onClick={() => setMobileOpen(false)}
                           className={`group flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
@@ -185,9 +185,7 @@ function ShellLayout() {
                           }`}
                         >
                           <m.icon className="h-4 w-4 shrink-0" />
-                          {!compact && (
-                            <span className="flex-1">{t(`nav.${m.id}` as TranslationKey)}</span>
-                          )}
+                          {!compact && <span className="flex-1">{label}</span>}
                           {!compact && m.premium && (
                             <span className="rounded-full border border-intelligence/25 bg-intelligence/10 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider text-intelligence">
                               Pro
@@ -227,17 +225,13 @@ function ShellLayout() {
 
   return (
     <div className="flex min-h-dvh w-full bg-background">
-      {/* Desktop sidebar */}
       <div
         className={`hidden shrink-0 border-r border-sidebar-border transition-[width] duration-200 md:block ${compact ? "w-[76px]" : "w-64"}`}
       >
         {Sidebar}
       </div>
 
-      {/* Main */}
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* Top bar — extra top padding accounts for the iOS status bar / notch
-            when the app runs standalone (installed PWA). */}
         <header
           className="sticky top-0 z-30 border-b border-border bg-background/70 px-4 backdrop-blur md:px-6"
           style={{ paddingTop: "env(safe-area-inset-top)" }}
@@ -287,9 +281,7 @@ function ShellLayout() {
                   <DropdownMenuLabel>
                     <div className="flex flex-col">
                       <span className="text-sm font-medium">{displayName ?? "Explorer"}</span>
-                      <span className="text-xs font-normal text-muted-foreground">
-                        {user?.email}
-                      </span>
+                      <span className="text-xs font-normal text-muted-foreground">{user?.email}</span>
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
@@ -309,8 +301,6 @@ function ShellLayout() {
           <Outlet />
         </main>
 
-        {/* Bottom nav (mobile) — extra bottom padding accounts for the home
-            indicator on notched devices. */}
         <nav
           className="fixed bottom-0 left-0 right-0 z-30 border-t border-border bg-background/80 backdrop-blur md:hidden"
           style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
