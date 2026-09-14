@@ -49,9 +49,6 @@ export default function Landing() {
   const { loading: authLoading, isAuthenticated } = useAuth();
   const { data: profile, isLoading: profileLoading } = useProfile();
 
-  // If a valid session already exists (e.g. the installed PWA was just
-  // reopened), skip the marketing page entirely instead of asking the
-  // user to sign in again.
   useEffect(() => {
     if (authLoading || !isAuthenticated) return;
     if (profileLoading) return;
@@ -62,24 +59,20 @@ export default function Landing() {
     }
   }, [authLoading, isAuthenticated, profileLoading, profile, navigate]);
 
-  // Brief check only — avoids flashing the landing page for someone who's
-  // already logged in. Anonymous visitors clear this almost instantly.
   if (authLoading || (isAuthenticated && profileLoading)) {
     return <FullPageLoader />;
   }
 
   if (isAuthenticated) {
-    // Redirect effect above is already in flight.
     return null;
   }
 
   return (
     <div className="min-h-screen">
-      {/* Nav */}
       <header className="sticky top-0 z-40 glass">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
           <Link to="/" className="flex items-center gap-2">
-            <img src="/nexora-icon.png" alt="" width={28} height={28} className="rounded-md" />
+            <img src="/icon-512.png" alt="" width={28} height={28} className="rounded-md" />
             <span className="font-display text-xl tracking-tight">KIVRYN</span>
           </Link>
           <nav className="hidden items-center gap-8 text-sm text-muted-foreground md:flex">
@@ -108,7 +101,6 @@ export default function Landing() {
         </div>
       </header>
 
-      {/* Hero */}
       <section className="relative overflow-hidden">
         <div className="mx-auto max-w-6xl px-6 pt-20 pb-24 text-center md:pt-32 md:pb-36">
           <motion.div
@@ -144,7 +136,6 @@ export default function Landing() {
             </div>
           </motion.div>
 
-          {/* Screen mock */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -178,7 +169,6 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Features */}
       <section id="features" className="border-t border-border">
         <div className="mx-auto max-w-6xl px-6 py-24">
           <div className="max-w-2xl">
@@ -209,7 +199,6 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Values */}
       <section className="border-t border-border">
         <div className="mx-auto grid max-w-6xl gap-8 px-6 py-24 md:grid-cols-3">
           {[
@@ -230,7 +219,6 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* CTA */}
       <section className="border-t border-border">
         <div className="mx-auto max-w-4xl px-6 py-24 text-center">
           <h2 className="font-display text-4xl md:text-6xl">
@@ -250,7 +238,15 @@ export default function Landing() {
       <footer className="border-t border-border">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 py-8 text-xs text-muted-foreground md:flex-row">
           <p>© {new Date().getFullYear()} KIVRYN. All rights reserved.</p>
-          <p>Your Personal AI Operating System.</p>
+          <div className="flex flex-wrap items-center justify-center gap-4">
+            <Link to="/privacy" className="hover:text-foreground">
+              Privacy
+            </Link>
+            <Link to="/terms" className="hover:text-foreground">
+              Terms
+            </Link>
+            <p>Your Personal AI Operating System.</p>
+          </div>
         </div>
       </footer>
     </div>
