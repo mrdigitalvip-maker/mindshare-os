@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useRouterState } from "@tanstack/react-router";
 
 export function PageHeader({
   eyebrow,
@@ -64,9 +65,12 @@ export function EmptyState({
 }
 
 export function PageShell({ children }: { children: ReactNode }) {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const experienceClass = pathname.startsWith("/passport") ? " passport-experience" : "";
+
   return (
     <main
-      className="min-w-0 overflow-x-clip
+      className={`min-w-0 overflow-x-clip
         w-full
         min-h-[100dvh]
         px-4
@@ -77,8 +81,7 @@ export function PageShell({ children }: { children: ReactNode }) {
         md:pt-8
         md:pb-10
         lg:mx-auto
-        lg:max-w-[1480px]
-      "
+        lg:max-w-[1480px]${experienceClass}`}
     >
       {children}
     </main>
