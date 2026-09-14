@@ -8,7 +8,7 @@ import { useLanguage } from "@/providers/language-provider";
 import { Button } from "@/components/ui/button";
 import { subscriptionQueryKey, useSubscription } from "@/hooks/use-subscription";
 import { useAuth } from "@/lib/auth-context";
-import { SubscriptionService } from "@/services";
+import { BillingService } from "@/services/billing-service";
 import { LEGAL_URLS } from "@/lib/legal";
 
 export const Route = createFileRoute("/_shell/premium")({
@@ -51,7 +51,7 @@ function Premium() {
   async function startCheckout() {
     setCheckingOut(true);
     try {
-      const checkoutUrl = await SubscriptionService.createCheckoutUrl();
+      const checkoutUrl = await BillingService.createCheckoutUrl();
       if (!checkoutUrl) {
         toast.success("Demo mode: checkout simulated. Stripe opens once billing is enabled.");
         return;
@@ -68,7 +68,7 @@ function Premium() {
   async function openPortal() {
     setOpeningPortal(true);
     try {
-      const portalUrl = await SubscriptionService.createPortalUrl();
+      const portalUrl = await BillingService.createPortalUrl();
       if (!portalUrl) toast.info("The billing portal is unavailable in demo mode.");
       else window.location.assign(portalUrl);
     } catch {
