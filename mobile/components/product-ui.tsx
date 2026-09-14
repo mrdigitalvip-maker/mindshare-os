@@ -74,7 +74,7 @@ export function StandardHeader({
   title,
   subtitle,
   action,
-  showMenu = false,
+  showMenu = true,
 }: {
   title: string;
   subtitle?: string;
