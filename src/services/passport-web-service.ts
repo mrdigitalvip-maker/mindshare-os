@@ -1,4 +1,10 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
+
+// The checked-in web Database snapshot predates the Passport migrations. Keep
+// the rest of the web app strongly typed while this service talks to the live
+// public schema that is already used by the native app.
+const passportDb = supabase as unknown as SupabaseClient;
 
 export type WebPassportTrack = {
   id: string;
@@ -86,25 +92,28 @@ const record = (value: unknown): Record<string, unknown> =>
     : {};
 
 export async function listWebPassportTracks(): Promise<WebPassportTrack[]> {
-  const { data, error } = await supabase
+  const { data, error } = await passportDb
     .from("studio_tracks")
     .select("id,slug,title,description")
     .eq("category", "language")
     .eq("active", true)
     .order("title", { ascending: true });
   if (error) throw error;
-  return (data ?? []).map((row) => ({
-    id: String(row.id),
-    slug: String(row.slug),
-    title: String(row.title),
-    description: String(row.description ?? ""),
-  }));
+  return (data ?? []).map((value) => {
+    const row = record(value);
+    return {
+      id: String(row.id),
+      slug: String(row.slug),
+      title: String(row.title),
+      description: String(row.description ?? ""),
+    };
+  });
 }
 
 export async function getWebPassportProfile(userId: string): Promise<WebPassportProfile | null> {
   requireUser(userId);
-  const { data, error } = await supabase
-    .from("passport_profiles" as never)
+  const { data, error } = await passportDb
+    .from("passport_profiles")
     .select(
       "id,track_id,goal,travel_date,daily_minutes,current_level,placement_score,plan_horizon_days,is_primary,updated_at",
     )
@@ -140,7 +149,7 @@ export async function saveWebPassportProfile(
   },
 ) {
   requireUser(userId);
-  const { data, error } = await supabase.rpc("upsert_passport_profile" as never, {
+  const { data, error } = await passportDb.rpc("upsert_passport_profile", {
     p_track_id: input.trackId,
     p_goal: input.goal,
     p_native_locale: input.nativeLocale ?? null,
@@ -148,7 +157,7 @@ export async function saveWebPassportProfile(
     p_daily_minutes: input.dailyMinutes,
     p_plan_horizon_days: input.planHorizonDays,
     p_is_primary: true,
-  } as never);
+  });
   if (error) throw error;
   return data;
 }
@@ -158,7 +167,7 @@ export async function listWebPassportLessons(
   trackId: string,
 ): Promise<WebPassportLesson[]> {
   requireUser(userId);
-  const { data: lessons, error } = await supabase
+  const { data: lessons, error } = await passportDb
     .from("studio_lessons")
     .select("id,title,description,difficulty,estimated_minutes,content,order_index")
     .eq("track_id", trackId)
@@ -167,16 +176,22 @@ export async function listWebPassportLessons(
   if (error) throw error;
   if (!lessons?.length) return [];
 
-  const ids = lessons.map((item) => item.id);
-  const { data: progress, error: progressError } = await supabase
+  const lessonRows = lessons.map(record);
+  const ids = lessonRows.map((item) => String(item.id));
+  const { data: progress, error: progressError } = await passportDb
     .from("studio_progress")
     .select("lesson_id,status")
     .eq("user_id", userId)
     .in("lesson_id", ids);
   if (progressError) throw progressError;
-  const states = new Map((progress ?? []).map((item) => [String(item.lesson_id), String(item.status)]));
+  const states = new Map(
+    (progress ?? []).map((value) => {
+      const item = record(value);
+      return [String(item.lesson_id), String(item.status)];
+    }),
+  );
 
-  return lessons.map((item) => ({
+  return lessonRows.map((item) => ({
     id: String(item.id),
     title: String(item.title),
     description: String(item.description ?? ""),
@@ -189,10 +204,10 @@ export async function listWebPassportLessons(
 
 export async function completeWebPassportLesson(userId: string, lessonId: string) {
   requireUser(userId);
-  const { data, error } = await supabase.rpc("complete_studio_lesson" as never, {
+  const { data, error } = await passportDb.rpc("complete_studio_lesson", {
     p_lesson_id: lessonId,
     p_score: 100,
-  } as never);
+  });
   if (error) throw error;
   return data;
 }
@@ -202,9 +217,9 @@ export async function listWebPlacementQuestions(
   trackId: string,
 ): Promise<WebPlacementQuestion[]> {
   requireUser(userId);
-  const { data, error } = await supabase.rpc("get_passport_placement_questions" as never, {
+  const { data, error } = await passportDb.rpc("get_passport_placement_questions", {
     p_track_id: trackId,
-  } as never);
+  });
   if (error) throw error;
   return (Array.isArray(data) ? data : [])
     .map((value) => record(value))
@@ -224,10 +239,10 @@ export async function submitWebPlacement(
   answers: Record<string, number>,
 ) {
   requireUser(userId);
-  const { data, error } = await supabase.rpc("submit_passport_placement" as never, {
+  const { data, error } = await passportDb.rpc("submit_passport_placement", {
     p_track_id: trackId,
     p_answers: answers,
-  } as never);
+  });
   if (error) throw error;
   return record(data);
 }
@@ -237,8 +252,8 @@ export async function listWebDueVocabulary(
   trackId: string,
 ): Promise<WebVocabularyItem[]> {
   requireUser(userId);
-  const { data, error } = await supabase
-    .from("passport_vocabulary" as never)
+  const { data, error } = await passportDb
+    .from("passport_vocabulary")
     .select("id,term,translation,context,stage,next_review_at")
     .eq("user_id", userId)
     .eq("track_id", trackId)
@@ -262,10 +277,10 @@ export async function listWebDueVocabulary(
 
 export async function reviewWebVocabulary(userId: string, vocabularyId: string, grade: number) {
   requireUser(userId);
-  const { data, error } = await supabase.rpc("review_passport_vocabulary" as never, {
+  const { data, error } = await passportDb.rpc("review_passport_vocabulary", {
     p_vocabulary_id: vocabularyId,
     p_grade: grade,
-  } as never);
+  });
   if (error) throw error;
   return data;
 }
@@ -275,8 +290,8 @@ export async function listWebPassportMissions(
   trackId: string,
 ): Promise<WebPassportMission[]> {
   requireUser(userId);
-  const { data, error } = await supabase
-    .from("passport_daily_missions" as never)
+  const { data, error } = await passportDb
+    .from("passport_daily_missions")
     .select("id,title,prompt,mission_type,status")
     .eq("user_id", userId)
     .eq("track_id", trackId)
@@ -302,9 +317,9 @@ export async function updateWebPassportMission(
 ) {
   requireUser(userId);
   const now = new Date().toISOString();
-  const { data, error } = await supabase
-    .from("passport_daily_missions" as never)
-    .update({ status, completed_at: status === "completed" ? now : null, updated_at: now } as never)
+  const { data, error } = await passportDb
+    .from("passport_daily_missions")
+    .update({ status, completed_at: status === "completed" ? now : null, updated_at: now })
     .eq("id", missionId)
     .eq("user_id", userId)
     .select("id")
@@ -318,8 +333,8 @@ export async function listWebRoleplaySessions(
   trackId: string,
 ): Promise<WebRoleplaySession[]> {
   requireUser(userId);
-  const { data, error } = await supabase
-    .from("passport_roleplay_sessions" as never)
+  const { data, error } = await passportDb
+    .from("passport_roleplay_sessions")
     .select("id,scenario,status,transcript,started_at")
     .eq("user_id", userId)
     .eq("track_id", trackId)
@@ -349,9 +364,9 @@ export async function listWebRoleplaySessions(
 
 export async function startWebRoleplay(userId: string, trackId: string, scenario: string) {
   requireUser(userId);
-  const { data, error } = await supabase
-    .from("passport_roleplay_sessions" as never)
-    .insert({ user_id: userId, track_id: trackId, scenario, mode: "text" } as never)
+  const { data, error } = await passportDb
+    .from("passport_roleplay_sessions")
+    .insert({ user_id: userId, track_id: trackId, scenario, mode: "text" })
     .select("id,scenario,status,transcript")
     .single();
   if (error) throw error;
@@ -375,9 +390,9 @@ export async function sendWebRoleplayMessage(userId: string, sessionId: string, 
 export async function finishWebRoleplay(userId: string, sessionId: string) {
   requireUser(userId);
   const now = new Date().toISOString();
-  const { error } = await supabase
-    .from("passport_roleplay_sessions" as never)
-    .update({ status: "completed", completed_at: now, updated_at: now } as never)
+  const { error } = await passportDb
+    .from("passport_roleplay_sessions")
+    .update({ status: "completed", completed_at: now, updated_at: now })
     .eq("id", sessionId)
     .eq("user_id", userId)
     .eq("status", "active");
