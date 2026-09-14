@@ -1,9 +1,12 @@
+import { useCallback, useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { queryKeys } from "@/lib/query-keys";
 import { useAuth } from "@/providers/auth-provider";
 import { ensureAuthenticatedProfile } from "@/services/profile-service";
 import { resolveAccountLifecycle } from "@/lib/auth-state";
+
+export const PROVISIONING_UI_TIMEOUT_MS = 18_000;
 
 export function useProfile() {
   const { session, status } = useAuth();
@@ -21,12 +24,35 @@ export function useProfile() {
 
 /** Authoritative session -> provisioning -> onboarding lifecycle for route guards. */
 export function useAccountLifecycle() {
-  const { status } = useAuth();
+  const { session, status } = useAuth();
   const profile = useProfile();
+  const [provisioningTimedOut, setProvisioningTimedOut] = useState(false);
+  const userId = session?.user.id ?? null;
+  const refetch = profile.refetch;
+
+  useEffect(() => {
+    setProvisioningTimedOut(false);
+    if (status !== "authenticated" || !userId || !profile.isPending) return;
+
+    const timer = setTimeout(() => setProvisioningTimedOut(true), PROVISIONING_UI_TIMEOUT_MS);
+    return () => clearTimeout(timer);
+  }, [profile.isPending, status, userId]);
+
+  useEffect(() => {
+    if (!profile.isPending) setProvisioningTimedOut(false);
+  }, [profile.isPending]);
+
+  const retry = useCallback(async () => {
+    setProvisioningTimedOut(false);
+    return refetch();
+  }, [refetch]);
+
   const state = resolveAccountLifecycle({
     authStatus: status,
-    provisioning: profile.isPending ? "pending" : profile.isError ? "error" : "success",
+    provisioning:
+      provisioningTimedOut || profile.isError ? "error" : profile.isPending ? "pending" : "success",
     onboarded: profile.data?.onboarded,
   });
-  return { state, profile: profile.data ?? null, retry: profile.refetch };
+
+  return { state, profile: profile.data ?? null, retry };
 }
