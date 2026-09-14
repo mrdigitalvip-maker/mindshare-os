@@ -128,7 +128,6 @@ export const MODULES: NexoraModule[] = [
   },
   {
     id: "search",
-    releaseReady: true,
     label: "Search",
     path: "/search",
     icon: Search,
