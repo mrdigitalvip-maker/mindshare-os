@@ -1,12 +1,15 @@
-import { LocalizedCopy } from "@/components/localized-copy";
+import type { ReactNode } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { ModuleCard } from "@/components/product-ui";
+
 import { AppScreen } from "@/components/app-screen";
-import { StandardHeader } from "@/components/product-ui";
+import { LocalizedCopy } from "@/components/localized-copy";
+import { ModuleCard, StandardHeader } from "@/components/product-ui";
 import { colors, spacing, typography } from "@/lib/theme";
 import { useLanguage } from "@/providers/language-provider";
+
 export default function More() {
   const { t } = useLanguage();
+
   return (
     <AppScreen scroll contentContainerStyle={styles.page}>
       <StandardHeader title="Mais" />
@@ -19,6 +22,7 @@ export default function More() {
       <Text style={styles.copy}>
         <LocalizedCopy copyKey="legacy.dccd7a008db2" />
       </Text>
+
       <ModuleGroup title="EXECUÇÃO">
         <ModuleCard
           icon="✦"
@@ -47,7 +51,15 @@ export default function More() {
           description="Matérias, metas e sessões de foco."
           href="/studies"
         />
+
+        <ModuleCard
+          icon="✈"
+          title="Passport"
+          description="Idiomas, missões, revisão e role-play com IA para preparação internacional."
+          href="/passport"
+        />
       </ModuleGroup>
+
       <ModuleGroup title="CONTA & KIVRYN">
         <ModuleCard
           icon="✂"
@@ -80,7 +92,8 @@ export default function More() {
     </AppScreen>
   );
 }
-function ModuleGroup({ title, children }: { title: string; children: React.ReactNode }) {
+
+function ModuleGroup({ title, children }: { title: string; children: ReactNode }) {
   return (
     <View style={styles.group}>
       <Text accessibilityRole="header" style={styles.groupTitle}>
@@ -90,6 +103,7 @@ function ModuleGroup({ title, children }: { title: string; children: React.React
     </View>
   );
 }
+
 const styles = StyleSheet.create({
   page: { gap: spacing.sm, paddingBottom: spacing.lg },
   eyebrow: { ...typography.eyebrow, color: colors.primaryBright },
