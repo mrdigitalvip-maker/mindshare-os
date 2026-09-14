@@ -59,32 +59,41 @@ describe("KIVRYN-003 fresh account lifecycle", () => {
       }),
     ).toBe("unauthenticated");
   });
-  test("failure exposes retry and every preparing-space path is bounded", () => {
-    expect(resolveAccountLifecycle({ authStatus: "authenticated", provisioning: "error" })).toBe(
-      "recoverable_error",
-    );
+  test("authenticated root never waits on profile provisioning", () => {
+    const root = source("app/index.tsx");
+    const onboarding = source("app/onboarding/index.tsx");
+    expect(root).toContain('return <Redirect href="/onboarding" />');
+    expect(root).not.toContain("useAccountLifecycle");
+    expect(onboarding).not.toContain('lifecycle.state === "provisioning"');
+    expect(onboarding).not.toContain('lifecycle.state === "recoverable_error"');
+    expect(onboarding).toContain("client.setQueryData");
+    expect(onboarding).toContain('router.replace("/dashboard")');
+  });
+  test("provisioning and callback operations remain bounded", () => {
     const profileHook = source("hooks/use-profile.ts");
     const callback = source("app/auth/callback.tsx");
-    const root = source("app/index.tsx");
     expect(source("services/profile-service.ts")).toContain("PROFILE_BOOTSTRAP_TIMEOUT_MS");
     expect(profileHook).toContain("PROVISIONING_UI_TIMEOUT_MS = 18_000");
     expect(profileHook).toContain("setProvisioningTimedOut(true)");
+    expect(profileHook).toContain('const provisioning = profile.data');
     expect(callback).toContain("AUTH_CALLBACK_TIMEOUT_MS = 12_000");
     expect(callback).toContain("withTimeout(consumeAuthLink");
     expect(callback).toContain("setFailed(true)");
-    expect(root).toContain("lifecycle.retry()");
   });
   test("fresh-account lifecycle copy supports Portuguese and English", () => {
     const root = source("app/index.tsx");
     const callback = source("app/auth/callback.tsx");
     expect(root).toContain('"pt-BR"');
-    expect(root).toContain("Preparing your space");
+    expect(root).toContain("Restoring your session");
     expect(callback).toContain('"pt-BR"');
     expect(callback).toContain("Back to sign in");
   });
-  test("visible authentication brand is KIVRYN", () => {
+  test("visible authentication brand and launcher asset are KIVRYN", () => {
     const auth = source("features/auth/auth-screen.tsx");
+    const appConfig = source("app.json");
     expect(auth).toContain(">KIVRYN<");
     expect(auth).not.toContain(">N E X O R A<");
+    expect(appConfig).toContain("kivryn-app-icon.png");
+    expect(appConfig).not.toContain('"icon": "./assets/branding/nexora-app-icon-master.png"');
   });
 });
