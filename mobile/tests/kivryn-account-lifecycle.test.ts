@@ -66,7 +66,7 @@ describe("KIVRYN-003 fresh account lifecycle", () => {
   });
   test("visible authentication brand is KIVRYN", () => {
     const auth = source("features/auth/auth-screen.tsx");
-    expect(auth).toContain("K I V R Y N");
+    expect(auth).toContain(">KIVRYN<");
     expect(auth).not.toContain(">N E X O R A<");
   });
 });
