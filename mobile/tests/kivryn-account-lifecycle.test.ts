@@ -1,11 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import {
   lifecycleDestination,
   resolveAccountLifecycle,
   resolveAuthStatus,
 } from "../lib/auth-state";
-const source = (path: string) => readFileSync(path, "utf8");
+const source = (path: string) =>
+  readFileSync(fileURLToPath(new URL(`../${path}`, import.meta.url)), "utf8");
 const migration = source("../supabase/migrations/202609110001_account_bootstrap.sql");
 
 describe("KIVRYN-003 fresh account lifecycle", () => {
