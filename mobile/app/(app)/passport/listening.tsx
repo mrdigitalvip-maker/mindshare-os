@@ -1,6 +1,6 @@
 import * as Speech from "expo-speech";
 import { router } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { AppScreen } from "@/components/app-screen";
@@ -409,7 +409,7 @@ export default function PassportListening() {
   );
 }
 
-function StateCard({ title, body, children }: { title: string; body: string; children: React.ReactNode }) {
+function StateCard({ title, body, children }: { title: string; body: string; children: ReactNode }) {
   return (
     <View style={styles.stateCard}>
       <Text style={styles.stateTitle}>{title}</Text>
