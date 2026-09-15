@@ -15,3 +15,4 @@ export * from "./agent-schedule-service";
 export * from "./action-history-service";
 export * from "./background-run-service";
 export * from "./agent-skill-service";
+export * from "./agent-runtime-service";
