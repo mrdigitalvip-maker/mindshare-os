@@ -57,8 +57,8 @@ test("Agent execution persists and injects the exact specialized skill versions"
   assert.match(source, /skill_ids: skillIds/);
   assert.match(source, /skill_registry_version: KIVRYN_SKILL_REGISTRY_VERSION/);
   assert.match(source, /KIVRYN specialized skills/);
-  assert.match(source, /they do not grant mutation approval/);
-  assert.match(source, /Never invent a skill, connector, subagent, tool or authority/);
+  assert.match(source, /KIVRYN-owned authority boundaries/);
+  assert.match(source, /Never invent another connector, subagent, tool, context scope or permission/);
   assert.match(source, /skillIds,/);
 });
 
@@ -96,5 +96,6 @@ test("Android maps legacy capability IDs to the same specialized skill catalog a
   assert.match(service, /skills: resolveMobileAgentSkills\(capabilities\)/);
   assert.match(route, /agent\.skills\.length/);
   assert.match(route, /agent\.skills\.map/);
-  assert.match(route, /qualquer ação real em Tasks, Projects ou Studies continua exigindo aprovação válida/);
+  assert.match(route, /OpenAI produz raciocínio e propostas/);
+  assert.match(route, /exigem sua aprovação explícita/);
 });
