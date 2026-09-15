@@ -61,7 +61,7 @@ test("Assistant and Agents converge on the same bounded context serializer", asy
   assert.match(execution, /serializeKivrynPersonalContext\(personalContext\)/);
 });
 
-test("manual and scheduled Agents share the same context-aware server executor", async () => {
+test("manual and background Agents share the same context-aware server executor", async () => {
   const [execution, manual, scheduled] = await Promise.all([
     readFile(executionPath, "utf8"),
     readFile(manualRunPath, "utf8"),
@@ -72,5 +72,5 @@ test("manual and scheduled Agents share the same context-aware server executor",
   assert.match(execution, /contextScopes: personalContext\.scopes/);
   assert.match(manual, /contextScopes: result\.contextScopes/);
   assert.match(scheduled, /executeAgentRun\(\{/);
-  assert.match(scheduled, /trigger: "scheduled"/);
+  assert.match(scheduled, /trigger: run\.scheduled_for \? "scheduled" : "system"/);
 });
