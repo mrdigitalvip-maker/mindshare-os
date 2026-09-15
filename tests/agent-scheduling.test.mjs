@@ -6,6 +6,8 @@ const read = (path) => readFileSync(path, "utf8");
 
 const migration = read("supabase/migrations/20260915122000_agent_schedules.sql");
 const cronMigration = read("supabase/migrations/20260915123500_schedule_agent_runs_cron.sql");
+const hardeningMigration = read("supabase/migrations/20260915130000_harden_agent_schedules.sql");
+const entitlementMigration = read("supabase/migrations/20260915131500_agent_schedule_entitlement.sql");
 const sharedExecutor = read("supabase/functions/_shared/agent-execution.ts");
 const manualRun = read("supabase/functions/agent-run/index.ts");
 const scheduler = read("supabase/functions/scheduled-agent-runs/index.ts");
@@ -18,7 +20,7 @@ const mobileMore = read("mobile/app/(app)/(tabs)/more.tsx");
 const mobileLayout = read("mobile/app/(app)/_layout.tsx");
 const notificationRouting = read("mobile/lib/notification-routing.ts");
 
-test("scheduled Agents schema is owner-scoped and idempotent", () => {
+test("scheduled Agents schema is owner-scoped, coherent and idempotent", () => {
   assert.match(migration, /configure_agent_schedule/);
   assert.match(migration, /auth\.uid\(\)/);
   assert.match(migration, /agent_runs_scheduled_occurrence_unique/);
@@ -26,6 +28,18 @@ test("scheduled Agents schema is owner-scoped and idempotent", () => {
   assert.match(migration, /claim_due_agent_runs/);
   assert.match(migration, /grant execute on function public\.claim_due_agent_runs\(integer\) to service_role/);
   assert.match(migration, /schedule_frequency in \('daily', 'weekly'\)/);
+  assert.match(hardeningMigration, /agents_schedule_coherence_check/);
+  assert.match(hardeningMigration, /security definer/i);
+  assert.match(hardeningMigration, /to authenticated/);
+});
+
+test("schedule creation enforces the canonical server entitlement", () => {
+  assert.match(entitlementMigration, /public\.has_premium\(uid\)/);
+  assert.match(entitlementMigration, /public\.has_internal_full_access\(uid\)/);
+  assert.match(entitlementMigration, /message = 'premium_required'/);
+  assert.match(entitlementMigration, /a\.user_id = uid/);
+  assert.match(webService, /premium_required/);
+  assert.match(mobileService, /premium_required/);
 });
 
 test("one global server scheduler drives background Agent runs", () => {
@@ -41,7 +55,8 @@ test("one global server scheduler drives background Agent runs", () => {
 
 test("manual and scheduled runs reuse the same guarded executor", () => {
   assert.match(manualRun, /executeAgentRun/);
-  assert.match(sharedExecutor, /subscriptions/);
+  assert.match(sharedExecutor, /has_premium/);
+  assert.match(sharedExecutor, /has_internal_full_access/);
   assert.match(sharedExecutor, /premium_required/);
   assert.match(sharedExecutor, /\.eq\("user_id", userId\)/);
   assert.match(sharedExecutor, /OPENAI_API_KEY/);
