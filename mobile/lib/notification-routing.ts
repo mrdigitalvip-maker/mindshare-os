@@ -8,7 +8,8 @@ export type NativeNotificationRoute =
   | `/journeys/${string}`
   | `/projects/${string}`
   | `/studies/${string}`
-  | `/tasks/${string}`;
+  | `/tasks/${string}`
+  | `/agents/${string}`;
 
 export function normalizePushToken(value: unknown): string | null {
   if (typeof value !== "string") return null;
@@ -26,6 +27,7 @@ export function notificationRoute(data: unknown): NativeNotificationRoute {
   if (payload.kind === "project") return `/projects/${id}`;
   if (payload.kind === "study") return `/studies/${id}`;
   if (payload.kind === "task") return `/tasks/${id}`;
+  if (payload.kind === "agent") return `/agents/${id}`;
   if (payload.kind === "journey" || payload.kind === "mission")
     return payload.kind === "journey" ? `/journeys/${id}` : "/journeys";
   if (payload.kind === "weekly_challenge") return "/journeys";
