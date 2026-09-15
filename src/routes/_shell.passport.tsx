@@ -26,6 +26,7 @@ import {
   updateWebPassportMission,
   type WebPassportProfile,
 } from "@/services/passport-web-service";
+import "@/passport-learning-studio.css";
 
 export const Route = createFileRoute("/_shell/passport")({ component: PassportWorkspace });
 
@@ -42,7 +43,7 @@ const passportKeys = {
 const copy = {
   "pt-BR": {
     title: "KIVRYN Passport",
-    description: "Seu sistema internacional de idiomas, viagem e preparação prática — sincronizado com o app.",
+    description: "Seu estúdio internacional para aprender, praticar e chegar pronto — sincronizado com o app.",
     setup: "Configurar Passport",
     setupBody: "Escolha idioma, objetivo e ritmo. Essas preferências são salvas no mesmo perfil usado no Android.",
     language: "Idioma",
@@ -66,6 +67,17 @@ const copy = {
     minutesShort: "min",
     completed: "Concluída",
     complete: "Concluir lição",
+    currentLesson: "LIÇÃO ATUAL",
+    guide: "KIVI · PASSPORT GUIDE",
+    guideReady: "Uma etapa por vez. Eu acompanho seu progresso e preparo o próximo passo.",
+    noLesson: "Você concluiu todas as lições disponíveis.",
+    internationalContext: "CONTEXTO INTERNACIONAL",
+    route: "SUA ROTA",
+    routeBody: "Do aprendizado guiado até situações reais no mundo.",
+    routeStart: "Base",
+    routePractice: "Prática",
+    routeReal: "Situações reais",
+    routeReady: "Pronto para ir",
     listening: "Listening",
     listen: "Ouvir exemplo",
     noListening: "Nenhum exemplo de áudio disponível na próxima lição.",
@@ -99,7 +111,7 @@ const copy = {
   },
   en: {
     title: "KIVRYN Passport",
-    description: "Your international language, travel and practical-readiness system — synchronized with the app.",
+    description: "Your international studio to learn, practice and arrive ready — synchronized with the app.",
     setup: "Set up Passport",
     setupBody: "Choose a language, goal and pace. These preferences are saved to the same profile used on Android.",
     language: "Language",
@@ -123,6 +135,17 @@ const copy = {
     minutesShort: "min",
     completed: "Completed",
     complete: "Complete lesson",
+    currentLesson: "CURRENT LESSON",
+    guide: "KIVI · PASSPORT GUIDE",
+    guideReady: "One step at a time. I track your progress and prepare the next move.",
+    noLesson: "You completed every lesson currently available.",
+    internationalContext: "INTERNATIONAL CONTEXT",
+    route: "YOUR ROUTE",
+    routeBody: "From guided learning to real-world situations.",
+    routeStart: "Base",
+    routePractice: "Practice",
+    routeReal: "Real situations",
+    routeReady: "Ready to go",
     listening: "Listening",
     listen: "Play example",
     noListening: "No listening example is available in the next lesson.",
@@ -158,6 +181,37 @@ const copy = {
 
 type Goal = WebPassportProfile["goal"];
 const scenarios = ["airport", "hotel", "restaurant", "transport", "directions", "emergency", "shopping", "social"] as const;
+type Track = Awaited<ReturnType<typeof listWebPassportTracks>>[number];
+
+function destinationsForTrack(track?: Track) {
+  const value = `${track?.slug ?? ""} ${track?.title ?? ""}`.toLowerCase();
+  if (value.includes("span") || value.includes("espan") || value.includes("españ")) {
+    return [
+      { flag: "🇪🇸", label: "España" },
+      { flag: "🇲🇽", label: "México" },
+      { flag: "🇦🇷", label: "Argentina" },
+    ];
+  }
+  if (value.includes("fran") || value.includes("french")) {
+    return [
+      { flag: "🇫🇷", label: "France" },
+      { flag: "🇨🇦", label: "Canada" },
+      { flag: "🇧🇪", label: "Belgique" },
+    ];
+  }
+  if (value.includes("portugu")) {
+    return [
+      { flag: "🇧🇷", label: "Brasil" },
+      { flag: "🇵🇹", label: "Portugal" },
+      { flag: "🇦🇴", label: "Angola" },
+    ];
+  }
+  return [
+    { flag: "🇺🇸", label: "USA" },
+    { flag: "🇬🇧", label: "UK" },
+    { flag: "🇨🇦", label: "Canada" },
+  ];
+}
 
 function PassportWorkspace() {
   const { user } = useAuth();
@@ -437,7 +491,7 @@ function PassportReady({
 }: {
   locale: "pt-BR" | "en";
   profile: NonNullable<Awaited<ReturnType<typeof getWebPassportProfile>>>;
-  track?: Awaited<ReturnType<typeof listWebPassportTracks>>[number];
+  track?: Track;
   lessons: Awaited<ReturnType<typeof listWebPassportLessons>>;
   vocabulary: Awaited<ReturnType<typeof listWebDueVocabulary>>;
   missions: Awaited<ReturnType<typeof listWebPassportMissions>>;
@@ -459,6 +513,9 @@ function PassportReady({
   const activeSession = sessions.find((session) => session.status === "active") ?? null;
   const [scenario, setScenario] = useState<(typeof scenarios)[number]>("airport");
   const [message, setMessage] = useState("");
+  const destinations = useMemo(() => destinationsForTrack(track), [track?.slug, track?.title]);
+  const routeStages = [text.routeStart, text.routePractice, text.routeReal, text.routeReady];
+  const studioTitle = `${(track?.title ?? text.language).toUpperCase()} LEARNING STUDIO`;
 
   const playListening = () => {
     if (!listeningText || typeof window === "undefined" || !("speechSynthesis" in window)) return;
@@ -471,7 +528,7 @@ function PassportReady({
 
   return (
     <div className="grid gap-5">
-      <section className="v2-surface rounded-3xl p-6">
+      <section className="v2-surface passport-status rounded-3xl p-6">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">{track?.title ?? text.language}</p>
@@ -484,28 +541,76 @@ function PassportReady({
 
       {loading ? <p className="text-sm text-muted-foreground">{locale === "en" ? "Synchronizing Passport…" : "Sincronizando Passport…"}</p> : null}
 
-      <section className="grid gap-4 lg:grid-cols-2">
-        <article className="v2-surface rounded-2xl p-5">
-          <h3 className="text-lg font-semibold">{text.lessons}</h3>
-          <div className="mt-4 grid gap-3">
-            {lessons.map((lesson) => (
-              <div key={lesson.id} className="rounded-xl border border-border p-4">
-                <div className="flex items-start justify-between gap-3"><div><p className="font-medium">{lesson.title}</p><p className="mt-1 text-xs text-muted-foreground">{lesson.difficulty} · {lesson.estimatedMinutes} {text.minutesShort}</p></div><span className="text-xs text-muted-foreground">{lesson.status === "completed" ? text.completed : ""}</span></div>
-                <p className="mt-2 text-sm text-muted-foreground">{lesson.description}</p>
-                {lesson.status !== "completed" ? <Button className="mt-3" size="sm" onClick={() => completeLesson(lesson.id)}>{text.complete}</Button> : null}
+      <section className="passport-learning-studio" aria-labelledby="passport-studio-title">
+        <div className="passport-studio-grid" aria-hidden="true" />
+        <div className="passport-studio-orb passport-studio-orb-a" aria-hidden="true" />
+        <div className="passport-studio-orb passport-studio-orb-b" aria-hidden="true" />
+
+        <div className="passport-studio-topline">
+          <div>
+            <p className="passport-studio-eyebrow">{studioTitle}</p>
+            <p className="passport-studio-signal"><span /> LIVE LEARNING SIGNAL</p>
+          </div>
+          <div className="passport-studio-progress">{Math.round(progress)}%</div>
+        </div>
+
+        <div className="passport-lesson-bubble">
+          <div className="passport-kivi" aria-hidden="true">
+            <div className="passport-kivi-antenna" />
+            <div className="passport-kivi-face"><span /><span /></div>
+            <div className="passport-kivi-mouth" />
+          </div>
+          <div className="passport-lesson-copy">
+            <p className="passport-guide-label">{text.guide}</p>
+            <p className="passport-current-label">{text.currentLesson}</p>
+            <h3 id="passport-studio-title">{nextLesson?.title ?? text.noLesson}</h3>
+            <p>{nextLesson?.description || text.guideReady}</p>
+            {nextLesson ? (
+              <div className="passport-lesson-meta">
+                <span>{nextLesson.difficulty}</span>
+                <span>{nextLesson.estimatedMinutes} {text.minutesShort}</span>
               </div>
+            ) : null}
+            {nextLesson ? <Button className="mt-4" size="sm" onClick={() => completeLesson(nextLesson.id)}>{text.complete}</Button> : null}
+          </div>
+        </div>
+
+        <div className="passport-destinations">
+          <p>{text.internationalContext}</p>
+          <div>
+            {destinations.map((destination) => (
+              <span key={destination.label}><b>{destination.flag}</b>{destination.label}</span>
             ))}
           </div>
-        </article>
+        </div>
 
+        <div className="passport-route-panel">
+          <div className="passport-route-heading">
+            <div><p>{text.route}</p><h4>{text.routeBody}</h4></div>
+            <strong>{completed}/{lessons.length}</strong>
+          </div>
+          <div className="passport-route-track">
+            {routeStages.map((stage, index) => {
+              const threshold = [0, 34, 67, 100][index];
+              const active = progress >= threshold;
+              return (
+                <div key={stage} className={`passport-route-step ${active ? "is-active" : ""}`}>
+                  <span>{index + 1}</span>
+                  <small>{stage}</small>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      <section className="grid gap-4 lg:grid-cols-2">
         <article className="v2-surface rounded-2xl p-5">
           <h3 className="text-lg font-semibold">{text.listening}</h3>
           <p className="mt-2 text-sm text-muted-foreground">{listeningText || text.noListening}</p>
           {listeningText ? <Button className="mt-4" onClick={playListening}>{text.listen}</Button> : null}
         </article>
-      </section>
 
-      <section className="grid gap-4 lg:grid-cols-2">
         <article className="v2-surface rounded-2xl p-5">
           <h3 className="text-lg font-semibold">{text.vocabulary}</h3>
           {!vocabulary.length ? <p className="mt-3 text-sm text-muted-foreground">{text.noVocabulary}</p> : null}
@@ -518,28 +623,30 @@ function PassportReady({
             ))}
           </div>
         </article>
+      </section>
 
+      <section className="grid gap-4 lg:grid-cols-2">
         <article className="v2-surface rounded-2xl p-5">
           <h3 className="text-lg font-semibold">{text.missions}</h3>
           {!missions.length ? <p className="mt-3 text-sm text-muted-foreground">{text.noMissions}</p> : null}
           <div className="mt-4 grid gap-3">{missions.map((mission) => <div key={mission.id} className="rounded-xl border border-border p-4"><p className="font-medium">{mission.title}</p><p className="mt-1 text-sm text-muted-foreground">{mission.prompt}</p>{mission.status === "pending" ? <div className="mt-3 flex gap-2"><Button size="sm" onClick={() => updateMission(mission.id, "completed")}>{text.finishMission}</Button><Button size="sm" variant="outline" onClick={() => updateMission(mission.id, "skipped")}>{text.skipMission}</Button></div> : <p className="mt-2 text-xs uppercase text-muted-foreground">{mission.status}</p>}</div>)}</div>
         </article>
-      </section>
 
-      <section className="v2-surface rounded-3xl p-6">
-        <h3 className="text-xl font-semibold">{text.roleplay}</h3>
-        <p className="mt-2 text-sm text-muted-foreground">{text.roleplayBody}</p>
-        {!activeSession ? (
-          <div className="mt-5 flex flex-wrap items-end gap-3">
-            <label className="grid min-w-52 gap-2 text-sm"><span className="text-muted-foreground">{text.scenario}</span><select className="rounded-xl border border-border bg-background px-3 py-3" value={scenario} onChange={(e) => setScenario(e.target.value as (typeof scenarios)[number])}>{scenarios.map((item) => <option key={item} value={item}>{text[item]}</option>)}</select></label>
-            <Button disabled={roleplayBusy} onClick={() => startRoleplay(scenario)}>{text.startRoleplay}</Button>
-          </div>
-        ) : (
-          <div className="mt-5">
-            <div className="max-h-96 space-y-3 overflow-y-auto rounded-2xl border border-border bg-background/40 p-4">{activeSession.transcript.length ? activeSession.transcript.map((entry, index) => <div key={`${entry.createdAt}-${index}`} className={`max-w-[85%] rounded-xl px-4 py-3 text-sm ${entry.role === "user" ? "ml-auto bg-primary/15" : "bg-surface"}`}><p className="text-xs uppercase tracking-wide text-muted-foreground">{entry.role === "user" ? (locale === "en" ? "You" : "Você") : "KIVRYN"}</p><p className="mt-1 whitespace-pre-wrap">{entry.content}</p></div>) : <p className="text-sm text-muted-foreground">{text.noMessages}</p>}</div>
-            <div className="mt-4 flex gap-2"><input className="min-w-0 flex-1 rounded-xl border border-border bg-background px-4 py-3" value={message} maxLength={1200} placeholder={text.message} onChange={(e) => setMessage(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && message.trim() && !roleplayBusy) { sendRoleplay(activeSession.id, message.trim()); setMessage(""); } }} /><Button disabled={!message.trim() || roleplayBusy} onClick={() => { sendRoleplay(activeSession.id, message.trim()); setMessage(""); }}>{text.send}</Button><Button variant="outline" disabled={roleplayBusy} onClick={() => endRoleplay(activeSession.id)}>{text.end}</Button></div>
-          </div>
-        )}
+        <article className="v2-surface rounded-2xl p-5">
+          <h3 className="text-lg font-semibold">{text.roleplay}</h3>
+          <p className="mt-2 text-sm text-muted-foreground">{text.roleplayBody}</p>
+          {!activeSession ? (
+            <div className="mt-5 flex flex-wrap items-end gap-3">
+              <label className="grid min-w-52 gap-2 text-sm"><span className="text-muted-foreground">{text.scenario}</span><select className="rounded-xl border border-border bg-background px-3 py-3" value={scenario} onChange={(e) => setScenario(e.target.value as (typeof scenarios)[number])}>{scenarios.map((item) => <option key={item} value={item}>{text[item]}</option>)}</select></label>
+              <Button disabled={roleplayBusy} onClick={() => startRoleplay(scenario)}>{text.startRoleplay}</Button>
+            </div>
+          ) : (
+            <div className="mt-5">
+              <div className="max-h-96 space-y-3 overflow-y-auto rounded-2xl border border-border bg-background/40 p-4">{activeSession.transcript.length ? activeSession.transcript.map((entry, index) => <div key={`${entry.createdAt}-${index}`} className={`max-w-[85%] rounded-xl px-4 py-3 text-sm ${entry.role === "user" ? "ml-auto bg-primary/15" : "bg-surface"}`}><p className="text-xs uppercase tracking-wide text-muted-foreground">{entry.role === "user" ? (locale === "en" ? "You" : "Você") : "KIVRYN"}</p><p className="mt-1 whitespace-pre-wrap">{entry.content}</p></div>) : <p className="text-sm text-muted-foreground">{text.noMessages}</p>}</div>
+              <div className="mt-4 flex gap-2"><input className="min-w-0 flex-1 rounded-xl border border-border bg-background px-4 py-3" value={message} maxLength={1200} placeholder={text.message} onChange={(e) => setMessage(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && message.trim() && !roleplayBusy) { sendRoleplay(activeSession.id, message.trim()); setMessage(""); } }} /><Button disabled={!message.trim() || roleplayBusy} onClick={() => { sendRoleplay(activeSession.id, message.trim()); setMessage(""); }}>{text.send}</Button><Button variant="outline" disabled={roleplayBusy} onClick={() => endRoleplay(activeSession.id)}>{text.end}</Button></div>
+            </div>
+          )}
+        </article>
       </section>
     </div>
   );
