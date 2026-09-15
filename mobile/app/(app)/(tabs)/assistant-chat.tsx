@@ -1,4 +1,3 @@
-import { LocalizedCopy } from "@/components/localized-copy";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
@@ -9,6 +8,7 @@ import {
   Image,
   Keyboard,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   StyleSheet,
@@ -20,9 +20,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
 import * as Speech from "expo-speech";
-import { NexoraAgent } from "@/components/nexora-agent";
+
 import { ErrorState, LoadingState } from "@/components/screen-state";
-import { useConversation, useSendChat } from "@/hooks/use-chat";
+import { useConversation, useConversations, useSendChat } from "@/hooks/use-chat";
+import { isGenericConversationTitle } from "@/lib/assistant-conversations";
 import { assistantErrorCopy, createAssistantRequestId } from "@/lib/chat-contract";
 import {
   ASSISTANT_QUICK_ACTIONS,
@@ -38,9 +39,6 @@ import {
   type ChatAttachment,
   type LocalChatAttachment,
 } from "@/lib/chat-attachments";
-import { colors, radius, spacing, typography } from "@/lib/theme";
-import { uploadChatAttachment } from "@/services/chat-attachment-service";
-import { ChatServiceError, type ChatMessage } from "@/services/chat-service";
 import {
   actionInvalidationRoots,
   actionPreview,
@@ -49,9 +47,14 @@ import {
   type NexoraAction,
   type NexoraActionStatus,
 } from "@/lib/nexora-actions";
+import { colors, radius, spacing, typography } from "@/lib/theme";
+import { useLanguage } from "@/providers/language-provider";
+import { uploadChatAttachment } from "@/services/chat-attachment-service";
+import { ChatServiceError, type ChatMessage } from "@/services/chat-service";
 import { applyNexoraAction, NexoraActionError } from "@/services/nexora-action-service";
 
 const uuid = () => createAssistantRequestId();
+
 type ProposalItem = {
   action: NexoraAction;
   actionId: string;
@@ -62,12 +65,45 @@ type ProposalItem = {
   canRetry?: boolean;
 };
 
-export default function Assistant() {
+const copy = {
+  "pt-BR": {
+    title: "KIVRYN",
+    subtitle: "Assistant",
+    newChat: "Novo chat",
+    history: "Conversas",
+    search: "Buscar conversas",
+    noHistory: "Nenhuma conversa encontrada.",
+    emptyTitle: "Como posso ajudar?",
+    emptyBody: "Pergunte, planeje ou peça uma ação. A conversa ocupa o centro; o restante fica fora do caminho.",
+    message: "Mensagem para a KIVRYN…",
+    thinking: "KIVRYN está pensando…",
+    activity: "Atualizada",
+    generic: "Conversa com a KIVRYN",
+  },
+  en: {
+    title: "KIVRYN",
+    subtitle: "Assistant",
+    newChat: "New chat",
+    history: "Conversations",
+    search: "Search conversations",
+    noHistory: "No conversations found.",
+    emptyTitle: "How can I help?",
+    emptyBody: "Ask, plan or request an action. The conversation stays central and everything else stays out of the way.",
+    message: "Message KIVRYN…",
+    thinking: "KIVRYN is thinking…",
+    activity: "Updated",
+    generic: "Conversation with KIVRYN",
+  },
+} as const;
+
+export default function AssistantChat() {
   const {
     prompt,
     conversationId: routeConversationId,
     attachment: attachmentIntent,
   } = useLocalSearchParams<{ prompt?: string; conversationId?: string; attachment?: string }>();
+  const { resolvedLocale } = useLanguage();
+  const text = copy[resolvedLocale];
   const conversationId = routeConversationId?.trim() || null;
   const list = useRef<FlatList<ChatMessage>>(null);
   const nearBottom = useRef(true);
@@ -75,11 +111,14 @@ export default function Assistant() {
   const applyingActions = useRef(new Set<string>());
   const handledPrompt = useRef<string | undefined>(undefined);
   const history = useConversation(conversationId);
+  const conversations = useConversations();
   const send = useSendChat();
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState("");
   const [attachment, setAttachment] = useState<LocalChatAttachment | null>(null);
   const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historySearch, setHistorySearch] = useState("");
   const [uploading, setUploading] = useState(false);
   const [speakingId, setSpeakingId] = useState<string | null>(null);
   const [failed, setFailed] = useState<{
@@ -93,10 +132,18 @@ export default function Assistant() {
     conversationId: string;
     items: ProposalItem[];
   } | null>(null);
+
   const messages = useMemo(
     () => reconcileAssistantMessages(history.data, optimistic),
     [history.data, optimistic],
   );
+  const filteredConversations = useMemo(() => {
+    const query = historySearch.trim().toLocaleLowerCase();
+    return (conversations.data ?? []).filter((item) => {
+      const title = isGenericConversationTitle(item.title) ? text.generic : item.title ?? text.generic;
+      return !query || title.toLocaleLowerCase().includes(query);
+    });
+  }, [conversations.data, historySearch, text.generic]);
 
   useEffect(
     () => () => {
@@ -104,28 +151,32 @@ export default function Assistant() {
     },
     [],
   );
+
   const validateDraft = (next: LocalChatAttachment) => {
     const error = validateChatAttachment(next);
-    if (error)
+    if (error) {
       Alert.alert(
         "Arquivo não suportado",
         error === "ATTACHMENT_SIZE"
           ? "Escolha um arquivo de até 6 MB."
           : "Use JPG, PNG, WEBP ou texto simples.",
       );
-    else {
-      setAttachment(next);
-      setFailed(null);
+      return;
     }
+    setAttachment(next);
+    setFailed(null);
   };
+
   const pickGallery = async () => {
     try {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permission.granted)
-        return Alert.alert(
+      if (!permission.granted) {
+        Alert.alert(
           "Acesso às fotos negado",
           "Libere o acesso nas configurações do Android para escolher uma foto.",
         );
+        return;
+      }
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ["images"],
         allowsEditing: false,
@@ -138,14 +189,17 @@ export default function Assistant() {
       Alert.alert("Galeria indisponível", "Não foi possível abrir suas fotos agora.");
     }
   };
+
   const takePhoto = async () => {
     try {
       const permission = await ImagePicker.requestCameraPermissionsAsync();
-      if (!permission.granted)
-        return Alert.alert(
+      if (!permission.granted) {
+        Alert.alert(
           "Câmera não autorizada",
           "Libere a câmera nas configurações do Android para fotografar.",
         );
+        return;
+      }
       const result = await ImagePicker.launchCameraAsync({ mediaTypes: ["images"], quality: 0.9 });
       if (result.canceled) return;
       const next = attachmentFromPickerAsset(result.assets[0], "image", uuid());
@@ -154,6 +208,7 @@ export default function Assistant() {
       Alert.alert("Câmera indisponível", "Não foi possível abrir a câmera neste aparelho.");
     }
   };
+
   const pickDocument = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
@@ -168,10 +223,7 @@ export default function Assistant() {
       Alert.alert("Arquivo indisponível", "Não foi possível abrir o seletor de arquivos.");
     }
   };
-  const openAttachmentMenu = () => {
-    Keyboard.dismiss();
-    setAttachmentMenuOpen(true);
-  };
+
   const runPicker = (picker: "camera" | "gallery" | "document") => {
     setAttachmentMenuOpen(false);
     if (picker === "camera") void takePhoto();
@@ -179,12 +231,34 @@ export default function Assistant() {
     else void pickDocument();
   };
 
+  const startNewChat = useCallback(() => {
+    void Speech.stop();
+    applyingActions.current.clear();
+    handledPrompt.current = undefined;
+    setProposal(null);
+    setDraft("");
+    setAttachment(null);
+    setFailed(null);
+    setOptimistic(null);
+    setHistoryOpen(false);
+    router.replace("/(app)/(tabs)/assistant-chat");
+  }, []);
+
+  const openConversation = useCallback((id: string) => {
+    void Speech.stop();
+    applyingActions.current.clear();
+    setProposal(null);
+    setFailed(null);
+    setOptimistic(null);
+    setHistoryOpen(false);
+    router.replace({ pathname: "/(app)/(tabs)/assistant-chat", params: { conversationId: id } });
+  }, []);
+
   const submit = useCallback(
     async (value: string, retryId?: string, retryAttachment?: ChatAttachment) => {
       const content = value.trim();
       if ((!content && !attachment) || submitting.current || send.isPending || uploading) return;
       submitting.current = true;
-      // A proposal is tied to one successful canonical response, never to a later send/retry.
       setProposal(null);
       const id = retryId ?? createAssistantRequestId();
       const preservedDraft = content;
@@ -195,8 +269,7 @@ export default function Assistant() {
       try {
         uploaded ??= attachment ? await uploadChatAttachment(attachment, id) : undefined;
         const finalContent =
-          content ||
-          (attachment?.kind === "image" ? "Analise esta imagem." : "Analise este arquivo.");
+          content || (attachment?.kind === "image" ? "Analise esta imagem." : "Analise este arquivo.");
         setOptimistic({
           id,
           role: "user",
@@ -261,30 +334,40 @@ export default function Assistant() {
       void submit(prompt);
     }
   }, [conversationId, history.isSuccess, prompt, submit]);
+
   useEffect(() => {
     if (attachmentIntent === "open") setAttachmentMenuOpen(true);
   }, [attachmentIntent]);
+
   useEffect(() => {
     if (proposal && conversationId && proposal.conversationId !== conversationId) setProposal(null);
   }, [conversationId, proposal]);
+
   useEffect(() => {
-    if (messages.length && nearBottom.current)
+    if (messages.length && nearBottom.current) {
       requestAnimationFrame(() => list.current?.scrollToEnd({ animated: true }));
+    }
   }, [messages.length]);
+
   useEffect(() => {
     const subscription = Keyboard.addListener("keyboardDidShow", () => {
-      if (nearBottom.current)
+      if (nearBottom.current) {
         requestAnimationFrame(() => list.current?.scrollToEnd({ animated: true }));
+      }
     });
     return () => subscription.remove();
   }, []);
+
   const toggleSpeech = async (item: ChatMessage) => {
     try {
       await Speech.stop();
-      if (speakingId === item.id) return setSpeakingId(null);
+      if (speakingId === item.id) {
+        setSpeakingId(null);
+        return;
+      }
       setSpeakingId(item.id);
       Speech.speak(item.content, {
-        language: "pt-BR",
+        language: resolvedLocale === "pt-BR" ? "pt-BR" : "en-US",
         onDone: () => setSpeakingId(null),
         onStopped: () => setSpeakingId(null),
         onError: () => {
@@ -297,6 +380,7 @@ export default function Assistant() {
       Alert.alert("Áudio indisponível", "Não foi possível reproduzir esta resposta.");
     }
   };
+
   const updateProposalItem = (actionId: string, patch: Partial<ProposalItem>) =>
     setProposal((current) =>
       current
@@ -308,15 +392,16 @@ export default function Assistant() {
           }
         : current,
     );
+
   const confirmAction = async (item: ProposalItem) => {
-    // State updates are asynchronous; this ref closes the rapid physical-tap window synchronously.
     if (
       applyingActions.current.has(item.actionId) ||
       !proposal ||
       proposal.conversationId !== conversationId ||
       !["pending", "failed"].includes(item.status)
-    )
+    ) {
       return;
+    }
     applyingActions.current.add(item.actionId);
     updateProposalItem(item.actionId, { status: "applying", message: undefined });
     try {
@@ -333,7 +418,6 @@ export default function Assistant() {
         message: actionReceipt(item.action),
         canRetry: false,
       });
-      // Refresh failures cannot turn a confirmed server mutation into a false apply failure.
       await Promise.allSettled(
         actionInvalidationRoots([item.action]).map((root) =>
           queryClient.invalidateQueries({ queryKey: [root] }),
@@ -356,58 +440,46 @@ export default function Assistant() {
   };
 
   if (conversationId && history.isPending) return <LoadingState title="Carregando conversa…" />;
-  if (history.isError)
+  if (history.isError) {
     return (
       <ErrorState
         title="Não foi possível carregar agora."
         message="Seu histórico continua salvo. Verifique sua conexão."
         actionLabel="Tentar novamente"
-        onAction={() =>
-          conversationId ? void history.refetch() : router.replace("/(app)/(tabs)/assistant")
-        }
+        onAction={() => void history.refetch()}
       />
     );
+  }
 
   const errorCopy = failed ? assistantErrorCopy(failed.code) : null;
   const busy = send.isPending || uploading;
   const canSend = canSendAssistantMessage(draft, attachment, busy);
+
   return (
     <SafeAreaView edges={["top"]} style={styles.screen}>
       <View style={styles.header}>
-        <NexoraAgent
-          state={send.isPending ? "thinking" : failed ? "attention" : "idle"}
-          size={52}
-        />
-
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Voltar às conversas"
-          onPress={() => router.replace("/(app)/(tabs)/assistant")}
-          style={styles.back}
+          accessibilityLabel={text.history}
+          onPress={() => setHistoryOpen(true)}
+          style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
         >
-          <Text style={styles.backText}>‹</Text>
+          <Text style={styles.menuIcon}>☰</Text>
         </Pressable>
-        <View style={styles.headerCopy}>
-          <Text style={styles.brand}>
-            <LocalizedCopy copyKey="legacy.5c98cc45eda7" />
-          </Text>
-          <Text style={styles.status}>{send.isPending ? "Pensando…" : "Pronta para ajudar"}</Text>
+        <View style={styles.headerTitle}>
+          <Text style={styles.brand}>{text.title}</Text>
+          <Text style={styles.status}>{send.isPending ? text.thinking : text.subtitle}</Text>
         </View>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Novo chat"
-          onPress={() => {
-            applyingActions.current.clear();
-            setProposal(null);
-            router.replace("/(app)/(tabs)/assistant-chat");
-          }}
-          style={styles.newButton}
+          accessibilityLabel={text.newChat}
+          onPress={startNewChat}
+          style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
         >
-          <Text style={styles.newText}>
-            <LocalizedCopy copyKey="legacy.d07958415f26" />
-          </Text>
+          <Text style={styles.newIcon}>＋</Text>
         </Pressable>
       </View>
+
       <KeyboardAvoidingView
         behavior={Platform.OS === "android" ? "height" : "padding"}
         keyboardVerticalOffset={0}
@@ -431,15 +503,13 @@ export default function Assistant() {
           contentContainerStyle={messages.length ? styles.list : styles.emptyList}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <NexoraAgent state="quiet" size={76} />
-              <Text style={styles.emptyTitle}>
-                <LocalizedCopy copyKey="legacy.ed095b84a6b4" />
-              </Text>
-              <Text style={styles.emptyBody}>
-                <LocalizedCopy copyKey="legacy.d8937d95f180" />
-              </Text>
+              <View style={styles.emptyMark}>
+                <Text style={styles.emptySpark}>✦</Text>
+              </View>
+              <Text style={styles.emptyTitle}>{text.emptyTitle}</Text>
+              <Text style={styles.emptyBody}>{text.emptyBody}</Text>
               <View style={styles.starters}>
-                {ASSISTANT_QUICK_ACTIONS.map((action) => (
+                {ASSISTANT_QUICK_ACTIONS.slice(0, 4).map((action) => (
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel={action.label}
@@ -449,60 +519,46 @@ export default function Assistant() {
                       if (resolved.picker) runPicker(resolved.picker);
                       else setDraft(resolved.draft);
                     }}
-                    style={styles.starter}
+                    style={({ pressed }) => [styles.starter, pressed && styles.pressed]}
                   >
-                    <Text style={styles.starterText}>{action.label}</Text>
+                    <Text numberOfLines={2} style={styles.starterText}>{action.label}</Text>
                   </Pressable>
                 ))}
               </View>
             </View>
           }
           renderItem={({ item }) => (
-            <View style={styles.messageRow}>
-              {item.role === "assistant" && (
-                <Text style={styles.author}>
-                  <LocalizedCopy copyKey="legacy.5c98cc45eda7" />
-                </Text>
-              )}
-              <View style={[styles.message, item.role === "user" ? styles.user : styles.assistant]}>
+            <View style={[styles.messageRow, item.role === "user" && styles.userRow]}>
+              {item.role === "assistant" ? <Text style={styles.author}>KIVRYN</Text> : null}
+              <View style={item.role === "user" ? styles.userMessage : styles.assistantMessage}>
                 {item.attachments.map((file) =>
                   file.kind === "image" && file.previewUri ? (
-                    <Image
-                      key={file.id}
-                      source={{ uri: file.previewUri }}
-                      style={styles.sentImage}
-                    />
+                    <Image key={file.id} source={{ uri: file.previewUri }} style={styles.sentImage} />
                   ) : (
                     <View key={file.id} style={styles.fileChip}>
                       <Text style={styles.fileName}>▤ {file.name}</Text>
-                      <Text style={styles.fileMeta}>
-                        {file.mimeType} · {formatFileSize(file.size)}
-                      </Text>
+                      <Text style={styles.fileMeta}>{file.mimeType} · {formatFileSize(file.size)}</Text>
                     </View>
                   ),
                 )}
-                <Text selectable style={styles.messageText}>
-                  {item.content}
-                </Text>
+                <Text selectable style={styles.messageText}>{item.content}</Text>
               </View>
-              {item.role === "assistant" && (
+              {item.role === "assistant" ? (
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={`${speakingId === item.id ? "Parar" : "Ouvir"} resposta da KIVRYN`}
                   onPress={() => void toggleSpeech(item)}
-                  style={styles.listen}
+                  style={({ pressed }) => [styles.listen, pressed && styles.pressed]}
                 >
-                  <Text style={styles.listenText}>
-                    {speakingId === item.id ? "Parar" : "Ouvir"}
-                  </Text>
+                  <Text style={styles.listenText}>{speakingId === item.id ? "Parar" : "Ouvir"}</Text>
                 </Pressable>
-              )}
+              ) : null}
             </View>
           )}
           ListFooterComponent={
             <>
-              {send.isPending && <Text style={styles.thinking}>✦ KIVRYN está pensando…</Text>}
-              {proposal && (
+              {send.isPending ? <Text style={styles.thinking}>✦ {text.thinking}</Text> : null}
+              {proposal ? (
                 <View style={styles.actionCard}>
                   <Text style={styles.actionEyebrow}>
                     {proposal.items.length === 1 ? "ALTERAÇÃO PROPOSTA" : "ALTERAÇÕES PROPOSTAS"}
@@ -516,15 +572,11 @@ export default function Assistant() {
                       <View key={item.actionId} style={styles.actionItem}>
                         <Text style={styles.actionTitle}>{preview.label}</Text>
                         {preview.details.map((detail) => (
-                          <Text key={detail} style={styles.actionDetail}>
-                            • {detail}
-                          </Text>
+                          <Text key={detail} style={styles.actionDetail}>• {detail}</Text>
                         ))}
-                        {item.message && (
-                          <Text accessibilityRole="alert" style={styles.actionStatus}>
-                            {item.message}
-                          </Text>
-                        )}
+                        {item.message ? (
+                          <Text accessibilityRole="alert" style={styles.actionStatus}>{item.message}</Text>
+                        ) : null}
                         {item.status === "pending" || item.status === "failed" ? (
                           <View style={styles.actionButtons}>
                             <Pressable
@@ -537,43 +589,23 @@ export default function Assistant() {
                               }
                               style={styles.cancelAction}
                             >
-                              <Text style={styles.actionButtonText}>
-                                <LocalizedCopy copyKey="legacy.1c0de5351a3d" />
-                              </Text>
+                              <Text style={styles.actionButtonMuted}>Cancelar</Text>
                             </Pressable>
-                            {(item.status === "pending" || item.canRetry) && (
-                              <Pressable
-                                onPress={() => void confirmAction(item)}
-                                style={styles.confirmAction}
-                              >
+                            {(item.status === "pending" || item.canRetry) ? (
+                              <Pressable onPress={() => void confirmAction(item)} style={styles.confirmAction}>
                                 <Text style={styles.actionButtonText}>
                                   {item.status === "failed" ? "Tentar novamente" : "Confirmar"}
                                 </Text>
                               </Pressable>
-                            )}
-                            {item.status === "failed" && !item.canRetry && (
-                              <Pressable
-                                onPress={() => {
-                                  setProposal(null);
-                                  setDraft("Atualize a proposta com os dados mais recentes.");
-                                }}
-                                style={styles.confirmAction}
-                              >
-                                <Text style={styles.actionButtonText}>
-                                  <LocalizedCopy copyKey="legacy.6e21ef6d244c" />
-                                </Text>
-                              </Pressable>
-                            )}
+                            ) : null}
                           </View>
                         ) : item.status === "applying" ? (
                           <View style={styles.applyingRow}>
                             <ActivityIndicator color={colors.primaryBright} />
-                            <Text style={styles.actionDetail}>
-                              <LocalizedCopy copyKey="legacy.4ae61ba83494" />
-                            </Text>
+                            <Text style={styles.actionDetail}>Aplicando…</Text>
                           </View>
                         ) : null}
-                        {resultRoute && item.status === "applied" && (
+                        {resultRoute && item.status === "applied" ? (
                           <Pressable
                             accessibilityRole="button"
                             onPress={() => router.push(resultRoute.href)}
@@ -581,19 +613,19 @@ export default function Assistant() {
                           >
                             <Text style={styles.actionButtonText}>{resultRoute.label}</Text>
                           </Pressable>
-                        )}
+                        ) : null}
                       </View>
                     );
                   })}
                 </View>
-              )}
+              ) : null}
             </>
           }
         />
 
-        {errorCopy && (
+        {errorCopy ? (
           <View accessibilityRole="alert" style={styles.error}>
-            <View style={{ flex: 1 }}>
+            <View style={styles.flex}>
               <Text style={styles.errorTitle}>{errorCopy.title}</Text>
               <Text style={styles.errorDetail}>{errorCopy.detail}</Text>
             </View>
@@ -601,27 +633,22 @@ export default function Assistant() {
               accessibilityRole="button"
               accessibilityLabel="Tentar enviar novamente"
               disabled={busy}
-              onPress={() =>
-                void submit(failed!.content, failed!.requestId, failed!.uploadedAttachment)
-              }
+              onPress={() => void submit(failed!.content, failed!.requestId, failed!.uploadedAttachment)}
             >
-              <Text style={styles.retry}>
-                <LocalizedCopy copyKey="legacy.e1c2744087e9" />
-              </Text>
+              <Text style={styles.retry}>Tentar novamente</Text>
             </Pressable>
           </View>
-        )}
-        {attachment && (
+        ) : null}
+
+        {attachment ? (
           <View style={styles.preview}>
             {attachment.kind === "image" ? (
               <Image source={{ uri: attachment.uri }} style={styles.thumb} />
             ) : (
               <Text style={styles.docIcon}>▤</Text>
             )}
-            <View style={{ flex: 1 }}>
-              <Text numberOfLines={1} style={styles.fileName}>
-                {attachment.name}
-              </Text>
+            <View style={styles.flex}>
+              <Text numberOfLines={1} style={styles.fileName}>{attachment.name}</Text>
               <Text style={styles.fileMeta}>
                 {attachment.mimeType} · {formatFileSize(attachment.size)}
                 {uploading ? " · Enviando…" : " · Pronto"}
@@ -638,43 +665,29 @@ export default function Assistant() {
                   setFailed(null);
                 }}
               >
-                <Text style={styles.remove}>
-                  <LocalizedCopy copyKey="legacy.5c31a5f09425" />
-                </Text>
+                <Text style={styles.remove}>×</Text>
               </Pressable>
             )}
           </View>
-        )}
-        {attachmentMenuOpen && (
+        ) : null}
+
+        {attachmentMenuOpen ? (
           <View accessibilityRole="menu" style={styles.attachmentMenu}>
             <View style={styles.menuHeading}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.menuTitle}>
-                  <LocalizedCopy copyKey="legacy.c7ccf7bdb129" />
-                </Text>
-                <Text style={styles.menuCaption}>
-                  <LocalizedCopy copyKey="legacy.c9198d410e9c" />
-                </Text>
+              <View style={styles.flex}>
+                <Text style={styles.menuTitle}>Adicionar ao chat</Text>
+                <Text style={styles.menuCaption}>Imagem, câmera ou arquivo de texto.</Text>
               </View>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Fechar opções de anexo"
-                onPress={() => setAttachmentMenuOpen(false)}
-                hitSlop={8}
-              >
-                <Text style={styles.menuClose}>
-                  <LocalizedCopy copyKey="legacy.5c31a5f09425" />
-                </Text>
+              <Pressable onPress={() => setAttachmentMenuOpen(false)} hitSlop={8}>
+                <Text style={styles.menuClose}>×</Text>
               </Pressable>
             </View>
             <View style={styles.menuActions}>
-              {(
-                [
-                  ["camera", "◎", "Câmera"],
-                  ["gallery", "▧", "Galeria"],
-                  ["document", "▤", "Arquivo .txt"],
-                ] as const
-              ).map(([value, icon, label]) => (
+              {([
+                ["camera", "◎", "Câmera"],
+                ["gallery", "▧", "Galeria"],
+                ["document", "▤", "Arquivo"],
+              ] as const).map(([value, icon, label]) => (
                 <Pressable
                   accessibilityRole="menuitem"
                   accessibilityLabel={label}
@@ -682,128 +695,256 @@ export default function Assistant() {
                   onPress={() => runPicker(value)}
                   style={({ pressed }) => [styles.menuAction, pressed && styles.pressed]}
                 >
-                  <Text style={styles.menuIcon}>{icon}</Text>
+                  <Text style={styles.menuActionIcon}>{icon}</Text>
                   <Text style={styles.menuActionText}>{label}</Text>
                 </Pressable>
               ))}
             </View>
           </View>
-        )}
-        <View style={styles.composer}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Adicionar anexo"
-            accessibilityState={{ disabled: busy, expanded: attachmentMenuOpen }}
-            disabled={busy}
-            onPress={openAttachmentMenu}
-            style={styles.attach}
-          >
-            <Text style={styles.attachText}>＋</Text>
-          </Pressable>
-          <TextInput
-            accessibilityLabel="Mensagem para a KIVRYN"
-            multiline
-            scrollEnabled
-            blurOnSubmit={false}
-            maxLength={12000}
-            placeholder="Mensagem para a KIVRYN…"
-            placeholderTextColor={colors.textMuted}
-            value={draft}
-            onChangeText={(v) => {
-              setDraft(v);
-              if (failed && v !== failed.content) setFailed(null);
-            }}
-            style={styles.input}
-            textAlignVertical="top"
-          />
+        ) : null}
 
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Enviar mensagem"
-            accessibilityState={{ disabled: !canSend, busy }}
-            disabled={!canSend}
-            onPress={() => void submit(draft)}
-            style={[styles.send, !canSend && styles.disabled]}
-          >
-            {uploading ? (
-              <ActivityIndicator color={colors.text} />
-            ) : (
-              <Text style={styles.sendText}>↑</Text>
-            )}
-          </Pressable>
+        <View style={styles.composerWrap}>
+          <View style={styles.composer}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Adicionar anexo"
+              accessibilityState={{ disabled: busy, expanded: attachmentMenuOpen }}
+              disabled={busy}
+              onPress={() => {
+                Keyboard.dismiss();
+                setAttachmentMenuOpen(true);
+              }}
+              style={({ pressed }) => [styles.attach, pressed && styles.pressed]}
+            >
+              <Text style={styles.attachText}>＋</Text>
+            </Pressable>
+            <TextInput
+              accessibilityLabel="Mensagem para a KIVRYN"
+              multiline
+              scrollEnabled
+              blurOnSubmit={false}
+              maxLength={12000}
+              placeholder={text.message}
+              placeholderTextColor={colors.textMuted}
+              value={draft}
+              onChangeText={(value) => {
+                setDraft(value);
+                if (failed && value !== failed.content) setFailed(null);
+              }}
+              style={styles.input}
+              textAlignVertical="top"
+            />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Enviar mensagem"
+              accessibilityState={{ disabled: !canSend, busy }}
+              disabled={!canSend}
+              onPress={() => void submit(draft)}
+              style={({ pressed }) => [styles.sendButton, !canSend && styles.disabled, pressed && canSend && styles.pressed]}
+            >
+              {uploading ? <ActivityIndicator color={colors.background} /> : <Text style={styles.sendText}>↑</Text>}
+            </Pressable>
+          </View>
         </View>
       </KeyboardAvoidingView>
+
+      <Modal
+        animationType="fade"
+        transparent
+        visible={historyOpen}
+        onRequestClose={() => setHistoryOpen(false)}
+      >
+        <View style={styles.modalRoot}>
+          <Pressable style={styles.backdrop} onPress={() => setHistoryOpen(false)} />
+          <SafeAreaView edges={["top", "bottom"]} style={styles.historyPanel}>
+            <View style={styles.historyHeader}>
+              <View>
+                <Text style={styles.historyTitle}>{text.history}</Text>
+                <Text style={styles.historyCaption}>KIVRYN Assistant</Text>
+              </View>
+              <Pressable onPress={() => setHistoryOpen(false)} style={styles.closeHistory}>
+                <Text style={styles.closeHistoryText}>×</Text>
+              </Pressable>
+            </View>
+            <Pressable onPress={startNewChat} style={({ pressed }) => [styles.historyNew, pressed && styles.pressed]}>
+              <Text style={styles.historyNewIcon}>＋</Text>
+              <Text style={styles.historyNewText}>{text.newChat}</Text>
+            </Pressable>
+            <TextInput
+              value={historySearch}
+              onChangeText={setHistorySearch}
+              placeholder={text.search}
+              placeholderTextColor={colors.textMuted}
+              style={styles.historySearch}
+            />
+            {conversations.isError ? (
+              <View style={styles.historyError}>
+                <Text style={styles.errorDetail}>Não foi possível carregar as conversas.</Text>
+                <Pressable onPress={() => void conversations.refetch()}>
+                  <Text style={styles.retry}>Tentar novamente</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <FlatList
+                data={filteredConversations}
+                keyExtractor={(item) => item.id}
+                contentContainerStyle={styles.historyList}
+                ListEmptyComponent={
+                  conversations.isPending ? (
+                    <ActivityIndicator color={colors.primaryBright} style={styles.historyLoader} />
+                  ) : (
+                    <Text style={styles.historyEmpty}>{text.noHistory}</Text>
+                  )
+                }
+                renderItem={({ item }) => {
+                  const title = isGenericConversationTitle(item.title) ? text.generic : item.title ?? text.generic;
+                  const active = item.id === conversationId;
+                  const date = new Date(item.updatedAt).toLocaleDateString(
+                    resolvedLocale === "pt-BR" ? "pt-BR" : "en-US",
+                    { day: "2-digit", month: "short" },
+                  );
+                  return (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={title}
+                      onPress={() => openConversation(item.id)}
+                      style={({ pressed }) => [
+                        styles.historyRow,
+                        active && styles.historyRowActive,
+                        pressed && styles.pressed,
+                      ]}
+                    >
+                      <View style={styles.historyRowCopy}>
+                        <Text numberOfLines={1} style={styles.historyRowTitle}>{title}</Text>
+                        <Text style={styles.historyRowMeta}>{text.activity} {date}</Text>
+                      </View>
+                    </Pressable>
+                  );
+                }}
+              />
+            )}
+          </SafeAreaView>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
+  flex: { flex: 1 },
   keyboardArea: { flex: 1, minHeight: 0 },
-  back: { minWidth: 44, minHeight: 44, alignItems: "center", justifyContent: "center" },
-  backText: { color: colors.text, fontSize: 34, lineHeight: 36 },
+  pressed: { opacity: 0.7 },
+  disabled: { opacity: 0.35 },
   header: {
-    minHeight: 68,
+    minHeight: 60,
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
+    backgroundColor: colors.background,
   },
-  headerCopy: { flex: 1 },
-  brand: { ...typography.eyebrow, color: colors.primaryBright, letterSpacing: 2 },
-  status: { ...typography.caption, color: colors.textMuted },
-  newButton: { minHeight: 44, justifyContent: "center", paddingHorizontal: spacing.sm },
-  newText: { ...typography.label, color: colors.primaryBright },
+  headerButton: {
+    width: 48,
+    height: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 24,
+  },
+  menuIcon: { color: colors.text, fontSize: 24 },
+  newIcon: { color: colors.text, fontSize: 28, lineHeight: 30 },
+  headerTitle: { flex: 1, alignItems: "center", justifyContent: "center" },
+  brand: { ...typography.label, color: colors.text, letterSpacing: 0.3 },
+  status: { ...typography.caption, color: colors.textMuted, marginTop: 1 },
   conversation: { flex: 1, minHeight: 0 },
-  list: { flexGrow: 1, gap: spacing.md, padding: spacing.md, paddingBottom: spacing.lg },
-  emptyList: { flexGrow: 1, justifyContent: "center", padding: spacing.lg },
-  empty: { alignItems: "center", gap: spacing.sm },
-  emptyTitle: { ...typography.heading, color: colors.text, textAlign: "center" },
-  emptyBody: { ...typography.body, color: colors.textMuted, textAlign: "center" },
-  starters: { width: "100%", gap: spacing.sm, marginTop: spacing.md },
+  list: {
+    flexGrow: 1,
+    gap: spacing.lg,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xl,
+  },
+  emptyList: {
+    flexGrow: 1,
+    justifyContent: "center",
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xl,
+  },
+  empty: { alignItems: "center" },
+  emptyMark: {
+    width: 48,
+    height: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 24,
+    backgroundColor: colors.surfaceRaised,
+  },
+  emptySpark: { color: colors.primaryBright, fontSize: 22 },
+  emptyTitle: { ...typography.heading, color: colors.text, textAlign: "center", marginTop: spacing.md },
+  emptyBody: {
+    ...typography.body,
+    maxWidth: 320,
+    color: colors.textMuted,
+    textAlign: "center",
+    marginTop: spacing.sm,
+  },
+  starters: {
+    width: "100%",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: spacing.sm,
+    marginTop: spacing.lg,
+  },
   starter: {
+    maxWidth: "48%",
     minHeight: 44,
     justifyContent: "center",
     paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     borderWidth: 1,
     borderColor: colors.border,
+    borderRadius: 22,
+    backgroundColor: colors.background,
+  },
+  starterText: { ...typography.caption, color: colors.text, textAlign: "center" },
+  messageRow: { width: "100%", minWidth: 0 },
+  userRow: { alignItems: "flex-end" },
+  author: { ...typography.caption, color: colors.textMuted, marginBottom: 6 },
+  userMessage: {
+    maxWidth: "86%",
+    paddingHorizontal: spacing.md,
+    paddingVertical: 11,
+    borderRadius: 20,
+    borderBottomRightRadius: 7,
+    backgroundColor: colors.surfaceRaised,
+  },
+  assistantMessage: {
+    width: "100%",
+    paddingVertical: 2,
+  },
+  messageText: { ...typography.body, color: colors.text, lineHeight: 24 },
+  listen: { alignSelf: "flex-start", paddingVertical: 7, paddingRight: spacing.md },
+  listenText: { ...typography.caption, color: colors.textMuted },
+  thinking: { ...typography.caption, color: colors.textMuted, paddingVertical: spacing.md },
+  sentImage: { width: 220, height: 150, borderRadius: radius.md, marginBottom: spacing.sm },
+  fileChip: {
+    marginBottom: spacing.sm,
+    padding: spacing.sm,
     borderRadius: radius.md,
     backgroundColor: colors.surface,
   },
-  starterText: { ...typography.label, color: colors.text },
-  messageRow: { minWidth: 0 },
-  author: { ...typography.caption, color: colors.primaryBright, marginBottom: 4, marginLeft: 4 },
-  message: {
-    maxWidth: 520,
-    width: "auto",
-    paddingHorizontal: spacing.md,
-    paddingVertical: 11,
-    borderRadius: radius.lg,
-  },
-  user: {
-    alignSelf: "flex-end",
-    backgroundColor: colors.accentMuted,
-    borderBottomRightRadius: radius.sm,
-  },
-  assistant: {
-    alignSelf: "flex-start",
-    backgroundColor: colors.surfaceRaised,
-    borderBottomLeftRadius: radius.sm,
-  },
-  messageText: { ...typography.body, color: colors.text },
-  listen: { alignSelf: "flex-start", paddingHorizontal: 6, paddingVertical: 7 },
-  listenText: { ...typography.caption, color: colors.primaryBright },
-  thinking: { ...typography.label, color: colors.textMuted, paddingVertical: spacing.md },
+  fileName: { ...typography.label, color: colors.text },
+  fileMeta: { ...typography.caption, color: colors.textMuted },
   actionCard: {
     marginTop: spacing.md,
     padding: spacing.md,
-    gap: spacing.sm,
+    gap: spacing.md,
     borderWidth: 1,
-    borderColor: colors.primaryBright,
+    borderColor: colors.border,
     borderRadius: radius.lg,
-    backgroundColor: colors.surfaceRaised,
+    backgroundColor: colors.surface,
   },
   actionEyebrow: { ...typography.eyebrow, color: colors.primaryBright },
   actionItem: { gap: spacing.xs },
@@ -811,56 +952,38 @@ const styles = StyleSheet.create({
   actionDetail: { ...typography.body, color: colors.textMuted },
   actionStatus: { ...typography.label, color: colors.text, marginTop: spacing.xs },
   applyingRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  actionButtons: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    gap: spacing.sm,
-    marginTop: spacing.sm,
-  },
+  actionButtons: { flexDirection: "row", justifyContent: "flex-end", gap: spacing.sm, marginTop: spacing.sm },
   cancelAction: {
-    minHeight: 44,
+    minHeight: 42,
     justifyContent: "center",
     paddingHorizontal: spacing.md,
-    borderRadius: radius.md,
+    borderRadius: 21,
     borderWidth: 1,
     borderColor: colors.border,
   },
   confirmAction: {
-    minHeight: 44,
-    minWidth: 112,
-    alignItems: "center",
+    minHeight: 42,
     justifyContent: "center",
     paddingHorizontal: spacing.md,
-    borderRadius: radius.md,
+    borderRadius: 21,
     backgroundColor: colors.primary,
   },
   openResult: {
     alignSelf: "flex-start",
-    minHeight: 44,
+    minHeight: 42,
     justifyContent: "center",
     paddingHorizontal: spacing.md,
-    borderRadius: radius.md,
+    borderRadius: 21,
     backgroundColor: colors.primary,
   },
   actionButtonText: { ...typography.label, color: colors.text },
-  applyMessage: { ...typography.label, color: colors.text, padding: spacing.md },
-  sentImage: { width: 220, height: 150, borderRadius: radius.md, marginBottom: spacing.sm },
-  fileChip: {
-    marginBottom: spacing.sm,
-    padding: spacing.sm,
-    borderRadius: radius.sm,
-    backgroundColor: colors.surface,
-  },
-  fileName: { ...typography.label, color: colors.text },
-  fileMeta: { ...typography.caption, color: colors.textMuted },
+  actionButtonMuted: { ...typography.label, color: colors.textMuted },
   error: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.danger,
   },
   errorTitle: { ...typography.label, color: colors.danger },
   errorDetail: { ...typography.caption, color: colors.textMuted },
@@ -870,12 +993,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.sm,
     marginHorizontal: spacing.md,
+    marginBottom: spacing.xs,
     padding: spacing.sm,
     borderRadius: radius.md,
     backgroundColor: colors.surfaceRaised,
   },
-  thumb: { width: 52, height: 52, borderRadius: radius.sm },
-  docIcon: { fontSize: 28, color: colors.primaryBright },
+  thumb: { width: 46, height: 46, borderRadius: radius.sm },
+  docIcon: { fontSize: 26, color: colors.primaryBright },
   remove: { fontSize: 28, color: colors.textMuted, paddingHorizontal: 8 },
   attachmentMenu: {
     marginHorizontal: spacing.md,
@@ -895,55 +1019,109 @@ const styles = StyleSheet.create({
   menuActions: { flexDirection: "row", gap: spacing.sm },
   menuAction: {
     flex: 1,
-    minHeight: 68,
+    minHeight: 64,
     alignItems: "center",
     justifyContent: "center",
     gap: spacing.xs,
     borderRadius: radius.md,
     backgroundColor: colors.surface,
   },
-  menuIcon: { color: colors.primaryBright, fontSize: 23 },
-  menuActionText: { ...typography.caption, color: colors.text, textAlign: "center" },
-  pressed: { opacity: 0.72 },
+  menuActionIcon: { color: colors.primaryBright, fontSize: 22 },
+  menuActionText: { ...typography.caption, color: colors.text },
+  composerWrap: {
+    paddingHorizontal: spacing.sm,
+    paddingTop: spacing.xs,
+    paddingBottom: Math.max(spacing.sm, 10),
+    backgroundColor: colors.background,
+  },
   composer: {
-    flexShrink: 0,
+    minHeight: 56,
     flexDirection: "row",
     alignItems: "flex-end",
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 12,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  attach: {
-    width: 46,
-    height: 48,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 23,
+    gap: spacing.xs,
+    padding: 6,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 28,
     backgroundColor: colors.surfaceRaised,
   },
-  attachText: { color: colors.primaryBright, fontSize: 26 },
+  attach: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 22,
+  },
+  attachText: { color: colors.text, fontSize: 25 },
   input: {
     ...typography.body,
     flex: 1,
-    minHeight: 48,
+    minHeight: 44,
     maxHeight: 128,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 12,
-    borderRadius: radius.md,
-    backgroundColor: colors.surfaceRaised,
+    paddingHorizontal: spacing.sm,
+    paddingTop: 11,
+    paddingBottom: 9,
     color: colors.text,
   },
-  send: {
-    width: 48,
-    height: 48,
+  sendButton: {
+    width: 44,
+    height: 44,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 24,
-    backgroundColor: colors.primary,
+    borderRadius: 22,
+    backgroundColor: colors.text,
   },
-  disabled: { opacity: 0.4 },
-  sendText: { color: colors.text, fontSize: 24, lineHeight: 26 },
+  sendText: { color: colors.background, fontSize: 23, lineHeight: 25 },
+  modalRoot: { flex: 1, flexDirection: "row" },
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.55)" },
+  historyPanel: {
+    width: "86%",
+    maxWidth: 360,
+    flex: 1,
+    paddingHorizontal: spacing.md,
+    backgroundColor: colors.background,
+    borderRightWidth: StyleSheet.hairlineWidth,
+    borderRightColor: colors.border,
+  },
+  historyHeader: {
+    minHeight: 64,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  historyTitle: { ...typography.heading, color: colors.text },
+  historyCaption: { ...typography.caption, color: colors.textMuted, marginTop: 2 },
+  closeHistory: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  closeHistoryText: { color: colors.textMuted, fontSize: 28 },
+  historyNew: {
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceRaised,
+  },
+  historyNewIcon: { color: colors.text, fontSize: 22 },
+  historyNewText: { ...typography.label, color: colors.text },
+  historySearch: {
+    ...typography.body,
+    height: 46,
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 23,
+    color: colors.text,
+    backgroundColor: colors.surface,
+  },
+  historyList: { paddingVertical: spacing.md, gap: 3 },
+  historyLoader: { marginTop: spacing.xl },
+  historyEmpty: { ...typography.body, color: colors.textMuted, textAlign: "center", marginTop: spacing.xl },
+  historyError: { gap: spacing.sm, paddingVertical: spacing.lg },
+  historyRow: { minHeight: 58, justifyContent: "center", paddingHorizontal: spacing.sm, borderRadius: radius.md },
+  historyRowActive: { backgroundColor: colors.surfaceRaised },
+  historyRowCopy: { minWidth: 0 },
+  historyRowTitle: { ...typography.label, color: colors.text },
+  historyRowMeta: { ...typography.caption, color: colors.textMuted, marginTop: 3 },
 });
