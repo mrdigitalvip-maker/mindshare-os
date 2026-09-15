@@ -60,6 +60,13 @@ Deno.serve(async (request) => {
         runId: result.runId,
         output: result.output,
         contextScopes: result.contextScopes,
+        skillIds: result.skillIds,
+        connectorIds: result.connectorIds,
+        subagentIds: result.subagentIds,
+        actionPlan: result.actionPlan,
+        planFingerprint: result.planFingerprint,
+        approvalRequired: result.approvalRequired,
+        openaiResponseId: result.openaiResponseId,
       },
     });
   } catch (error) {
