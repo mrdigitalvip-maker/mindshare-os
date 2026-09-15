@@ -20,6 +20,7 @@ import {
   listMobileAgents,
   type MobileAgent,
 } from "@/services/agent-schedule-service";
+import { listMobileActionHistory } from "@/services/action-history-service";
 
 const DAYS = [
   [1, "Seg"],
@@ -31,8 +32,36 @@ const DAYS = [
   [7, "Dom"],
 ] as const;
 
+const ACTION_LABELS: Record<string, string> = {
+  create_task: "Task criada",
+  update_task: "Task atualizada",
+  reschedule_task: "Task reagendada",
+  complete_task: "Task concluída",
+  set_task_next_action: "Próxima ação da Task atualizada",
+  set_task_blocker: "Bloqueio da Task definido",
+  clear_task_blocker: "Bloqueio da Task removido",
+  create_project: "Project criado",
+  update_project: "Project atualizado",
+  complete_project: "Project concluído",
+  add_task_to_project: "Task adicionada ao Project",
+  create_study_goal: "Meta de estudo criada",
+  update_study_goal: "Meta de estudo atualizada",
+  set_subject_next_action: "Próxima ação de estudo atualizada",
+};
+
+const DOMAIN_LABELS = {
+  tasks: "Tasks",
+  projects: "Projects",
+  studies: "Studies",
+  other: "Workspace",
+} as const;
+
 export default function Agents() {
   const query = useQuery({ queryKey: ["agents", "scheduled"], queryFn: listMobileAgents });
+  const actionHistory = useQuery({
+    queryKey: ["agents", "action-history"],
+    queryFn: () => listMobileActionHistory(6),
+  });
   const [editingId, setEditingId] = useState<string | null>(null);
   return (
     <AppScreen scroll contentContainerStyle={styles.page}>
@@ -44,9 +73,18 @@ export default function Agents() {
       </Text>
       <View style={styles.notice}>
         <Text style={styles.noticeText}>
-          Nesta edição, o Agent usa somente o próprio objetivo, instruções e briefing. Acesso automático a Projects, Tasks e outros dados entra na próxima evolução do Agentic Core.
+          KIVRYN agora mantém autoridade e histórico das ações reais de Tasks, Projects e Studies.
+          Execuções em background continuam sem mutações silenciosas: qualquer ação de workspace exige
+          aprovação válida.
         </Text>
       </View>
+
+      <ActionHistory
+        pending={actionHistory.isPending}
+        error={actionHistory.isError}
+        items={actionHistory.data ?? []}
+        retry={() => void actionHistory.refetch()}
+      />
 
       {query.isPending && <ActivityIndicator color={colors.primaryBright} />}
       {query.isError && (
@@ -100,6 +138,61 @@ export default function Agents() {
         </View>
       ))}
     </AppScreen>
+  );
+}
+
+function ActionHistory({
+  pending,
+  error,
+  items,
+  retry,
+}: {
+  pending: boolean;
+  error: boolean;
+  items: Awaited<ReturnType<typeof listMobileActionHistory>>;
+  retry: () => void;
+}) {
+  return (
+    <View style={styles.historyCard}>
+      <View style={styles.row}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.cardTitle}>Histórico de ações</Text>
+          <Text style={styles.muted}>Auditoria persistente e limitada ao proprietário.</Text>
+        </View>
+        <View style={styles.auditBadge}>
+          <Text style={styles.auditBadgeText}>AUDIT</Text>
+        </View>
+      </View>
+      {pending && <ActivityIndicator color={colors.primaryBright} />}
+      {error && (
+        <Pressable style={styles.outlineButton} onPress={retry}>
+          <Text style={styles.outlineButtonText}>Tentar histórico novamente</Text>
+        </Pressable>
+      )}
+      {!pending && !error && !items.length && (
+        <Text style={styles.muted}>Nenhuma ação de workspace aplicada ainda.</Text>
+      )}
+      {items.map((item) => (
+        <View key={item.id} style={styles.historyRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.historyTitle}>
+              {ACTION_LABELS[item.actionType] ?? item.actionType.replaceAll("_", " ")}
+            </Text>
+            <Text style={styles.muted}>
+              {DOMAIN_LABELS[item.domain]} · {new Date(item.appliedAt ?? item.createdAt).toLocaleString("pt-BR")}
+            </Text>
+          </View>
+          <Text
+            style={[
+              styles.historyStatus,
+              item.status === "failed" && styles.historyStatusFailed,
+            ]}
+          >
+            {item.status.toUpperCase()}
+          </Text>
+        </View>
+      ))}
+    </View>
   );
 }
 
@@ -281,6 +374,33 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     gap: spacing.sm,
   },
+  historyCard: {
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
+    gap: spacing.sm,
+  },
+  historyRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    paddingTop: spacing.sm,
+  },
+  historyTitle: { ...typography.label, color: colors.text },
+  historyStatus: { ...typography.eyebrow, color: colors.primaryBright, fontSize: 9 },
+  historyStatusFailed: { color: colors.danger },
+  auditBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  auditBadgeText: { ...typography.eyebrow, color: colors.primaryBright, fontSize: 9 },
   row: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm },
   cardTitle: { ...typography.heading, color: colors.text },
   muted: { ...typography.caption, color: colors.textMuted },
