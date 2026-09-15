@@ -8,6 +8,7 @@ const migration = read("supabase/migrations/20260915122000_agent_schedules.sql")
 const cronMigration = read("supabase/migrations/20260915123500_schedule_agent_runs_cron.sql");
 const hardeningMigration = read("supabase/migrations/20260915130000_harden_agent_schedules.sql");
 const entitlementMigration = read("supabase/migrations/20260915131500_agent_schedule_entitlement.sql");
+const backgroundMigration = read("supabase/migrations/20260915134000_agent_background_runs.sql");
 const sharedExecutor = read("supabase/functions/_shared/agent-execution.ts");
 const manualRun = read("supabase/functions/agent-run/index.ts");
 const scheduler = read("supabase/functions/scheduled-agent-runs/index.ts");
@@ -26,7 +27,9 @@ test("scheduled Agents schema is owner-scoped, coherent and idempotent", () => {
   assert.match(migration, /agent_runs_scheduled_occurrence_unique/);
   assert.match(migration, /pg_try_advisory_xact_lock/);
   assert.match(migration, /claim_due_agent_runs/);
-  assert.match(migration, /grant execute on function public\.claim_due_agent_runs\(integer\) to service_role/);
+  assert.match(backgroundMigration, /create or replace function public\.claim_due_agent_runs/);
+  assert.match(backgroundMigration, /from public\.claim_background_agent_runs/);
+  assert.match(backgroundMigration, /grant execute on function public\.claim_due_agent_runs\(integer\) to service_role/);
   assert.match(migration, /schedule_frequency in \('daily', 'weekly'\)/);
   assert.match(hardeningMigration, /agents_schedule_coherence_check/);
   assert.match(hardeningMigration, /security definer/i);
@@ -47,7 +50,8 @@ test("one global server scheduler drives background Agent runs", () => {
   assert.match(cronMigration, /\/functions\/v1\/scheduled-agent-runs/);
   assert.match(cronMigration, /kivryn_scheduler_secret/);
   assert.match(scheduler, /x-scheduler-secret/);
-  assert.match(scheduler, /claim_due_agent_runs/);
+  assert.match(scheduler, /enqueue_due_agent_runs/);
+  assert.match(scheduler, /claim_background_agent_runs/);
   assert.match(scheduler, /executeAgentRun/);
   assert.match(scheduler, /notification_deliveries/);
   assert.match(scheduler, /\/functions\/v1\/push-send/);
