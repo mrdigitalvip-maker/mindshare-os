@@ -230,17 +230,18 @@ export function serializeKivrynPersonalContext(context: KivrynPersonalContext, m
     lists.sort((a, b) => b.length - a.length)[0].pop();
     json = JSON.stringify(safe);
   }
-  if (json.length > maxChars) {
-    return JSON.stringify({
-      scopes: safe.scopes,
-      profile: safe.profile,
-      preferences: safe.preferences,
-      tasks: [],
-      projects: [],
-      studies: [],
-      passport: [],
-      omittedScopes: safe.omittedScopes,
-    }).slice(0, maxChars);
-  }
-  return json;
+  if (json.length <= maxChars) return json;
+
+  const minimal = JSON.stringify({
+    scopes: safe.scopes,
+    profile: null,
+    preferences: null,
+    tasks: [],
+    projects: [],
+    studies: [],
+    passport: [],
+    omittedScopes: safe.omittedScopes,
+  });
+  if (minimal.length <= maxChars) return minimal;
+  return JSON.stringify({ scopes: [], profile: null, preferences: null, tasks: [], projects: [], studies: [], passport: [], omittedScopes: [] });
 }
