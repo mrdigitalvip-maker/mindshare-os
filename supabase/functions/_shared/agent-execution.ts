@@ -9,7 +9,18 @@ export class AgentExecutionError extends Error {
 
 type AdminClient = {
   from: (table: string) => any;
+  rpc: (fn: string, args?: Record<string, unknown>) => Promise<{ data: any; error: any }>;
 };
+
+async function hasAgentEntitlement(admin: AdminClient, userId: string) {
+  const [{ data: premium, error: premiumError }, { data: internal, error: internalError }] =
+    await Promise.all([
+      admin.rpc("has_premium", { p_user: userId }),
+      admin.rpc("has_internal_full_access", { p_user: userId }),
+    ]);
+  if (premiumError || internalError) throw new AgentExecutionError("entitlement_check_failed");
+  return premium === true || internal === true;
+}
 
 export async function executeAgentRun({
   admin,
@@ -31,18 +42,8 @@ export async function executeAgentRun({
 
   let activeRunId = runId;
   try {
-    const { data: subscription } = await admin
-      .from("subscriptions")
-      .select("status,current_period_end")
-      .eq("user_id", userId)
-      .order("updated_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    const premium =
-      ["active", "trialing"].includes(subscription?.status ?? "") &&
-      !!subscription?.current_period_end &&
-      new Date(subscription.current_period_end).getTime() > Date.now();
-    if (!premium) throw new AgentExecutionError("premium_required");
+    if (!(await hasAgentEntitlement(admin, userId)))
+      throw new AgentExecutionError("premium_required");
 
     const { data: agent } = await admin
       .from("agents")
