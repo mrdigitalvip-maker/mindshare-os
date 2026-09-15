@@ -10,6 +10,10 @@ const executionPath = new URL(
   "../supabase/functions/_shared/agent-execution.ts",
   import.meta.url,
 );
+const openaiRuntimePath = new URL(
+  "../supabase/functions/_shared/kivryn-openai-agentic.ts",
+  import.meta.url,
+);
 const workerPath = new URL(
   "../supabase/functions/scheduled-agent-runs/index.ts",
   import.meta.url,
@@ -43,13 +47,16 @@ test("Edition 12 recovers stale workers and keeps the legacy claim path on the s
 });
 
 test("Edition 12 retries only transient background failures and bounds provider runtime", async () => {
-  const source = await readFile(executionPath, "utf8");
+  const [source, openaiRuntime] = await Promise.all([
+    readFile(executionPath, "utf8"),
+    readFile(openaiRuntimePath, "utf8"),
+  ]);
   assert.match(source, /RETRYABLE_BACKGROUND_ERRORS/);
   assert.match(source, /MAX_BACKGROUND_ATTEMPTS = 3/);
   assert.match(source, /provider_rate_limited/);
   assert.match(source, /provider_unavailable/);
   assert.match(source, /provider_timeout/);
-  assert.match(source, /OPENAI_AGENT_TIMEOUT_MS/);
+  assert.match(openaiRuntime, /OPENAI_AGENT_TIMEOUT_MS/);
   assert.match(source, /status: "retry_wait"/);
   assert.match(source, /retryScheduled/);
   assert.match(source, /context_scopes: personalContext\.scopes/);
