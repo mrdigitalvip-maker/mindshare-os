@@ -34,7 +34,10 @@ test("mobile onboarding asks for a first win before marking onboarding complete"
   assert.match(source, /What do you want to do first\?/);
   assert.match(source, /primary_goal: choice\.goal/);
   assert.match(source, /router\.replace\(choice\.destination\)/);
-  assert.match(source, /profile\.data\?\.onboarded && !busy/);
+  assert.match(source, /const completionInFlight = useRef\(false\)/);
+  assert.match(source, /profile\.data\?\.onboarded && !busy && !completionInFlight\.current/);
+  assert.match(source, /completionInFlight\.current = true/);
+  assert.match(source, /catch \{\s*completionInFlight\.current = false/);
 
   for (const route of ["/assistant", "/projects", "/studies", "/productivity"])
     assert.ok(source.includes(`destination: \"${route}\"`), route);
