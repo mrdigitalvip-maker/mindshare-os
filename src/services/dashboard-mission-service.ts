@@ -37,6 +37,30 @@ function isMission(value: unknown): value is DashboardMission {
   );
 }
 
+/**
+ * PostgREST can serialize a PostgreSQL NULL composite as an object whose
+ * attributes are all null. That is the RPC's legitimate "no mission today"
+ * result, not a transport or contract error.
+ */
+export function dashboardMissionFromRpc(payload: unknown): DashboardMission | null {
+  if (payload == null) return null;
+
+  if (Array.isArray(payload)) {
+    if (payload.length === 0) return null;
+    if (payload.length !== 1) throw new Error("invalid_daily_mission_response");
+    return dashboardMissionFromRpc(payload[0]);
+  }
+
+  if (typeof payload !== "object") throw new Error("invalid_daily_mission_response");
+
+  const row = payload as Record<string, unknown>;
+  const values = Object.values(row);
+  if (values.length > 0 && values.every((value) => value === null)) return null;
+
+  if (!isMission(row)) throw new Error("invalid_daily_mission_response");
+  return row;
+}
+
 export async function loadDashboardDailyMission(): Promise<DashboardMission | null> {
   // Ensure the restored browser session is ready before the security-definer RPC
   // runs. This is especially important immediately after OAuth redirects.
@@ -47,8 +71,5 @@ export async function loadDashboardDailyMission(): Promise<DashboardMission | nu
   });
   if (error) throw new Error(error.message || "daily_mission_failed");
 
-  const candidate = Array.isArray(data) ? data[0] : data;
-  if (candidate == null) return null;
-  if (!isMission(candidate)) throw new Error("invalid_daily_mission_response");
-  return candidate;
+  return dashboardMissionFromRpc(data);
 }
