@@ -1,4 +1,5 @@
 import { approvedKivrynSteps, validateKivrynApproval } from "./kivryn-action-approval.ts";
+import { deterministicKivrynUuid } from "./kivryn-ids.ts";
 import type { KivrynActionPlan } from "./kivryn-agentic-plan.ts";
 
 export interface KivrynExecutionCommand {
@@ -28,8 +29,8 @@ export function prepareKivrynExecution(input: {
   const request = safeToken(input.requestId);
   if (!run || !request) return [];
   return approvedKivrynSteps(input.plan, grant).map((step) => ({
-    actionId: `agentic_${run}_${safeToken(step.id)}`,
-    requestId: `${request}_${safeToken(step.id)}`,
+    actionId: deterministicKivrynUuid(`action:${run}:${step.id}`),
+    requestId: deterministicKivrynUuid(`request:${request}:${run}:${step.id}`),
     stepId: step.id,
     action: { ...step.input, action_type: step.action },
   }));

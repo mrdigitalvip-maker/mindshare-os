@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { ActionHistoryPanel } from "@/components/action-history-panel";
 import { AgentService, workspaceQueryKeys } from "@/services";
 import { useSubscription } from "@/hooks/use-subscription";
 import { MetricCard, PremiumGate, WorkspaceShell } from "@/components/workspace-ui";
@@ -94,6 +95,7 @@ function Agents() {
             }
           />
         </div>
+        <ActionHistoryPanel />
         <div className="relative">
           <Search className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
           <Input
