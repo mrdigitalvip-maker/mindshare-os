@@ -41,6 +41,7 @@ export default function AppLayout() {
         <Stack.Screen name="arena" options={{ headerShown: false }} />
         <Stack.Screen name="challenges" options={{ headerShown: false }} />
         <Stack.Screen name="community" options={{ headerShown: false }} />
+        <Stack.Screen name="agents" options={{ headerShown: false }} />
         <Stack.Screen name="passport/index" options={{ headerShown: false }} />
         <Stack.Screen name="passport/setup" options={{ headerShown: false }} />
         <Stack.Screen name="passport/placement" options={{ headerShown: false }} />
