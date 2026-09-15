@@ -7,6 +7,7 @@ import {
   Circle,
   GraduationCap,
   Route as RouteIcon,
+  Sparkles,
 } from "lucide-react";
 import { DailyMissionCard } from "@/components/daily-mission-card";
 import { CommandSectionHeading, CommandState } from "@/components/dashboard/v2-command-ui";
@@ -67,6 +68,93 @@ function Dashboard() {
   }).format(new Date());
   const activeWorkLoading = projects.isLoading || studies.isLoading || journeys.isLoading;
   const activeWorkUnavailable = projects.isError && studies.isError && journeys.isError;
+  const discoveryReady =
+    !projects.isLoading &&
+    !tasks.isLoading &&
+    !studies.isLoading &&
+    !journeys.isLoading &&
+    !projects.isError &&
+    !tasks.isError &&
+    !studies.isError &&
+    !journeys.isError;
+  const showDiscovery =
+    discoveryReady &&
+    (projects.data?.length ?? 0) === 0 &&
+    (tasks.data?.length ?? 0) === 0 &&
+    (studies.data?.length ?? 0) === 0 &&
+    (journeys.data?.length ?? 0) === 0;
+  const discovery =
+    resolvedLocale === "pt-BR"
+      ? {
+          eyebrow: "COMECE POR AQUI",
+          title: "A KIVRYN transforma intenção em progresso real.",
+          body: "Seu espaço ainda está vazio. Em vez de deixar você diante de vários módulos sem direção, comece por uma destas quatro portas.",
+          items: [
+            {
+              to: "/assistant" as const,
+              title: "Pensar com a KIVRYN",
+              copy: "Converse com a IA usando o contexto do seu próprio espaço de trabalho.",
+              action: "Abrir Assistente",
+              icon: Bot,
+            },
+            {
+              to: "/projects" as const,
+              title: "Transformar objetivo em execução",
+              copy: "Organize projetos, próximas ações e tarefas que realmente movem o trabalho.",
+              action: "Criar projeto",
+              icon: BriefcaseBusiness,
+            },
+            {
+              to: "/studies" as const,
+              title: "Aprender com estrutura",
+              copy: "Crie disciplinas, sessões de foco e use IA para aprofundar o que está estudando.",
+              action: "Abrir Estudos",
+              icon: GraduationCap,
+            },
+            {
+              to: "/journeys" as const,
+              title: "Construir momentum",
+              copy: "Converta metas em jornadas, missões e progresso verificável ao longo do tempo.",
+              action: "Explorar Jornadas",
+              icon: RouteIcon,
+            },
+          ],
+        }
+      : {
+          eyebrow: "START HERE",
+          title: "KIVRYN turns intention into real progress.",
+          body: "Your workspace is still empty. Instead of dropping you into a wall of modules, start through one of these four doors.",
+          items: [
+            {
+              to: "/assistant" as const,
+              title: "Think with KIVRYN",
+              copy: "Talk with AI using the context of your own workspace.",
+              action: "Open Assistant",
+              icon: Bot,
+            },
+            {
+              to: "/projects" as const,
+              title: "Turn goals into execution",
+              copy: "Organize projects, next actions and tasks that move the work forward.",
+              action: "Create project",
+              icon: BriefcaseBusiness,
+            },
+            {
+              to: "/studies" as const,
+              title: "Learn with structure",
+              copy: "Create subjects, focus sessions and use AI to go deeper in what you study.",
+              action: "Open Studies",
+              icon: GraduationCap,
+            },
+            {
+              to: "/journeys" as const,
+              title: "Build momentum",
+              copy: "Turn goals into journeys, missions and verifiable progress over time.",
+              action: "Explore Journeys",
+              icon: RouteIcon,
+            },
+          ],
+        };
 
   return (
     <main className="command-home">
@@ -83,6 +171,50 @@ function Dashboard() {
           </Link>
         </Button>
       </header>
+
+      {showDiscovery ? (
+        <section
+          aria-labelledby="kivryn-discovery-heading"
+          className="rounded-[1.75rem] border border-[color:var(--intelligence)]/25 bg-[radial-gradient(110%_130%_at_0%_0%,color-mix(in_oklab,var(--intelligence)_16%,transparent),transparent_55%),var(--surface)] p-5 shadow-[var(--shadow-soft)] sm:p-7"
+        >
+          <div className="flex max-w-3xl items-start gap-3">
+            <div className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[color:var(--intelligence)]/30 bg-[color:var(--intelligence)]/10">
+              <Sparkles className="h-5 w-5" aria-hidden="true" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold tracking-[0.18em] text-muted-foreground">
+                {discovery.eyebrow}
+              </p>
+              <h2 id="kivryn-discovery-heading" className="mt-2 font-display text-2xl sm:text-3xl">
+                {discovery.title}
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+                {discovery.body}
+              </p>
+            </div>
+          </div>
+          <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            {discovery.items.map((item) => {
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  className="group rounded-2xl border border-border bg-background/55 p-4 transition hover:-translate-y-0.5 hover:border-[color:var(--intelligence)]/35 hover:bg-background"
+                >
+                  <Icon className="h-5 w-5" aria-hidden="true" />
+                  <h3 className="mt-4 font-medium">{item.title}</h3>
+                  <p className="mt-1.5 text-sm leading-5 text-muted-foreground">{item.copy}</p>
+                  <span className="mt-4 inline-flex items-center gap-1 text-xs font-medium">
+                    {item.action}
+                    <ArrowRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" />
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
 
       <div className="command-home__primary">
         <section
