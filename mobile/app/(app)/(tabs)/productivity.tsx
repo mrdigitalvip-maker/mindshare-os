@@ -2,114 +2,112 @@ import { useMemo, useRef, useState } from "react";
 import { useRouter } from "expo-router";
 import {
   Alert,
+  FlatList,
   Pressable,
   RefreshControl,
   ScrollView,
-  SectionList,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { AppScreen } from "@/components/app-screen";
 import { NativeFormModal } from "@/components/native-form-modal";
 import { StandardHeader } from "@/components/product-ui";
-import { EmptyState, ErrorState, LoadingState } from "@/components/screen-state";
+import { ErrorState, LoadingState } from "@/components/screen-state";
 import { useProjects, useTasks, useWorkspaceMutations } from "@/hooks/use-workspaces";
-import {
-  getFocusTask,
-  getRescheduleDate,
-  getTaskAttentionSummary,
-  getTaskCounts,
-  getTaskDuePresentation,
-  getTaskExecutionState,
-  getTaskPriorityLabel,
-  getTasksForQueue,
-  type TaskQueue,
-} from "@/lib/task-selectors";
-import { colors, radius, shadows, spacing, typography } from "@/lib/theme";
+import { colors, radius, spacing, typography } from "@/lib/theme";
 import { useLanguage } from "@/providers/language-provider";
 import type { Task } from "@/services/workspace-service";
 import { cancelTaskReminder } from "@/services/notification-service";
 
-type FilterKey = "now" | "today" | "overdue" | "upcoming" | "undated" | "completed" | "all";
-const filters: FilterKey[] = ["now", "today", "overdue", "upcoming", "undated", "completed", "all"];
+type FilterKey = "today" | "upcoming" | "completed" | "all";
+const filters: FilterKey[] = ["today", "upcoming", "completed", "all"];
 const priorities = ["high", "medium", "low"] as const;
 
 const copy = {
   "pt-BR": {
     title: "Tarefas",
-    subtitle: "Execute o que move seu sistema agora.",
-    newTask: "+ Nova",
-    execution: "EXECUTION SYSTEM",
-    overdue: "atrasadas",
-    today: "hoje",
-    open: "em aberto",
-    focus: "FOCO AGORA",
-    openTask: "Abrir tarefa",
-    complete: "Concluir",
-    postpone: "Adiar",
-    intelligence: "INTELIGÊNCIA KIVRYN",
-    intelligenceCopy: "A KIVRYN lê prioridade, prazo, projeto, bloqueios e ritmo para decidir o próximo movimento.",
-    organize: "Organizar meu dia",
-    unblock: "Destravar meu trabalho",
-    live: "SISTEMA VIVO",
-    liveCopy: "Tarefas atualizam Projetos, Dashboard, missões e o contexto do KIVRYN Core em todo o app.",
-    calendar: "CALENDAR READY",
-    calendarCopy: "Lembretes já funcionam no dispositivo. Google Calendar entra aqui quando o Connections Hub estiver conectado, sem duplicar prazos.",
-    queue: "FILA DE EXECUÇÃO",
-    syncing: "Sincronizando…",
-    updated: "Atualizado",
-    pending: "Atualização pendente",
-    filters: {
-      now: "Agora",
-      today: "Hoje",
-      overdue: "Atrasadas",
-      upcoming: "Próximas",
-      undated: "Sem prazo",
-      completed: "Concluídas",
-      all: "Todas",
-    },
+    newTask: "Nova tarefa",
+    search: "Pesquisar tarefas",
+    create: "Criar uma tarefa",
+    add: "Adicionar",
+    loading: "Carregando tarefas…",
+    error: "Não foi possível carregar suas tarefas.",
+    retry: "Tentar novamente",
+    empty: "Nenhuma tarefa aqui.",
+    emptyHint: "Crie uma tarefa ou escolha outra lista.",
+    start: "Comece agora",
+    startHint: "Crie uma primeira tarefa útil com um toque.",
+    filters: { today: "Hoje", upcoming: "Próximas", completed: "Concluídas", all: "Tudo" },
+    templates: [
+      ["Definir minha prioridade de hoje", "Escolha o resultado mais importante para concluir hoje."],
+      ["Revisar meu projeto principal", "Abra o projeto mais importante e defina a próxima ação."],
+      ["Organizar minha próxima ação", "Transforme algo pendente em uma ação clara e executável."],
+    ],
+    edit: "Editar tarefa",
+    delete: "Excluir tarefa",
+    deleteQuestion: "Excluir tarefa?",
+    deleteBody: "Esta ação não pode ser desfeita.",
+    cancel: "Cancelar",
+    description: "Descrição (opcional)",
+    due: "Prazo (opcional)",
+    priority: "Prioridade",
+    project: "Projeto",
+    noProject: "Sem projeto",
+    high: "Alta",
+    medium: "Média",
+    low: "Baixa",
+    overdue: "Atrasada",
+    today: "Hoje",
+    noDate: "Sem prazo",
+    actionError: "Não foi possível atualizar a tarefa.",
   },
   en: {
     title: "Tasks",
-    subtitle: "Execute what moves your system now.",
-    newTask: "+ New",
-    execution: "EXECUTION SYSTEM",
-    overdue: "overdue",
-    today: "today",
-    open: "open",
-    focus: "FOCUS NOW",
-    openTask: "Open task",
-    complete: "Complete",
-    postpone: "Postpone",
-    intelligence: "KIVRYN INTELLIGENCE",
-    intelligenceCopy: "KIVRYN reads priority, deadline, project, blockers and rhythm to choose the next move.",
-    organize: "Organize my day",
-    unblock: "Unblock my work",
-    live: "LIVE SYSTEM",
-    liveCopy: "Tasks update Projects, Dashboard, missions and KIVRYN Core context across the app.",
-    calendar: "CALENDAR READY",
-    calendarCopy: "Device reminders already work. Google Calendar plugs in here when Connections Hub is connected, without duplicating deadlines.",
-    queue: "EXECUTION QUEUE",
-    syncing: "Syncing…",
-    updated: "Updated",
-    pending: "Update pending",
-    filters: {
-      now: "Now",
-      today: "Today",
-      overdue: "Overdue",
-      upcoming: "Upcoming",
-      undated: "No date",
-      completed: "Completed",
-      all: "All",
-    },
+    newTask: "New task",
+    search: "Search tasks",
+    create: "Create a task",
+    add: "Add",
+    loading: "Loading tasks…",
+    error: "We couldn't load your tasks.",
+    retry: "Try again",
+    empty: "No tasks here.",
+    emptyHint: "Create a task or choose another list.",
+    start: "Start now",
+    startHint: "Create a useful first task with one tap.",
+    filters: { today: "Today", upcoming: "Upcoming", completed: "Completed", all: "All" },
+    templates: [
+      ["Set my priority for today", "Choose the most important result to finish today."],
+      ["Review my main project", "Open the most important project and define its next action."],
+      ["Organize my next action", "Turn something pending into a clear, executable action."],
+    ],
+    edit: "Edit task",
+    delete: "Delete task",
+    deleteQuestion: "Delete task?",
+    deleteBody: "This action cannot be undone.",
+    cancel: "Cancel",
+    description: "Description (optional)",
+    due: "Due date (optional)",
+    priority: "Priority",
+    project: "Project",
+    noProject: "No project",
+    high: "High",
+    medium: "Medium",
+    low: "Low",
+    overdue: "Overdue",
+    today: "Today",
+    noDate: "No due date",
+    actionError: "We couldn't update the task.",
   },
 } as const;
 
-function localDate() {
+function localDay() {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }
+const dueKey = (value?: string | null) => (value ? value.slice(0, 10) : null);
+const priorityRank: Record<string, number> = { high: 0, medium: 1, low: 2 };
 
 export default function Productivity() {
   const router = useRouter();
@@ -118,7 +116,9 @@ export default function Productivity() {
   const tasksQuery = useTasks();
   const projectsQuery = useProjects();
   const { mutateTask } = useWorkspaceMutations();
-  const [filter, setFilter] = useState<FilterKey>("now");
+  const [filter, setFilter] = useState<FilterKey>("today");
+  const [search, setSearch] = useState("");
+  const [quickTitle, setQuickTitle] = useState("");
   const [modal, setModal] = useState(false);
   const [editing, setEditing] = useState<Task | null>(null);
   const [title, setTitle] = useState("");
@@ -126,37 +126,42 @@ export default function Productivity() {
   const [dueDate, setDueDate] = useState("");
   const [priority, setPriority] = useState("medium");
   const [projectId, setProjectId] = useState<string | null>(null);
-  const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
-  const pendingIdsRef = useRef(new Set<string>());
+  const [actionError, setActionError] = useState<string | null>(null);
+  const pendingIds = useRef(new Set<string>());
   const saveGuard = useRef(false);
   const deleteGuard = useRef(new Set<string>());
-  const [actionError, setActionError] = useState<string | null>(null);
 
-  const tasks = useMemo(() => tasksQuery.data ?? [], [tasksQuery.data]);
-  const counts = useMemo(() => getTaskCounts(tasks), [tasks]);
-  const focus = useMemo(() => getFocusTask(tasks), [tasks]);
-  const projectTitles = useMemo(
-    () => new Map((projectsQuery.data ?? []).map((project) => [project.id, project.title])),
-    [projectsQuery.data],
-  );
-  const attention = useMemo(
-    () => getTaskAttentionSummary(tasks, projectsQuery.data ?? []),
-    [projectsQuery.data, tasks],
-  );
-  const sections = useMemo(() => {
-    const data = getTasksForQueue(tasks, filter as TaskQueue);
-    return data.length ? [{ key: filter, title: text.filters[filter], data }] : [];
-  }, [filter, tasks, text.filters]);
+  const allTasks = useMemo(() => tasksQuery.data ?? [], [tasksQuery.data]);
+  const projects = useMemo(() => projectsQuery.data ?? [], [projectsQuery.data]);
+  const projectById = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects]);
+  const today = localDay();
+  const tasks = useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    return allTasks
+      .filter((task) => {
+        const due = dueKey(task.dueDate);
+        const matchesSearch = `${task.title} ${task.description} ${projectById.get(task.projectId ?? "")?.title ?? ""}`
+          .toLowerCase()
+          .includes(needle);
+        const matchesFilter =
+          (filter === "today" && !task.completed && !!due && due <= today) ||
+          (filter === "upcoming" && !task.completed && !!due && due > today) ||
+          (filter === "completed" && task.completed) ||
+          filter === "all";
+        return matchesSearch && matchesFilter;
+      })
+      .sort((a, b) => {
+        if (a.completed !== b.completed) return a.completed ? 1 : -1;
+        const dueA = dueKey(a.dueDate) ?? "9999-12-31";
+        const dueB = dueKey(b.dueDate) ?? "9999-12-31";
+        if (dueA !== dueB) return dueA.localeCompare(dueB);
+        return (priorityRank[a.priority] ?? 1) - (priorityRank[b.priority] ?? 1);
+      });
+  }, [allTasks, filter, projectById, search, today]);
 
-  if (tasksQuery.isPending) return <LoadingState title="Carregando tarefas…" />;
+  if (tasksQuery.isPending) return <LoadingState title={text.loading} />;
   if (tasksQuery.isError)
-    return (
-      <ErrorState
-        title="Não foi possível carregar suas tarefas."
-        actionLabel="Tentar novamente"
-        onAction={() => void tasksQuery.refetch()}
-      />
-    );
+    return <ErrorState title={text.error} actionLabel={text.retry} onAction={() => void tasksQuery.refetch()} />;
 
   function openEditor(task?: Task) {
     mutateTask.reset();
@@ -164,37 +169,29 @@ export default function Productivity() {
     setEditing(task ?? null);
     setTitle(task?.title ?? "");
     setDescription(task?.description ?? "");
-    setDueDate(task?.dueDate?.slice(0, 10) ?? (filter === "today" ? localDate() : ""));
+    setDueDate(task?.dueDate?.slice(0, 10) ?? "");
     setPriority(task?.priority ?? "medium");
     setProjectId(task?.projectId ?? null);
     setModal(true);
   }
 
-  function askKivryn(prompt: string) {
-    router.push({ pathname: "/assistant-chat", params: { prompt } });
-  }
-
-  function reschedule(task: Task) {
-    const apply = (option: "tomorrow" | "three-days" | "next-week") =>
-      void mutateTask
-        .mutateAsync({
-          action: "update",
-          taskId: task.id,
-          projectId: task.projectId,
-          patch: { dueDate: getRescheduleDate(option) },
-        })
-        .catch(() => setActionError("Não foi possível adiar a tarefa."));
-    Alert.alert("Adiar tarefa", "Escolha um novo prazo", [
-      { text: "Amanhã", onPress: () => apply("tomorrow") },
-      { text: "Em 3 dias", onPress: () => apply("three-days") },
-      { text: "Próxima semana", onPress: () => apply("next-week") },
-      { text: "Cancelar", style: "cancel" },
-    ]);
+  async function createQuick(nextTitle = quickTitle) {
+    const cleanTitle = nextTitle.trim();
+    if (!cleanTitle || mutateTask.isPending) return;
+    setActionError(null);
+    try {
+      await mutateTask.mutateAsync({ action: "create", title: cleanTitle, priority: "medium", dueDate: null });
+      setQuickTitle("");
+      setFilter("all");
+    } catch {
+      setActionError(text.actionError);
+    }
   }
 
   async function save() {
-    if (saveGuard.current || mutateTask.isPending) return;
+    if (saveGuard.current || mutateTask.isPending || !title.trim()) return;
     saveGuard.current = true;
+    setActionError(null);
     try {
       if (editing) {
         await mutateTask.mutateAsync({
@@ -216,17 +213,16 @@ export default function Productivity() {
       }
       setModal(false);
     } catch {
-      // Keep the form intact for correction/retry.
+      setActionError(text.actionError);
     } finally {
       saveGuard.current = false;
     }
   }
 
   async function toggle(task: Task) {
-    if (pendingIdsRef.current.has(task.id)) return;
-    pendingIdsRef.current.add(task.id);
+    if (pendingIds.current.has(task.id)) return;
+    pendingIds.current.add(task.id);
     setActionError(null);
-    setPendingIds((current) => new Set(current).add(task.id));
     try {
       await mutateTask.mutateAsync({
         action: "update",
@@ -238,22 +234,17 @@ export default function Productivity() {
       });
       if (!task.completed) await cancelTaskReminder(task.id);
     } catch {
-      setActionError("Não foi possível atualizar a tarefa.");
+      setActionError(text.actionError);
     } finally {
-      pendingIdsRef.current.delete(task.id);
-      setPendingIds((current) => {
-        const next = new Set(current);
-        next.delete(task.id);
-        return next;
-      });
+      pendingIds.current.delete(task.id);
     }
   }
 
   function confirmDelete(task: Task) {
-    Alert.alert("Excluir tarefa?", "Esta ação não pode ser desfeita.", [
-      { text: "Cancelar", style: "cancel" },
+    Alert.alert(text.deleteQuestion, text.deleteBody, [
+      { text: text.cancel, style: "cancel" },
       {
-        text: "Excluir",
+        text: text.delete,
         style: "destructive",
         onPress: () => {
           if (deleteGuard.current.has(task.id)) return;
@@ -262,40 +253,47 @@ export default function Productivity() {
             .mutateAsync({ action: "delete", taskId: task.id, projectId: task.projectId })
             .then(() => cancelTaskReminder(task.id))
             .then(() => setModal(false))
-            .catch(() => setActionError("Não foi possível excluir a tarefa."))
+            .catch(() => setActionError(text.actionError))
             .finally(() => deleteGuard.current.delete(task.id));
         },
       },
     ]);
   }
 
-  const emptyCopy =
-    filter === "today"
-      ? "Nada previsto para hoje."
-      : filter === "overdue"
-        ? "Nenhuma tarefa atrasada."
-        : filter === "completed"
-          ? "Nenhuma tarefa concluída."
-          : filter === "now"
-            ? "Seu espaço de execução está livre."
-            : `Nenhuma tarefa em ${text.filters[filter].toLowerCase()}.`;
-
   return (
-    <AppScreen contentContainerStyle={styles.page}>
+    <AppScreen keyboard includeBottomInset contentContainerStyle={styles.page}>
       <StandardHeader
         title={text.title}
-        subtitle={text.subtitle}
         action={
-          <Pressable accessibilityRole="button" onPress={() => openEditor()} style={styles.add}>
-            <Text style={styles.addText}>{text.newTask}</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel={text.newTask} onPress={() => openEditor()} style={styles.headerAdd}>
+            <Text style={styles.headerAddText}>＋</Text>
           </Pressable>
         }
       />
 
-      <SectionList
-        sections={sections}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
+        {filters.map((item) => (
+          <Pressable key={item} onPress={() => setFilter(item)} style={[styles.filter, filter === item && styles.filterActive]}>
+            <Text style={[styles.filterText, filter === item && styles.filterTextActive]}>{text.filters[item]}</Text>
+          </Pressable>
+        ))}
+      </ScrollView>
+
+      <View style={styles.searchBox}>
+        <Text style={styles.searchIcon}>⌕</Text>
+        <TextInput
+          value={search}
+          onChangeText={setSearch}
+          placeholder={text.search}
+          placeholderTextColor={colors.textMuted}
+          style={styles.searchInput}
+          returnKeyType="search"
+        />
+      </View>
+
+      <FlatList
+        data={tasks}
         keyExtractor={(item) => item.id}
-        stickySectionHeadersEnabled={false}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -305,306 +303,312 @@ export default function Productivity() {
             onRefresh={() => void Promise.all([tasksQuery.refetch(), projectsQuery.refetch()])}
           />
         }
-        contentContainerStyle={sections.length ? styles.list : styles.empty}
-        ListHeaderComponent={
-          <View style={styles.headerContent}>
-            <Text accessibilityLiveRegion="polite" style={styles.syncState}>
-              {tasksQuery.isRefetching || projectsQuery.isRefetching
-                ? text.syncing
-                : tasksQuery.dataUpdatedAt
-                  ? `${text.updated} ${new Date(tasksQuery.dataUpdatedAt).toLocaleTimeString(resolvedLocale, { hour: "2-digit", minute: "2-digit" })}`
-                  : text.pending}
-            </Text>
-
-            <View style={styles.commandCard}>
-              <View style={styles.glowA} />
-              <View style={styles.glowB} />
-              <Text style={styles.commandEyebrow}>{text.execution}</Text>
-              <View style={styles.metricsRow}>
-                <Metric value={counts.overdue} label={text.overdue} danger={counts.overdue > 0} />
-                <View style={styles.divider} />
-                <Metric value={counts.today} label={text.today} />
-                <View style={styles.divider} />
-                <Metric value={counts.open} label={text.open} />
-              </View>
-            </View>
-
-            {focus ? (
-              <View style={styles.focusCard}>
-                <Text style={styles.eyebrow}>{text.focus}</Text>
-                <Text numberOfLines={2} style={styles.focusTitle}>{focus.title}</Text>
-                <Text style={styles.focusMeta}>
-                  {getTaskDuePresentation(focus)} · {getTaskPriorityLabel(focus.priority)}
-                </Text>
-                {projectTitles.get(focus.projectId ?? "") ? (
-                  <Text style={styles.focusProject}>◇ {projectTitles.get(focus.projectId!)}</Text>
-                ) : null}
-                <View style={styles.focusActions}>
-                  <Pressable onPress={() => router.push(`/tasks/${focus.id}`)} style={styles.primaryButton}>
-                    <Text style={styles.primaryText}>{text.openTask}</Text>
-                  </Pressable>
-                  <Pressable onPress={() => void toggle(focus)} style={styles.primaryButton}>
-                    <Text style={styles.primaryText}>{text.complete}</Text>
-                  </Pressable>
-                  <Pressable onPress={() => reschedule(focus)} style={styles.secondaryButton}>
-                    <Text style={styles.secondaryText}>{text.postpone}</Text>
-                  </Pressable>
-                </View>
-              </View>
-            ) : null}
-
-            <View style={styles.aiCard}>
-              <View style={styles.aiIcon}><Text style={styles.aiSpark}>✦</Text></View>
-              <View style={styles.flex}>
-                <Text style={styles.eyebrow}>{text.intelligence}</Text>
-                <Text style={styles.bodyMuted}>{text.intelligenceCopy}</Text>
-              </View>
-              <View style={styles.aiActions}>
-                <Pressable
-                  onPress={() => askKivryn("Analise minhas tarefas atuais e organize meu dia por impacto, urgência, projeto e bloqueios. Proponha as mudanças necessárias, mas só aplique depois da minha confirmação.")}
-                  style={styles.primaryPill}
-                >
-                  <Text style={styles.primaryPillText}>{text.organize}</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => askKivryn("Analise minhas tarefas bloqueadas, atrasadas e sem próxima ação. Diga o que está travando meu trabalho e proponha como destravar agora.")}
-                  style={styles.secondaryPill}
-                >
-                  <Text style={styles.secondaryPillText}>{text.unblock}</Text>
-                </Pressable>
-              </View>
-            </View>
-
-            {attention.length ? (
-              <View style={styles.attention}>
-                <Text style={styles.eyebrow}>SINAIS DO SISTEMA</Text>
-                {attention.slice(0, 3).map((message) => (
-                  <Text key={message} style={styles.attentionText}>• {message}</Text>
-                ))}
-              </View>
-            ) : null}
-
-            <View style={styles.liveCard}>
-              <Text style={styles.eyebrow}>{text.live}</Text>
-              <Text style={styles.bodyMuted}>{text.liveCopy}</Text>
-            </View>
-
-            <View style={styles.calendarCard}>
-              <View style={styles.calendarGlyph}><Text style={styles.calendarGlyphText}>◷</Text></View>
-              <View style={styles.flex}>
-                <Text style={styles.eyebrow}>{text.calendar}</Text>
-                <Text style={styles.bodyMuted}>{text.calendarCopy}</Text>
-              </View>
-            </View>
-
-            {actionError ? <Text accessibilityRole="alert" style={styles.error}>{actionError}</Text> : null}
-            {projectsQuery.isError ? (
-              <Pressable onPress={() => void projectsQuery.refetch()}>
-                <Text style={styles.error}>Não foi possível atualizar os projetos vinculados. Tentar novamente.</Text>
-              </Pressable>
-            ) : null}
-
-            <Text style={styles.sectionEyebrow}>{text.queue}</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
-              {filters.map((item) => (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: item === filter }}
-                  key={item}
-                  onPress={() => setFilter(item)}
-                  style={[styles.filter, item === filter && styles.activeFilter]}
-                >
-                  <Text style={[styles.filterText, item === filter && styles.activeText]}>
-                    {text.filters[item]}
-                    {item === "today" && counts.today ? ` ${counts.today}` : item === "overdue" && counts.overdue ? ` ${counts.overdue}` : ""}
-                  </Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-          </View>
-        }
-        ListEmptyComponent={<EmptyState title={emptyCopy} actionLabel="Nova tarefa" onAction={() => openEditor()} />}
-        renderSectionHeader={({ section }) => (
-          <Text accessibilityRole="header" style={styles.sectionTitle}>
-            {section.title} <Text style={styles.sectionCount}>{section.data.length}</Text>
-          </Text>
-        )}
+        contentContainerStyle={[styles.list, tasks.length === 0 && styles.listEmpty]}
         renderItem={({ item }) => (
           <TaskRow
             task={item}
-            projectTitle={projectTitles.get(item.projectId ?? "")}
-            pending={pendingIds.has(item.id)}
+            projectTitle={projectById.get(item.projectId ?? "")?.title}
+            text={text}
+            locale={resolvedLocale}
             onToggle={() => void toggle(item)}
-            onEdit={() => router.push(`/tasks/${item.id}`)}
+            onOpen={() => router.push(`/tasks/${item.id}`)}
+            onEdit={() => openEditor(item)}
             onProject={item.projectId ? () => router.push(`/projects/${item.projectId}`) : undefined}
           />
         )}
+        ListEmptyComponent={
+          allTasks.length === 0 ? (
+            <View style={styles.starters}>
+              <Text style={styles.starterHeading}>{text.start}</Text>
+              <Text style={styles.starterHint}>{text.startHint}</Text>
+              {text.templates.map(([templateTitle, templateDescription]) => (
+                <Pressable key={templateTitle} onPress={() => void createQuick(templateTitle)} style={styles.starterCard}>
+                  <View style={styles.flex}>
+                    <Text style={styles.starterTitle}>{templateTitle}</Text>
+                    <Text style={styles.starterDescription}>{templateDescription}</Text>
+                  </View>
+                  <Text style={styles.plus}>＋</Text>
+                </Pressable>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyTitle}>{text.empty}</Text>
+              <Text style={styles.emptyHint}>{text.emptyHint}</Text>
+            </View>
+          )
+        }
       />
+
+      {actionError ? <Text style={styles.error}>{actionError}</Text> : null}
+
+      <View style={styles.composer}>
+        <TextInput
+          value={quickTitle}
+          onChangeText={setQuickTitle}
+          placeholder={text.create}
+          placeholderTextColor={colors.textMuted}
+          style={styles.composerInput}
+          returnKeyType="done"
+          onSubmitEditing={() => void createQuick()}
+        />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={text.add}
+          disabled={!quickTitle.trim() || mutateTask.isPending}
+          onPress={() => void createQuick()}
+          style={({ pressed }) => [styles.composerAdd, pressed && styles.pressed, (!quickTitle.trim() || mutateTask.isPending) && styles.disabled]}
+        >
+          <Text style={styles.composerAddText}>＋</Text>
+        </Pressable>
+      </View>
 
       <NativeFormModal
         visible={modal}
-        title={editing ? "Editar tarefa" : "Nova tarefa"}
-        placeholder="Título da tarefa"
+        title={editing ? text.edit : text.newTask}
+        placeholder={text.newTask}
         value={title}
         secondaryValue={description}
-        secondaryPlaceholder="Descrição (opcional)"
+        secondaryPlaceholder={text.description}
         dateValue={dueDate}
-        datePlaceholder="Prazo (opcional)"
+        datePlaceholder={text.due}
         valueMaxLength={160}
         secondaryMaxLength={2000}
         busy={mutateTask.isPending}
-        error={mutateTask.error?.message}
-        errorMessage={editing ? "Não foi possível atualizar a tarefa." : "Não foi possível criar a tarefa."}
+        error={mutateTask.error instanceof Error ? mutateTask.error.message : actionError}
         onChange={setTitle}
         onSecondaryChange={setDescription}
         onDateChange={setDueDate}
-        onClose={() => setModal(false)}
         onSave={() => void save()}
-        destructiveAction={editing ? { label: "Excluir tarefa", busy: mutateTask.isPending, onPress: () => confirmDelete(editing) } : undefined}
+        onClose={() => setModal(false)}
+        destructiveAction={
+          editing
+            ? { label: text.delete, onPress: () => confirmDelete(editing), busy: mutateTask.isPending }
+            : undefined
+        }
       >
-        <Picker label="Prioridade">
-          {priorities.map((value) => (
-            <PickerChip key={value} label={getTaskPriorityLabel(value)} selected={priority === value} onPress={() => setPriority(value)} />
-          ))}
-        </Picker>
-        <Picker label="Projeto">
-          <PickerChip label="Sem projeto" selected={!projectId} onPress={() => setProjectId(null)} />
-          {(projectsQuery.data ?? []).map((project) => (
-            <PickerChip key={project.id} label={project.title} selected={projectId === project.id} onPress={() => setProjectId(project.id)} />
-          ))}
-        </Picker>
+        <View style={styles.formSection}>
+          <Text style={styles.formLabel}>{text.priority}</Text>
+          <View style={styles.optionRow}>
+            {priorities.map((item) => {
+              const label = item === "high" ? text.high : item === "low" ? text.low : text.medium;
+              return (
+                <Pressable key={item} onPress={() => setPriority(item)} style={[styles.option, priority === item && styles.optionActive]}>
+                  <Text style={[styles.optionText, priority === item && styles.optionTextActive]}>{label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+        <View style={styles.formSection}>
+          <Text style={styles.formLabel}>{text.project}</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.optionRow}>
+            <Pressable onPress={() => setProjectId(null)} style={[styles.option, !projectId && styles.optionActive]}>
+              <Text style={[styles.optionText, !projectId && styles.optionTextActive]}>{text.noProject}</Text>
+            </Pressable>
+            {projects.map((project) => (
+              <Pressable key={project.id} onPress={() => setProjectId(project.id)} style={[styles.option, projectId === project.id && styles.optionActive]}>
+                <Text numberOfLines={1} style={[styles.optionText, projectId === project.id && styles.optionTextActive]}>{project.title}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        </View>
       </NativeFormModal>
     </AppScreen>
   );
 }
 
-function Metric({ value, label, danger }: { value: number; label: string; danger?: boolean }) {
-  return (
-    <View style={styles.metric}>
-      <Text style={[styles.metricValue, danger && styles.danger]}>{value}</Text>
-      <Text style={styles.metricLabel}>{label}</Text>
-    </View>
-  );
-}
+function TaskRow({
+  task,
+  projectTitle,
+  text,
+  locale,
+  onToggle,
+  onOpen,
+  onEdit,
+  onProject,
+}: {
+  task: Task;
+  projectTitle?: string;
+  text: (typeof copy)["pt-BR"] | (typeof copy)["en"];
+  locale: "pt-BR" | "en";
+  onToggle(): void;
+  onOpen(): void;
+  onEdit(): void;
+  onProject?: () => void;
+}) {
+  const due = dueKey(task.dueDate);
+  const today = localDay();
+  const dueLabel = !due
+    ? text.noDate
+    : due < today
+      ? text.overdue
+      : due === today
+        ? text.today
+        : new Intl.DateTimeFormat(locale, { day: "2-digit", month: "short" }).format(new Date(`${due}T12:00:00`));
+  const priorityLabel = task.priority === "high" ? text.high : task.priority === "low" ? text.low : text.medium;
 
-function Picker({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <View style={styles.picker}>
-      <Text style={styles.pickerLabel}>{label}</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pickerOptions}>{children}</ScrollView>
-    </View>
-  );
-}
-
-function PickerChip({ label, selected, onPress }: { label: string; selected: boolean; onPress(): void }) {
-  return (
-    <Pressable accessibilityRole="button" accessibilityState={{ selected }} onPress={onPress} style={[styles.pickerChip, selected && styles.activeFilter]}>
-      <Text numberOfLines={1} style={[styles.filterText, selected && styles.activeText]}>{label}</Text>
-    </Pressable>
-  );
-}
-
-function TaskRow({ task, projectTitle, pending, onToggle, onEdit, onProject }: { task: Task; projectTitle?: string; pending: boolean; onToggle(): void; onEdit(): void; onProject?: () => void }) {
-  const state = getTaskExecutionState(task);
-  return (
-    <View style={[styles.task, state === "overdue" && styles.overdueTask, state === "completed" && styles.completedTask]}>
-      <Pressable
-        accessibilityRole="checkbox"
-        accessibilityLabel={`${task.completed ? "Reabrir" : "Concluir"} ${task.title}`}
-        accessibilityState={{ checked: task.completed, disabled: pending }}
-        disabled={pending}
-        onPress={onToggle}
-        style={[styles.checkbox, task.completed && styles.checked]}
-      >
+    <View style={styles.taskCard}>
+      <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: task.completed }} onPress={onToggle} style={[styles.check, task.completed && styles.checkDone]}>
         <Text style={styles.checkText}>{task.completed ? "✓" : ""}</Text>
       </Pressable>
-      <Pressable accessibilityRole="button" onPress={onEdit} style={({ pressed }) => [styles.taskMain, pressed && styles.pressed]}>
-        <Text numberOfLines={2} style={[styles.taskTitle, task.completed && styles.done]}>{task.title}</Text>
+      <Pressable onPress={onOpen} style={styles.taskCopy}>
+        <Text numberOfLines={2} style={[styles.taskTitle, task.completed && styles.taskTitleDone]}>{task.title}</Text>
+        {task.description ? <Text numberOfLines={2} style={styles.taskDescription}>{task.description}</Text> : null}
         <View style={styles.metaRow}>
-          <Text style={[styles.due, state === "overdue" && styles.danger]}>{getTaskDuePresentation(task)}</Text>
+          <Text style={styles.meta}>{dueLabel}</Text>
+          <Text style={styles.metaDot}>·</Text>
+          <Text style={styles.meta}>{priorityLabel}</Text>
           {projectTitle ? (
-            <Pressable accessibilityRole="link" onPress={onProject} hitSlop={10}>
-              <Text numberOfLines={1} style={styles.project}>◇ {projectTitle}</Text>
+            <Pressable onPress={onProject} style={styles.projectHit}>
+              <Text numberOfLines={1} style={styles.projectMeta}>· {projectTitle}</Text>
             </Pressable>
           ) : null}
-          <Text style={styles.priority}>{getTaskPriorityLabel(task.priority)}</Text>
         </View>
       </Pressable>
-      <Text style={styles.chevron}>›</Text>
+      <Pressable accessibilityRole="button" accessibilityLabel={text.edit} onPress={onEdit} style={styles.moreButton}>
+        <Text style={styles.moreText}>•••</Text>
+      </Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1 },
-  flex: { flex: 1 },
-  add: { minHeight: 44, justifyContent: "center", paddingHorizontal: spacing.md, borderRadius: radius.md, backgroundColor: colors.primary },
-  addText: { ...typography.label, color: colors.text },
-  headerContent: { gap: spacing.md, paddingBottom: spacing.sm },
-  syncState: { ...typography.caption, color: colors.textMuted },
-  commandCard: { position: "relative", overflow: "hidden", padding: spacing.lg, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, ...shadows.card },
-  glowA: { position: "absolute", width: 150, height: 150, borderRadius: 75, right: -45, top: -70, backgroundColor: colors.accentMuted, opacity: 0.45 },
-  glowB: { position: "absolute", width: 110, height: 110, borderRadius: 55, left: -40, bottom: -70, backgroundColor: colors.primary, opacity: 0.08 },
-  commandEyebrow: { ...typography.eyebrow, color: colors.primaryBright, marginBottom: spacing.md },
-  metricsRow: { flexDirection: "row", alignItems: "center" },
-  metric: { flex: 1, alignItems: "center" },
-  metricValue: { ...typography.title, color: colors.text },
-  metricLabel: { ...typography.caption, color: colors.textMuted, marginTop: 2 },
-  divider: { width: StyleSheet.hairlineWidth, height: 38, backgroundColor: colors.border },
-  danger: { color: colors.danger },
-  focusCard: { padding: spacing.lg, gap: spacing.xs, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.primaryBright, backgroundColor: colors.surfaceRaised, ...shadows.card },
-  eyebrow: { ...typography.eyebrow, color: colors.primaryBright },
-  focusTitle: { ...typography.heading, fontSize: 20, lineHeight: 26, color: colors.text, marginTop: spacing.xs },
-  focusMeta: { ...typography.caption, color: colors.textMuted },
-  focusProject: { ...typography.caption, color: colors.primaryBright },
-  focusActions: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.md },
-  primaryButton: { minHeight: 44, justifyContent: "center", paddingHorizontal: spacing.md, borderRadius: radius.md, backgroundColor: colors.primary },
-  primaryText: { ...typography.label, color: colors.text },
-  secondaryButton: { minHeight: 44, justifyContent: "center", paddingHorizontal: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border },
-  secondaryText: { ...typography.label, color: colors.primaryBright },
-  aiCard: { gap: spacing.md, padding: spacing.lg, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
-  aiIcon: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center", backgroundColor: colors.accentMuted },
-  aiSpark: { color: colors.primaryBright, fontSize: 20 },
-  bodyMuted: { ...typography.body, color: colors.textMuted },
-  aiActions: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
-  primaryPill: { minHeight: 42, justifyContent: "center", paddingHorizontal: spacing.md, borderRadius: radius.pill, backgroundColor: colors.primary },
-  primaryPillText: { ...typography.label, color: colors.text },
-  secondaryPill: { minHeight: 42, justifyContent: "center", paddingHorizontal: spacing.md, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border },
-  secondaryPillText: { ...typography.label, color: colors.primaryBright },
-  attention: { gap: spacing.xs, padding: spacing.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
-  attentionText: { ...typography.caption, color: colors.textMuted },
-  liveCard: { gap: spacing.xs, padding: spacing.md, borderRadius: radius.lg, backgroundColor: colors.surfaceRaised },
-  calendarCard: { flexDirection: "row", alignItems: "center", gap: spacing.md, padding: spacing.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
-  calendarGlyph: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center", backgroundColor: colors.surfaceRaised },
-  calendarGlyphText: { color: colors.primaryBright, fontSize: 22 },
-  error: { ...typography.label, color: colors.danger },
-  sectionEyebrow: { ...typography.eyebrow, color: colors.textMuted, marginTop: spacing.sm },
-  filters: { gap: spacing.sm, paddingVertical: spacing.xs },
-  filter: { height: 42, justifyContent: "center", paddingHorizontal: spacing.md, borderRadius: radius.pill, backgroundColor: colors.surface },
-  activeFilter: { backgroundColor: colors.primary },
+  page: { flex: 1, minHeight: 0, gap: spacing.sm, paddingBottom: spacing.sm },
+  flex: { flex: 1, minWidth: 0 },
+  pressed: { opacity: 0.72 },
+  disabled: { opacity: 0.45 },
+  headerAdd: {
+    width: 46,
+    height: 46,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 23,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  headerAddText: { color: colors.text, fontSize: 28, lineHeight: 30, fontWeight: "300" },
+  filters: { gap: spacing.sm, paddingVertical: 4 },
+  filter: {
+    minHeight: 40,
+    justifyContent: "center",
+    paddingHorizontal: 16,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  filterActive: { backgroundColor: colors.text, borderColor: colors.text },
   filterText: { ...typography.label, color: colors.textMuted },
-  activeText: { color: colors.text },
-  list: { paddingBottom: spacing.xl },
-  empty: { flexGrow: 1 },
-  sectionTitle: { ...typography.eyebrow, color: colors.textMuted, marginTop: spacing.md, marginBottom: spacing.sm },
-  sectionCount: { color: colors.primaryBright },
-  task: { minHeight: 72, flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingHorizontal: spacing.sm, marginBottom: spacing.sm, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
-  overdueTask: { borderLeftWidth: 3, borderLeftColor: colors.danger },
-  completedTask: { opacity: 0.62 },
-  checkbox: { width: 44, height: 44, alignItems: "center", justifyContent: "center", borderRadius: 22, borderWidth: 1, borderColor: colors.textMuted },
-  checked: { borderColor: colors.success, backgroundColor: colors.success },
-  checkText: { ...typography.label, color: colors.background },
-  taskMain: { flex: 1, minWidth: 0, paddingVertical: spacing.sm },
-  pressed: { opacity: 0.65 },
-  taskTitle: { ...typography.body, color: colors.text },
-  done: { textDecorationLine: "line-through", color: colors.textMuted },
-  metaRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: 3 },
-  due: { ...typography.caption, color: colors.textMuted },
-  project: { ...typography.caption, color: colors.primaryBright, flexShrink: 1 },
-  priority: { ...typography.caption, color: colors.textMuted },
-  chevron: { fontSize: 22, color: colors.textMuted },
-  picker: { gap: spacing.xs },
-  pickerLabel: { ...typography.label, color: colors.text },
-  pickerOptions: { gap: spacing.sm },
-  pickerChip: { height: 42, maxWidth: 180, justifyContent: "center", paddingHorizontal: spacing.md, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceRaised },
+  filterTextActive: { color: colors.background },
+  searchBox: {
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surface,
+  },
+  searchIcon: { color: colors.textMuted, fontSize: 22 },
+  searchInput: { ...typography.body, flex: 1, color: colors.text, paddingVertical: 0 },
+  list: { gap: spacing.sm, paddingTop: spacing.sm, paddingBottom: spacing.lg },
+  listEmpty: { flexGrow: 1 },
+  taskCard: {
+    minHeight: 96,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+    padding: 16,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  check: {
+    width: 27,
+    height: 27,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 1,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  checkDone: { backgroundColor: colors.primaryBright, borderColor: colors.primaryBright },
+  checkText: { color: colors.background, fontWeight: "900" },
+  taskCopy: { flex: 1, minWidth: 0 },
+  taskTitle: { ...typography.heading, color: colors.text, fontSize: 17, lineHeight: 23 },
+  taskTitleDone: { color: colors.textMuted, textDecorationLine: "line-through" },
+  taskDescription: { ...typography.body, color: colors.textSecondary, fontSize: 14, lineHeight: 20, marginTop: 5 },
+  metaRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 5, marginTop: 9 },
+  meta: { ...typography.caption, color: colors.textMuted },
+  metaDot: { ...typography.caption, color: colors.textMuted },
+  projectHit: { maxWidth: 180 },
+  projectMeta: { ...typography.caption, color: colors.textSecondary },
+  moreButton: { minWidth: 40, minHeight: 40, alignItems: "center", justifyContent: "center" },
+  moreText: { color: colors.textMuted, fontSize: 15, letterSpacing: 1 },
+  starters: { gap: spacing.sm, paddingTop: spacing.lg },
+  starterHeading: { ...typography.title, color: colors.text, fontSize: 23 },
+  starterHint: { ...typography.body, color: colors.textMuted, marginBottom: spacing.sm },
+  starterCard: {
+    minHeight: 118,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing.md,
+    padding: 17,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+  },
+  starterTitle: { ...typography.heading, color: colors.text, fontSize: 16, lineHeight: 22 },
+  starterDescription: { ...typography.body, color: colors.textMuted, fontSize: 14, lineHeight: 20, marginTop: 7 },
+  plus: { color: colors.textMuted, fontSize: 27, lineHeight: 29 },
+  emptyState: { flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 70 },
+  emptyTitle: { ...typography.heading, color: colors.text },
+  emptyHint: { ...typography.body, color: colors.textMuted, marginTop: 5, textAlign: "center" },
+  composer: {
+    minHeight: 58,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingHorizontal: 8,
+    borderRadius: 29,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceRaised,
+  },
+  composerInput: { ...typography.body, flex: 1, minHeight: 52, color: colors.text, paddingHorizontal: spacing.sm },
+  composerAdd: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 22,
+    backgroundColor: colors.text,
+  },
+  composerAddText: { color: colors.background, fontSize: 26, lineHeight: 28 },
+  error: { ...typography.caption, color: colors.danger, textAlign: "center" },
+  formSection: { gap: spacing.sm },
+  formLabel: { ...typography.label, color: colors.textSecondary },
+  optionRow: { flexDirection: "row", gap: spacing.sm },
+  option: {
+    minHeight: 38,
+    maxWidth: 220,
+    justifyContent: "center",
+    paddingHorizontal: 13,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceRaised,
+  },
+  optionActive: { backgroundColor: colors.text, borderColor: colors.text },
+  optionText: { ...typography.caption, color: colors.textMuted },
+  optionTextActive: { color: colors.background, fontWeight: "700" },
 });
