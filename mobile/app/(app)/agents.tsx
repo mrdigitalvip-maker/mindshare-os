@@ -24,6 +24,7 @@ import { listMobileActionHistory } from "@/services/action-history-service";
 import {
   listMobilePendingAgentPlans,
   reviewMobileAgentPlan,
+  runMobileAgent,
   type MobilePendingAgentPlan,
 } from "@/services/agent-runtime-service";
 
@@ -112,7 +113,7 @@ export default function Agents() {
       <Text style={styles.eyebrow}>KIVRYN AGENTIC CORE</Text>
       <Text style={styles.title}>Agents com skills, connectors e subagents</Text>
       <Text style={styles.copy}>
-        Cada Agent trabalha com contexto e especialistas internos escolhidos pelo KIVRYN e pode executar briefings no servidor mesmo com o app fechado.
+        Converse com seus Agents, execute briefings no servidor e revise qualquer proposta de alteração antes que o KIVRYN aplique algo no workspace.
       </Text>
       <View style={styles.notice}>
         <Text style={styles.noticeText}>
@@ -148,7 +149,7 @@ export default function Agents() {
         <View style={styles.empty}>
           <Text style={styles.cardTitle}>Nenhum Agent ainda</Text>
           <Text style={styles.copy}>
-            Crie seu primeiro Agent na área Agents do KIVRYN Web. O mesmo Agent aparecerá aqui para agendamento.
+            Crie seu primeiro Agent na área Agents do KIVRYN Web. O mesmo Agent aparecerá aqui para conversar, aprovar planos e agendar briefings.
           </Text>
         </View>
       )}
@@ -175,8 +176,9 @@ export default function Agents() {
               ))}
             </View>
           )}
+          <ManualAgentRunner agent={agent} />
           <Text style={styles.scheduleText}>
-            {agent.scheduleFrequency ? cadence(agent) : "Execução manual"}
+            {agent.scheduleFrequency ? cadence(agent) : "Sem agendamento ativo"}
           </Text>
           {agent.nextRunAt && (
             <Text style={styles.muted}>Próxima: {new Date(agent.nextRunAt).toLocaleString("pt-BR")}</Text>
@@ -199,6 +201,81 @@ export default function Agents() {
         </View>
       ))}
     </AppScreen>
+  );
+}
+
+function ManualAgentRunner({ agent }: { agent: MobileAgent }) {
+  const client = useQueryClient();
+  const [expanded, setExpanded] = useState(false);
+  const [input, setInput] = useState("");
+  const [output, setOutput] = useState("");
+  const [approvalRequired, setApprovalRequired] = useState(false);
+  const run = useMutation({
+    mutationFn: () => runMobileAgent(agent.id, input),
+    onSuccess: async (result) => {
+      setOutput(result.output);
+      setApprovalRequired(result.approvalRequired);
+      await Promise.all([
+        client.invalidateQueries({ queryKey: ["agents", "pending-plans"] }),
+        client.invalidateQueries({ queryKey: ["agents", "action-history"] }),
+      ]);
+    },
+    onError: (error: Error) => Alert.alert("Não foi possível executar", error.message),
+  });
+
+  return (
+    <View style={styles.runnerWrap}>
+      <Pressable
+        style={styles.outlineButton}
+        onPress={() => setExpanded((current) => !current)}
+      >
+        <Text style={styles.outlineButtonText}>
+          {expanded ? "Fechar conversa" : "Conversar com este Agent"}
+        </Text>
+      </Pressable>
+      {expanded && (
+        <View style={styles.runner}>
+          <Text style={styles.label}>Mensagem</Text>
+          <TextInput
+            value={input}
+            onChangeText={setInput}
+            multiline
+            maxLength={12000}
+            editable={!run.isPending}
+            placeholder="Peça algo ao Agent…"
+            placeholderTextColor={colors.textMuted}
+            style={[styles.input, styles.runnerInput]}
+            textAlignVertical="top"
+          />
+          <Pressable
+            disabled={!agent.active || !input.trim() || run.isPending}
+            style={[
+              styles.primaryButton,
+              (!agent.active || !input.trim() || run.isPending) && styles.disabled,
+            ]}
+            onPress={() => run.mutate()}
+          >
+            {run.isPending ? (
+              <ActivityIndicator color={colors.text} />
+            ) : (
+              <Text style={styles.primaryButtonText}>Enviar</Text>
+            )}
+          </Pressable>
+          {!agent.active && <Text style={styles.muted}>Ative este Agent para executá-lo.</Text>}
+          {!!output && (
+            <View style={styles.agentBubble}>
+              <Text style={styles.agentBubbleLabel}>KIVRYN AGENT</Text>
+              <Text style={styles.agentBubbleText}>{output}</Text>
+              {approvalRequired && (
+                <Text style={styles.approvalHint}>
+                  O Agent preparou um plano. Nada foi alterado ainda — revise em Aprovações pendentes.
+                </Text>
+              )}
+            </View>
+          )}
+        </View>
+      )}
+    </View>
   );
 }
 
@@ -535,6 +612,25 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceRaised,
   },
   skillBadgeText: { ...typography.caption, color: colors.primaryBright, fontSize: 10 },
+  runnerWrap: { gap: spacing.sm },
+  runner: {
+    gap: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+  },
+  runnerInput: { minHeight: 96 },
+  agentBubble: {
+    gap: spacing.xs,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surfaceRaised,
+  },
+  agentBubbleLabel: { ...typography.eyebrow, color: colors.primaryBright, fontSize: 9 },
+  agentBubbleText: { ...typography.body, color: colors.text },
+  approvalHint: { ...typography.caption, color: colors.primaryBright },
   approvalCard: {
     padding: spacing.md,
     borderWidth: 1,
