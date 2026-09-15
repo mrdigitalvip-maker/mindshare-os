@@ -2,6 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3.6.7";
 import { jsonResponse, preflightResponse, rejectDisallowedOrigin } from "../_shared/http.ts";
+
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return preflightResponse(request);
   const originError = rejectDisallowedOrigin(request);
@@ -13,7 +14,8 @@ Deno.serve(async (request) => {
     privateKey = Deno.env.get("VAPID_PRIVATE_KEY"),
     subject = Deno.env.get("VAPID_SUBJECT");
   if (!url || !anon || !service)
-    return jsonResponse({ error: "configuration_error" }, 503, request);
+    return jsonResponse(request, { error: "configuration_error" }, 503);
+
   const bearer = request.headers.get("Authorization") ?? "";
   const authClient = createClient(url, anon, { global: { headers: { Authorization: bearer } } });
   const {
@@ -23,15 +25,17 @@ Deno.serve(async (request) => {
   const internal = Boolean(
     schedulerSecret && request.headers.get("x-scheduler-secret") === schedulerSecret,
   );
-  if (!user && !internal) return jsonResponse({ error: "unauthorized" }, 401, request);
+  if (!user && !internal) return jsonResponse(request, { error: "unauthorized" }, 401);
+
   const input = await request.json().catch(() => ({}));
   const userId = internal ? input.userId : user?.id;
   if (!userId || typeof input.title !== "string" || typeof input.body !== "string")
-    return jsonResponse({ error: "invalid_request" }, 400, request);
+    return jsonResponse(request, { error: "invalid_request" }, 400);
   const safePath =
     typeof input.url === "string" && input.url.startsWith("/") && !input.url.startsWith("//")
       ? input.url
       : "/dashboard";
+
   const admin = createClient(url, service);
   const [{ data: subscriptions, error }, { data: devices, error: devicesError }] =
     await Promise.all([
@@ -42,7 +46,9 @@ Deno.serve(async (request) => {
         .eq("user_id", userId)
         .eq("enabled", true),
     ]);
-  if (error || devicesError) return jsonResponse({ error: "delivery_lookup_failed" }, 500, request);
+  if (error || devicesError)
+    return jsonResponse(request, { error: "delivery_lookup_failed" }, 500);
+
   if (publicKey && privateKey && subject) webpush.setVapidDetails(subject, publicKey, privateKey);
   let accepted = 0,
     failed = 0;
@@ -68,6 +74,7 @@ Deno.serve(async (request) => {
       failed++;
     }
   }
+
   const route = nativeRoute(safePath);
   for (const device of devices ?? []) {
     if (device.provider !== "expo") continue;
@@ -96,7 +103,7 @@ Deno.serve(async (request) => {
       failed++;
     }
   }
-  return jsonResponse({ accepted, failed }, 200, request);
+  return jsonResponse(request, { accepted, failed }, 200);
 });
 
 function nativeRoute(path: string) {
@@ -106,10 +113,13 @@ function nativeRoute(path: string) {
   if (study) return { kind: "study", resourceId: study };
   const task = path.match(/^\/tasks\/([A-Za-z0-9-]+)$/)?.[1];
   if (task) return { kind: "task", resourceId: task };
+  const agent = path.match(/^\/agents\/([A-Za-z0-9-]+)$/)?.[1];
+  if (agent) return { kind: "agent", resourceId: agent };
   const journey = path.match(/^\/journeys\/([A-Za-z0-9-]+)$/)?.[1];
   if (journey) return { kind: "journey", resourceId: journey };
   const community = path.match(/^\/community\/([A-Za-z0-9-]+)$/)?.[1];
   if (community) return { kind: "community", resourceId: community };
+  if (path === "/agents") return { kind: "agent" };
   if (path === "/community") return { kind: "community" };
   if (path === "/journeys") return { kind: "weekly_challenge" };
   return { kind: "general" };
