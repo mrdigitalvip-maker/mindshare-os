@@ -127,6 +127,23 @@ const PRIMARY_GOALS = [
   "Just exploring",
 ];
 
+const FIRST_DESTINATIONS = {
+  "Boost my productivity": "/productivity",
+  "Manage projects": "/projects",
+  "Learn & study": "/studies",
+  "Track my finances": "/finance",
+  "Create content": "/creator",
+  "Translate & communicate": "/translate",
+  "Build AI agents": "/agents",
+  "Just exploring": "/assistant",
+} as const;
+
+type FirstDestination = (typeof FIRST_DESTINATIONS)[keyof typeof FIRST_DESTINATIONS];
+
+function firstDestination(goal: string): FirstDestination {
+  return FIRST_DESTINATIONS[goal as keyof typeof FIRST_DESTINATIONS] ?? "/assistant";
+}
+
 const INTERESTS = [
   "Productivity",
   "Projects",
@@ -154,6 +171,7 @@ function Onboarding() {
   const { user, loading: authLoading, isAuthenticated } = useAuth();
   const { data: profile, isLoading: profileLoading } = useProfile();
   const updateProfile = useUpdateProfile();
+  const completionInFlight = useRef(false);
 
   // 1) Not signed in → back to auth.
   useEffect(() => {
@@ -162,9 +180,10 @@ function Onboarding() {
     }
   }, [authLoading, isAuthenticated, navigate]);
 
-  // 2) Already onboarded → straight to the Dashboard, no need to redo this.
+  // 2) Already onboarded → straight to the Dashboard, unless this screen is
+  // completing onboarding and intentionally routing to the user's first win.
   useEffect(() => {
-    if (!profileLoading && profile?.onboarded) {
+    if (!profileLoading && profile?.onboarded && !completionInFlight.current) {
       navigate({ to: "/dashboard", replace: true });
     }
   }, [profileLoading, profile, navigate]);
@@ -192,7 +211,7 @@ function Onboarding() {
     return <FullPageLoader />;
   }
 
-  if (!isAuthenticated || profile?.onboarded) {
+  if (!isAuthenticated || (profile?.onboarded && !completionInFlight.current)) {
     // Redirect effects above are already in flight.
     return null;
   }
@@ -225,6 +244,7 @@ function Onboarding() {
     }
 
     if (!user) return;
+    completionInFlight.current = true;
     setSubmitting(true);
     try {
       let avatar_url = profile?.avatar_url ?? undefined;
@@ -243,9 +263,10 @@ function Onboarding() {
         onboarded: true,
       });
 
-      toast.success("Welcome to KIVRYN");
-      navigate({ to: "/dashboard", replace: true });
+      toast.success("Workspace ready — let's make your first win.");
+      navigate({ to: firstDestination(goal), replace: true });
     } catch (err) {
+      completionInFlight.current = false;
       toast.error(err instanceof Error ? err.message : "Couldn't save your profile");
     } finally {
       setSubmitting(false);
