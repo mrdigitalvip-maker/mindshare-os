@@ -17,7 +17,8 @@ test("web Assistant, Tasks, and Projects keep the current KIVRYN visual vocabula
   assert.match(sources[1], /PageShell/);
   assert.match(sources[1], /TaskService\.createTask/);
   assert.match(sources[1], /rounded-full/);
-  assert.match(sources[2], /v2-workspace-header/);
+  assert.match(sources[2], /PageShell/);
+  assert.match(sources[2], /ProjectService\.create/);
   assert.match(sources[3], /bg-intelligence/);
   for (const [index, source] of sources.entries()) {
     assert.doesNotMatch(source, /(?:text|bg|border|from|to|via)-gold/, paths[index]);
@@ -35,6 +36,7 @@ test("native core workspaces use current official KIVRYN primitives", async () =
   assert.match(assistant, /MenuButton/);
   assert.match(tasks, /StandardHeader/);
   assert.match(tasks, /NativeFormModal/);
-  assert.match(projects, /V2Progress/);
+  assert.match(projects, /StandardHeader/);
+  assert.match(projects, /NativeFormModal/);
   assert.match(primitives, /accessibilityRole="progressbar"/);
 });
