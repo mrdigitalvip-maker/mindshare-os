@@ -12,8 +12,16 @@ test("web Assistant, Tasks, and Projects keep the current KIVRYN visual vocabula
     "src/routes/_shell.projects.$projectId.tsx",
   ];
   const sources = await Promise.all(paths.map(read));
-  assert.match(sources[0], /v2-workspace/);
-  assert.match(sources[0], /KIVRYN Intelligence/);
+
+  // Assistant now uses the approved focused chat surface: history lives in a
+  // side sheet, the composer/conversation owns the main canvas, and the old
+  // multi-panel Intelligence workspace is intentionally gone.
+  assert.match(sources[0], /<Sheet open=\{historyOpen\}/);
+  assert.match(sources[0], /Mensagem para a KIVRYN/);
+  assert.match(sources[0], /max-w-3xl/);
+  assert.doesNotMatch(sources[0], /KIVRYN Intelligence/);
+  assert.doesNotMatch(sources[0], /lg:grid-cols-\[280px_minmax/);
+
   assert.match(sources[1], /PageShell/);
   assert.match(sources[1], /TaskService\.createTask/);
   assert.match(sources[1], /rounded-full/);
@@ -26,14 +34,22 @@ test("web Assistant, Tasks, and Projects keep the current KIVRYN visual vocabula
 });
 
 test("native core workspaces use current official KIVRYN primitives", async () => {
-  const [assistant, tasks, projects, primitives] = await Promise.all([
+  const [assistantEntry, assistantChat, tasks, projects, primitives] = await Promise.all([
     read("mobile/app/(app)/(tabs)/assistant.tsx"),
+    read("mobile/app/(app)/(tabs)/assistant-chat.tsx"),
     read("mobile/app/(app)/(tabs)/productivity.tsx"),
     read("mobile/app/(app)/(tabs)/projects/index.tsx"),
     read("mobile/components/v2/premium-ui.tsx"),
   ]);
-  assert.match(assistant, /KivrynCore/);
-  assert.match(assistant, /MenuButton/);
+
+  // The Assistant tab intentionally redirects straight into the focused chat.
+  // The real chat surface owns history, attachments, voice and confirmed actions.
+  assert.match(assistantEntry, /Redirect href="\/\(app\)\/\(tabs\)\/assistant-chat"/);
+  assert.match(assistantChat, /useConversations\(\)/);
+  assert.match(assistantChat, /visible=\{historyOpen\}/);
+  assert.match(assistantChat, /uploadChatAttachment/);
+  assert.match(assistantChat, /applyNexoraAction/);
+
   assert.match(tasks, /StandardHeader/);
   assert.match(tasks, /NativeFormModal/);
   assert.match(projects, /StandardHeader/);
