@@ -21,6 +21,11 @@ import {
   type MobileAgent,
 } from "@/services/agent-schedule-service";
 import { listMobileActionHistory } from "@/services/action-history-service";
+import {
+  listMobilePendingAgentPlans,
+  reviewMobileAgentPlan,
+  type MobilePendingAgentPlan,
+} from "@/services/agent-runtime-service";
 
 const DAYS = [
   [1, "Seg"],
@@ -57,25 +62,74 @@ const DOMAIN_LABELS = {
 } as const;
 
 export default function Agents() {
+  const client = useQueryClient();
   const query = useQuery({ queryKey: ["agents", "scheduled"], queryFn: listMobileAgents });
   const actionHistory = useQuery({
     queryKey: ["agents", "action-history"],
     queryFn: () => listMobileActionHistory(6),
   });
+  const pendingPlans = useQuery({
+    queryKey: ["agents", "pending-plans"],
+    queryFn: () => listMobilePendingAgentPlans(10),
+  });
+  const approve = useMutation({
+    mutationFn: (plan: MobilePendingAgentPlan) =>
+      reviewMobileAgentPlan({
+        runId: plan.runId,
+        planFingerprint: plan.planFingerprint,
+        decision: "approve",
+        approvedStepIds: plan.plan.steps
+          .map((step) => step.id)
+          .filter((id) => !plan.appliedStepIds.includes(id)),
+      }),
+    onSuccess: async () => {
+      await Promise.all([
+        client.invalidateQueries({ queryKey: ["agents", "pending-plans"] }),
+        client.invalidateQueries({ queryKey: ["agents", "action-history"] }),
+        client.invalidateQueries({ queryKey: ["agents", "scheduled"] }),
+      ]);
+      Alert.alert("Plano aplicado", "O KIVRYN validou novamente o plano antes de aplicar as ações aprovadas.");
+    },
+    onError: (error: Error) => Alert.alert("Não foi possível aplicar", error.message),
+  });
+  const reject = useMutation({
+    mutationFn: (plan: MobilePendingAgentPlan) =>
+      reviewMobileAgentPlan({
+        runId: plan.runId,
+        planFingerprint: plan.planFingerprint,
+        decision: "reject",
+      }),
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: ["agents", "pending-plans"] });
+      Alert.alert("Plano rejeitado", "Nenhuma nova ação deste plano será aplicada.");
+    },
+    onError: (error: Error) => Alert.alert("Não foi possível rejeitar", error.message),
+  });
   const [editingId, setEditingId] = useState<string | null>(null);
   return (
     <AppScreen scroll contentContainerStyle={styles.page}>
       <StandardHeader title="Agents" />
-      <Text style={styles.eyebrow}>KIVRYN SPECIALISTS</Text>
-      <Text style={styles.title}>Agents com skills especializadas</Text>
+      <Text style={styles.eyebrow}>KIVRYN AGENTIC CORE</Text>
+      <Text style={styles.title}>Agents com skills, connectors e subagents</Text>
       <Text style={styles.copy}>
-        Cada Agent usa skills versionadas do KIVRYN e pode executar briefings no servidor mesmo com o app fechado.
+        Cada Agent trabalha com contexto e especialistas internos escolhidos pelo KIVRYN e pode executar briefings no servidor mesmo com o app fechado.
       </Text>
       <View style={styles.notice}>
         <Text style={styles.noticeText}>
-          Skills definem como o Agent trabalha e qual contexto pode orientar a resposta. Elas não concedem permissão para alterações silenciosas: qualquer ação real em Tasks, Projects ou Studies continua exigindo aprovação válida do KIVRYN.
+          OpenAI produz raciocínio e propostas; o KIVRYN mantém a autoridade. Nenhuma alteração em Tasks, Projects ou Studies é aplicada por uma tool call do modelo. Planos de ação aparecem abaixo e exigem sua aprovação explícita.
         </Text>
       </View>
+
+      <PendingApprovals
+        pending={pendingPlans.isPending}
+        error={pendingPlans.isError}
+        items={pendingPlans.data ?? []}
+        retry={() => void pendingPlans.refetch()}
+        approving={approve.isPending}
+        rejecting={reject.isPending}
+        approve={(plan) => approve.mutate(plan)}
+        reject={(plan) => reject.mutate(plan)}
+      />
 
       <ActionHistory
         pending={actionHistory.isPending}
@@ -145,6 +199,96 @@ export default function Agents() {
         </View>
       ))}
     </AppScreen>
+  );
+}
+
+function PendingApprovals({
+  pending,
+  error,
+  items,
+  retry,
+  approving,
+  rejecting,
+  approve,
+  reject,
+}: {
+  pending: boolean;
+  error: boolean;
+  items: MobilePendingAgentPlan[];
+  retry: () => void;
+  approving: boolean;
+  rejecting: boolean;
+  approve: (plan: MobilePendingAgentPlan) => void;
+  reject: (plan: MobilePendingAgentPlan) => void;
+}) {
+  return (
+    <View style={styles.approvalCard}>
+      <View style={styles.row}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.cardTitle}>Aprovações pendentes</Text>
+          <Text style={styles.muted}>Revise planos antes de qualquer alteração no workspace.</Text>
+        </View>
+        <View style={styles.auditBadge}>
+          <Text style={styles.auditBadgeText}>APPROVAL</Text>
+        </View>
+      </View>
+      {pending && <ActivityIndicator color={colors.primaryBright} />}
+      {error && (
+        <Pressable style={styles.outlineButton} onPress={retry}>
+          <Text style={styles.outlineButtonText}>Tentar carregar aprovações</Text>
+        </Pressable>
+      )}
+      {!pending && !error && !items.length && (
+        <Text style={styles.muted}>Nenhum plano aguardando sua decisão.</Text>
+      )}
+      {items.map((plan) => {
+        const remaining = plan.plan.steps.filter((step) => !plan.appliedStepIds.includes(step.id));
+        return (
+          <View key={plan.runId} style={styles.approvalPlan}>
+            <Text style={styles.historyTitle}>{plan.plan.intent}</Text>
+            {plan.plan.steps.map((step, index) => (
+              <View key={step.id} style={styles.approvalStep}>
+                <Text style={styles.label}>
+                  {index + 1}. {step.action.replaceAll("_", " ")}
+                </Text>
+                <Text style={styles.muted}>
+                  {plan.appliedStepIds.includes(step.id) ? "Aplicada" : step.domain}
+                </Text>
+                <Text numberOfLines={3} style={styles.muted}>
+                  {Object.entries(step.input)
+                    .map(([key, value]) => `${key}: ${String(value)}`)
+                    .join(" · ") || "Sem parâmetros adicionais"}
+                </Text>
+              </View>
+            ))}
+            <View style={styles.buttonRow}>
+              <Pressable
+                disabled={!remaining.length || approving || rejecting}
+                style={[
+                  styles.primaryButton,
+                  styles.flexButton,
+                  (!remaining.length || approving || rejecting) && styles.disabled,
+                ]}
+                onPress={() => approve(plan)}
+              >
+                <Text style={styles.primaryButtonText}>
+                  {approving ? "Aplicando…" : "Aprovar restantes"}
+                </Text>
+              </Pressable>
+              <Pressable
+                disabled={approving || rejecting}
+                style={[styles.outlineButton, styles.flexButton]}
+                onPress={() => reject(plan)}
+              >
+                <Text style={styles.outlineButtonText}>
+                  {rejecting ? "Rejeitando…" : "Rejeitar"}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        );
+      })}
+    </View>
   );
 }
 
@@ -391,6 +535,30 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceRaised,
   },
   skillBadgeText: { ...typography.caption, color: colors.primaryBright, fontSize: 10 },
+  approvalCard: {
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.primaryBright,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
+    gap: spacing.sm,
+  },
+  approvalPlan: {
+    gap: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    paddingTop: spacing.sm,
+  },
+  approvalStep: {
+    gap: 4,
+    padding: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceRaised,
+  },
+  buttonRow: { flexDirection: "row", gap: spacing.sm },
+  flexButton: { flex: 1 },
   historyCard: {
     padding: spacing.md,
     borderWidth: 1,
