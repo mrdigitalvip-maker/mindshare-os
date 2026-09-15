@@ -3,6 +3,7 @@ import { fingerprintKivrynPlan } from "../supabase/functions/_shared/kivryn-acti
 import { prepareKivrynExecution } from "../supabase/functions/_shared/kivryn-action-execution";
 import { parseKivrynActionPlan } from "../supabase/functions/_shared/kivryn-agentic-plan";
 
+const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const plan = parseKivrynActionPlan({ version: 1, intent: "Do work", steps: [
   { id: "task_1", action: "create_task", input: { action_type: "create_task", title: "First" } },
   { id: "project_1", action: "create_project", input: { action_type: "create_project", title: "Second" } },
@@ -15,7 +16,8 @@ describe("KIVRYN guarded execution", () => {
     } });
     expect(commands).toHaveLength(1);
     expect(commands[0].action).toMatchObject({ action_type: "create_task", title: "First" });
-    expect(commands[0].actionId).toContain("task_1");
+    expect(commands[0].actionId).toMatch(uuid);
+    expect(commands[0].requestId).toMatch(uuid);
   });
 
   it("emits no mutations without valid approval", () => {
