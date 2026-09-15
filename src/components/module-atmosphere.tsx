@@ -8,7 +8,11 @@ export function ModuleAtmosphere() {
   const passport = location.pathname.startsWith("/passport");
   const creator = location.pathname.startsWith("/creator");
 
-  if (!passport && !creator) return null;
+  // Passport now owns its guide inside the active lesson studio. Keeping a
+  // second fixed Kivi card would duplicate the same action and cover content
+  // on small screens.
+  if (passport) return null;
+  if (!creator) return null;
 
   const accent = passport ? "#62f5b0" : "#ff6bc9";
   const accent2 = passport ? "#5dd8ff" : "#8d7cff";
