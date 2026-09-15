@@ -203,12 +203,11 @@ begin
     raise exception 'invalid_claim_limit';
   end if;
 
-  -- Serialize the very small scheduler claim window. The unique occurrence index
-  -- remains the final idempotency guard if an invocation overlaps or retries.
   if not pg_try_advisory_xact_lock(hashtext('kivryn_agent_schedule_claim')) then
     return;
   end if;
 
+  return query
   with due as (
     select a.id,
            a.user_id,
@@ -274,7 +273,6 @@ begin
      where r.id = c.id
     returning r.id, r.agent_id, r.user_id, r.scheduled_for, r.input
   )
-  return query
   select c.id,
          c.agent_id,
          c.user_id,
