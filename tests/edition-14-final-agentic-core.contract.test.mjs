@@ -108,8 +108,8 @@ test("final migration makes run state read-only to clients and meters Agent runs
   assert.match(source, /revoke insert, update, delete on public\.agent_runs from anon, authenticated/);
   assert.match(source, /create or replace function public\.claim_agent_run_usage/);
   assert.match(source, /pg_advisory_xact_lock/);
-  assert.match(source, /grant execute on function public\.claim_agent_run_usage[\s\S]*to service_role/);
-  assert.doesNotMatch(source, /grant execute on function public\.claim_agent_run_usage[\s\S]*to authenticated/);
+  assert.match(source, /grant execute on function public\.claim_agent_run_usage[^;]+to service_role;/);
+  assert.doesNotMatch(source, /grant execute on function public\.claim_agent_run_usage[^;]+to authenticated;/);
 });
 
 test("Agent executor enforces entitlement, daily budget and records runtime authority", async () => {
