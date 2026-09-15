@@ -1,11 +1,34 @@
 import { supabase } from "@/lib/supabase";
 
+export type MobileContextScope =
+  | "profile"
+  | "preferences"
+  | "tasks"
+  | "projects"
+  | "studies"
+  | "passport";
+
+export function contextScopesForAgentCapabilities(capabilities: string[]): MobileContextScope[] {
+  const scopes = new Set<MobileContextScope>(["profile", "preferences"]);
+  if (capabilities.includes("planning") || capabilities.includes("productivity")) {
+    scopes.add("tasks");
+    scopes.add("projects");
+  }
+  if (capabilities.includes("study")) {
+    scopes.add("studies");
+    scopes.add("passport");
+  }
+  return [...scopes];
+}
+
 export type MobileAgent = {
   id: string;
   name: string;
   goal: string;
   description: string;
   active: boolean;
+  capabilities: string[];
+  contextScopes: MobileContextScope[];
   scheduleFrequency: "daily" | "weekly" | null;
   scheduleTime: string | null;
   scheduleWeekdays: number[];
@@ -38,29 +61,36 @@ export async function listMobileAgents(): Promise<MobileAgent[]> {
   const { data, error } = await (supabase as any)
     .from("agents")
     .select(
-      "id,name,goal,description,active,schedule_frequency,schedule_time,schedule_weekdays,schedule_timezone,schedule_prompt,notify_on_run,next_run_at,last_run_at",
+      "id,name,goal,description,active,capabilities,schedule_frequency,schedule_time,schedule_weekdays,schedule_timezone,schedule_prompt,notify_on_run,next_run_at,last_run_at",
     )
     .eq("user_id", uid)
     .order("created_at", { ascending: false });
   if (error) throw error;
-  return (data ?? []).map((row: any) => ({
-    id: row.id,
-    name: row.name ?? "KIVRYN Agent",
-    goal: row.goal ?? "",
-    description: row.description ?? "",
-    active: row.active !== false,
-    scheduleFrequency:
-      row.schedule_frequency === "daily" || row.schedule_frequency === "weekly"
-        ? row.schedule_frequency
-        : null,
-    scheduleTime: typeof row.schedule_time === "string" ? row.schedule_time.slice(0, 5) : null,
-    scheduleWeekdays: Array.isArray(row.schedule_weekdays) ? row.schedule_weekdays.map(Number) : [],
-    scheduleTimezone: row.schedule_timezone ?? null,
-    schedulePrompt: row.schedule_prompt ?? null,
-    notifyOnRun: row.notify_on_run !== false,
-    nextRunAt: row.next_run_at ?? null,
-    lastRunAt: row.last_run_at ?? null,
-  }));
+  return (data ?? []).map((row: any) => {
+    const capabilities = Array.isArray(row.capabilities)
+      ? row.capabilities.filter((value: unknown): value is string => typeof value === "string")
+      : [];
+    return {
+      id: row.id,
+      name: row.name ?? "KIVRYN Agent",
+      goal: row.goal ?? "",
+      description: row.description ?? "",
+      active: row.active !== false,
+      capabilities,
+      contextScopes: contextScopesForAgentCapabilities(capabilities),
+      scheduleFrequency:
+        row.schedule_frequency === "daily" || row.schedule_frequency === "weekly"
+          ? row.schedule_frequency
+          : null,
+      scheduleTime: typeof row.schedule_time === "string" ? row.schedule_time.slice(0, 5) : null,
+      scheduleWeekdays: Array.isArray(row.schedule_weekdays) ? row.schedule_weekdays.map(Number) : [],
+      scheduleTimezone: row.schedule_timezone ?? null,
+      schedulePrompt: row.schedule_prompt ?? null,
+      notifyOnRun: row.notify_on_run !== false,
+      nextRunAt: row.next_run_at ?? null,
+      lastRunAt: row.last_run_at ?? null,
+    };
+  });
 }
 
 export async function configureMobileAgentSchedule(input: {

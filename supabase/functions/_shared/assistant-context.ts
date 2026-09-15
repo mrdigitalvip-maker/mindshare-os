@@ -1,3 +1,4 @@
+import { serializeKivrynPersonalContext, type KivrynPersonalContext } from "./kivryn-personal-context.ts";
 import { normalizeHumanName } from "./user-identity.ts";
 
 export type WorkspaceContext = {
@@ -6,28 +7,28 @@ export type WorkspaceContext = {
   projects: unknown[];
   studies: unknown[];
 };
+
 export function boundWorkspaceContext(value: WorkspaceContext, maxChars = 6000) {
-  const safe = {
-    profile: normalizeHumanName(value.profile)?.slice(0, 120) ?? null,
-    tasks: value.tasks.slice(0, 30),
-    projects: value.projects.slice(0, 15),
-    studies: value.studies.slice(0, 15),
+  const normalizedName = normalizeHumanName(value.profile)?.slice(0, 120) ?? null;
+  const context: KivrynPersonalContext = {
+    scopes: ["profile", "tasks", "projects", "studies"],
+    profile: {
+      name: normalizedName,
+      language: null,
+      country: null,
+      timezone: null,
+      primaryGoal: null,
+    },
+    preferences: null,
+    tasks: value.tasks.slice(0, 30) as Array<Record<string, unknown>>,
+    projects: value.projects.slice(0, 15) as Array<Record<string, unknown>>,
+    studies: value.studies.slice(0, 15) as Array<Record<string, unknown>>,
+    passport: [],
+    omittedScopes: [],
   };
-  let json = JSON.stringify(safe);
-  while (
-    json.length > maxChars &&
-    (safe.tasks.length || safe.projects.length || safe.studies.length)
-  ) {
-    const longest = [safe.tasks, safe.projects, safe.studies].sort(
-      (a, b) => b.length - a.length,
-    )[0];
-    longest.pop();
-    json = JSON.stringify(safe);
-  }
-  return json.length <= maxChars
-    ? json
-    : JSON.stringify({ profile: null, tasks: [], projects: [], studies: [] });
+  return serializeKivrynPersonalContext(context, maxChars);
 }
+
 export type SafeAttachment = {
   id: string;
   kind: "image" | "document";

@@ -54,7 +54,14 @@ Deno.serve(async (request) => {
       input,
       trigger: "manual",
     });
-    return jsonResponse(request, { ok: true, data: { runId: result.runId, output: result.output } });
+    return jsonResponse(request, {
+      ok: true,
+      data: {
+        runId: result.runId,
+        output: result.output,
+        contextScopes: result.contextScopes,
+      },
+    });
   } catch (error) {
     const code = error instanceof AgentExecutionError ? error.code : "provider_error";
     const status =
