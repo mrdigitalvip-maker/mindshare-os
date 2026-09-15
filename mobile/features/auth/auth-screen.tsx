@@ -275,7 +275,7 @@ export function AuthScreen() {
                     <Text style={styles.visibility}>{visible ? text.hide : text.show}</Text>
                   </Pressable>
                 </View>
-                {!isSignup ? <Link href="/auth/forgot-password" style={styles.forgot}>{text.forgot}</Link> : null}
+                {!isSignup ? <Link href="/auth/recovery" style={styles.forgot}>{text.forgot}</Link> : null}
               </View>
 
               {message ? <View style={[styles.message, confirmationAccepted && styles.messageSuccess]}><Text style={styles.messageText}>•  {message}</Text></View> : null}
@@ -297,7 +297,7 @@ export function AuthScreen() {
             </Pressable>
           </View>
 
-          <Text style={styles.legal}>{text.legalPrefix}<Text style={styles.legalLink} onPress={() => void Linking.openURL(LEGAL_URLS.terms)}>{text.terms}</Text>{text.legalMiddle}<Text style={styles.legalLink} onPress={() => void Linking.openURL(LEGAL_URLS.privacy)}>{text.privacy}</Text>.</Text>
+          <Text style={styles.legal}>{text.legalPrefix}<Text style={styles.legalLink} onPress={() => void Linking.openURL(LEGAL_URLS.termsOfService)}>{text.terms}</Text>{text.legalMiddle}<Text style={styles.legalLink} onPress={() => void Linking.openURL(LEGAL_URLS.privacyPolicy)}>{text.privacy}</Text>.</Text>
           <View style={styles.secure}><View style={styles.secureDot} /><Text style={styles.secureText}>{text.secure}</Text></View>
         </ScrollView>
       </KeyboardAvoidingView>
