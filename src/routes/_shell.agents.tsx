@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ActionHistoryPanel } from "@/components/action-history-panel";
-import { AgentService, workspaceQueryKeys } from "@/services";
+import { AgentService, BackgroundRunService, workspaceQueryKeys } from "@/services";
 import { useSubscription } from "@/hooks/use-subscription";
 import { MetricCard, PremiumGate, WorkspaceShell } from "@/components/workspace-ui";
 export const Route = createFileRoute("/_shell/agents")({
@@ -37,6 +37,11 @@ function Agents() {
     queryKey: ["workspace", "agent-runs"],
     queryFn: () => AgentService.listRuns(),
   });
+  const backgroundRuns = useQuery({
+    queryKey: ["workspace", "agent-background-runs"],
+    queryFn: () => BackgroundRunService.list(),
+    refetchInterval: 30_000,
+  });
   const visible = useMemo(
     () =>
       (query.data ?? []).filter((agent) =>
@@ -47,6 +52,12 @@ function Agents() {
     [query.data, search],
   );
   const lastRun = (agentId: string) => runs.data?.find((run) => run.agent_id === agentId);
+  const activeBackground = (backgroundRuns.data ?? []).filter((run) =>
+    ["queued", "running", "retry_wait"].includes(run.status),
+  ).length;
+  const retryingBackground = (backgroundRuns.data ?? []).filter(
+    (run) => run.status === "retry_wait",
+  ).length;
   return (
     <PageShell>
       <WorkspaceShell>
@@ -80,12 +91,17 @@ function Agents() {
             </div>
           </PremiumGate>
         )}
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <MetricCard
             label="Active agents"
             value={(query.data ?? []).filter((a) => a.active).length}
           />
           <MetricCard label="Recent runs" value={(runs.data ?? []).length} hint="Persisted runs" />
+          <MetricCard
+            label="Background"
+            value={activeBackground}
+            hint={retryingBackground ? `${retryingBackground} aguardando retry` : "Fila saudável"}
+          />
           <MetricCard
             label="Last execution"
             value={
