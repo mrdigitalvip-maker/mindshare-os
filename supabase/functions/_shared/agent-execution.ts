@@ -9,7 +9,7 @@ export class AgentExecutionError extends Error {
 
 type AdminClient = {
   from: (table: string) => any;
-  rpc: (fn: string, args?: Record<string, unknown>) => Promise<{ data: any; error: any }>;
+  rpc: (fn: string, args?: Record<string, unknown>) => any;
 };
 
 async function hasAgentEntitlement(admin: AdminClient, userId: string) {
