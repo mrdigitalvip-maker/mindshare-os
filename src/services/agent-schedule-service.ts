@@ -18,7 +18,10 @@ const db = supabase as any;
 function map(row: any): AgentSchedule {
   return {
     agentId: row.id,
-    frequency: row.schedule_frequency === "daily" || row.schedule_frequency === "weekly" ? row.schedule_frequency : null,
+    frequency:
+      row.schedule_frequency === "daily" || row.schedule_frequency === "weekly"
+        ? row.schedule_frequency
+        : null,
     localTime: typeof row.schedule_time === "string" ? row.schedule_time.slice(0, 5) : null,
     weekdays: Array.isArray(row.schedule_weekdays) ? row.schedule_weekdays.map(Number) : [],
     timezone: row.schedule_timezone ?? null,
@@ -29,12 +32,25 @@ function map(row: any): AgentSchedule {
   };
 }
 
+function throwScheduleError(error: unknown): never {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  if (message.includes("premium_required"))
+    throw new Error("Agendamentos de Agents exigem Premium ativo.");
+  if (message.includes("invalid_schedule_timezone"))
+    throw new Error("Informe um fuso horário IANA válido.");
+  if (message.includes("agent_not_found"))
+    throw new Error("Agent não encontrado ou sem permissão.");
+  throw error instanceof Error ? error : new Error("Não foi possível atualizar o agendamento.");
+}
+
 export const AgentScheduleService = {
   async get(agentId: string): Promise<AgentSchedule | null> {
     const userId = await getRequiredUserId();
     const { data, error } = await db
       .from("agents")
-      .select("id,schedule_frequency,schedule_time,schedule_weekdays,schedule_timezone,schedule_prompt,notify_on_run,next_run_at,last_run_at")
+      .select(
+        "id,schedule_frequency,schedule_time,schedule_weekdays,schedule_timezone,schedule_prompt,notify_on_run,next_run_at,last_run_at",
+      )
       .eq("id", agentId)
       .eq("user_id", userId)
       .maybeSingle();
@@ -54,11 +70,17 @@ export const AgentScheduleService = {
     await getRequiredUserId();
     const prompt = input.prompt.trim();
     const timezone = input.timezone.trim();
-    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(input.localTime)) throw new Error("Use um horário válido no formato HH:MM.");
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(input.localTime))
+      throw new Error("Use um horário válido no formato HH:MM.");
     if (!timezone) throw new Error("Informe um fuso horário IANA válido.");
-    if (!prompt || prompt.length > 12000) throw new Error("O briefing precisa ter entre 1 e 12000 caracteres.");
-    const weekdays = input.frequency === "weekly" ? [...new Set(input.weekdays ?? [])].sort() : null;
-    if (input.frequency === "weekly" && (!weekdays?.length || weekdays.some((day) => day < 1 || day > 7)))
+    if (!prompt || prompt.length > 12000)
+      throw new Error("O briefing precisa ter entre 1 e 12000 caracteres.");
+    const weekdays =
+      input.frequency === "weekly" ? [...new Set(input.weekdays ?? [])].sort((a, b) => a - b) : null;
+    if (
+      input.frequency === "weekly" &&
+      (!weekdays?.length || weekdays.some((day) => day < 1 || day > 7))
+    )
       throw new Error("Escolha pelo menos um dia da semana.");
 
     const { data, error } = await db.rpc("configure_agent_schedule", {
@@ -70,17 +92,18 @@ export const AgentScheduleService = {
       p_prompt: prompt,
       p_notify: input.notifyOnRun,
     });
-    if (error) throw error;
-    if (!Array.isArray(data) || !data[0]?.agent_id) throw new Error("O agendamento não pôde ser salvo.");
+    if (error) throwScheduleError(error);
+    if (!Array.isArray(data) || !data[0]?.agent_id)
+      throw new Error("O agendamento não pôde ser salvo.");
     const schedule = await this.get(input.agentId);
-    if (!schedule) throw new Error("Agente não encontrado após salvar o agendamento.");
+    if (!schedule) throw new Error("Agent não encontrado após salvar o agendamento.");
     return schedule;
   },
 
   async clear(agentId: string): Promise<void> {
     await getRequiredUserId();
     const { data, error } = await db.rpc("clear_agent_schedule", { p_agent_id: agentId });
-    if (error) throw error;
+    if (error) throwScheduleError(error);
     if (data !== true) throw new Error("Agendamento não encontrado.");
   },
 };
