@@ -1,5 +1,6 @@
 -- KIVRYN Final Agentic Core
--- Persists bounded runtime metadata and makes Agent run history read-only to clients.
+-- Persists bounded runtime metadata, meters Agent usage atomically and makes
+-- Agent run history read-only to clients.
 
 alter table public.agent_runs
   add column if not exists connector_ids text[] not null default '{}'::text[],
@@ -56,6 +57,7 @@ alter table public.agent_runs
       or
       (
         action_plan_status <> 'none'
+        and action_plan is not null
         and jsonb_typeof(action_plan) = 'object'
         and nullif(btrim(action_plan_fingerprint), '') is not null
       )
@@ -67,6 +69,63 @@ alter table public.agent_runs
 create index if not exists agent_runs_pending_approval_idx
   on public.agent_runs (user_id, created_at desc)
   where action_plan_status in ('pending_approval', 'partially_applied');
+
+-- One logical Agent run consumes one daily usage unit even when a background
+-- worker retries. The advisory lock makes the daily ceiling concurrency-safe.
+create or replace function public.claim_agent_run_usage(
+  p_user uuid,
+  p_request_id text,
+  p_limit integer default 30
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public, pg_catalog
+as $$
+declare
+  used_count integer;
+begin
+  if p_user is null or nullif(btrim(coalesce(p_request_id, '')), '') is null then
+    raise exception 'invalid_usage_claim';
+  end if;
+  if p_limit < 1 or p_limit > 1000 then
+    raise exception 'invalid_usage_limit';
+  end if;
+
+  perform pg_advisory_xact_lock(
+    hashtextextended(p_user::text || ':agent_run:' || current_date::text, 0)
+  );
+
+  if exists (
+    select 1
+      from public.ai_usage
+     where user_id = p_user
+       and request_id = p_request_id
+  ) then
+    return true;
+  end if;
+
+  select count(*)::integer
+    into used_count
+    from public.ai_usage
+   where user_id = p_user
+     and action = 'agent_run'
+     and usage_date = current_date;
+
+  if used_count >= p_limit then
+    return false;
+  end if;
+
+  insert into public.ai_usage(user_id, action, usage_date, request_id)
+  values (p_user, 'agent_run', current_date, p_request_id);
+  return true;
+end;
+$$;
+
+revoke all on function public.claim_agent_run_usage(uuid, text, integer)
+  from public, anon, authenticated;
+grant execute on function public.claim_agent_run_usage(uuid, text, integer)
+  to service_role;
 
 -- Agent runs are written only by server-owned Edge Functions. Authenticated clients
 -- may inspect their own history but cannot forge run state, plans, approvals or audit data.
