@@ -1,10 +1,17 @@
 import { useMemo, useRef, useState } from "react";
-import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
+import {
+  FlatList,
+  Pressable,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { router } from "expo-router";
 import { NativeFormModal } from "@/components/native-form-modal";
 import { AppScreen } from "@/components/app-screen";
 import { StandardHeader } from "@/components/product-ui";
-import { V2Progress } from "@/components/v2/premium-ui";
 import { EmptyState, ErrorState, LoadingState } from "@/components/screen-state";
 import {
   useOpenProject,
@@ -12,200 +19,164 @@ import {
   useTasks,
   useWorkspaceMutations,
 } from "@/hooks/use-workspaces";
-import {
-  getProjectAttention,
-  getProjectDeadlineState,
-  getProjectDeadlineSummary,
-  getProjectBlockedTasks,
-  getProjectHealthLabel,
-  getProjectHealthState,
-  getProjectNextAction,
-  getProjectOverdueTasks,
-  getProjectProgress,
-  getProjectsOverview,
-  getProjectStatusLabel,
-  groupTasksByProject,
-  sortProjectsByAttention,
-} from "@/lib/project-selectors";
-import { colors, radius, shadows, spacing, typography } from "@/lib/theme";
+import { groupTasksByProject } from "@/lib/project-selectors";
+import { colors, radius, spacing, typography } from "@/lib/theme";
 import { useLanguage } from "@/providers/language-provider";
 import type { Project, Task } from "@/services/workspace-service";
+
+type ProjectFilter = "all" | "active" | "completed";
 
 const copy = {
   "pt-BR": {
     title: "Projetos",
-    subtitle: "Transforme objetivos em sistemas que avançam.",
-    newProject: "+ Novo",
-    operating: "PROJECT OPERATING SYSTEM",
-    active: "ativos",
-    attention: "atenção",
-    actionable: "ações agora",
-    approaching: "prazos próximos",
-    intelligence: "INTELIGÊNCIA KIVRYN",
-    intelligenceCopy: "A KIVRYN lê tarefas, bloqueios, prazos e progresso para dizer onde agir primeiro.",
-    prioritize: "Priorizar meus projetos",
-    plan: "Planejar projeto com IA",
-    workspace: "WORKSPACES",
-    nextAction: "PRÓXIMA AÇÃO",
-    actNow: "Agir agora →",
-    openWorkspace: "Abrir workspace →",
-    noTasks: "Sem tarefas ainda",
-    taskUnavailable: "As tarefas não puderam ser atualizadas. Os projetos continuam disponíveis.",
-    retry: "Tentar novamente",
-    system: "SISTEMA VIVO",
-    systemCopy: "Projetos alimentam Tarefas, Dashboard e KIVRYN Core. Alterações aparecem em todo o sistema.",
-    connections: "CONEXÕES",
-    connectionsCopy: "Google Calendar e Drive entram aqui para prazos, arquivos e contexto do projeto assim que o Connections Hub estiver ativo.",
+    subtitle: "Objetivos, tarefas e progresso em um só lugar.",
+    all: "Tudo",
+    active: "Ativos",
+    completed: "Concluídos",
+    search: "Pesquisar projetos",
+    noResults: "Nenhum projeto corresponde a este filtro.",
+    noProjects: "Comece com um projeto",
+    noProjectsCopy: "Dê um nome ao objetivo e concentre tarefas, prazo e progresso em um só lugar.",
+    createFirst: "Criar projeto",
+    noTasks: "Sem tarefas",
+    tasks: "tarefas",
+    done: "concluídas",
+    completedLabel: "Concluído",
+    taskUnavailable: "As tarefas não puderam ser atualizadas. Seus projetos continuam disponíveis.",
+    newProject: "Novo projeto",
+    namePlaceholder: "Nome do projeto",
+    objectivePlaceholder: "Como será quando estiver concluído?",
+    duePlaceholder: "Adicionar prazo (opcional)",
+    createError: "Não foi possível criar o projeto.",
   },
   en: {
     title: "Projects",
-    subtitle: "Turn goals into systems that keep moving.",
-    newProject: "+ New",
-    operating: "PROJECT OPERATING SYSTEM",
-    active: "active",
-    attention: "attention",
-    actionable: "actions now",
-    approaching: "deadlines near",
-    intelligence: "KIVRYN INTELLIGENCE",
-    intelligenceCopy: "KIVRYN reads tasks, blockers, deadlines and progress to tell you where to act first.",
-    prioritize: "Prioritize my projects",
-    plan: "Plan project with AI",
-    workspace: "WORKSPACES",
-    nextAction: "NEXT ACTION",
-    actNow: "Act now →",
-    openWorkspace: "Open workspace →",
-    noTasks: "No tasks yet",
+    subtitle: "Goals, tasks and progress in one place.",
+    all: "All",
+    active: "Active",
+    completed: "Completed",
+    search: "Search projects",
+    noResults: "No project matches this filter.",
+    noProjects: "Start with a project",
+    noProjectsCopy: "Name the goal and keep tasks, deadline and progress in one place.",
+    createFirst: "Create project",
+    noTasks: "No tasks",
+    tasks: "tasks",
+    done: "done",
+    completedLabel: "Completed",
     taskUnavailable: "Tasks could not be refreshed. Your projects are still available.",
-    retry: "Try again",
-    system: "LIVE SYSTEM",
-    systemCopy: "Projects feed Tasks, Dashboard and KIVRYN Core. Changes propagate across the system.",
-    connections: "CONNECTIONS",
-    connectionsCopy: "Google Calendar and Drive plug in here for deadlines, files and project context once Connections Hub is active.",
+    newProject: "New project",
+    namePlaceholder: "Project name",
+    objectivePlaceholder: "What will success look like?",
+    duePlaceholder: "Add deadline (optional)",
+    createError: "Could not create project.",
   },
 } as const;
 
-function Metric({ value, label, danger }: { value: number; label: string; danger?: boolean }) {
-  return (
-    <View style={styles.metric}>
-      <Text style={[styles.metricValue, danger && styles.metricDanger]}>{value}</Text>
-      <Text style={styles.metricLabel}>{label}</Text>
-    </View>
-  );
-}
-
-function ProjectCard({
+function ProjectRow({
   project,
   tasks,
   onOpen,
-  nextLabel,
-  actNow,
-  openWorkspace,
+  locale,
+  completedLabel,
   noTasks,
+  tasksLabel,
+  doneLabel,
 }: {
   project: Project;
   tasks: Task[] | null;
-  onOpen: (projectId: string) => void;
-  nextLabel: string;
-  actNow: string;
-  openWorkspace: string;
+  onOpen(projectId: string): void;
+  locale: "pt-BR" | "en";
+  completedLabel: string;
   noTasks: string;
+  tasksLabel: string;
+  doneLabel: string;
 }) {
-  const taskDataAvailable = tasks !== null;
-  const canonicalTasks = tasks ?? [];
-  const progress = taskDataAvailable ? getProjectProgress(canonicalTasks) : null;
-  const attention = taskDataAvailable
-    ? getProjectAttention(project, canonicalTasks)
-    : getProjectStatusLabel(project.status);
-  const overdue = getProjectOverdueTasks(canonicalTasks).length;
-  const blocked = taskDataAvailable ? getProjectBlockedTasks(canonicalTasks).length : 0;
-  const health = taskDataAvailable ? getProjectHealthState(project, canonicalTasks) : null;
-  const healthLabel = health ? getProjectHealthLabel(health) : attention;
-  const deadline = getProjectDeadlineSummary(project);
-  const next = taskDataAvailable ? getProjectNextAction(canonicalTasks) : null;
-  const open = canonicalTasks.filter((task) => !task.completed).length;
-  const subdued = ["completed", "archived"].includes(project.status.toLowerCase());
-  const percentage = progress ? Math.round(progress.ratio * 100) : 0;
+  const isCompleted = project.status.toLowerCase() === "completed";
+  const completedTasks = tasks?.filter((task) => task.completed).length ?? 0;
+  const totalTasks = tasks?.length ?? 0;
+  const updated = project.updatedAt ? new Date(project.updatedAt) : null;
+  const updatedLabel =
+    updated && !Number.isNaN(updated.getTime())
+      ? updated.toLocaleDateString(locale === "en" ? "en-US" : "pt-BR", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        })
+      : null;
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`Abrir projeto ${project.title}. ${healthLabel}`}
+      accessibilityLabel={`${project.title}${isCompleted ? `, ${completedLabel}` : ""}`}
       onPress={() => {
         onOpen(project.id);
         router.push(`/projects/${project.id}`);
       }}
-      style={({ pressed }) => [styles.card, subdued && styles.subdued, pressed && styles.pressed]}
+      style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
     >
-      <View style={styles.cardGlow} />
-      <View style={styles.cardTop}>
-        <View style={styles.cardIdentity}>
-          <View style={styles.projectGlyph}>
-            <Text style={styles.projectGlyphText}>◇</Text>
-          </View>
-          <View style={styles.flex}>
-            <Text numberOfLines={2} style={styles.cardTitle}>{project.title}</Text>
-            <Text style={styles.statusText}>{healthLabel}</Text>
-          </View>
-        </View>
-        <Text style={styles.chevron}>›</Text>
+      <View style={styles.iconBox}>
+        <Text style={styles.iconText}>▢</Text>
       </View>
-
-      {project.objective || project.description ? (
-        <Text numberOfLines={2} style={styles.copy}>{project.objective || project.description}</Text>
-      ) : null}
-
-      {next ? (
-        <View style={styles.nextBlock}>
-          <Text style={styles.eyebrow}>{nextLabel}</Text>
-          <Text numberOfLines={2} style={styles.nextTitle}>{next.title}</Text>
+      <View style={styles.rowBody}>
+        <View style={styles.titleLine}>
+          <Text numberOfLines={1} style={styles.rowTitle}>
+            {project.title}
+          </Text>
+          {isCompleted ? <Text style={styles.statusPill}>{completedLabel}</Text> : null}
         </View>
-      ) : taskDataAvailable ? (
-        <Text style={styles.meta}>{noTasks}</Text>
-      ) : null}
-
-      {progress ? (
-        <View style={styles.progressBlock}>
-          <View style={styles.progressTop}>
-            <Text style={styles.progressCopy}>{progress.completed}/{progress.total} tarefas</Text>
-            <Text style={styles.progressPercent}>{percentage}%</Text>
-          </View>
-          <V2Progress value={percentage} label={`${progress.completed} de ${progress.total} tarefas concluídas`} />
-          <View style={styles.signalRow}>
-            <Text style={styles.signal}>{open} abertas</Text>
-            {overdue ? <Text style={[styles.signal, styles.danger]}>{overdue} atrasadas</Text> : null}
-            {blocked ? <Text style={[styles.signal, styles.warning]}>{blocked} bloqueadas</Text> : null}
-          </View>
-        </View>
-      ) : null}
-
-      <View style={styles.cardFooter}>
-        <Text style={[styles.meta, getProjectDeadlineState(project) === "overdue" && styles.danger]}>
-          {deadline ? deadline.label : `${open} ${open === 1 ? "tarefa aberta" : "tarefas abertas"}`}
+        {project.objective || project.description ? (
+          <Text numberOfLines={1} style={styles.rowDescription}>
+            {project.objective || project.description}
+          </Text>
+        ) : null}
+        <Text numberOfLines={1} style={styles.rowMeta}>
+          {tasks === null
+            ? updatedLabel ?? ""
+            : totalTasks
+              ? `${completedTasks} ${doneLabel} · ${totalTasks} ${tasksLabel}${updatedLabel ? ` · ${updatedLabel}` : ""}`
+              : `${noTasks}${updatedLabel ? ` · ${updatedLabel}` : ""}`}
         </Text>
-        <Text style={styles.continue}>{next ? actNow : openWorkspace}</Text>
       </View>
+      <Text style={styles.chevron}>›</Text>
     </Pressable>
   );
 }
 
-export default function Projetos() {
+export default function Projects() {
   const { resolvedLocale } = useLanguage();
-  const text = copy[resolvedLocale];
+  const locale = resolvedLocale === "en" ? "en" : "pt-BR";
+  const text = copy[locale];
   const prefetchProject = useOpenProject();
   const projectsQuery = useProjects();
   const tasksQuery = useTasks();
   const { createProject } = useWorkspaceMutations();
+  const [filter, setFilter] = useState<ProjectFilter>("all");
+  const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
+  const [objective, setObjective] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const submitting = useRef(false);
+
   const grouped = useMemo(() => groupTasksByProject(tasksQuery.data ?? []), [tasksQuery.data]);
-  const projects = useMemo(
-    () => sortProjectsByAttention(projectsQuery.data ?? [], grouped),
-    [projectsQuery.data, grouped],
-  );
+  const filtered = useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    return (projectsQuery.data ?? []).filter((project) => {
+      const status = project.status.toLowerCase();
+      const completed = status === "completed";
+      const matchesFilter =
+        filter === "all" ||
+        (filter === "completed" ? completed : !completed && status !== "archived");
+      const matchesSearch =
+        !needle ||
+        `${project.title} ${project.objective ?? ""} ${project.description}`
+          .toLowerCase()
+          .includes(needle);
+      return matchesFilter && matchesSearch;
+    });
+  }, [filter, projectsQuery.data, search]);
 
   async function save() {
     if (submitting.current || createProject.isPending) return;
@@ -213,17 +184,17 @@ export default function Projetos() {
     try {
       const id = await createProject.mutateAsync({
         title,
-        objective: description,
+        objective,
         dueDate: dueDate || null,
       });
       if (!id) throw new Error("Projeto sem identificação canônica.");
       setOpen(false);
       setTitle("");
-      setDescription("");
+      setObjective("");
       setDueDate("");
       router.push(`/projects/${id}`);
     } catch {
-      // Preserve user input for safe retry.
+      // Keep the form values available for correction and retry.
     } finally {
       submitting.current = false;
     }
@@ -235,24 +206,19 @@ export default function Projetos() {
     setRefreshing(false);
   }
 
-  function askKivryn(prompt: string) {
-    router.push({ pathname: "/assistant-chat", params: { prompt } });
-  }
-
-  if (projectsQuery.isPending) return <LoadingState title="Carregando projetos…" />;
+  if (projectsQuery.isPending) return <LoadingState title={locale === "en" ? "Loading projects…" : "Carregando projetos…"} />;
   if (projectsQuery.isError)
     return (
       <ErrorState
-        title="Não foi possível carregar seus projetos."
-        message="Tente novamente em instantes."
-        actionLabel="Tentar novamente"
+        title={locale === "en" ? "Could not load your projects." : "Não foi possível carregar seus projetos."}
+        message={locale === "en" ? "Try again in a moment." : "Tente novamente em instantes."}
+        actionLabel={locale === "en" ? "Try again" : "Tentar novamente"}
         onAction={() => void refresh()}
       />
     );
 
   const taskDataAvailable = !tasksQuery.isError && !tasksQuery.isPending;
-  const overview = taskDataAvailable ? getProjectsOverview(projects, grouped) : null;
-  const activeCount = projects.filter((project) => !["completed", "archived"].includes(project.status.toLowerCase())).length;
+  const hasProjects = (projectsQuery.data?.length ?? 0) > 0;
 
   return (
     <AppScreen contentContainerStyle={styles.page}>
@@ -260,14 +226,57 @@ export default function Projetos() {
         title={text.title}
         subtitle={text.subtitle}
         action={
-          <Pressable accessibilityRole="button" onPress={() => setOpen(true)} style={styles.add}>
-            <Text style={styles.addText}>{text.newProject}</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={text.createFirst}
+            onPress={() => setOpen(true)}
+            style={({ pressed }) => [styles.addButton, pressed && styles.rowPressed]}
+          >
+            <Text style={styles.addText}>＋</Text>
           </Pressable>
         }
       />
 
+      <View style={styles.tabs} accessibilityRole="tablist">
+        {([
+          ["all", text.all],
+          ["active", text.active],
+          ["completed", text.completed],
+        ] as const).map(([value, label]) => {
+          const selected = filter === value;
+          return (
+            <Pressable
+              key={value}
+              accessibilityRole="tab"
+              accessibilityState={{ selected }}
+              onPress={() => setFilter(value)}
+              style={[styles.tab, selected && styles.tabSelected]}
+            >
+              <Text style={[styles.tabText, selected && styles.tabTextSelected]}>{label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      <View style={styles.searchBox}>
+        <Text style={styles.searchIcon}>⌕</Text>
+        <TextInput
+          value={search}
+          onChangeText={setSearch}
+          placeholder={text.search}
+          placeholderTextColor={colors.textMuted}
+          autoCapitalize="none"
+          returnKeyType="search"
+          style={styles.searchInput}
+        />
+      </View>
+
+      {tasksQuery.isError && hasProjects ? (
+        <Text style={styles.warning}>{text.taskUnavailable}</Text>
+      ) : null}
+
       <FlatList
-        data={projects}
+        data={filtered}
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -278,184 +287,226 @@ export default function Projetos() {
             colors={[colors.primaryBright]}
           />
         }
-        contentContainerStyle={projects.length ? styles.list : styles.empty}
-        ListHeaderComponent={
-          <View style={styles.headerStack}>
-            <View style={styles.commandCard}>
-              <View style={styles.commandGlowA} />
-              <View style={styles.commandGlowB} />
-              <Text style={styles.commandEyebrow}>{text.operating}</Text>
-              <View style={styles.metricsRow}>
-                <Metric value={activeCount} label={text.active} />
-                <View style={styles.metricDivider} />
-                <Metric value={overview?.attention ?? 0} label={text.attention} danger={Boolean(overview?.attention)} />
-                <View style={styles.metricDivider} />
-                <Metric value={overview?.actionable ?? 0} label={text.actionable} />
-              </View>
-              {overview?.approaching ? (
-                <View style={styles.deadlineStrip}>
-                  <Text style={styles.deadlineDot}>●</Text>
-                  <Text style={styles.deadlineCopy}>{overview.approaching} {text.approaching}</Text>
-                </View>
-              ) : null}
-            </View>
-
-            <View style={styles.aiCard}>
-              <View style={styles.aiIcon}><Text style={styles.aiSpark}>✦</Text></View>
-              <View style={styles.flex}>
-                <Text style={styles.aiEyebrow}>{text.intelligence}</Text>
-                <Text style={styles.aiCopy}>{text.intelligenceCopy}</Text>
-              </View>
-              <View style={styles.aiActions}>
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={() => askKivryn("Analise meus projetos atuais e diga qual devo priorizar agora, considerando prazos, bloqueios e próximas ações.")}
-                  style={styles.primaryPill}
-                >
-                  <Text style={styles.primaryPillText}>{text.prioritize}</Text>
-                </Pressable>
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={() => askKivryn("Quero criar um projeto novo. Me ajude a definir objetivo, prazo e primeiras tarefas antes de propor a criação.")}
-                  style={styles.secondaryPill}
-                >
-                  <Text style={styles.secondaryPillText}>{text.plan}</Text>
-                </Pressable>
-              </View>
-            </View>
-
-            {tasksQuery.isError ? (
-              <View style={styles.warningCard}>
-                <Text style={styles.warningCopy}>{text.taskUnavailable}</Text>
-                <Pressable onPress={() => void tasksQuery.refetch()}><Text style={styles.link}>{text.retry}</Text></Pressable>
-              </View>
-            ) : null}
-
-            <View style={styles.systemCard}>
-              <Text style={styles.systemEyebrow}>{text.system}</Text>
-              <Text style={styles.systemCopy}>{text.systemCopy}</Text>
-            </View>
-
-            <View style={styles.connectionsCard}>
-              <View style={styles.connectionIcon}><Text style={styles.connectionIconText}>↗</Text></View>
-              <View style={styles.flex}>
-                <Text style={styles.systemEyebrow}>{text.connections}</Text>
-                <Text style={styles.systemCopy}>{text.connectionsCopy}</Text>
-              </View>
-            </View>
-
-            {projects.length ? <Text style={styles.sectionTitle}>{text.workspace}</Text> : null}
-          </View>
-        }
+        contentContainerStyle={hasProjects ? styles.list : styles.emptyList}
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
         ListEmptyComponent={
-          <EmptyState
-            title="Transforme objetivos em progresso."
-            message="Crie um projeto e organize o que precisa acontecer até a conclusão. A KIVRYN acompanha tarefas, progresso, bloqueios e próximos passos."
-            actionLabel="Criar primeiro projeto"
-            onAction={() => setOpen(true)}
-          />
+          hasProjects ? (
+            <View style={styles.noResults}>
+              <Text style={styles.noResultsText}>{text.noResults}</Text>
+            </View>
+          ) : (
+            <EmptyState
+              title={text.noProjects}
+              message={text.noProjectsCopy}
+              actionLabel={text.createFirst}
+              onAction={() => setOpen(true)}
+            />
+          )
         }
         renderItem={({ item }) => (
-          <ProjectCard
+          <ProjectRow
             project={item}
             tasks={taskDataAvailable ? (grouped.get(item.id) ?? []) : null}
             onOpen={prefetchProject}
-            nextLabel={text.nextAction}
-            actNow={text.actNow}
-            openWorkspace={text.openWorkspace}
+            locale={locale}
+            completedLabel={text.completedLabel}
             noTasks={text.noTasks}
+            tasksLabel={text.tasks}
+            doneLabel={text.done}
           />
         )}
       />
 
       <NativeFormModal
         visible={open}
-        title="Novo projeto"
-        placeholder="O que você quer realizar?"
+        title={text.newProject}
+        placeholder={text.namePlaceholder}
         value={title}
         onChange={setTitle}
-        secondaryValue={description}
-        secondaryPlaceholder="Como será o resultado quando estiver concluído?"
-        onSecondaryChange={setDescription}
+        secondaryValue={objective}
+        secondaryPlaceholder={text.objectivePlaceholder}
+        onSecondaryChange={setObjective}
         dateValue={dueDate}
-        datePlaceholder="Adicionar prazo (opcional)"
+        datePlaceholder={text.duePlaceholder}
         onDateChange={setDueDate}
         busy={createProject.isPending}
-        error={createProject.error?.message ?? null}
+        error={createProject.isError ? text.createError : null}
+        errorMessage={text.createError}
         valueMaxLength={120}
         secondaryMaxLength={1000}
-        onClose={() => setOpen(false)}
         onSave={() => void save()}
+        onClose={() => {
+          if (!createProject.isPending) setOpen(false);
+        }}
       />
     </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1 },
-  flex: { flex: 1, minWidth: 0 },
-  add: { minHeight: 42, justifyContent: "center", paddingHorizontal: 16, borderRadius: radius.pill, backgroundColor: colors.primaryBright },
-  addText: { ...typography.label, color: "#001116", fontWeight: "800" },
-  list: { gap: 12, paddingBottom: 110 },
-  empty: { flexGrow: 1 },
-  headerStack: { gap: 14, paddingBottom: 18 },
-  commandCard: { position: "relative", overflow: "hidden", padding: 18, borderRadius: 24, borderWidth: 1, borderColor: "rgba(82,229,255,0.16)", backgroundColor: "#07101A", ...shadows.raised },
-  commandGlowA: { position: "absolute", width: 170, height: 170, borderRadius: 85, right: -70, top: -95, backgroundColor: "rgba(0,184,217,0.10)" },
-  commandGlowB: { position: "absolute", width: 130, height: 130, borderRadius: 65, left: -75, bottom: -90, backgroundColor: "rgba(139,124,246,0.08)" },
-  commandEyebrow: { ...typography.eyebrow, color: colors.primaryBright, letterSpacing: 1.7 },
-  metricsRow: { flexDirection: "row", alignItems: "center", marginTop: 18 },
-  metric: { flex: 1 },
-  metricValue: { ...typography.title, color: colors.text, fontSize: 30, lineHeight: 34 },
-  metricDanger: { color: colors.danger },
-  metricLabel: { ...typography.caption, color: colors.textMuted, marginTop: 3 },
-  metricDivider: { width: 1, height: 38, backgroundColor: colors.border, marginHorizontal: 10 },
-  deadlineStrip: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 16, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
-  deadlineDot: { color: colors.warning, fontSize: 9 },
-  deadlineCopy: { ...typography.caption, color: colors.textSecondary },
-  aiCard: { gap: 12, padding: 16, borderRadius: 22, borderWidth: 1, borderColor: "rgba(82,229,255,0.14)", backgroundColor: colors.surface },
-  aiIcon: { width: 42, height: 42, alignItems: "center", justifyContent: "center", borderRadius: 14, backgroundColor: "rgba(82,229,255,0.08)" },
-  aiSpark: { color: colors.primaryBright, fontSize: 20 },
-  aiEyebrow: { ...typography.eyebrow, color: colors.primaryBright, letterSpacing: 1.4 },
-  aiCopy: { ...typography.body, color: colors.textSecondary, marginTop: 4, lineHeight: 20 },
-  aiActions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  primaryPill: { minHeight: 42, justifyContent: "center", paddingHorizontal: 14, borderRadius: radius.pill, backgroundColor: colors.primaryBright },
-  primaryPillText: { ...typography.caption, color: "#001116", fontWeight: "800" },
-  secondaryPill: { minHeight: 42, justifyContent: "center", paddingHorizontal: 14, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceRaised },
-  secondaryPillText: { ...typography.caption, color: colors.text },
-  warningCard: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14, borderRadius: 18, backgroundColor: colors.surfaceRaised },
-  warningCopy: { ...typography.caption, color: colors.warning, flex: 1 },
-  link: { ...typography.label, color: colors.primaryBright },
-  systemCard: { padding: 15, borderRadius: 18, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
-  systemEyebrow: { ...typography.eyebrow, color: colors.textMuted, letterSpacing: 1.5 },
-  systemCopy: { ...typography.caption, color: colors.textSecondary, marginTop: 5, lineHeight: 18 },
-  connectionsCard: { flexDirection: "row", alignItems: "center", gap: 12, padding: 15, borderRadius: 18, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
-  connectionIcon: { width: 38, height: 38, alignItems: "center", justifyContent: "center", borderRadius: 12, backgroundColor: colors.surfaceRaised },
-  connectionIconText: { color: colors.primaryBright, fontSize: 18 },
-  sectionTitle: { ...typography.eyebrow, color: colors.textMuted, letterSpacing: 1.7, marginTop: 4 },
-  card: { position: "relative", overflow: "hidden", gap: 12, padding: 16, borderRadius: 22, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
-  cardGlow: { position: "absolute", width: 120, height: 120, borderRadius: 60, right: -70, top: -65, backgroundColor: "rgba(82,229,255,0.035)" },
-  subdued: { opacity: 0.66 },
-  pressed: { opacity: 0.76 },
-  cardTop: { flexDirection: "row", alignItems: "center", gap: 10 },
-  cardIdentity: { flex: 1, flexDirection: "row", alignItems: "center", gap: 11 },
-  projectGlyph: { width: 40, height: 40, alignItems: "center", justifyContent: "center", borderRadius: 13, backgroundColor: colors.surfaceRaised },
-  projectGlyphText: { color: colors.primaryBright, fontSize: 21 },
-  cardTitle: { ...typography.heading, fontSize: 18, lineHeight: 23, color: colors.text },
-  statusText: { ...typography.caption, color: colors.primaryBright, marginTop: 2 },
-  chevron: { color: colors.textMuted, fontSize: 26 },
-  copy: { ...typography.body, fontSize: 14, lineHeight: 20, color: colors.textSecondary },
-  nextBlock: { gap: 4, padding: 12, borderRadius: 14, backgroundColor: colors.surfaceRaised },
-  eyebrow: { ...typography.eyebrow, color: colors.primaryBright, letterSpacing: 1.2 },
-  nextTitle: { ...typography.label, color: colors.text },
-  progressBlock: { gap: 8 },
-  progressTop: { flexDirection: "row", justifyContent: "space-between", gap: 12 },
-  progressCopy: { ...typography.caption, color: colors.textMuted },
-  progressPercent: { ...typography.caption, color: colors.primaryBright, fontWeight: "800" },
-  signalRow: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
-  signal: { ...typography.caption, color: colors.textMuted },
-  danger: { color: colors.danger },
-  warning: { color: colors.warning },
-  meta: { ...typography.caption, color: colors.textMuted },
-  cardFooter: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 10 },
-  continue: { ...typography.label, color: colors.primaryBright },
+  page: {
+    flex: 1,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: 0,
+  },
+  addButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surfaceRaised,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  addText: {
+    color: colors.text,
+    fontSize: 30,
+    lineHeight: 32,
+    fontWeight: "300",
+  },
+  tabs: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginTop: spacing.lg,
+  },
+  tab: {
+    paddingHorizontal: spacing.md,
+    minHeight: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surface,
+  },
+  tabSelected: {
+    backgroundColor: colors.text,
+  },
+  tabText: {
+    ...typography.label,
+    color: colors.textMuted,
+  },
+  tabTextSelected: {
+    color: colors.background,
+  },
+  searchBox: {
+    minHeight: 50,
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.md,
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 25,
+    backgroundColor: colors.surfaceRaised,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  searchIcon: {
+    marginRight: spacing.sm,
+    color: colors.textMuted,
+    fontSize: 22,
+  },
+  searchInput: {
+    flex: 1,
+    minHeight: 48,
+    color: colors.text,
+    fontSize: 16,
+  },
+  warning: {
+    marginTop: spacing.sm,
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  list: {
+    marginTop: spacing.md,
+    paddingBottom: spacing.xxl,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: "hidden",
+  },
+  emptyList: {
+    flexGrow: 1,
+    justifyContent: "center",
+    paddingBottom: spacing.xxl,
+  },
+  row: {
+    minHeight: 88,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.surface,
+  },
+  rowPressed: {
+    opacity: 0.72,
+  },
+  iconBox: {
+    width: 46,
+    height: 46,
+    borderRadius: radius.md,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surfaceRaised,
+  },
+  iconText: {
+    color: colors.textMuted,
+    fontSize: 22,
+  },
+  rowBody: {
+    flex: 1,
+    minWidth: 0,
+  },
+  titleLine: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  rowTitle: {
+    flexShrink: 1,
+    color: colors.text,
+    fontSize: 17,
+    fontWeight: "600",
+  },
+  statusPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    color: colors.textMuted,
+    backgroundColor: colors.surfaceRaised,
+    fontSize: 10,
+    overflow: "hidden",
+  },
+  rowDescription: {
+    marginTop: 3,
+    color: colors.textMuted,
+    fontSize: 14,
+  },
+  rowMeta: {
+    marginTop: 5,
+    color: colors.textMuted,
+    fontSize: 12,
+  },
+  chevron: {
+    color: colors.textMuted,
+    fontSize: 28,
+    fontWeight: "300",
+  },
+  separator: {
+    height: StyleSheet.hairlineWidth,
+    marginLeft: 76,
+    backgroundColor: colors.border,
+  },
+  noResults: {
+    minHeight: 180,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: spacing.lg,
+  },
+  noResultsText: {
+    color: colors.textMuted,
+    textAlign: "center",
+    fontSize: 14,
+  },
 });
