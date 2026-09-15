@@ -45,14 +45,38 @@ type AdminClient = {
   rpc: (fn: string, args?: Record<string, unknown>) => any;
 };
 
-async function hasAgentEntitlement(admin: AdminClient, userId: string) {
+async function resolveAgentEntitlement(admin: AdminClient, userId: string) {
   const [{ data: premium, error: premiumError }, { data: internal, error: internalError }] =
     await Promise.all([
       admin.rpc("has_premium", { p_user: userId }),
       admin.rpc("has_internal_full_access", { p_user: userId }),
     ]);
   if (premiumError || internalError) throw new AgentExecutionError("entitlement_check_failed");
-  return premium === true || internal === true;
+  return {
+    allowed: premium === true || internal === true,
+    internal: internal === true,
+  };
+}
+
+function agentDailyLimit() {
+  const parsed = Number.parseInt(Deno.env.get("PREMIUM_AGENT_DAILY_LIMIT") ?? "", 10);
+  return Number.isFinite(parsed) && parsed >= 1 && parsed <= 1000 ? parsed : 30;
+}
+
+async function claimAgentUsage(
+  admin: AdminClient,
+  userId: string,
+  runId: string,
+  internal: boolean,
+) {
+  if (internal) return;
+  const { data, error } = await admin.rpc("claim_agent_run_usage", {
+    p_user: userId,
+    p_request_id: runId,
+    p_limit: agentDailyLimit(),
+  });
+  if (error) throw new AgentExecutionError("usage_claim_failed");
+  if (data !== true) throw new AgentExecutionError("agent_limit_reached");
 }
 
 function backgroundRetryDelayMs(attemptCount: number) {
@@ -80,8 +104,8 @@ export async function executeAgentRun({
   let activeRunId = runId;
   let activeAttemptCount = trigger === "manual" ? 1 : 0;
   try {
-    if (!(await hasAgentEntitlement(admin, userId)))
-      throw new AgentExecutionError("premium_required");
+    const entitlement = await resolveAgentEntitlement(admin, userId);
+    if (!entitlement.allowed) throw new AgentExecutionError("premium_required");
 
     const { data: agent } = await admin
       .from("agents")
@@ -135,6 +159,8 @@ export async function executeAgentRun({
       if (!claimed) throw new AgentExecutionError("invalid_run_claim");
       activeAttemptCount = Number(claimed.attempt_count) || 1;
     }
+
+    await claimAgentUsage(admin, userId, activeRunId, entitlement.internal);
 
     const capabilities = (agent.capabilities ?? []).filter((value: string) => CAPABILITIES.has(value));
     const skills = resolveKivrynAgentSkills(capabilities);
