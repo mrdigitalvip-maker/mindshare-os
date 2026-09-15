@@ -8,6 +8,25 @@ export type MobileAgentPlanStep = {
   requiresApproval: true;
 };
 
+export type MobileAgentActionPlan = {
+  version: 1;
+  intent: string;
+  steps: MobileAgentPlanStep[];
+};
+
+export type MobileAgentRuntimeResult = {
+  runId: string;
+  output: string;
+  contextScopes: string[];
+  skillIds: string[];
+  connectorIds: string[];
+  subagentIds: string[];
+  actionPlan: MobileAgentActionPlan | null;
+  planFingerprint: string | null;
+  approvalRequired: boolean;
+  openaiResponseId: string | null;
+};
+
 export type MobilePendingAgentPlan = {
   runId: string;
   agentId: string;
@@ -15,17 +34,27 @@ export type MobilePendingAgentPlan = {
   planFingerprint: string;
   status: "pending_approval" | "partially_applied";
   appliedStepIds: string[];
-  plan: {
-    version: 1;
-    intent: string;
-    steps: MobileAgentPlanStep[];
-  };
+  plan: MobileAgentActionPlan;
 };
 
 async function userId() {
   const { data, error } = await supabase.auth.getUser();
   if (error || !data.user) throw new Error("Sessão autenticada necessária.");
   return data.user.id;
+}
+
+export async function runMobileAgent(agentId: string, input: string): Promise<MobileAgentRuntimeResult> {
+  await userId();
+  const cleanInput = input.trim();
+  if (!cleanInput) throw new Error("Digite uma solicitação para o Agent.");
+  const { data, error } = await supabase.functions.invoke<{
+    ok: boolean;
+    data?: MobileAgentRuntimeResult;
+    error?: { code?: string; message?: string };
+  }>("agent-run", { body: { agentId, input: cleanInput } });
+  if (error) throw error;
+  if (!data?.ok || !data.data) throw new Error(data?.error?.message ?? "A execução falhou.");
+  return data.data;
 }
 
 export async function listMobilePendingAgentPlans(limit = 10): Promise<MobilePendingAgentPlan[]> {
