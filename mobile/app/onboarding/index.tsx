@@ -127,6 +127,7 @@ export default function Onboarding() {
   const [busy, setBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>();
   const submitLock = useRef(false);
+  const completionInFlight = useRef(false);
 
   useEffect(() => {
     if (name) return;
@@ -136,7 +137,9 @@ export default function Onboarding() {
 
   if (status === "initializing") return <LoadingState title={text.preparing} />;
   if (status === "unauthenticated" || !session) return <Redirect href="/auth" />;
-  if (profile.data?.onboarded && !busy) return <Redirect href="/dashboard" />;
+  if (profile.data?.onboarded && !busy && !completionInFlight.current) {
+    return <Redirect href="/dashboard" />;
+  }
 
   function continueToFirstWin() {
     const normalizedName = name.trim();
@@ -149,6 +152,7 @@ export default function Onboarding() {
     const normalizedName = name.trim();
     if (!session || !normalizedName || normalizedName.length > 80 || submitLock.current) return;
     submitLock.current = true;
+    completionInFlight.current = true;
     setBusy(true);
     setErrorMessage(undefined);
     try {
@@ -177,6 +181,7 @@ export default function Onboarding() {
       router.replace(choice.destination);
       void client.invalidateQueries({ queryKey: queryKeys.profile });
     } catch {
+      completionInFlight.current = false;
       setErrorMessage(text.completeError);
     } finally {
       submitLock.current = false;
