@@ -82,12 +82,21 @@ export default function Agents() {
           {agent.nextRunAt && (
             <Text style={styles.muted}>Próxima: {new Date(agent.nextRunAt).toLocaleString("pt-BR")}</Text>
           )}
-          <Pressable style={styles.primaryButton} onPress={() => setEditingId(editingId === agent.id ? null : agent.id)}>
+          <Pressable
+            style={styles.primaryButton}
+            onPress={() => setEditingId(editingId === agent.id ? null : agent.id)}
+          >
             <Text style={styles.primaryButtonText}>
-              {editingId === agent.id ? "Fechar" : agent.scheduleFrequency ? "Editar agendamento" : "Agendar briefing"}
+              {editingId === agent.id
+                ? "Fechar"
+                : agent.scheduleFrequency
+                  ? "Editar agendamento"
+                  : "Agendar briefing"}
             </Text>
           </Pressable>
-          {editingId === agent.id && <ScheduleEditor agent={agent} close={() => setEditingId(null)} />}
+          {editingId === agent.id && (
+            <ScheduleEditor agent={agent} close={() => setEditingId(null)} />
+          )}
         </View>
       ))}
     </AppScreen>
@@ -96,9 +105,13 @@ export default function Agents() {
 
 function ScheduleEditor({ agent, close }: { agent: MobileAgent; close: () => void }) {
   const client = useQueryClient();
-  const [frequency, setFrequency] = useState<"daily" | "weekly">(agent.scheduleFrequency ?? "daily");
+  const [frequency, setFrequency] = useState<"daily" | "weekly">(
+    agent.scheduleFrequency ?? "daily",
+  );
   const [time, setTime] = useState(agent.scheduleTime ?? "08:00");
-  const [weekdays, setWeekdays] = useState<number[]>(agent.scheduleWeekdays.length ? agent.scheduleWeekdays : [1]);
+  const [weekdays, setWeekdays] = useState<number[]>(
+    agent.scheduleWeekdays.length ? agent.scheduleWeekdays : [1],
+  );
   const [timezone, setTimezone] = useState(
     agent.scheduleTimezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone ?? "UTC",
   );
@@ -134,28 +147,46 @@ function ScheduleEditor({ agent, close }: { agent: MobileAgent; close: () => voi
 
   const toggleDay = (day: number) =>
     setWeekdays((current) =>
-      current.includes(day) ? current.filter((value) => value !== day) : [...current, day].sort(),
+      current.includes(day)
+        ? current.filter((value) => value !== day)
+        : [...current, day].sort((a, b) => a - b),
     );
 
   return (
     <View style={styles.editor}>
       <Text style={styles.label}>Frequência</Text>
       <View style={styles.segmentRow}>
-        <Pressable style={[styles.segment, frequency === "daily" && styles.segmentActive]} onPress={() => setFrequency("daily")}>
+        <Pressable
+          style={[styles.segment, frequency === "daily" && styles.segmentActive]}
+          onPress={() => setFrequency("daily")}
+        >
           <Text style={styles.segmentText}>Diário</Text>
         </Pressable>
-        <Pressable style={[styles.segment, frequency === "weekly" && styles.segmentActive]} onPress={() => setFrequency("weekly")}>
+        <Pressable
+          style={[styles.segment, frequency === "weekly" && styles.segmentActive]}
+          onPress={() => setFrequency("weekly")}
+        >
           <Text style={styles.segmentText}>Semanal</Text>
         </Pressable>
       </View>
       <Text style={styles.label}>Horário local</Text>
-      <TextInput value={time} onChangeText={setTime} placeholder="08:00" placeholderTextColor={colors.textMuted} style={styles.input} />
+      <TextInput
+        value={time}
+        onChangeText={setTime}
+        placeholder="08:00"
+        placeholderTextColor={colors.textMuted}
+        style={styles.input}
+      />
       {frequency === "weekly" && (
         <>
           <Text style={styles.label}>Dias</Text>
           <View style={styles.days}>
             {DAYS.map(([day, label]) => (
-              <Pressable key={day} onPress={() => toggleDay(day)} style={[styles.day, weekdays.includes(day) && styles.dayActive]}>
+              <Pressable
+                key={day}
+                onPress={() => toggleDay(day)}
+                style={[styles.day, weekdays.includes(day) && styles.dayActive]}
+              >
                 <Text style={styles.dayText}>{label}</Text>
               </Pressable>
             ))}
@@ -163,9 +194,25 @@ function ScheduleEditor({ agent, close }: { agent: MobileAgent; close: () => voi
         </>
       )}
       <Text style={styles.label}>Fuso horário</Text>
-      <TextInput value={timezone} onChangeText={setTimezone} autoCapitalize="none" placeholder="America/Bahia" placeholderTextColor={colors.textMuted} style={styles.input} />
+      <TextInput
+        value={timezone}
+        onChangeText={setTimezone}
+        autoCapitalize="none"
+        placeholder="America/Bahia"
+        placeholderTextColor={colors.textMuted}
+        style={styles.input}
+      />
       <Text style={styles.label}>Briefing</Text>
-      <TextInput value={prompt} onChangeText={setPrompt} multiline maxLength={12000} placeholder="O que este Agent deve produzir automaticamente?" placeholderTextColor={colors.textMuted} style={[styles.input, styles.textarea]} textAlignVertical="top" />
+      <TextInput
+        value={prompt}
+        onChangeText={setPrompt}
+        multiline
+        maxLength={12000}
+        placeholder="O que este Agent deve produzir automaticamente?"
+        placeholderTextColor={colors.textMuted}
+        style={[styles.input, styles.textarea]}
+        textAlignVertical="top"
+      />
       <View style={styles.switchRow}>
         <View style={{ flex: 1 }}>
           <Text style={styles.label}>Notificar ao concluir</Text>
@@ -173,12 +220,24 @@ function ScheduleEditor({ agent, close }: { agent: MobileAgent; close: () => voi
         </View>
         <Switch value={notify} onValueChange={setNotify} trackColor={{ true: colors.primary }} />
       </View>
-      <Pressable disabled={save.isPending || !prompt.trim()} style={[styles.primaryButton, (save.isPending || !prompt.trim()) && styles.disabled]} onPress={() => save.mutate()}>
-        <Text style={styles.primaryButtonText}>{save.isPending ? "Salvando…" : "Salvar agendamento"}</Text>
+      <Pressable
+        disabled={save.isPending || !prompt.trim()}
+        style={[styles.primaryButton, (save.isPending || !prompt.trim()) && styles.disabled]}
+        onPress={() => save.mutate()}
+      >
+        <Text style={styles.primaryButtonText}>
+          {save.isPending ? "Salvando…" : "Salvar agendamento"}
+        </Text>
       </Pressable>
       {agent.scheduleFrequency && (
-        <Pressable disabled={clear.isPending} style={styles.outlineButton} onPress={() => clear.mutate()}>
-          <Text style={styles.outlineButtonText}>{clear.isPending ? "Desativando…" : "Desativar agendamento"}</Text>
+        <Pressable
+          disabled={clear.isPending}
+          style={styles.outlineButton}
+          onPress={() => clear.mutate()}
+        >
+          <Text style={styles.outlineButtonText}>
+            {clear.isPending ? "Desativando…" : "Desativar agendamento"}
+          </Text>
         </Pressable>
       )}
     </View>
@@ -186,8 +245,12 @@ function ScheduleEditor({ agent, close }: { agent: MobileAgent; close: () => voi
 }
 
 function cadence(agent: MobileAgent) {
-  if (agent.scheduleFrequency === "daily") return `Todos os dias · ${agent.scheduleTime ?? "—"}`;
-  const days = agent.scheduleWeekdays.map((day) => DAYS.find(([value]) => value === day)?.[1]).filter(Boolean).join(", ");
+  if (agent.scheduleFrequency === "daily")
+    return `Todos os dias · ${agent.scheduleTime ?? "—"}`;
+  const days = agent.scheduleWeekdays
+    .map((day) => DAYS.find(([value]) => value === day)?.[1])
+    .filter(Boolean)
+    .join(", ");
   return `${days || "Semanal"} · ${agent.scheduleTime ?? "—"}`;
 }
 
@@ -196,33 +259,108 @@ const styles = StyleSheet.create({
   eyebrow: { ...typography.eyebrow, color: colors.primaryBright },
   title: { ...typography.title, color: colors.text },
   copy: { ...typography.body, color: colors.textMuted },
-  notice: { padding: spacing.md, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, backgroundColor: colors.surface },
+  notice: {
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
+  },
   noticeText: { ...typography.caption, color: colors.textMuted },
-  empty: { padding: spacing.lg, borderRadius: radius.lg, backgroundColor: colors.surfaceRaised, gap: spacing.sm },
-  card: { padding: spacing.md, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, backgroundColor: colors.surface, gap: spacing.sm },
+  empty: {
+    padding: spacing.lg,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surfaceRaised,
+    gap: spacing.sm,
+  },
+  card: {
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
+    gap: spacing.sm,
+  },
   row: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm },
   cardTitle: { ...typography.heading, color: colors.text },
   muted: { ...typography.caption, color: colors.textMuted },
-  badge: { paddingHorizontal: 8, paddingVertical: 5, borderRadius: radius.full, backgroundColor: colors.accentMuted },
+  badge: {
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: radius.pill,
+    backgroundColor: colors.accentMuted,
+  },
   badgeMuted: { opacity: 0.55 },
   badgeText: { ...typography.eyebrow, color: colors.text, fontSize: 9 },
   scheduleText: { ...typography.label, color: colors.primaryBright },
-  editor: { marginTop: spacing.sm, gap: spacing.sm, paddingTop: spacing.md, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
+  editor: {
+    marginTop: spacing.sm,
+    gap: spacing.sm,
+    paddingTop: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+  },
   label: { ...typography.label, color: colors.text },
-  input: { ...typography.body, minHeight: 48, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: 10, color: colors.text, backgroundColor: colors.surfaceRaised },
+  input: {
+    ...typography.body,
+    minHeight: 48,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+    color: colors.text,
+    backgroundColor: colors.surfaceRaised,
+  },
   textarea: { minHeight: 120 },
   segmentRow: { flexDirection: "row", gap: spacing.sm },
-  segment: { flex: 1, minHeight: 44, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: colors.border, borderRadius: radius.md },
+  segment: {
+    flex: 1,
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+  },
   segmentActive: { backgroundColor: colors.primary, borderColor: colors.primaryBright },
   segmentText: { ...typography.label, color: colors.text },
   days: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
-  day: { minWidth: 42, minHeight: 40, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: colors.border, borderRadius: radius.md },
+  day: {
+    minWidth: 42,
+    minHeight: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+  },
   dayActive: { backgroundColor: colors.primary },
   dayText: { ...typography.caption, color: colors.text },
-  switchRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, paddingVertical: spacing.xs },
-  primaryButton: { minHeight: 48, alignItems: "center", justifyContent: "center", borderRadius: radius.md, backgroundColor: colors.primary, paddingHorizontal: spacing.md },
+  switchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    paddingVertical: spacing.xs,
+  },
+  primaryButton: {
+    minHeight: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.md,
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.md,
+  },
   primaryButtonText: { ...typography.label, color: colors.text },
-  outlineButton: { minHeight: 46, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, paddingHorizontal: spacing.md },
+  outlineButton: {
+    minHeight: 46,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+  },
   outlineButtonText: { ...typography.label, color: colors.primaryBright },
   disabled: { opacity: 0.45 },
 });
