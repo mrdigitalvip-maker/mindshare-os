@@ -1,0 +1,1 @@
+KIVRYN Edition 9 implementation complete. Awaiting repository CI/merge gate. Production delivery is handled by the automatic deploy queue when Vercel is available.
