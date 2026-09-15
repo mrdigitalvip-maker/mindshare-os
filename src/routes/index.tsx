@@ -17,16 +17,17 @@ import { useProfile } from "@/hooks/use-profile";
 import { FullPageLoader } from "@/components/full-page-loader";
 import { Button } from "@/components/ui/button";
 
+const LANDING_DESCRIPTION =
+  "KIVRYN is a personal AI operating system that unifies AI agents, projects, tasks, studies, documents, content, translation and daily planning in one intelligent workspace.";
+
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "KIVRYN — Your Personal AI Operating System" },
-      {
-        name: "description",
-        content:
-          "One intelligent workspace for productivity, projects, learning, content and translation. Meet KIVRYN.",
-      },
+      { name: "description", content: LANDING_DESCRIPTION },
+      { property: "og:url", content: "https://kivryn.co/" },
     ],
+    links: [{ rel: "canonical", href: "https://kivryn.co/" }],
   }),
   component: Landing,
 });
@@ -72,7 +73,7 @@ export default function Landing() {
       <header className="sticky top-0 z-40 glass">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
           <Link to="/" className="flex items-center gap-2">
-            <img src="/icon-512.png" alt="" width={28} height={28} className="rounded-md" />
+            <img src="/icon-512.png" alt="KIVRYN" width={28} height={28} className="rounded-md" />
             <span className="font-display text-xl tracking-tight">KIVRYN</span>
           </Link>
           <nav className="hidden items-center gap-8 text-sm text-muted-foreground md:flex">
@@ -81,6 +82,9 @@ export default function Landing() {
             </a>
             <a href="#modules" className="hover:text-foreground">
               Modules
+            </a>
+            <a href="#about" className="hover:text-foreground">
+              About
             </a>
             <Link to="/premium" className="hover:text-foreground">
               Premium
@@ -119,8 +123,8 @@ export default function Landing() {
               Operating System
             </h1>
             <p className="mx-auto mt-6 max-w-xl text-lg text-muted-foreground">
-              One intelligent workspace for productivity, projects, learning, content and
-              translation. KIVRYN works with you — every day.
+              One intelligent workspace for AI agents, productivity, projects, learning, content,
+              translation and daily planning. KIVRYN works with you — every day.
             </p>
             <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
               <Link to="/auth" search={{ mode: "signup" }}>
@@ -175,7 +179,8 @@ export default function Landing() {
             <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Modules</p>
             <h2 className="mt-3 font-display text-4xl md:text-5xl">Everything you use, unified.</h2>
             <p className="mt-4 text-muted-foreground">
-              Ten deeply integrated modules that share memory, context and taste.
+              Deeply integrated modules share context so your projects, tasks, studies, documents
+              and AI workflows can work together instead of living in disconnected tools.
             </p>
           </div>
           <div id="modules" className="mt-14 grid gap-4 md:grid-cols-3">
@@ -219,6 +224,32 @@ export default function Landing() {
         </div>
       </section>
 
+      <section id="about" className="border-t border-border">
+        <div className="mx-auto max-w-4xl px-6 py-24">
+          <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">About KIVRYN</p>
+          <h2 className="mt-3 font-display text-4xl md:text-5xl">
+            One AI workspace for the way you actually work.
+          </h2>
+          <div className="mt-6 space-y-4 text-base leading-7 text-muted-foreground">
+            <p>
+              KIVRYN is a Personal AI Operating System designed to help people organize their
+              digital life with artificial intelligence. It brings AI assistance, agents,
+              productivity, projects, tasks, studies, documents, content creation, translation and
+              daily planning into one intelligent workspace.
+            </p>
+            <p>
+              Instead of switching between disconnected tools, KIVRYN is built to help users think,
+              plan, organize and execute from one place while keeping the user in control of what AI
+              can access and act on.
+            </p>
+            <p>
+              KIVRYN is developed by Aether Systems with a focus on useful AI, coherent workflows,
+              privacy, reliability and a calmer digital experience.
+            </p>
+          </div>
+        </div>
+      </section>
+
       <section className="border-t border-border">
         <div className="mx-auto max-w-4xl px-6 py-24 text-center">
           <h2 className="font-display text-4xl md:text-6xl">
@@ -239,6 +270,9 @@ export default function Landing() {
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 py-8 text-xs text-muted-foreground md:flex-row">
           <p>© {new Date().getFullYear()} KIVRYN. All rights reserved.</p>
           <div className="flex flex-wrap items-center justify-center gap-4">
+            <a href="#about" className="hover:text-foreground">
+              About
+            </a>
             <Link to="/privacy" className="hover:text-foreground">
               Privacy
             </Link>
