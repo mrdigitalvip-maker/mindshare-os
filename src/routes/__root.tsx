@@ -18,6 +18,55 @@ import { LanguageProvider } from "@/providers/language-provider";
 import { ModuleAtmosphere } from "@/components/module-atmosphere";
 import { WebAppPrompts } from "@/components/web-app-prompts";
 
+const SITE_URL = "https://kivryn.co/";
+const BRAND_ICON_URL = "https://kivryn.co/icon-512.png";
+const SITE_DESCRIPTION =
+  "KIVRYN is a personal AI operating system that unifies AI agents, projects, tasks, studies, documents, content, translation and daily planning in one intelligent workspace.";
+
+const SEARCH_IDENTITY_SCHEMA = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": `${SITE_URL}#website`,
+      url: SITE_URL,
+      name: "KIVRYN",
+      alternateName: ["KIVRYN AI", "KIVRYN Personal AI Operating System"],
+      description: SITE_DESCRIPTION,
+      publisher: { "@id": `${SITE_URL}#organization` },
+    },
+    {
+      "@type": "Organization",
+      "@id": `${SITE_URL}#organization`,
+      name: "Aether Systems",
+      url: SITE_URL,
+      logo: {
+        "@type": "ImageObject",
+        url: BRAND_ICON_URL,
+        width: 512,
+        height: 512,
+      },
+      brand: {
+        "@type": "Brand",
+        name: "KIVRYN",
+        logo: BRAND_ICON_URL,
+      },
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": `${SITE_URL}#app`,
+      name: "KIVRYN",
+      alternateName: "KIVRYN AI",
+      url: SITE_URL,
+      image: BRAND_ICON_URL,
+      description: SITE_DESCRIPTION,
+      applicationCategory: "ProductivityApplication",
+      operatingSystem: "Android, Web",
+      publisher: { "@id": `${SITE_URL}#organization` },
+    },
+  ],
+};
+
 function NotFoundComponent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-6">
@@ -98,46 +147,48 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         content: "width=device-width, initial-scale=1, viewport-fit=cover",
       },
       { title: "KIVRYN — Your Personal AI Operating System" },
-      {
-        name: "description",
-        content:
-          "One intelligent workspace for productivity, projects, learning, content and translation. Meet KIVRYN.",
-      },
+      { name: "description", content: SITE_DESCRIPTION },
+      { name: "application-name", content: "KIVRYN" },
       { name: "theme-color", content: "#0a0a0b" },
-      { name: "author", content: "KIVRYN" },
+      { name: "author", content: "Aether Systems" },
+      {
+        name: "robots",
+        content: "index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1",
+      },
       { name: "google", content: "notranslate" },
       { property: "og:title", content: "KIVRYN — Your Personal AI Operating System" },
-      {
-        property: "og:description",
-        content:
-          "One intelligent workspace for productivity, projects, learning, content and translation. Meet KIVRYN.",
-      },
+      { property: "og:description", content: SITE_DESCRIPTION },
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: "KIVRYN" },
+      { property: "og:image", content: BRAND_ICON_URL },
+      { property: "og:image:alt", content: "KIVRYN app icon" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: "KIVRYN — Your Personal AI Operating System" },
-      {
-        name: "twitter:description",
-        content:
-          "One intelligent workspace for productivity, projects, learning, content and translation. Meet KIVRYN.",
-      },
+      { name: "twitter:description", content: SITE_DESCRIPTION },
+      { name: "twitter:image", content: BRAND_ICON_URL },
+      { name: "twitter:image:alt", content: "KIVRYN app icon" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-title", content: "KIVRYN" },
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
-      { property: "og:image", content: "https://kivryn.co/icon-512.png" },
-      { name: "twitter:image", content: "https://kivryn.co/icon-512.png" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
       { rel: "stylesheet", href: experienceCss },
-      { rel: "icon", type: "image/png", href: "/icon-512.png" },
-      { rel: "apple-touch-icon", href: "/icon-512.png" },
+      { rel: "icon", type: "image/png", sizes: "192x192", href: "/icon-192.png" },
+      { rel: "icon", type: "image/png", sizes: "512x512", href: "/icon-512.png" },
+      { rel: "apple-touch-icon", sizes: "192x192", href: "/icon-192.png" },
       { rel: "manifest", href: "/manifest.webmanifest" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
         rel: "stylesheet",
         href: "https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap",
+      },
+    ],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify(SEARCH_IDENTITY_SCHEMA),
       },
     ],
   }),
