@@ -80,6 +80,7 @@ describe("NXR-033 notification lifecycle", () => {
     expect(notificationRoute({ kind: "project", resourceId: "p-1" })).toBe("/projects/p-1");
     expect(notificationRoute({ kind: "study", resourceId: "s-1" })).toBe("/studies/s-1");
     expect(notificationRoute({ kind: "journey", resourceId: "j-1" })).toBe("/journeys/j-1");
+    expect(notificationRoute({ kind: "agent", resourceId: "a-1" })).toBe("/agents");
   });
   test("14 duplicate response once", () => {
     const accept = createNotificationResponseDedupe();

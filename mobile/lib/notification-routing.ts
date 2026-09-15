@@ -4,6 +4,7 @@ export type NativeNotificationRoute =
   | "/dashboard"
   | "/journeys"
   | "/community"
+  | "/agents"
   | `/community/${string}`
   | `/journeys/${string}`
   | `/projects/${string}`
@@ -22,6 +23,7 @@ export function notificationRoute(data: unknown): NativeNotificationRoute {
   const id = typeof payload.resourceId === "string" ? payload.resourceId.trim() : "";
   if (payload.kind === "community")
     return id && /^[A-Za-z0-9-]+$/.test(id) ? `/community/${id}` : "/community";
+  if (payload.kind === "agent") return "/agents";
   if (!id || !/^[A-Za-z0-9-]+$/.test(id)) return "/dashboard";
   if (payload.kind === "project") return `/projects/${id}`;
   if (payload.kind === "study") return `/studies/${id}`;
