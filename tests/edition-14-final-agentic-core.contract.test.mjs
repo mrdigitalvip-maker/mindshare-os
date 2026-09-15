@@ -126,7 +126,7 @@ test("Agent executor enforces entitlement, daily budget and records runtime auth
   assert.match(source, /OPENAI THINKS\. KIVRYN DECIDES WHAT OPENAI CAN TOUCH\./);
 });
 
-test("Web and Android expose the same persisted approval boundary", async () => {
+test("Web and Android expose the same manual run and persisted approval boundary", async () => {
   const [webService, webRoute, mobileService, mobileRoute] = await Promise.all([
     readFile(webRuntimePath, "utf8"),
     readFile(webRoutePath, "utf8"),
@@ -134,13 +134,17 @@ test("Web and Android expose the same persisted approval boundary", async () => 
     readFile(mobileRoutePath, "utf8"),
   ]);
   for (const service of [webService, mobileService]) {
+    assert.match(service, /agent-run/);
     assert.match(service, /agent-action-review/);
     assert.match(service, /action_plan_fingerprint/);
     assert.match(service, /pending_approval/);
   }
+  assert.match(webRoute, /Executar/);
   assert.match(webRoute, /Plano proposto — aguardando sua aprovação/);
   assert.match(webRoute, /Aprovar ações restantes/);
   assert.match(webRoute, /Rejeitar plano/);
+  assert.match(mobileRoute, /runMobileAgent/);
+  assert.match(mobileRoute, /Conversar com este Agent/);
   assert.match(mobileRoute, /Aprovações pendentes/);
   assert.match(mobileRoute, /Aprovar restantes/);
   assert.match(mobileRoute, /Rejeitar/);
