@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, FolderKanban, Loader2, Plus, Search, Sparkles } from "lucide-react";
+import { Folder, Loader2, Plus, Search } from "lucide-react";
 import { toast } from "sonner";
 import { PageShell } from "@/components/page-shell";
 import { Button } from "@/components/ui/button";
@@ -18,13 +18,17 @@ export const Route = createFileRoute("/_shell/projects")({
   component: Projects,
 });
 
+type ProjectFilter = "all" | "active" | "completed";
+
 function Projects() {
   const { t } = useLanguage();
   const [creating, setCreating] = useState(false);
   const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<ProjectFilter>("all");
   const { user, isAuthenticated } = useAuth();
   const projectKey = workspaceQueryKeys.projects(user?.id);
   const taskKey = workspaceQueryKeys.tasks(user?.id);
+
   const projects = useQuery({
     queryKey: projectKey,
     queryFn: ProjectService.list,
@@ -35,111 +39,102 @@ function Projects() {
     queryFn: () => TaskService.listTasks(),
     enabled: isAuthenticated && !!user,
   });
-  const filtered = useMemo(
-    () =>
-      (Array.isArray(projects.data) ? projects.data : []).filter((p) =>
-        `${p.title} ${p.objective ?? ""} ${p.description ?? ""}`
+
+  const filtered = useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    return (Array.isArray(projects.data) ? projects.data : []).filter((project) => {
+      const status = project.status?.toLowerCase() ?? "active";
+      const completed = status === "completed";
+      const matchesFilter =
+        filter === "all" || (filter === "completed" ? completed : !completed && status !== "archived");
+      const matchesSearch =
+        !needle ||
+        `${project.title} ${project.objective ?? ""} ${project.description ?? ""}`
           .toLowerCase()
-          .includes(search.trim().toLowerCase()),
-      ),
-    [projects.data, search],
-  );
-  const active = filtered.filter((p) => p.status !== "completed");
-  const completed = filtered.filter((p) => p.status === "completed");
+          .includes(needle);
+      return matchesFilter && matchesSearch;
+    });
+  }, [filter, projects.data, search]);
 
   return (
     <PageShell>
-      <header className="v2-workspace-header flex items-end justify-between gap-4">
+      <header className="v2-workspace-header flex items-center justify-between gap-4">
         <div className="min-w-0">
           <h1 className="font-display text-3xl md:text-4xl">{t("page.projects.title")}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{t("page.projects.description")}</p>
+          <p className="mt-1 text-sm text-muted-foreground">Seus projetos, sem distrações.</p>
         </div>
-        <Button className="shrink-0" onClick={() => setCreating(true)}>
-          <Plus /> <span className="hidden min-[360px]:inline">Novo projeto</span>
-          <span className="min-[360px]:hidden">Novo</span>
+        <Button
+          size="icon"
+          className="h-11 w-11 shrink-0 rounded-full"
+          aria-label="Criar projeto"
+          onClick={() => setCreating(true)}
+        >
+          <Plus className="h-5 w-5" />
         </Button>
       </header>
-      {projects.isLoading || tasks.isLoading ? (
-        <Loading />
-      ) : projects.isError || tasks.isError ? (
-        <ErrorState
-          retry={() => {
-            projects.refetch();
-            tasks.refetch();
-          }}
+
+      <div className="mt-7 flex gap-2 overflow-x-auto pb-1" aria-label="Filtros de projetos">
+        {([
+          ["all", "Tudo"],
+          ["active", "Ativos"],
+          ["completed", "Concluídos"],
+        ] as const).map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => setFilter(value)}
+            className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition ${
+              filter === value
+                ? "bg-foreground text-background"
+                : "bg-surface text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <div className="relative mt-5">
+        <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Pesquisar projetos"
+          aria-label="Pesquisar projetos"
+          className="h-12 rounded-full pl-11"
         />
-      ) : !(Array.isArray(projects.data) && projects.data.length) ? (
-        <section className="mx-auto flex min-h-[58dvh] max-w-lg flex-col justify-center py-12 text-center">
-          <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl border border-intelligence/20 bg-intelligence/10">
-            <FolderKanban className="h-8 w-8 text-intelligence" />
-          </div>
-          <h2 className="mt-6 font-display text-2xl">Transforme um objetivo em próximas ações</h2>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            Crie um espaço para planejar, executar e continuar de onde parou.
-          </p>
-          <Button className="mx-auto mt-7" onClick={() => setCreating(true)}>
-            Criar primeiro projeto <ArrowRight />
-          </Button>
+      </div>
+
+      {projects.isLoading ? (
+        <Loading />
+      ) : projects.isError ? (
+        <ErrorState retry={() => void projects.refetch()} />
+      ) : !Array.isArray(projects.data) || projects.data.length === 0 ? (
+        <EmptyProjects onCreate={() => setCreating(true)} />
+      ) : filtered.length === 0 ? (
+        <section className="py-16 text-center">
+          <p className="text-sm text-muted-foreground">Nenhum projeto corresponde a este filtro.</p>
         </section>
       ) : (
-        <div className="mt-7 space-y-9">
-          <section>
-            <div className="mb-4">
-              <p className="text-xs font-medium text-intelligence">CONTINUAR</p>
-              <h2 className="mt-1 font-display text-2xl">Trabalho ativo</h2>
-            </div>
-            {active.length ? (
-              <div className="grid gap-3 lg:grid-cols-2">
-                {active.slice(0, 4).map((project) => (
-                  <ProjectRow
-                    key={project.id}
-                    project={project}
-                    tasks={(Array.isArray(tasks.data) ? tasks.data : []).filter(
-                      (t) => t.projectId === project.id,
-                    )}
-                    featured
-                  />
-                ))}
-              </div>
-            ) : (
-              <p className="rounded-2xl border border-border p-5 text-sm text-muted-foreground">
-                Nenhum projeto ativo. Seus projetos concluídos continuam disponíveis abaixo.
-              </p>
-            )}
-          </section>
-          <section>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <h2 className="font-display text-xl">Todos os projetos</h2>
-              <div className="relative sm:w-72">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  className="pl-9"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Buscar projetos"
-                  aria-label="Buscar projetos"
-                />
-              </div>
-            </div>
-            <div className="mt-4 divide-y divide-border rounded-2xl border border-border bg-surface/30">
-              {[...active, ...completed].map((project) => (
-                <ProjectRow
-                  key={project.id}
-                  project={project}
-                  tasks={(Array.isArray(tasks.data) ? tasks.data : []).filter(
-                    (t) => t.projectId === project.id,
-                  )}
-                />
-              ))}
-              {!filtered.length && (
-                <p className="p-6 text-center text-sm text-muted-foreground">
-                  Nenhum projeto corresponde à busca.
-                </p>
+        <section className="mt-5 divide-y divide-border/70 overflow-hidden rounded-2xl border border-border/80 bg-surface/20">
+          {filtered.map((project) => (
+            <ProjectRow
+              key={project.id}
+              project={project}
+              tasks={(Array.isArray(tasks.data) ? tasks.data : []).filter(
+                (task) => task.projectId === project.id,
               )}
-            </div>
-          </section>
-        </div>
+            />
+          ))}
+        </section>
       )}
+
+      {tasks.isError && Array.isArray(projects.data) && projects.data.length > 0 ? (
+        <p className="mt-4 text-xs text-muted-foreground">
+          As tarefas não puderam ser atualizadas agora. Seus projetos continuam disponíveis.
+        </p>
+      ) : null}
+
       <CreateProject open={creating} onOpenChange={setCreating} />
     </PageShell>
   );
@@ -148,98 +143,93 @@ function Projects() {
 function ProjectRow({
   project,
   tasks,
-  featured = false,
 }: {
   project: Awaited<ReturnType<typeof ProjectService.list>>[number];
   tasks: Awaited<ReturnType<typeof TaskService.listTasks>>;
-  featured?: boolean;
 }) {
-  const open = tasks.filter((t) => t.status === "open");
-  const next = chooseNext(open);
-  const overdue = open.filter(
-    (t) => t.dueDate && new Date(`${t.dueDate.slice(0, 10)}T23:59:59`) < new Date(),
-  ).length;
+  const completedTasks = tasks.filter((task) => task.status === "done").length;
+  const status = project.status?.toLowerCase() ?? "active";
+  const completed = status === "completed";
+  const updatedAt = project.updatedAt ? new Date(project.updatedAt) : null;
+  const updatedLabel =
+    updatedAt && !Number.isNaN(updatedAt.getTime())
+      ? updatedAt.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })
+      : null;
+
   return (
     <Link
       to="/projects/$projectId"
       params={{ projectId: project.id }}
-      className={`${featured ? "v2-surface rounded-2xl p-5" : "flex p-4"} v2-interactive group min-w-0 items-center gap-4`}
+      className="group flex min-w-0 items-center gap-4 px-4 py-4 transition hover:bg-surface/70 sm:px-5"
     >
+      <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-surface text-muted-foreground">
+        <Folder className="h-5 w-5" />
+      </div>
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <h3 className={`${featured ? "font-display text-xl" : "font-medium"} truncate`}>
-            {project.title}
-          </h3>
-          {project.status === "completed" && (
-            <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] text-emerald-400">
+        <div className="flex min-w-0 items-center gap-2">
+          <h2 className="truncate font-medium text-foreground">{project.title}</h2>
+          {completed ? (
+            <span className="shrink-0 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] text-emerald-400">
               Concluído
             </span>
-          )}
+          ) : null}
         </div>
-        {featured && (
-          <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
-            {project.objective || project.description || "Defina o resultado deste projeto."}
+        {project.objective || project.description ? (
+          <p className="mt-1 truncate text-sm text-muted-foreground">
+            {project.objective || project.description}
           </p>
-        )}
-        <div
-          className={`${featured ? "mt-5" : "mt-2"} flex items-center gap-3 text-xs text-muted-foreground`}
-        >
-          <span>
-            {tasks.length
-              ? `${project.completedTasks ?? 0} de ${project.totalTasks ?? 0} tarefas`
-              : "Ainda não planejado"}
-          </span>
-          {overdue > 0 && <span className="text-destructive">{overdue} em atraso</span>}
-        </div>
-        {featured && (
-          <>
-            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-background">
-              <div
-                className="h-full rounded-full bg-intelligence"
-                style={{ width: `${project.progress}%` }}
-              />
-            </div>
-            <p className="mt-3 truncate text-sm">
-              <span className="text-muted-foreground">Próxima: </span>
-              {next?.title ?? "Planejar a primeira ação"}
-            </p>
-          </>
-        )}
+        ) : null}
+        <p className="mt-1.5 text-xs text-muted-foreground">
+          {tasks.length ? `${completedTasks} de ${tasks.length} tarefas` : "Sem tarefas"}
+          {updatedLabel ? ` · ${updatedLabel}` : ""}
+        </p>
       </div>
-      <ArrowRight className="h-5 w-5 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-intelligence" />
+      <span className="text-xl text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-foreground">
+        ›
+      </span>
     </Link>
   );
 }
 
-function chooseNext<T extends { priority?: string; dueDate?: string | null }>(
-  items: T[],
-): T | undefined {
-  return [...items].sort((a, b) => {
-    const overdue = (x: T) =>
-      x.dueDate && new Date(`${x.dueDate.slice(0, 10)}T23:59:59`) < new Date() ? 0 : 1;
-    return (
-      overdue(a) - overdue(b) ||
-      (a.priority === "high" ? 0 : 1) - (b.priority === "high" ? 0 : 1) ||
-      (a.dueDate ?? "9999").localeCompare(b.dueDate ?? "9999")
-    );
-  })[0];
+function EmptyProjects({ onCreate }: { onCreate: () => void }) {
+  return (
+    <section className="mx-auto flex min-h-[52dvh] max-w-md flex-col items-center justify-center py-12 text-center">
+      <div className="grid h-14 w-14 place-items-center rounded-2xl bg-surface">
+        <Folder className="h-6 w-6 text-muted-foreground" />
+      </div>
+      <h2 className="mt-5 font-display text-2xl">Comece com um projeto</h2>
+      <p className="mt-2 text-sm leading-6 text-muted-foreground">
+        Dê um nome ao objetivo e concentre tarefas, prazo e progresso em um só lugar.
+      </p>
+      <Button className="mt-6 rounded-full" onClick={onCreate}>
+        <Plus className="h-4 w-4" /> Criar projeto
+      </Button>
+    </section>
+  );
 }
+
 function Loading() {
   return (
-    <div className="mt-8 space-y-3" aria-label="Carregando projetos">
-      <div className="h-32 animate-pulse rounded-2xl bg-surface" />
-      <div className="h-20 animate-pulse rounded-2xl bg-surface" />
+    <div className="mt-5 divide-y divide-border/70 overflow-hidden rounded-2xl border border-border/80">
+      {[0, 1, 2].map((item) => (
+        <div key={item} className="flex items-center gap-4 p-4 sm:p-5">
+          <div className="h-11 w-11 animate-pulse rounded-xl bg-surface" />
+          <div className="flex-1 space-y-2">
+            <div className="h-4 w-2/5 animate-pulse rounded bg-surface" />
+            <div className="h-3 w-3/5 animate-pulse rounded bg-surface" />
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
+
 function ErrorState({ retry }: { retry: () => void }) {
   return (
-    <section role="alert" className="mt-8 rounded-2xl border border-destructive/30 p-6">
+    <section role="alert" className="mt-6 rounded-2xl border border-destructive/30 p-6">
       <h2 className="font-semibold">Não foi possível carregar seus projetos</h2>
-      <p className="mt-2 text-sm text-muted-foreground">
-        Verifique sua conexão. Seu trabalho salvo não foi alterado.
-      </p>
-      <Button variant="outline" className="mt-4" onClick={retry}>
+      <p className="mt-2 text-sm text-muted-foreground">Seu trabalho salvo não foi alterado.</p>
+      <Button variant="outline" className="mt-4 rounded-full" onClick={retry}>
         Tentar novamente
       </Button>
     </section>
@@ -251,7 +241,7 @@ function CreateProject({
   onOpenChange,
 }: {
   open: boolean;
-  onOpenChange: (v: boolean) => void;
+  onOpenChange: (value: boolean) => void;
 }) {
   const navigate = useNavigate();
   const client = useQueryClient();
@@ -259,6 +249,7 @@ function CreateProject({
   const [title, setTitle] = useState("");
   const [objective, setObjective] = useState("");
   const [description, setDescription] = useState("");
+
   const create = useMutation({
     mutationFn: () =>
       ProjectService.create({
@@ -268,59 +259,55 @@ function CreateProject({
         status: "active",
         priority: "medium",
       }),
-    onSuccess: async (p) => {
+    onSuccess: async (project) => {
       await client.invalidateQueries({ queryKey: workspaceQueryKeys.projects(user?.id) });
       toast.success("Projeto criado");
       onOpenChange(false);
       setTitle("");
       setObjective("");
       setDescription("");
-      navigate({ to: "/projects/$projectId", params: { projectId: p.id } });
+      navigate({ to: "/projects/$projectId", params: { projectId: project.id } });
     },
-    onError: (e: Error) => toast.error(e.message || "Não foi possível criar o projeto"),
+    onError: () => toast.error("Não foi possível criar o projeto"),
   });
+
   return (
-    <Sheet open={open} onOpenChange={(v) => !create.isPending && onOpenChange(v)}>
+    <Sheet open={open} onOpenChange={(value) => !create.isPending && onOpenChange(value)}>
       <SheetContent
         side="right"
         className="flex h-dvh w-full max-w-xl flex-col overflow-hidden p-0 sm:w-[min(100%,36rem)]"
       >
         <SheetHeader className="border-b px-5 pb-5 pt-[calc(1.25rem+env(safe-area-inset-top))] text-left">
-          <div className="flex items-center gap-2 text-sm text-intelligence">
-            <Sparkles className="h-4 w-4" /> Defina o resultado
-          </div>
           <SheetTitle className="font-display text-2xl">Novo projeto</SheetTitle>
-          <p className="text-sm text-muted-foreground">
-            Comece pelo que você quer tornar realidade.
-          </p>
+          <p className="text-sm text-muted-foreground">Defina o objetivo. O restante pode evoluir dentro do projeto.</p>
         </SheetHeader>
         <form
           className="flex min-h-0 flex-1 flex-col"
-          onSubmit={(e) => {
-            e.preventDefault();
+          onSubmit={(event) => {
+            event.preventDefault();
             if (title.trim()) create.mutate();
           }}
         >
           <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-5 py-6">
             <div className="space-y-2">
-              <Label htmlFor="project-title">No que você está trabalhando?</Label>
+              <Label htmlFor="project-title">Nome do projeto</Label>
               <Input
                 id="project-title"
                 autoFocus
                 maxLength={120}
                 value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Ex.: Lançar meu novo portfólio"
+                onChange={(event) => setTitle(event.target.value)}
+                placeholder="Ex.: Lançar KIVRYN"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="project-goal">Como é o resultado concluído?</Label>
+              <Label htmlFor="project-goal">Resultado esperado</Label>
               <Textarea
                 id="project-goal"
                 maxLength={500}
                 value={objective}
-                onChange={(e) => setObjective(e.target.value)}
-                placeholder="Descreva um resultado claro e observável"
+                onChange={(event) => setObjective(event.target.value)}
+                placeholder="Como será quando estiver concluído?"
                 className="min-h-28"
               />
             </div>
@@ -332,29 +319,28 @@ function CreateProject({
                 id="project-context"
                 maxLength={1000}
                 value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Detalhes que ajudarão você a executar"
+                onChange={(event) => setDescription(event.target.value)}
+                placeholder="Detalhes úteis para executar"
               />
             </div>
-            {create.isError && (
-              <p role="alert" className="text-sm text-destructive">
-                Nada foi criado. Revise sua conexão e tente novamente.
-              </p>
-            )}
           </div>
           <div className="flex gap-3 border-t bg-background px-5 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
             <Button
               type="button"
               variant="outline"
-              className="flex-1"
+              className="flex-1 rounded-full"
               onClick={() => onOpenChange(false)}
               disabled={create.isPending}
             >
               Cancelar
             </Button>
-            <Button type="submit" className="flex-1" disabled={!title.trim() || create.isPending}>
-              {create.isPending && <Loader2 className="animate-spin" />}
-              {create.isPending ? "Criando…" : "Criar e planejar"}
+            <Button
+              type="submit"
+              className="flex-1 rounded-full"
+              disabled={!title.trim() || create.isPending}
+            >
+              {create.isPending ? <Loader2 className="animate-spin" /> : <Plus className="h-4 w-4" />}
+              {create.isPending ? "Criando…" : "Criar"}
             </Button>
           </div>
         </form>
