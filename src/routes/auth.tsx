@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
+import { BrainCircuit, Route as RouteIcon, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -24,7 +25,7 @@ export const Route = createFileRoute("/auth")({
 });
 
 function AuthPage() {
-  const { t } = useLanguage();
+  const { t, resolvedLocale } = useLanguage();
   const { mode = "signin" } = Route.useSearch();
   const navigate = useNavigate();
   const {
@@ -45,6 +46,54 @@ function AuthPage() {
   const [resendCooldown, setResendCooldown] = useState(0);
   const submitLock = useRef(false);
   const resendLock = useRef(false);
+  const discovery =
+    resolvedLocale === "pt-BR"
+      ? {
+          label: "ENTENDA A KIVRYN",
+          title: "Não é só um chat de IA. É um sistema para pensar, organizar e executar.",
+          intro:
+            "A KIVRYN conecta sua IA ao trabalho real que você cria dentro do sistema — projetos, tarefas, estudos, jornadas e contexto.",
+          items: [
+            {
+              title: "Pense com contexto",
+              copy: "Converse com uma IA que pode trabalhar a partir do seu próprio espaço, não de uma tela isolada.",
+              icon: BrainCircuit,
+            },
+            {
+              title: "Transforme metas em ação",
+              copy: "Projetos, tarefas, missões e jornadas mantêm intenção e execução no mesmo lugar.",
+              icon: RouteIcon,
+            },
+            {
+              title: "Evolua com o uso",
+              copy: "Aprendizado, criação e progresso passam a fazer parte de um único sistema pessoal.",
+              icon: Sparkles,
+            },
+          ],
+        }
+      : {
+          label: "UNDERSTAND KIVRYN",
+          title: "It is not just an AI chat. It is a system to think, organize and execute.",
+          intro:
+            "KIVRYN connects AI to the real work you create inside the system — projects, tasks, studies, journeys and context.",
+          items: [
+            {
+              title: "Think with context",
+              copy: "Talk with AI that can work from your own workspace instead of an isolated chat screen.",
+              icon: BrainCircuit,
+            },
+            {
+              title: "Turn goals into action",
+              copy: "Projects, tasks, missions and journeys keep intention and execution in the same place.",
+              icon: RouteIcon,
+            },
+            {
+              title: "Grow with the system",
+              copy: "Learning, creation and progress become part of one personal operating system.",
+              icon: Sparkles,
+            },
+          ],
+        };
 
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
@@ -139,11 +188,35 @@ function AuthPage() {
             <img src="/nexora-icon.png" alt="" width={32} height={32} className="rounded-lg" />
             <span className="font-display text-2xl">KIVRYN</span>
           </Link>
-          <div>
-            <p className="max-w-xl font-display text-4xl leading-tight">{t("auth.heroTitle")}</p>
-            <p className="mt-4 max-w-lg text-sm leading-6 text-muted-foreground">
-              {t("auth.heroDescription")}
+          <div className="max-w-xl">
+            <p className="text-xs font-semibold tracking-[0.2em] text-muted-foreground">
+              {discovery.label}
             </p>
+            <p className="mt-4 font-display text-4xl leading-tight">{discovery.title}</p>
+            <p className="mt-4 max-w-lg text-sm leading-6 text-muted-foreground">
+              {discovery.intro}
+            </p>
+            <div className="mt-7 grid gap-3">
+              {discovery.items.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <div
+                    key={item.title}
+                    className="rounded-2xl border border-border/80 bg-background/45 p-4 backdrop-blur-sm"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-surface-elevated">
+                        <Icon className="h-4 w-4" aria-hidden="true" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">{item.title}</p>
+                        <p className="mt-1 text-xs leading-5 text-muted-foreground">{item.copy}</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
@@ -201,6 +274,26 @@ function AuthPage() {
                     ? t("auth.forgotHelp")
                     : t("auth.signInHelp")}
               </p>
+
+              {mode === "signup" ? (
+                <div className="mt-5 rounded-2xl border border-border bg-surface/60 p-4 lg:hidden">
+                  <p className="text-xs font-semibold tracking-[0.16em] text-muted-foreground">
+                    {discovery.label}
+                  </p>
+                  <p className="mt-2 text-sm font-medium leading-5">{discovery.title}</p>
+                  <div className="mt-3 space-y-2">
+                    {discovery.items.map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <div key={item.title} className="flex items-center gap-2.5 text-xs">
+                          <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                          <span>{item.title}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
 
               <form className="mt-8 space-y-4" onSubmit={onSubmit}>
                 {mode === "signup" && (
