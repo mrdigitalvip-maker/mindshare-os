@@ -79,7 +79,8 @@ test("web manages real schedules through the owner-scoped RPC", () => {
 test("Android exposes the same schedule backend without adding a top-level tab", () => {
   assert.match(mobileService, /configure_agent_schedule/);
   assert.match(mobileService, /clear_agent_schedule/);
-  assert.match(mobileAgents, /Briefings programados/);
+  assert.match(mobileAgents, /Agents com skills especializadas/);
+  assert.match(mobileAgents, /Agendar briefing/);
   assert.match(mobileMore, /href="\/agents"/);
   assert.match(mobileLayout, /name="agents" options=\{\{ headerShown: false \}\}/);
 });

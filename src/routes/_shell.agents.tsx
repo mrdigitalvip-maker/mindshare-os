@@ -11,20 +11,22 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ActionHistoryPanel } from "@/components/action-history-panel";
-import { AgentService, BackgroundRunService, workspaceQueryKeys } from "@/services";
+import {
+  AgentService,
+  BackgroundRunService,
+  WEB_AGENT_SKILLS,
+  resolveWebAgentSkills,
+  workspaceQueryKeys,
+} from "@/services";
 import { useSubscription } from "@/hooks/use-subscription";
 import { MetricCard, PremiumGate, WorkspaceShell } from "@/components/workspace-ui";
 export const Route = createFileRoute("/_shell/agents")({
   head: () => ({ meta: [{ title: "Agentes — KIVRYN" }] }),
   component: Agents,
 });
-const capabilities = [
-  ["writing", "Escrita"],
-  ["planning", "Planejamento"],
-  ["summarization", "Resumos"],
-  ["study", "Estudos"],
-  ["productivity", "Produtividade"],
-];
+const capabilities = WEB_AGENT_SKILLS.map(
+  (skill) => [skill.capability, skill.name, skill.description] as const,
+);
 function Agents() {
   const [builder, setBuilder] = useState(false);
   const [search, setSearch] = useState("");
@@ -64,7 +66,7 @@ function Agents() {
         <PageHeader
           eyebrow="Recurso Premium"
           title="Agentes"
-          description="Crie assistentes especializados e execute trabalhos sob demanda."
+          description="Crie especialistas reutilizáveis com skills KIVRYN versionadas e execução segura."
           actions={
             <Button
               onClick={() =>
@@ -125,11 +127,11 @@ function Agents() {
         {!visible.length ? (
           <EmptyState
             icon={Bot}
-            title={search ? "No agents match your search" : "Build a reusable AI worker"}
+            title={search ? "No agents match your search" : "Build a reusable AI specialist"}
             description={
               search
                 ? "Try a different name or purpose."
-                : "Define a purpose, instructions and supported capabilities once, then run it whenever the work returns."
+                : "Define a purpose and select KIVRYN skills. Skills shape how the Agent works without granting silent workspace mutations."
             }
             action={
               !search && (
@@ -150,6 +152,7 @@ function Agents() {
           <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {visible.map((a) => {
               const recent = lastRun(a.id);
+              const skills = resolveWebAgentSkills(a.capabilities);
               return (
                 <article key={a.id} className="glass min-w-0 rounded-2xl p-6">
                   <Bot className="text-gold" />
@@ -157,6 +160,15 @@ function Agents() {
                   <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
                     {a.goal || a.description}
                   </p>
+                  {!!skills.length && (
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {skills.map((skill) => (
+                        <span key={skill.id} className="rounded-full border px-2 py-1 text-xs">
+                          {skill.name}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   <span className="mt-4 inline-flex rounded-full border px-2 py-1 text-xs">
                     {a.active ? "Ativo" : "Inativo"}
                   </span>
@@ -254,8 +266,14 @@ function Builder({ open, close }: { open: boolean; close: () => void }) {
         )}
         {step === 4 && (
           <div className="space-y-3">
-            {capabilities.map(([value, label]) => (
-              <label className="flex items-center gap-3 rounded-xl border p-3" key={value}>
+            <div>
+              <Label>Skills especializadas</Label>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Cada skill adiciona um método de trabalho versionado. Autoridade para alterar o workspace continua separada e exige aprovação KIVRYN.
+              </p>
+            </div>
+            {capabilities.map(([value, label, description]) => (
+              <label className="flex items-start gap-3 rounded-xl border p-3" key={value}>
                 <Checkbox
                   checked={form.capabilities.includes(value)}
                   onCheckedChange={(checked) =>
@@ -267,7 +285,10 @@ function Builder({ open, close }: { open: boolean; close: () => void }) {
                     }))
                   }
                 />
-                {label}
+                <span>
+                  <span className="block text-sm font-medium">{label}</span>
+                  <span className="mt-1 block text-xs text-muted-foreground">{description}</span>
+                </span>
               </label>
             ))}
           </div>

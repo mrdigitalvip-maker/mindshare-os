@@ -1,4 +1,8 @@
 import { supabase } from "@/lib/supabase";
+import {
+  resolveMobileAgentSkills,
+  type MobileAgentSkill,
+} from "@/services/agent-skill-service";
 
 export type MobileContextScope =
   | "profile"
@@ -28,6 +32,7 @@ export type MobileAgent = {
   description: string;
   active: boolean;
   capabilities: string[];
+  skills: MobileAgentSkill[];
   contextScopes: MobileContextScope[];
   scheduleFrequency: "daily" | "weekly" | null;
   scheduleTime: string | null;
@@ -77,6 +82,7 @@ export async function listMobileAgents(): Promise<MobileAgent[]> {
       description: row.description ?? "",
       active: row.active !== false,
       capabilities,
+      skills: resolveMobileAgentSkills(capabilities),
       contextScopes: contextScopesForAgentCapabilities(capabilities),
       scheduleFrequency:
         row.schedule_frequency === "daily" || row.schedule_frequency === "weekly"

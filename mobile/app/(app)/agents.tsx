@@ -66,16 +66,14 @@ export default function Agents() {
   return (
     <AppScreen scroll contentContainerStyle={styles.page}>
       <StandardHeader title="Agents" />
-      <Text style={styles.eyebrow}>KIVRYN AUTOMATIONS</Text>
-      <Text style={styles.title}>Briefings programados</Text>
+      <Text style={styles.eyebrow}>KIVRYN SPECIALISTS</Text>
+      <Text style={styles.title}>Agents com skills especializadas</Text>
       <Text style={styles.copy}>
-        Execute um Agent automaticamente no servidor e receba o resultado mesmo com o app fechado.
+        Cada Agent usa skills versionadas do KIVRYN e pode executar briefings no servidor mesmo com o app fechado.
       </Text>
       <View style={styles.notice}>
         <Text style={styles.noticeText}>
-          KIVRYN agora mantém autoridade e histórico das ações reais de Tasks, Projects e Studies.
-          Execuções em background continuam sem mutações silenciosas: qualquer ação de workspace exige
-          aprovação válida.
+          Skills definem como o Agent trabalha e qual contexto pode orientar a resposta. Elas não concedem permissão para alterações silenciosas: qualquer ação real em Tasks, Projects ou Studies continua exigindo aprovação válida do KIVRYN.
         </Text>
       </View>
 
@@ -114,6 +112,15 @@ export default function Agents() {
               <Text style={styles.badgeText}>{agent.active ? "ATIVO" : "PAUSADO"}</Text>
             </View>
           </View>
+          {!!agent.skills.length && (
+            <View style={styles.skillWrap}>
+              {agent.skills.map((skill) => (
+                <View key={skill.id} style={styles.skillBadge}>
+                  <Text style={styles.skillBadgeText}>{skill.name}</Text>
+                </View>
+              ))}
+            </View>
+          )}
           <Text style={styles.scheduleText}>
             {agent.scheduleFrequency ? cadence(agent) : "Execução manual"}
           </Text>
@@ -374,6 +381,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     gap: spacing.sm,
   },
+  skillWrap: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
+  skillBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceRaised,
+  },
+  skillBadgeText: { ...typography.caption, color: colors.primaryBright, fontSize: 10 },
   historyCard: {
     padding: spacing.md,
     borderWidth: 1,
