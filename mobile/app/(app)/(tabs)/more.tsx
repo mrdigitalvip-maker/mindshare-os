@@ -62,6 +62,13 @@ export default function More() {
 
       <ModuleGroup title="CONTA & KIVRYN">
         <ModuleCard
+          icon="✦"
+          title="Agents"
+          description="Execute Agents e programe briefings automáticos no servidor."
+          href="/agents"
+        />
+
+        <ModuleCard
           icon="✂"
           title={t("creator.title")}
           description={t("creator.tagline")}
