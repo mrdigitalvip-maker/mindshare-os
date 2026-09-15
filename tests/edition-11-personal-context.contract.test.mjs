@@ -6,6 +6,10 @@ const contextPath = new URL(
   "../supabase/functions/_shared/kivryn-personal-context.ts",
   import.meta.url,
 );
+const assistantContextPath = new URL(
+  "../supabase/functions/_shared/assistant-context.ts",
+  import.meta.url,
+);
 const executionPath = new URL(
   "../supabase/functions/_shared/agent-execution.ts",
   import.meta.url,
@@ -43,6 +47,18 @@ test("Edition 11 bounds context before it reaches the model", async () => {
   assert.match(source, /\.limit\(4\)/);
   assert.match(source, /serializeKivrynPersonalContext\(context: KivrynPersonalContext, maxChars = 7000\)/);
   assert.match(source, /while \(json\.length > maxChars\)/);
+  assert.match(source, /const minimal = JSON\.stringify/);
+  assert.doesNotMatch(source, /\.slice\(0, maxChars\)/);
+});
+
+test("Assistant and Agents converge on the same bounded context serializer", async () => {
+  const [assistant, execution] = await Promise.all([
+    readFile(assistantContextPath, "utf8"),
+    readFile(executionPath, "utf8"),
+  ]);
+  assert.match(assistant, /serializeKivrynPersonalContext/);
+  assert.match(assistant, /scopes: \["profile", "tasks", "projects", "studies"\]/);
+  assert.match(execution, /serializeKivrynPersonalContext\(personalContext\)/);
 });
 
 test("manual and scheduled Agents share the same context-aware server executor", async () => {
