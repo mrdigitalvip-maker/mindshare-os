@@ -11,3 +11,4 @@ export * from "./profile-service";
 export * from "./subscription-status-service";
 export * from "./supabase-service";
 export * from "./workspace-query-keys";
+export * from "./agent-schedule-service";
