@@ -176,7 +176,7 @@ begin
          c.agent_id,
          c.user_id,
          c.scheduled_for,
-         c.input::text,
+         c.input,
          coalesce(a.notify_on_run, true),
          c.attempt_count
     from claimed c
@@ -184,7 +184,40 @@ begin
 end;
 $$;
 
+-- Compatibility bridge for the Edition 8 worker during rolling deployment.
+-- It now uses the same enqueue/lease lifecycle instead of retaining a second claim implementation.
+create or replace function public.claim_due_agent_runs(p_limit integer default 10)
+returns table (
+  run_id uuid,
+  agent_id uuid,
+  user_id uuid,
+  scheduled_for timestamptz,
+  prompt text,
+  notify_on_run boolean
+)
+language plpgsql
+security definer
+set search_path = public, pg_catalog
+as $$
+begin
+  perform public.enqueue_due_agent_runs(least(greatest(coalesce(p_limit, 10), 1), 50));
+  return query
+  select c.run_id,
+         c.agent_id,
+         c.user_id,
+         c.scheduled_for,
+         c.prompt,
+         c.notify_on_run
+    from public.claim_background_agent_runs(
+      least(greatest(coalesce(p_limit, 10), 1), 50),
+      interval '15 minutes'
+    ) c;
+end;
+$$;
+
 revoke all on function public.enqueue_due_agent_runs(integer) from public, anon, authenticated;
 revoke all on function public.claim_background_agent_runs(integer, interval) from public, anon, authenticated;
+revoke all on function public.claim_due_agent_runs(integer) from public, anon, authenticated;
 grant execute on function public.enqueue_due_agent_runs(integer) to service_role;
 grant execute on function public.claim_background_agent_runs(integer, interval) to service_role;
+grant execute on function public.claim_due_agent_runs(integer) to service_role;
