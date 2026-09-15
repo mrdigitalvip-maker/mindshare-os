@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
-test("web Assistant, Tasks, and Projects extend the KIVRYN V2 vocabulary", async () => {
+test("web Assistant, Tasks, and Projects keep the current KIVRYN visual vocabulary", async () => {
   const paths = [
     "src/routes/_shell.assistant.tsx",
     "src/routes/_shell.productivity.tsx",
@@ -14,7 +14,9 @@ test("web Assistant, Tasks, and Projects extend the KIVRYN V2 vocabulary", async
   const sources = await Promise.all(paths.map(read));
   assert.match(sources[0], /v2-workspace/);
   assert.match(sources[0], /KIVRYN Intelligence/);
-  assert.match(sources[1], /v2-surface/);
+  assert.match(sources[1], /PageShell/);
+  assert.match(sources[1], /TaskService\.createTask/);
+  assert.match(sources[1], /rounded-full/);
   assert.match(sources[2], /v2-workspace-header/);
   assert.match(sources[3], /bg-intelligence/);
   for (const [index, source] of sources.entries()) {
@@ -22,15 +24,17 @@ test("web Assistant, Tasks, and Projects extend the KIVRYN V2 vocabulary", async
   }
 });
 
-test("native productivity surfaces reuse the official V2 primitives", async () => {
+test("native core workspaces use current official KIVRYN primitives", async () => {
   const [assistant, tasks, projects, primitives] = await Promise.all([
     read("mobile/app/(app)/(tabs)/assistant.tsx"),
     read("mobile/app/(app)/(tabs)/productivity.tsx"),
     read("mobile/app/(app)/(tabs)/projects/index.tsx"),
     read("mobile/components/v2/premium-ui.tsx"),
   ]);
-  assert.match(assistant, /PremiumSurface illuminated/);
-  assert.match(tasks, /PremiumSurface/);
+  assert.match(assistant, /KivrynCore/);
+  assert.match(assistant, /MenuButton/);
+  assert.match(tasks, /StandardHeader/);
+  assert.match(tasks, /NativeFormModal/);
   assert.match(projects, /V2Progress/);
   assert.match(primitives, /accessibilityRole="progressbar"/);
 });
