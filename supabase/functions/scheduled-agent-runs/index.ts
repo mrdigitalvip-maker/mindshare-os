@@ -6,9 +6,10 @@ type ClaimedRun = {
   run_id: string;
   agent_id: string;
   user_id: string;
-  scheduled_for: string;
+  scheduled_for: string | null;
   prompt: string;
   notify_on_run: boolean;
+  attempt_count: number;
 };
 
 Deno.serve(async (request) => {
@@ -19,14 +20,26 @@ Deno.serve(async (request) => {
 
   const url = Deno.env.get("SUPABASE_URL");
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!url || !serviceKey) return Response.json({ ok: false, error: "configuration_error" }, { status: 500 });
+  if (!url || !serviceKey)
+    return Response.json({ ok: false, error: "configuration_error" }, { status: 500 });
   const admin = createClient(url, serviceKey);
-  const { data, error } = await admin.rpc("claim_due_agent_runs", { p_limit: 10 });
+
+  const { data: enqueued, error: enqueueError } = await admin.rpc("enqueue_due_agent_runs", {
+    p_limit: 20,
+  });
+  if (enqueueError)
+    return Response.json({ ok: false, error: "enqueue_failed" }, { status: 500 });
+
+  const { data, error } = await admin.rpc("claim_background_agent_runs", {
+    p_limit: 10,
+    p_stale_after: "15 minutes",
+  });
   if (error) return Response.json({ ok: false, error: "claim_failed" }, { status: 500 });
 
   const claimed = (data ?? []) as ClaimedRun[];
   let completed = 0;
   let failed = 0;
+  let retrying = 0;
   let notified = 0;
 
   for (const run of claimed) {
@@ -36,7 +49,7 @@ Deno.serve(async (request) => {
         userId: run.user_id,
         agentId: run.agent_id,
         input: run.prompt,
-        trigger: "scheduled",
+        trigger: run.scheduled_for ? "scheduled" : "system",
         runId: run.run_id,
       });
       completed++;
@@ -52,6 +65,10 @@ Deno.serve(async (request) => {
         if (delivered) notified++;
       }
     } catch (error) {
+      if (error instanceof AgentExecutionError && error.retryScheduled) {
+        retrying++;
+        continue;
+      }
       failed++;
       const code = error instanceof AgentExecutionError ? error.code : "provider_error";
       if (run.notify_on_run) {
@@ -64,14 +81,22 @@ Deno.serve(async (request) => {
           message:
             code === "premium_required"
               ? "Esta execução programada exige Premium ativo. O agendamento continua salvo."
-              : "A execução falhou e foi registrada no histórico do Agent.",
+              : "A execução falhou após as tentativas permitidas e foi registrada no histórico do Agent.",
         });
         if (delivered) notified++;
       }
     }
   }
 
-  return Response.json({ ok: true, claimed: claimed.length, completed, failed, notified });
+  return Response.json({
+    ok: true,
+    enqueued: Number(enqueued) || 0,
+    claimed: claimed.length,
+    completed,
+    retrying,
+    failed,
+    notified,
+  });
 });
 
 async function notifyResult({
