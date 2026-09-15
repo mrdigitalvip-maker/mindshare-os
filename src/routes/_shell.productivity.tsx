@@ -1,39 +1,110 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Check, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { Check, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { PageShell, PageHeader, EmptyState } from "@/components/page-shell";
-import { useLanguage } from "@/providers/language-provider";
+import { PageShell } from "@/components/page-shell";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useLanguage } from "@/providers/language-provider";
 import { ProjectService, TaskService, workspaceQueryKeys, type Task } from "@/services";
 import { useAuth } from "@/lib/auth-context";
 
 export const Route = createFileRoute("/_shell/productivity")({
-  head: () => ({ meta: [{ title: "Produtividade — KIVRYN" }] }),
+  head: () => ({ meta: [{ title: "Tarefas — KIVRYN" }] }),
   component: Productivity,
 });
-type View = "inbox" | "today" | "upcoming" | "overdue" | "done";
-type Priority = "all" | "high" | "medium" | "low";
-const viewLabels: Record<View, string> = {
-  inbox: "Inbox",
-  today: "Hoje",
-  upcoming: "Próximas",
-  overdue: "Atrasadas",
-  done: "Concluídas",
-};
-const priorityOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
-const localDay = (value: string | Date) => {
-  const date = new Date(value);
+
+type View = "today" | "upcoming" | "done" | "all";
+
+const copy = {
+  "pt-BR": {
+    title: "Tarefas",
+    newTask: "Nova tarefa",
+    search: "Pesquisar tarefas",
+    create: "Criar uma tarefa",
+    add: "Adicionar",
+    loading: "Carregando tarefas…",
+    error: "Não foi possível carregar suas tarefas.",
+    empty: "Nenhuma tarefa aqui.",
+    emptyHint: "Crie uma tarefa ou escolha outra lista.",
+    start: "Comece agora",
+    startHint: "Crie uma primeira tarefa útil com um toque.",
+    filters: { today: "Hoje", upcoming: "Próximas", done: "Concluídas", all: "Tudo" },
+    templates: [
+      ["Definir minha prioridade de hoje", "Escolha o resultado mais importante para concluir hoje."],
+      ["Revisar meu projeto principal", "Abra o projeto mais importante e defina a próxima ação."],
+      ["Organizar minha próxima ação", "Transforme algo pendente em uma ação clara e executável."],
+    ],
+    edit: "Editar tarefa",
+    delete: "Excluir tarefa",
+    description: "Descrição (opcional)",
+    due: "Prazo",
+    priority: "Prioridade",
+    project: "Projeto",
+    noProject: "Sem projeto",
+    high: "Alta",
+    medium: "Média",
+    low: "Baixa",
+    save: "Salvar",
+    cancel: "Cancelar",
+    created: "Tarefa criada",
+    updated: "Tarefa atualizada",
+    overdue: "Atrasada",
+    today: "Hoje",
+    noDate: "Sem prazo",
+  },
+  en: {
+    title: "Tasks",
+    newTask: "New task",
+    search: "Search tasks",
+    create: "Create a task",
+    add: "Add",
+    loading: "Loading tasks…",
+    error: "We couldn't load your tasks.",
+    empty: "No tasks here.",
+    emptyHint: "Create a task or choose another list.",
+    start: "Start now",
+    startHint: "Create a useful first task with one tap.",
+    filters: { today: "Today", upcoming: "Upcoming", done: "Completed", all: "All" },
+    templates: [
+      ["Set my priority for today", "Choose the most important result to finish today."],
+      ["Review my main project", "Open the most important project and define its next action."],
+      ["Organize my next action", "Turn something pending into a clear, executable action."],
+    ],
+    edit: "Edit task",
+    delete: "Delete task",
+    description: "Description (optional)",
+    due: "Due date",
+    priority: "Priority",
+    project: "Project",
+    noProject: "No project",
+    high: "High",
+    medium: "Medium",
+    low: "Low",
+    save: "Save",
+    cancel: "Cancel",
+    created: "Task created",
+    updated: "Task updated",
+    overdue: "Overdue",
+    today: "Today",
+    noDate: "No due date",
+  },
+} as const;
+
+const localDay = () => {
+  const date = new Date();
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 };
+const dueKey = (value?: string | null) => (value ? value.slice(0, 10) : null);
+const priorityRank: Record<string, number> = { high: 0, medium: 1, low: 2 };
 
 function Productivity() {
-  const { t } = useLanguage();
+  const { resolvedLocale } = useLanguage();
+  const text = copy[resolvedLocale];
   const client = useQueryClient();
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
@@ -41,9 +112,9 @@ function Productivity() {
   const projectsKey = workspaceQueryKeys.projects(user?.id);
   const [view, setView] = useState<View>("today");
   const [search, setSearch] = useState("");
-  const [priority, setPriority] = useState<Priority>("all");
   const [editing, setEditing] = useState<Task | null | undefined>();
   const [quickTitle, setQuickTitle] = useState("");
+
   const tasksQuery = useQuery({
     queryKey: tasksKey,
     queryFn: () => TaskService.listTasks(),
@@ -59,6 +130,7 @@ function Productivity() {
       client.invalidateQueries({ queryKey: tasksKey }),
       client.invalidateQueries({ queryKey: projectsKey }),
     ]);
+
   const toggle = useMutation({
     mutationFn: TaskService.toggleTask,
     onSuccess: () => void refresh(),
@@ -70,212 +142,179 @@ function Productivity() {
     onError: (error: Error) => toast.error(error.message),
   });
   const quickAdd = useMutation({
-    mutationFn: () =>
-      TaskService.createTask({
-        title: quickTitle.trim(),
-        dueDate: view === "today" ? localDay(new Date()) : null,
-        priority: "medium",
-      }),
+    mutationFn: (title: string) =>
+      TaskService.createTask({ title: title.trim(), priority: "medium", dueDate: null }),
     onSuccess: () => {
       setQuickTitle("");
-      toast.success("Tarefa criada. Ela já está pronta para execução.");
+      setView("all");
+      toast.success(text.created);
       void refresh();
     },
     onError: (error: Error) => toast.error(error.message),
   });
+
   const projects = Array.isArray(projectsQuery.data) ? projectsQuery.data : [];
-  const today = localDay(new Date());
+  const projectById = useMemo(
+    () => new Map(projects.map((project) => [project.id, project])),
+    [projects],
+  );
+  const today = localDay();
+  const allTasks = Array.isArray(tasksQuery.data) ? tasksQuery.data : [];
   const tasks = useMemo(() => {
-    const searchValue = search.trim().toLowerCase();
-    return (Array.isArray(tasksQuery.data) ? tasksQuery.data : [])
+    const needle = search.trim().toLowerCase();
+    return allTasks
       .filter((task) => {
-        const due = task.dueDate ? localDay(task.dueDate) : null;
-        const matchesSearch = `${task.title} ${task.description ?? ""}`
+        const due = dueKey(task.dueDate);
+        const matchesSearch = `${task.title} ${task.description ?? ""} ${projectById.get(task.projectId ?? "")?.title ?? ""}`
           .toLowerCase()
-          .includes(searchValue);
-        const matchesPriority = priority === "all" || task.priority === priority;
+          .includes(needle);
         const matchesView =
-          (view === "inbox" && task.status === "open") ||
           (view === "today" && task.status === "open" && !!due && due <= today) ||
           (view === "upcoming" && task.status === "open" && !!due && due > today) ||
-          (view === "overdue" && task.status === "open" && !!due && due < today) ||
-          (view === "done" && task.status === "done");
-        return matchesSearch && matchesPriority && matchesView;
+          (view === "done" && task.status === "done") ||
+          view === "all";
+        return matchesSearch && matchesView;
       })
       .sort((a, b) => {
-        const priorityDifference =
-          (priorityOrder[a.priority ?? "medium"] ?? 1) -
-          (priorityOrder[b.priority ?? "medium"] ?? 1);
-        if (priorityDifference) return priorityDifference;
-        return (a.dueDate ?? "9999").localeCompare(b.dueDate ?? "9999");
+        if (a.status !== b.status) return a.status === "open" ? -1 : 1;
+        const dueA = dueKey(a.dueDate) ?? "9999-12-31";
+        const dueB = dueKey(b.dueDate) ?? "9999-12-31";
+        if (dueA !== dueB) return dueA.localeCompare(dueB);
+        return (priorityRank[a.priority ?? "medium"] ?? 1) - (priorityRank[b.priority ?? "medium"] ?? 1);
       });
-  }, [priority, search, tasksQuery.data, today, view]);
-  const todayGroups = [
-    {
-      title: "Focus now",
-      description: "Alta prioridade e itens atrasados",
-      tasks: tasks.filter(
-        (t) => t.priority === "high" || (t.dueDate && localDay(t.dueDate) < today),
-      ),
-    },
-    {
-      title: "Next",
-      description: "Prioridade média para manter o ritmo",
-      tasks: tasks.filter(
-        (t) => t.priority === "medium" && (!t.dueDate || localDay(t.dueDate) >= today),
-      ),
-    },
-    {
-      title: "Later today",
-      description: "Baixa prioridade, se ainda houver espaço",
-      tasks: tasks.filter(
-        (t) => t.priority === "low" && (!t.dueDate || localDay(t.dueDate) >= today),
-      ),
-    },
-  ];
+  }, [allTasks, projectById, search, today, view]);
+
+  function submitQuick(title = quickTitle) {
+    if (!title.trim() || quickAdd.isPending) return;
+    quickAdd.mutate(title);
+  }
+
   return (
     <PageShell>
-      <div className="v2-workspace">
-        <PageHeader
-          eyebrow="Execução diária"
-          title={t("page.tasks.title")}
-          description={t("page.tasks.description")}
-          actions={
-            <Button onClick={() => setEditing(null)}>
-              <Plus /> Nova tarefa
-            </Button>
-          }
-        />
+      <main className="mx-auto flex min-h-[calc(100vh-8rem)] w-full max-w-4xl flex-col pb-4">
+        <header className="flex items-center justify-between gap-4 py-2">
+          <h1 className="font-display text-3xl font-semibold tracking-tight">{text.title}</h1>
+          <Button size="icon" variant="outline" className="rounded-full" onClick={() => setEditing(null)} aria-label={text.newTask}>
+            <Plus />
+          </Button>
+        </header>
+
+        <nav className="mt-5 flex gap-2 overflow-x-auto pb-1" aria-label={text.title}>
+          {(Object.keys(text.filters) as View[]).map((item) => (
+            <button
+              key={item}
+              type="button"
+              onClick={() => setView(item)}
+              className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition ${
+                view === item
+                  ? "bg-foreground text-background"
+                  : "border border-border bg-surface text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {text.filters[item]}
+            </button>
+          ))}
+        </nav>
+
+        <div className="relative mt-4">
+          <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder={text.search}
+            className="h-12 rounded-full border-border bg-surface pl-11"
+          />
+        </div>
+
+        <section className="mt-7 flex-1">
+          {tasksQuery.isLoading ? (
+            <p className="py-12 text-center text-sm text-muted-foreground">{text.loading}</p>
+          ) : tasksQuery.isError ? (
+            <div className="rounded-3xl border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">
+              {text.error}
+            </div>
+          ) : allTasks.length === 0 ? (
+            <div>
+              <div className="mb-5">
+                <h2 className="text-xl font-semibold">{text.start}</h2>
+                <p className="mt-1 text-sm text-muted-foreground">{text.startHint}</p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {text.templates.map(([title, description]) => (
+                  <button
+                    key={title}
+                    type="button"
+                    onClick={() => submitQuick(title)}
+                    className="min-h-40 rounded-3xl border border-dashed border-border bg-surface/40 p-5 text-left transition hover:border-foreground/25 hover:bg-surface"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <strong className="text-base leading-6">{title}</strong>
+                      <Plus className="h-5 w-5 shrink-0 text-muted-foreground" />
+                    </div>
+                    <p className="mt-3 text-sm leading-6 text-muted-foreground">{description}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : tasks.length === 0 ? (
+            <div className="rounded-3xl border border-border bg-surface/50 px-6 py-12 text-center">
+              <Check className="mx-auto h-6 w-6 text-muted-foreground" />
+              <h2 className="mt-4 font-medium">{text.empty}</h2>
+              <p className="mt-1 text-sm text-muted-foreground">{text.emptyHint}</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {tasks.map((task) => (
+                <TaskRow
+                  key={task.id}
+                  task={task}
+                  project={projectById.get(task.projectId ?? "")}
+                  locale={resolvedLocale}
+                  labels={text}
+                  pending={toggle.isPending || remove.isPending}
+                  onToggle={() => toggle.mutate(task.id)}
+                  onEdit={() => setEditing(task)}
+                  onRemove={() => {
+                    if (confirm(`${text.delete}: ${task.title}?`)) remove.mutate(task.id);
+                  }}
+                  onProject={(id) => navigate({ to: "/projects/$projectId", params: { projectId: id } })}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+
         <form
-          className="v2-surface mt-6 flex gap-2 rounded-2xl p-2 focus-within:border-intelligence/50"
+          className="sticky bottom-4 z-20 mt-8 flex items-center gap-2 rounded-[1.75rem] border border-border bg-background/95 p-2 shadow-xl backdrop-blur"
           onSubmit={(event) => {
             event.preventDefault();
-            if (quickTitle.trim()) quickAdd.mutate();
+            submitQuick();
           }}
         >
           <Input
-            aria-label="Adicionar tarefa rapidamente"
-            className="border-0 bg-transparent shadow-none"
+            aria-label={text.create}
             value={quickTitle}
             onChange={(event) => setQuickTitle(event.target.value)}
-            placeholder={view === "today" ? "Adicionar ao meu dia…" : "Capturar uma tarefa…"}
+            placeholder={text.create}
+            className="h-12 flex-1 border-0 bg-transparent px-4 shadow-none focus-visible:ring-0"
           />
-          <Button type="submit" disabled={!quickTitle.trim() || quickAdd.isPending}>
+          <Button type="submit" size="icon" className="h-11 w-11 rounded-full" disabled={!quickTitle.trim() || quickAdd.isPending} aria-label={text.add}>
             <Plus />
-            <span className="hidden sm:inline">Adicionar</span>
           </Button>
         </form>
-        <div className="mt-4 flex gap-2 overflow-x-auto pb-1" aria-label="Listas de tarefas">
-          {(Object.keys(viewLabels) as View[]).map((item) => (
-            <Button
-              key={item}
-              size="sm"
-              variant={view === item ? "default" : "outline"}
-              onClick={() => setView(item)}
-            >
-              {viewLabels[item]}
-            </Button>
-          ))}
-        </div>
-        <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <Input
-              className="pl-9"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Buscar por título ou descrição"
-            />
-          </div>
-          <select
-            aria-label="Filtrar prioridade"
-            className="h-11 rounded-md border border-input bg-background px-3"
-            value={priority}
-            onChange={(event) => setPriority(event.target.value as Priority)}
-          >
-            <option value="all">Todas as prioridades</option>
-            <option value="high">Alta</option>
-            <option value="medium">Média</option>
-            <option value="low">Baixa</option>
-          </select>
-        </div>
-        {tasksQuery.isLoading ? (
-          <p className="mt-10 text-center text-muted-foreground">Carregando tarefas…</p>
-        ) : tasksQuery.isError ? (
-          <EmptyState
-            icon={Search}
-            title={t("tasks.error")}
-            description={(tasksQuery.error as Error).message}
-          />
-        ) : tasks.length === 0 ? (
-          <EmptyState
-            icon={Check}
-            title={t("tasks.empty")}
-            description={
-              view === "today"
-                ? "Seu dia está livre. Capture uma tarefa acima ou abra outra lista."
-                : "Crie uma tarefa ou ajuste os filtros."
-            }
-            action={<Button onClick={() => setEditing(null)}>Criar tarefa</Button>}
-          />
-        ) : view === "today" ? (
-          <div className="mt-7 space-y-8">
-            {todayGroups
-              .filter((group) => group.tasks.length)
-              .map((group) => (
-                <section key={group.title}>
-                  <div className="mb-3">
-                    <h2 className="text-xs font-semibold uppercase tracking-[0.2em]">
-                      {group.title}
-                    </h2>
-                    <p className="mt-1 text-xs text-muted-foreground">{group.description}</p>
-                  </div>
-                  <div className="space-y-3">
-                    {group.tasks.map((task) => (
-                      <TaskRow
-                        key={task.id}
-                        task={task}
-                        project={projects.find((project) => project.id === task.projectId)}
-                        onToggle={() => toggle.mutate(task.id)}
-                        onEdit={() => setEditing(task)}
-                        onRemove={() => remove.mutate(task.id)}
-                        onProject={(id) =>
-                          navigate({ to: "/projects/$projectId", params: { projectId: id } })
-                        }
-                      />
-                    ))}
-                  </div>
-                </section>
-              ))}
-          </div>
-        ) : (
-          <div className="mt-6 space-y-3">
-            {tasks.map((task) => (
-              <TaskRow
-                key={task.id}
-                task={task}
-                project={projects.find((project) => project.id === task.projectId)}
-                onToggle={() => toggle.mutate(task.id)}
-                onEdit={() => setEditing(task)}
-                onRemove={() => remove.mutate(task.id)}
-                onProject={(id) =>
-                  navigate({ to: "/projects/$projectId", params: { projectId: id } })
-                }
-              />
-            ))}
-          </div>
-        )}
+
         <TaskDialog
           key={editing?.id ?? (editing === null ? "new" : "closed")}
           task={editing}
           projects={projects}
+          labels={text}
           onClose={() => setEditing(undefined)}
           onSaved={() => {
             setEditing(undefined);
             void refresh();
           }}
         />
-      </div>
+      </main>
     </PageShell>
   );
 }
@@ -283,6 +322,9 @@ function Productivity() {
 function TaskRow({
   task,
   project,
+  locale,
+  labels,
+  pending,
   onToggle,
   onEdit,
   onRemove,
@@ -290,56 +332,63 @@ function TaskRow({
 }: {
   task: Task;
   project?: { id: string; title: string };
+  locale: "pt-BR" | "en";
+  labels: (typeof copy)["pt-BR"] | (typeof copy)["en"];
+  pending: boolean;
   onToggle: () => void;
   onEdit: () => void;
   onRemove: () => void;
   onProject: (id: string) => void;
 }) {
+  const due = dueKey(task.dueDate);
+  const today = localDay();
+  const dueLabel = !due
+    ? labels.noDate
+    : due < today
+      ? labels.overdue
+      : due === today
+        ? labels.today
+        : new Intl.DateTimeFormat(locale, { day: "2-digit", month: "short" }).format(new Date(`${due}T12:00:00`));
+  const priorityLabel = task.priority === "high" ? labels.high : task.priority === "low" ? labels.low : labels.medium;
+
   return (
-    <article className="v2-surface v2-interactive flex min-w-0 items-start gap-3 rounded-2xl p-4">
+    <article className="group flex min-w-0 items-start gap-3 rounded-[1.65rem] border border-border bg-surface px-4 py-4 sm:px-5">
       <button
-        aria-label={task.status === "done" ? "Reabrir tarefa" : "Concluir tarefa"}
+        type="button"
+        disabled={pending}
+        aria-label={task.status === "done" ? labels.edit : labels.title}
         onClick={onToggle}
-        className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border"
+        className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border transition hover:border-foreground/40"
       >
-        {task.status === "done" && <Check className="h-4 w-4" />}
+        {task.status === "done" ? <Check className="h-4 w-4" /> : null}
       </button>
       <div className="min-w-0 flex-1">
-        <h3
-          className={task.status === "done" ? "line-through text-muted-foreground" : "font-medium"}
-        >
+        <h2 className={`text-base font-semibold leading-6 ${task.status === "done" ? "text-muted-foreground line-through" : ""}`}>
           {task.title}
-        </h3>
-        {task.description && (
-          <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{task.description}</p>
-        )}
-        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <span className="rounded-full border px-2 py-0.5 capitalize">
-            {task.priority ?? "medium"}
-          </span>
-          <span>{task.due}</span>
-          {project && (
-            <button
-              className="inline-flex min-h-8 items-center gap-1 rounded-full px-2 text-intelligence hover:bg-surface-elevated"
-              onClick={() => onProject(project.id)}
-            >
-              {project.title}
-              <ArrowRight className="h-3 w-3" />
-            </button>
-          )}
+        </h2>
+        {task.description ? <p className="mt-1 line-clamp-2 text-sm leading-6 text-muted-foreground">{task.description}</p> : null}
+        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+          <span>{dueLabel}</span>
+          <span>·</span>
+          <span>{priorityLabel}</span>
+          {project ? (
+            <>
+              <span>·</span>
+              <button type="button" className="font-medium text-foreground/80 hover:text-foreground" onClick={() => onProject(project.id)}>
+                {project.title}
+              </button>
+            </>
+          ) : null}
         </div>
       </div>
-      <Button size="icon" variant="ghost" onClick={onEdit} aria-label={`Editar ${task.title}`}>
-        <Pencil />
-      </Button>
-      <Button
-        size="icon"
-        variant="ghost"
-        onClick={() => confirm(`Excluir ${task.title}?`) && onRemove()}
-        aria-label={`Excluir ${task.title}`}
-      >
-        <Trash2 />
-      </Button>
+      <div className="flex shrink-0 items-center gap-1 opacity-70 transition group-hover:opacity-100">
+        <Button size="icon" variant="ghost" className="h-9 w-9 rounded-full" onClick={onEdit} aria-label={labels.edit}>
+          <Pencil className="h-4 w-4" />
+        </Button>
+        <Button size="icon" variant="ghost" className="h-9 w-9 rounded-full" onClick={onRemove} aria-label={labels.delete}>
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
     </article>
   );
 }
@@ -347,11 +396,13 @@ function TaskRow({
 function TaskDialog({
   task,
   projects,
+  labels,
   onClose,
   onSaved,
 }: {
   task: Task | null | undefined;
   projects: Array<{ id: string; title: string }>;
+  labels: (typeof copy)["pt-BR"] | (typeof copy)["en"];
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -362,101 +413,72 @@ function TaskDialog({
   const [projectId, setProjectId] = useState(task?.projectId ?? "");
   const save = useMutation({
     mutationFn: async () => {
-      if (!title.trim()) throw new Error("O título é obrigatório");
+      if (!title.trim()) throw new Error(labels.create);
       const values = {
         title: title.trim(),
-        description,
+        description: description.trim(),
         priority,
         dueDate: due || null,
         projectId: projectId || null,
       };
-      if (task)
+      if (task) {
         await TaskService.updateTask(task.id, {
           title: values.title,
-          description,
+          description: values.description,
           priority,
           due_date: values.dueDate,
           project_id: values.projectId,
         });
-      else await TaskService.createTask(values);
+      } else {
+        await TaskService.createTask(values);
+      }
     },
     onSuccess: () => {
-      toast.success(task ? "Tarefa atualizada" : "Tarefa criada");
+      toast.success(task ? labels.updated : labels.created);
       onSaved();
     },
     onError: (error: Error) => toast.error(error.message),
   });
+
   return (
     <Dialog open={task !== undefined} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[90dvh] overflow-y-auto">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{task ? "Editar tarefa" : "Nova tarefa"}</DialogTitle>
+          <DialogTitle>{task ? labels.edit : labels.newTask}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          <div>
-            <Label htmlFor="task-title">Título</Label>
-            <Input
-              id="task-title"
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              autoFocus
-            />
+          <div className="space-y-2">
+            <Label htmlFor="task-title">{labels.title}</Label>
+            <Input id="task-title" value={title} onChange={(event) => setTitle(event.target.value)} autoFocus maxLength={160} />
           </div>
-          <div>
-            <Label htmlFor="task-description">Descrição</Label>
-            <Textarea
-              id="task-description"
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-            />
+          <div className="space-y-2">
+            <Label htmlFor="task-description">{labels.description}</Label>
+            <Textarea id="task-description" value={description} onChange={(event) => setDescription(event.target.value)} rows={4} />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <Label htmlFor="task-priority">Prioridade</Label>
-              <select
-                id="task-priority"
-                className="h-11 w-full rounded-md border border-input bg-background px-3"
-                value={priority}
-                onChange={(event) => setPriority(event.target.value)}
-              >
-                <option value="high">Alta</option>
-                <option value="medium">Média</option>
-                <option value="low">Baixa</option>
+            <div className="space-y-2">
+              <Label htmlFor="task-due">{labels.due}</Label>
+              <Input id="task-due" type="date" value={due} onChange={(event) => setDue(event.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="task-priority">{labels.priority}</Label>
+              <select id="task-priority" className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={priority} onChange={(event) => setPriority(event.target.value)}>
+                <option value="high">{labels.high}</option>
+                <option value="medium">{labels.medium}</option>
+                <option value="low">{labels.low}</option>
               </select>
             </div>
-            <div>
-              <Label htmlFor="task-due">Prazo</Label>
-              <Input
-                id="task-due"
-                type="date"
-                value={due}
-                onChange={(event) => setDue(event.target.value)}
-              />
-            </div>
           </div>
-          <div>
-            <Label htmlFor="task-project">Projeto</Label>
-            <select
-              id="task-project"
-              className="h-11 w-full rounded-md border border-input bg-background px-3"
-              value={projectId ?? ""}
-              onChange={(event) => setProjectId(event.target.value)}
-            >
-              <option value="">Sem projeto</option>
-              {projects.map((project) => (
-                <option key={project.id} value={project.id}>
-                  {project.title}
-                </option>
-              ))}
+          <div className="space-y-2">
+            <Label htmlFor="task-project">{labels.project}</Label>
+            <select id="task-project" className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={projectId} onChange={(event) => setProjectId(event.target.value)}>
+              <option value="">{labels.noProject}</option>
+              {projects.map((project) => <option key={project.id} value={project.id}>{project.title}</option>)}
             </select>
           </div>
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={onClose}>
-              Cancelar
-            </Button>
-            <Button disabled={!title.trim() || save.isPending} onClick={() => save.mutate()}>
-              {save.isPending ? "Salvando…" : "Salvar"}
-            </Button>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="ghost" onClick={onClose}>{labels.cancel}</Button>
+            <Button disabled={!title.trim() || save.isPending} onClick={() => save.mutate()}>{labels.save}</Button>
           </div>
         </div>
       </DialogContent>
