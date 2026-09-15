@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bot, CalendarClock, Copy, Play, RefreshCw, Trash2 } from "lucide-react";
+import { Bot, CalendarClock, Copy, Play, RefreshCw, ShieldCheck, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { copyText } from "@/lib/clipboard";
 import { PageShell, EmptyState } from "@/components/page-shell";
@@ -11,7 +11,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AgentScheduleService, AgentService, type AgentSchedule } from "@/services";
+import {
+  AgentRuntimeService,
+  AgentScheduleService,
+  AgentService,
+  type AgentSchedule,
+  type PendingAgentPlan,
+} from "@/services";
 import { useSubscription } from "@/hooks/use-subscription";
 
 export const Route = createFileRoute("/_shell/agents/$agentId")({ component: AgentWorkspace });
@@ -33,20 +39,60 @@ function AgentWorkspace() {
     queryKey: ["workspace", "agent-schedule", agentId],
     queryFn: () => AgentScheduleService.get(agentId),
   });
+  const pendingPlans = useQuery({
+    queryKey: ["workspace", "agent-pending-plans", agentId],
+    queryFn: () => AgentRuntimeService.listPending(agentId),
+  });
   const [input, setInput] = useState("");
   const [context, setContext] = useState("");
   const [output, setOutput] = useState("");
   const run = useMutation({
     mutationFn: () =>
-      AgentService.run(
+      AgentRuntimeService.run(
         agentId,
         context.trim() ? `Context:\n${context}\n\nRequest:\n${input}` : input,
       ),
-    onSuccess: async (r) => {
-      setOutput(r.output);
+    onSuccess: async (result) => {
+      setOutput(result.output);
       await Promise.all([
         client.invalidateQueries({ queryKey: ["workspace", "agent-runs", agentId] }),
         client.invalidateQueries({ queryKey: ["workspace", "agent-schedule", agentId] }),
+        client.invalidateQueries({ queryKey: ["workspace", "agent-pending-plans", agentId] }),
+      ]);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const approve = useMutation({
+    mutationFn: (plan: PendingAgentPlan) =>
+      AgentRuntimeService.review({
+        runId: plan.runId,
+        planFingerprint: plan.planFingerprint,
+        decision: "approve",
+        approvedStepIds: plan.plan.steps
+          .map((step) => step.id)
+          .filter((id) => !plan.appliedStepIds.includes(id)),
+      }),
+    onSuccess: async () => {
+      toast.success("Plano aprovado e aplicado pelo KIVRYN");
+      await Promise.all([
+        client.invalidateQueries({ queryKey: ["workspace"] }),
+        client.invalidateQueries({ queryKey: ["workspace", "agent-pending-plans", agentId] }),
+      ]);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const reject = useMutation({
+    mutationFn: (plan: PendingAgentPlan) =>
+      AgentRuntimeService.review({
+        runId: plan.runId,
+        planFingerprint: plan.planFingerprint,
+        decision: "reject",
+      }),
+    onSuccess: async () => {
+      toast.success("Plano rejeitado. Nenhuma nova ação será aplicada.");
+      await Promise.all([
+        client.invalidateQueries({ queryKey: ["workspace", "agent-runs", agentId] }),
+        client.invalidateQueries({ queryKey: ["workspace", "agent-pending-plans", agentId] }),
       ]);
     },
     onError: (e: Error) => toast.error(e.message),
@@ -61,7 +107,11 @@ function AgentWorkspace() {
   if (!agent.data)
     return (
       <PageShell>
-        <EmptyState icon={Bot} title="Agente não encontrado" description="Ele não existe ou não pertence a você." />
+        <EmptyState
+          icon={Bot}
+          title="Agente não encontrado"
+          description="Ele não existe ou não pertence a você."
+        />
       </PageShell>
     );
 
@@ -84,8 +134,10 @@ function AgentWorkspace() {
             <h2 className="font-semibold">Objetivo</h2>
             <p className="mt-2 text-muted-foreground">{a.goal || "Não informado"}</p>
             <h2 className="mt-5 font-semibold">Comportamento</h2>
-            <p className="mt-2 whitespace-pre-wrap text-muted-foreground">{a.instructions || "Não informado"}</p>
-            <p className="mt-4 text-sm">Capacidades: {a.capabilities.join(", ") || "nenhuma"}</p>
+            <p className="mt-2 whitespace-pre-wrap text-muted-foreground">
+              {a.instructions || "Não informado"}
+            </p>
+            <p className="mt-4 text-sm">Skills: {a.capabilities.join(", ") || "nenhuma"}</p>
             <div className="mt-6 grid gap-3 text-sm sm:grid-cols-3">
               <div className="rounded-xl border p-3">
                 <span className="text-muted-foreground">Status</span>
@@ -96,8 +148,8 @@ function AgentWorkspace() {
                 <p className="mt-1 font-medium">{runs.data?.length ?? 0}</p>
               </div>
               <div className="rounded-xl border p-3">
-                <span className="text-muted-foreground">Automação</span>
-                <p className="mt-1 font-medium">{schedule.data?.frequency ? scheduleLabel(schedule.data) : "Manual"}</p>
+                <span className="text-muted-foreground">Aprovações pendentes</span>
+                <p className="mt-1 font-medium">{pendingPlans.data?.length ?? 0}</p>
               </div>
             </div>
             {schedule.data?.nextRunAt && (
@@ -111,25 +163,67 @@ function AgentWorkspace() {
         <TabsContent value="run">
           <div className="mt-4 space-y-3">
             <Label>Solicitação</Label>
-            <Textarea className="min-h-32" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Descreva o trabalho para o agente…" />
+            <Textarea
+              className="min-h-32"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Descreva o trabalho para o agente…"
+            />
             <Label>Contexto (opcional)</Label>
-            <Textarea className="min-h-20" value={context} onChange={(e) => setContext(e.target.value)} placeholder="Restrições, audiência ou material de origem…" />
-            <Button disabled={!input.trim() || run.isPending || !sub.data?.isPremium} onClick={() => run.mutate()}>
+            <Textarea
+              className="min-h-20"
+              value={context}
+              onChange={(e) => setContext(e.target.value)}
+              placeholder="Restrições, audiência ou material de origem…"
+            />
+            <Button
+              disabled={!input.trim() || run.isPending || !sub.data?.isPremium}
+              onClick={() => run.mutate()}
+            >
               <Play /> {run.isPending ? "Executando…" : "Executar"}
             </Button>
-            {!sub.data?.isPremium && <p className="text-sm text-destructive">Uma assinatura Premium ativa é necessária.</p>}
-            {run.isError && <p role="alert" className="text-sm text-destructive">A execução falhou. Seu texto foi preservado para nova tentativa.</p>}
+            {!sub.data?.isPremium && (
+              <p className="text-sm text-destructive">Uma assinatura Premium ativa é necessária.</p>
+            )}
+            {run.isError && (
+              <p role="alert" className="text-sm text-destructive">
+                A execução falhou. Seu texto foi preservado para nova tentativa.
+              </p>
+            )}
             {output && (
               <div className="glass rounded-xl p-4">
                 <div className="mb-3 flex justify-end gap-2">
-                  <Button size="sm" variant="outline" onClick={async () => { try { await copyText(output); toast.success("Copiado"); } catch { toast.error("Não foi possível copiar o resultado."); } }}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={async () => {
+                      try {
+                        await copyText(output);
+                        toast.success("Copiado");
+                      } catch {
+                        toast.error("Não foi possível copiar o resultado.");
+                      }
+                    }}
+                  >
                     <Copy /> Copiar
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => run.mutate()}><RefreshCw /> Executar novamente</Button>
+                  <Button size="sm" variant="outline" onClick={() => run.mutate()}>
+                    <RefreshCw /> Executar novamente
+                  </Button>
                 </div>
                 <div className="whitespace-pre-wrap">{output}</div>
               </div>
             )}
+            {pendingPlans.data?.map((plan) => (
+              <PlanApprovalCard
+                key={plan.runId}
+                plan={plan}
+                approving={approve.isPending}
+                rejecting={reject.isPending}
+                onApprove={() => approve.mutate(plan)}
+                onReject={() => reject.mutate(plan)}
+              />
+            ))}
           </div>
         </TabsContent>
 
@@ -156,15 +250,43 @@ function AgentWorkspace() {
         <TabsContent value="history">
           <div className="mt-4 space-y-3">
             {runs.data?.map((r) => {
-              const detailed = r as typeof r & { trigger?: string; scheduled_for?: string | null };
+              const detailed = r as typeof r & {
+                trigger?: string;
+                scheduled_for?: string | null;
+                action_plan_status?: string;
+                connector_ids?: string[];
+                subagent_ids?: string[];
+              };
               return (
                 <details key={r.id} className="glass rounded-xl p-4">
                   <summary className="min-h-11 cursor-pointer py-2">
-                    <span className="font-medium">{r.status}</span> · {detailed.trigger === "scheduled" ? "Programado" : "Manual"} · {new Date(r.created_at || r.started_at || "").toLocaleString("pt-BR")}
+                    <span className="font-medium">{r.status}</span> ·{" "}
+                    {detailed.trigger === "scheduled" ? "Programado" : "Manual"} ·{" "}
+                    {new Date(r.created_at || r.started_at || "").toLocaleString("pt-BR")}
                   </summary>
-                  {detailed.scheduled_for && <p className="text-xs text-muted-foreground">Previsto para {new Date(detailed.scheduled_for).toLocaleString("pt-BR")}</p>}
-                  <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{typeof r.input === "string" ? r.input : "Entrada salva"}</p>
-                  <p className="mt-3 whitespace-pre-wrap text-sm">{typeof r.output === "string" ? r.output : r.error_code || "Execução em andamento"}</p>
+                  {detailed.scheduled_for && (
+                    <p className="text-xs text-muted-foreground">
+                      Previsto para {new Date(detailed.scheduled_for).toLocaleString("pt-BR")}
+                    </p>
+                  )}
+                  {detailed.action_plan_status && detailed.action_plan_status !== "none" && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Plano de ações: {detailed.action_plan_status}
+                    </p>
+                  )}
+                  {!!detailed.subagent_ids?.length && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Subagents: {detailed.subagent_ids.join(", ")}
+                    </p>
+                  )}
+                  <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                    {typeof r.input === "string" ? r.input : "Entrada salva"}
+                  </p>
+                  <p className="mt-3 whitespace-pre-wrap text-sm">
+                    {typeof r.output === "string"
+                      ? r.output
+                      : r.error_code || "Execução em andamento"}
+                  </p>
                 </details>
               );
             })}
@@ -173,32 +295,135 @@ function AgentWorkspace() {
         </TabsContent>
 
         <TabsContent value="settings">
-          <Settings agent={a} onDelete={async () => { await AgentService.remove(a.id); nav({ to: "/agents" }); }} />
+          <Settings
+            agent={a}
+            onDelete={async () => {
+              await AgentService.remove(a.id);
+              nav({ to: "/agents" });
+            }}
+          />
         </TabsContent>
       </Tabs>
     </PageShell>
   );
 }
 
+function PlanApprovalCard({
+  plan,
+  approving,
+  rejecting,
+  onApprove,
+  onReject,
+}: {
+  plan: PendingAgentPlan;
+  approving: boolean;
+  rejecting: boolean;
+  onApprove: () => void;
+  onReject: () => void;
+}) {
+  const remaining = plan.plan.steps.filter((step) => !plan.appliedStepIds.includes(step.id));
+  return (
+    <div className="rounded-2xl border border-intelligence/40 bg-intelligence/5 p-5">
+      <div className="flex items-start gap-3">
+        <ShieldCheck className="mt-1 h-5 w-5 text-intelligence" />
+        <div className="min-w-0 flex-1">
+          <h2 className="font-semibold">Plano proposto — aguardando sua aprovação</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{plan.plan.intent}</p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Nenhuma ação abaixo é executada pelo modelo. O KIVRYN valida o plano novamente antes de aplicar.
+          </p>
+        </div>
+      </div>
+      <div className="mt-4 space-y-2">
+        {plan.plan.steps.map((step, index) => {
+          const applied = plan.appliedStepIds.includes(step.id);
+          return (
+            <div key={step.id} className="rounded-xl border bg-background/60 p-3 text-sm">
+              <div className="flex items-center justify-between gap-3">
+                <span className="font-medium">
+                  {index + 1}. {step.action.replaceAll("_", " ")}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {applied ? "Aplicada" : step.domain}
+                </span>
+              </div>
+              <p className="mt-1 break-words text-xs text-muted-foreground">
+                {Object.entries(step.input)
+                  .map(([key, value]) => `${key}: ${String(value)}`)
+                  .join(" · ") || "Sem parâmetros adicionais"}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Button disabled={!remaining.length || approving || rejecting} onClick={onApprove}>
+          {approving ? "Aplicando…" : "Aprovar ações restantes"}
+        </Button>
+        <Button variant="outline" disabled={approving || rejecting} onClick={onReject}>
+          {rejecting ? "Rejeitando…" : "Rejeitar plano"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 const WEEKDAYS = [
-  [1, "Seg"], [2, "Ter"], [3, "Qua"], [4, "Qui"], [5, "Sex"], [6, "Sáb"], [7, "Dom"],
+  [1, "Seg"],
+  [2, "Ter"],
+  [3, "Qua"],
+  [4, "Qui"],
+  [5, "Sex"],
+  [6, "Sáb"],
+  [7, "Dom"],
 ] as const;
 
-function ScheduleEditor({ agentId, agentGoal, schedule, premium, onChanged }: { agentId: string; agentGoal: string; schedule: AgentSchedule | null | undefined; premium: boolean; onChanged: () => Promise<void> }) {
+function ScheduleEditor({
+  agentId,
+  agentGoal,
+  schedule,
+  premium,
+  onChanged,
+}: {
+  agentId: string;
+  agentGoal: string;
+  schedule: AgentSchedule | null | undefined;
+  premium: boolean;
+  onChanged: () => Promise<void>;
+}) {
   const [frequency, setFrequency] = useState<"daily" | "weekly">(schedule?.frequency ?? "daily");
   const [localTime, setLocalTime] = useState(schedule?.localTime ?? "08:00");
-  const [weekdays, setWeekdays] = useState<number[]>(schedule?.weekdays.length ? schedule.weekdays : [1]);
-  const [timezone, setTimezone] = useState(schedule?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone ?? "UTC");
+  const [weekdays, setWeekdays] = useState<number[]>(
+    schedule?.weekdays.length ? schedule.weekdays : [1],
+  );
+  const [timezone, setTimezone] = useState(
+    schedule?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone ?? "UTC",
+  );
   const [prompt, setPrompt] = useState(schedule?.prompt ?? agentGoal);
   const [notify, setNotify] = useState(schedule?.notifyOnRun ?? true);
   const save = useMutation({
-    mutationFn: () => AgentScheduleService.configure({ agentId, frequency, localTime, weekdays, timezone, prompt, notifyOnRun: notify }),
-    onSuccess: async () => { await onChanged(); toast.success("Agendamento salvo"); },
+    mutationFn: () =>
+      AgentScheduleService.configure({
+        agentId,
+        frequency,
+        localTime,
+        weekdays,
+        timezone,
+        prompt,
+        notifyOnRun: notify,
+      }),
+    onSuccess: async () => {
+      await onChanged();
+      toast.success("Agendamento salvo");
+    },
     onError: (e: Error) => toast.error(e.message),
   });
   const clear = useMutation({
     mutationFn: () => AgentScheduleService.clear(agentId),
-    onSuccess: async () => { await onChanged(); toast.success("Agendamento removido"); },
+    onSuccess: async () => {
+      await onChanged();
+      toast.success("Agendamento removido");
+    },
     onError: (e: Error) => toast.error(e.message),
   });
   return (
@@ -208,21 +433,109 @@ function ScheduleEditor({ agentId, agentGoal, schedule, premium, onChanged }: { 
           <CalendarClock className="mt-1 h-5 w-5 text-intelligence" />
           <div>
             <h2 className="font-semibold">Briefing programado</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Executa este Agent no servidor, mesmo com o app fechado. Nesta edição ele usa somente o objetivo, instruções e briefing configurados; acesso automático ao seu workspace será adicionado pelo Agentic Core.</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Executa este Agent no servidor mesmo com o app fechado. Ele usa apenas o contexto, skills,
+              connectors e subagents autorizados pelo KIVRYN. Se sugerir alterações no workspace, o plano
+              fica pendente para sua aprovação — agendamento nunca significa autorização para alterar dados.
+            </p>
           </div>
         </div>
       </div>
-      {!premium && <p className="rounded-xl border border-destructive/30 p-3 text-sm text-destructive">Agendamentos de Agents exigem Premium ativo.</p>}
+      {!premium && (
+        <p className="rounded-xl border border-destructive/30 p-3 text-sm text-destructive">
+          Agendamentos de Agents exigem Premium ativo.
+        </p>
+      )}
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="space-y-2"><Label>Frequência</Label><select className="h-10 w-full rounded-md border bg-background px-3" value={frequency} onChange={(e) => setFrequency(e.target.value as "daily" | "weekly")}><option value="daily">Todos os dias</option><option value="weekly">Semanal</option></select></label>
-        <label className="space-y-2"><Label>Horário local</Label><Input type="time" value={localTime} onChange={(e) => setLocalTime(e.target.value)} /></label>
+        <label className="space-y-2">
+          <Label>Frequência</Label>
+          <select
+            className="h-10 w-full rounded-md border bg-background px-3"
+            value={frequency}
+            onChange={(e) => setFrequency(e.target.value as "daily" | "weekly")}
+          >
+            <option value="daily">Todos os dias</option>
+            <option value="weekly">Semanal</option>
+          </select>
+        </label>
+        <label className="space-y-2">
+          <Label>Horário local</Label>
+          <Input type="time" value={localTime} onChange={(e) => setLocalTime(e.target.value)} />
+        </label>
       </div>
-      {frequency === "weekly" && <div><Label>Dias</Label><div className="mt-2 flex flex-wrap gap-2">{WEEKDAYS.map(([day,label]) => <Button key={day} type="button" size="sm" variant={weekdays.includes(day) ? "default" : "outline"} onClick={() => setWeekdays((current) => current.includes(day) ? current.filter((value) => value !== day) : [...current, day])}>{label}</Button>)}</div></div>}
-      <label className="space-y-2"><Label>Fuso horário</Label><Input value={timezone} onChange={(e) => setTimezone(e.target.value)} placeholder="America/Bahia" /></label>
-      <label className="space-y-2"><Label>O que o Agent deve executar</Label><Textarea className="min-h-28" value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Ex.: Prepare meu briefing semanal de conteúdo com base nas instruções deste Agent." /></label>
-      <label className="flex items-center justify-between rounded-xl border p-3"><span><span className="block font-medium">Notificar ao concluir</span><span className="text-xs text-muted-foreground">Cria notificação no KIVRYN e envia push fora do horário silencioso.</span></span><Switch checked={notify} onCheckedChange={setNotify} /></label>
-      {schedule?.nextRunAt && <div className="rounded-xl border p-3 text-sm"><p><span className="text-muted-foreground">Próxima:</span> {new Date(schedule.nextRunAt).toLocaleString("pt-BR")}</p>{schedule.lastRunAt && <p className="mt-1"><span className="text-muted-foreground">Última:</span> {new Date(schedule.lastRunAt).toLocaleString("pt-BR")}</p>}</div>}
-      <div className="flex flex-wrap gap-2"><Button disabled={!premium || save.isPending || !prompt.trim()} onClick={() => save.mutate()}>{save.isPending ? "Salvando…" : schedule?.frequency ? "Atualizar agendamento" : "Ativar agendamento"}</Button>{schedule?.frequency && <Button variant="outline" disabled={clear.isPending} onClick={() => clear.mutate()}>Desativar</Button>}</div>
+      {frequency === "weekly" && (
+        <div>
+          <Label>Dias</Label>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {WEEKDAYS.map(([day, label]) => (
+              <Button
+                key={day}
+                type="button"
+                size="sm"
+                variant={weekdays.includes(day) ? "default" : "outline"}
+                onClick={() =>
+                  setWeekdays((current) =>
+                    current.includes(day)
+                      ? current.filter((value) => value !== day)
+                      : [...current, day],
+                  )
+                }
+              >
+                {label}
+              </Button>
+            ))}
+          </div>
+        </div>
+      )}
+      <label className="space-y-2">
+        <Label>Fuso horário</Label>
+        <Input value={timezone} onChange={(e) => setTimezone(e.target.value)} placeholder="America/Bahia" />
+      </label>
+      <label className="space-y-2">
+        <Label>O que o Agent deve executar</Label>
+        <Textarea
+          className="min-h-28"
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          placeholder="Ex.: Prepare meu briefing semanal de conteúdo com base nas instruções deste Agent."
+        />
+      </label>
+      <label className="flex items-center justify-between rounded-xl border p-3">
+        <span>
+          <span className="block font-medium">Notificar ao concluir</span>
+          <span className="text-xs text-muted-foreground">
+            Cria notificação no KIVRYN e envia push fora do horário silencioso.
+          </span>
+        </span>
+        <Switch checked={notify} onCheckedChange={setNotify} />
+      </label>
+      {schedule?.nextRunAt && (
+        <div className="rounded-xl border p-3 text-sm">
+          <p>
+            <span className="text-muted-foreground">Próxima:</span>{" "}
+            {new Date(schedule.nextRunAt).toLocaleString("pt-BR")}
+          </p>
+          {schedule.lastRunAt && (
+            <p className="mt-1">
+              <span className="text-muted-foreground">Última:</span>{" "}
+              {new Date(schedule.lastRunAt).toLocaleString("pt-BR")}
+            </p>
+          )}
+        </div>
+      )}
+      <div className="flex flex-wrap gap-2">
+        <Button
+          disabled={!premium || save.isPending || !prompt.trim()}
+          onClick={() => save.mutate()}
+        >
+          {save.isPending ? "Salvando…" : schedule?.frequency ? "Atualizar agendamento" : "Ativar agendamento"}
+        </Button>
+        {schedule?.frequency && (
+          <Button variant="outline" disabled={clear.isPending} onClick={() => clear.mutate()}>
+            Desativar
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
@@ -230,25 +543,49 @@ function ScheduleEditor({ agentId, agentGoal, schedule, premium, onChanged }: { 
 function scheduleLabel(schedule: AgentSchedule) {
   if (!schedule.frequency) return "Manual";
   if (schedule.frequency === "daily") return `Diário · ${schedule.localTime ?? "—"}`;
-  const labels = schedule.weekdays.map((day) => WEEKDAYS.find(([value]) => value === day)?.[1]).filter(Boolean).join(", ");
+  const labels = schedule.weekdays
+    .map((day) => WEEKDAYS.find(([value]) => value === day)?.[1])
+    .filter(Boolean)
+    .join(", ");
   return `${labels || "Semanal"} · ${schedule.localTime ?? "—"}`;
 }
 
-function Settings({ agent, onDelete }: { agent: Awaited<ReturnType<typeof AgentService.listRows>>[number]; onDelete: () => void }) {
+function Settings({
+  agent,
+  onDelete,
+}: {
+  agent: Awaited<ReturnType<typeof AgentService.listRows>>[number];
+  onDelete: () => void;
+}) {
   const [name, setName] = useState(agent.name ?? "");
   const [description, setDescription] = useState(agent.description ?? "");
   const [goal, setGoal] = useState(agent.goal ?? "");
   const [instructions, setInstructions] = useState(agent.instructions ?? "");
   const [active, setActive] = useState(!!agent.active);
-  const save = useMutation({ mutationFn: () => AgentService.update(agent.id, { name, description, goal, instructions, active }), onSuccess: () => toast.success("Agente atualizado") });
+  const save = useMutation({
+    mutationFn: () => AgentService.update(agent.id, { name, description, goal, instructions, active }),
+    onSuccess: () => toast.success("Agente atualizado"),
+  });
   return (
     <div className="mt-4 max-w-xl space-y-3">
-      <Label>Nome</Label><Input value={name} onChange={(e) => setName(e.target.value)} />
-      <Label>Descrição</Label><Textarea value={description} onChange={(e) => setDescription(e.target.value)} />
-      <Label>Objetivo</Label><Textarea value={goal} onChange={(e) => setGoal(e.target.value)} />
-      <Label>Instruções</Label><Textarea value={instructions} onChange={(e) => setInstructions(e.target.value)} />
-      <label className="flex items-center justify-between rounded-xl border p-3">Agente ativo<Switch checked={active} onCheckedChange={setActive} /></label>
-      <div className="flex gap-2"><Button onClick={() => save.mutate()}>Salvar</Button><Button variant="destructive" onClick={() => confirm("Excluir agente?") && onDelete()}><Trash2 /> Excluir</Button></div>
+      <Label>Nome</Label>
+      <Input value={name} onChange={(e) => setName(e.target.value)} />
+      <Label>Descrição</Label>
+      <Textarea value={description} onChange={(e) => setDescription(e.target.value)} />
+      <Label>Objetivo</Label>
+      <Textarea value={goal} onChange={(e) => setGoal(e.target.value)} />
+      <Label>Instruções</Label>
+      <Textarea value={instructions} onChange={(e) => setInstructions(e.target.value)} />
+      <label className="flex items-center justify-between rounded-xl border p-3">
+        Agente ativo
+        <Switch checked={active} onCheckedChange={setActive} />
+      </label>
+      <div className="flex gap-2">
+        <Button onClick={() => save.mutate()}>Salvar</Button>
+        <Button variant="destructive" onClick={() => confirm("Excluir agente?") && onDelete()}>
+          <Trash2 /> Excluir
+        </Button>
+      </div>
     </div>
   );
 }

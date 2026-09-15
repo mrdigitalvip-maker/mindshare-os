@@ -41,6 +41,7 @@ Deno.serve(async (request) => {
   let failed = 0;
   let retrying = 0;
   let notified = 0;
+  let approvalsPending = 0;
 
   for (const run of claimed) {
     try {
@@ -53,14 +54,19 @@ Deno.serve(async (request) => {
         runId: run.run_id,
       });
       completed++;
+      if (result.approvalRequired) approvalsPending++;
       if (run.notify_on_run) {
         const delivered = await notifyResult({
           admin,
           url,
           schedulerSecret,
           run,
-          title: `${result.agentName} concluiu seu briefing`,
-          message: result.output,
+          title: result.approvalRequired
+            ? `${result.agentName} preparou ações para aprovação`
+            : `${result.agentName} concluiu seu briefing`,
+          message: result.approvalRequired
+            ? `${result.output}\n\nNenhuma alteração foi aplicada. Revise e aprove o plano no KIVRYN.`
+            : result.output,
         });
         if (delivered) notified++;
       }
@@ -93,6 +99,7 @@ Deno.serve(async (request) => {
     enqueued: Number(enqueued) || 0,
     claimed: claimed.length,
     completed,
+    approvalsPending,
     retrying,
     failed,
     notified,

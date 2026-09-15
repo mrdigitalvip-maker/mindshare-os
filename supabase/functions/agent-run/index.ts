@@ -13,7 +13,9 @@ const safeError = (request: Request, code: string, status: number) =>
         message:
           code === "premium_required"
             ? "Premium subscription required."
-            : "Agent execution failed.",
+            : code === "agent_limit_reached"
+              ? "Your Agent usage limit for today has been reached."
+              : "Agent execution failed.",
       },
     },
     status,
@@ -60,6 +62,13 @@ Deno.serve(async (request) => {
         runId: result.runId,
         output: result.output,
         contextScopes: result.contextScopes,
+        skillIds: result.skillIds,
+        connectorIds: result.connectorIds,
+        subagentIds: result.subagentIds,
+        actionPlan: result.actionPlan,
+        planFingerprint: result.planFingerprint,
+        approvalRequired: result.approvalRequired,
+        openaiResponseId: result.openaiResponseId,
       },
     });
   } catch (error) {
@@ -71,9 +80,11 @@ Deno.serve(async (request) => {
           ? 404
           : code === "invalid_request"
             ? 400
-            : code === "provider_rate_limited"
+            : code === "provider_rate_limited" || code === "agent_limit_reached"
               ? 429
-              : code === "configuration_error" || code === "persistence_error"
+              : code === "configuration_error" ||
+                  code === "persistence_error" ||
+                  code === "usage_claim_failed"
                 ? 500
                 : 502;
     return safeError(request, code, status);
