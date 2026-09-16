@@ -9,72 +9,53 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as ShellRouteImport } from './routes/_shell'
-import { Route as AuthRouteImport } from './routes/auth'
-import { Route as ConfirmEmailRouteImport } from './routes/confirm-email'
-import { Route as OnboardingRouteImport } from './routes/onboarding'
-import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
-import { Route as ShellAgentsRouteImport } from './routes/_shell.agents'
-import { Route as ShellArenaRouteImport } from './routes/_shell.arena'
-import { Route as ShellAssistantRouteImport } from './routes/_shell.assistant'
-import { Route as ShellCommunityRouteImport } from './routes/_shell.community'
-import { Route as ShellContentRouteImport } from './routes/_shell.content'
-import { Route as ShellCreatorRouteImport } from './routes/_shell.creator'
-import { Route as ShellDashboardRouteImport } from './routes/_shell.dashboard'
-import { Route as ShellDocumentsRouteImport } from './routes/_shell.documents'
-import { Route as ShellFinanceRouteImport } from './routes/_shell.finance'
-import { Route as ShellJourneysRouteImport } from './routes/_shell.journeys'
-import { Route as ShellPacksRouteImport } from './routes/_shell.packs'
-import { Route as ShellPremiumRouteImport } from './routes/_shell.premium'
-import { Route as ShellProductivityRouteImport } from './routes/_shell.productivity'
-import { Route as ShellProjectsRouteImport } from './routes/_shell.projects'
-import { Route as ShellSettingsRouteImport } from './routes/_shell.settings'
-import { Route as ShellStudiesRouteImport } from './routes/_shell.studies'
-import { Route as ShellStudioRouteImport } from './routes/_shell.studio'
-import { Route as ShellTranslateRouteImport } from './routes/_shell.translate'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as ConfirmEmailRouteImport } from './routes/confirm-email'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AboutRouteImport } from './routes/about'
+import { Route as ShellRouteImport } from './routes/_shell'
+import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
-import { Route as ShellAgentsAgentIdRouteImport } from './routes/_shell.agents.$agentId'
-import { Route as ShellContentContentIdRouteImport } from './routes/_shell.content.$contentId'
-import { Route as ShellDocumentsDocumentIdRouteImport } from './routes/_shell.documents.$documentId'
-import { Route as ShellJourneysJourneyIdRouteImport } from './routes/_shell.journeys.$journeyId'
-import { Route as ShellPacksSlugRouteImport } from './routes/_shell.packs.$slug'
-import { Route as ShellProjectsProjectIdRouteImport } from './routes/_shell.projects.$projectId'
-import { Route as ShellStudiesSubjectIdRouteImport } from './routes/_shell.studies.$subjectId'
-import { Route as ShellStudioAiAcademyRouteImport } from './routes/_shell.studio.ai-academy'
-import { Route as ShellStudioCreatorGrowthRouteImport } from './routes/_shell.studio.creator-growth'
+import { Route as ShellTranslateRouteImport } from './routes/_shell.translate'
+import { Route as ShellStudioRouteImport } from './routes/_shell.studio'
+import { Route as ShellStudiesRouteImport } from './routes/_shell.studies'
+import { Route as ShellSettingsRouteImport } from './routes/_shell.settings'
+import { Route as ShellProjectsRouteImport } from './routes/_shell.projects'
+import { Route as ShellProductivityRouteImport } from './routes/_shell.productivity'
+import { Route as ShellPremiumRouteImport } from './routes/_shell.premium'
+import { Route as ShellPassportRouteImport } from './routes/_shell.passport'
+import { Route as ShellPacksRouteImport } from './routes/_shell.packs'
+import { Route as ShellJourneysRouteImport } from './routes/_shell.journeys'
+import { Route as ShellFinanceRouteImport } from './routes/_shell.finance'
+import { Route as ShellDocumentsRouteImport } from './routes/_shell.documents'
+import { Route as ShellDashboardRouteImport } from './routes/_shell.dashboard'
+import { Route as ShellCreatorRouteImport } from './routes/_shell.creator'
+import { Route as ShellContentRouteImport } from './routes/_shell.content'
+import { Route as ShellCommunityRouteImport } from './routes/_shell.community'
+import { Route as ShellChallengesRouteImport } from './routes/_shell.challenges'
+import { Route as ShellAssistantRouteImport } from './routes/_shell.assistant'
+import { Route as ShellArenaRouteImport } from './routes/_shell.arena'
+import { Route as ShellAgentsRouteImport } from './routes/_shell.agents'
 import { Route as ShellStudioLanguagesRouteImport } from './routes/_shell.studio.languages'
-import { Route as ShellCommunitySquadsSquadIdRouteImport } from './routes/_shell.community.squads.$squadId'
+import { Route as ShellStudioCreatorGrowthRouteImport } from './routes/_shell.studio.creator-growth'
+import { Route as ShellStudioAiAcademyRouteImport } from './routes/_shell.studio.ai-academy'
+import { Route as ShellStudiesSubjectIdRouteImport } from './routes/_shell.studies.$subjectId'
+import { Route as ShellProjectsProjectIdRouteImport } from './routes/_shell.projects.$projectId'
+import { Route as ShellPacksSlugRouteImport } from './routes/_shell.packs.$slug'
+import { Route as ShellJourneysJourneyIdRouteImport } from './routes/_shell.journeys.$journeyId'
+import { Route as ShellDocumentsDocumentIdRouteImport } from './routes/_shell.documents.$documentId'
+import { Route as ShellContentContentIdRouteImport } from './routes/_shell.content.$contentId'
+import { Route as ShellAgentsAgentIdRouteImport } from './routes/_shell.agents.$agentId'
 import { Route as ShellFinanceAccountsAccountIdRouteImport } from './routes/_shell.finance.accounts.$accountId'
+import { Route as ShellCommunitySquadsSquadIdRouteImport } from './routes/_shell.community.squads.$squadId'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ShellRoute = ShellRouteImport.update({
-  id: '/_shell',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthRoute = AuthRouteImport.update({
-  id: '/auth',
-  path: '/auth',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ConfirmEmailRoute = ConfirmEmailRouteImport.update({
-  id: '/confirm-email',
-  path: '/confirm-email',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const OnboardingRoute = OnboardingRouteImport.update({
-  id: '/onboarding',
-  path: '/onboarding',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ResetPasswordRoute = ResetPasswordRouteImport.update({
-  id: '/reset-password',
-  path: '/reset-password',
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
@@ -82,84 +63,53 @@ const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ShellAgentsRoute = ShellAgentsRouteImport.update({
-  id: '/agents',
-  path: '/agents',
-  getParentRoute: () => ShellRoute,
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const ShellArenaRoute = ShellArenaRouteImport.update({
-  id: '/arena',
-  path: '/arena',
-  getParentRoute: () => ShellRoute,
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const ShellAssistantRoute = ShellAssistantRouteImport.update({
-  id: '/assistant',
-  path: '/assistant',
-  getParentRoute: () => ShellRoute,
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const ShellCommunityRoute = ShellCommunityRouteImport.update({
-  id: '/community',
-  path: '/community',
-  getParentRoute: () => ShellRoute,
+const ConfirmEmailRoute = ConfirmEmailRouteImport.update({
+  id: '/confirm-email',
+  path: '/confirm-email',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const ShellContentRoute = ShellContentRouteImport.update({
-  id: '/content',
-  path: '/content',
-  getParentRoute: () => ShellRoute,
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const ShellCreatorRoute = ShellCreatorRouteImport.update({
-  id: '/creator',
-  path: '/creator',
-  getParentRoute: () => ShellRoute,
+const AboutRoute = AboutRouteImport.update({
+  id: '/about',
+  path: '/about',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const ShellDashboardRoute = ShellDashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => ShellRoute,
+const ShellRoute = ShellRouteImport.update({
+  id: '/_shell',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const ShellDocumentsRoute = ShellDocumentsRouteImport.update({
-  id: '/documents',
-  path: '/documents',
-  getParentRoute: () => ShellRoute,
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const ShellFinanceRoute = ShellFinanceRouteImport.update({
-  id: '/finance',
-  path: '/finance',
-  getParentRoute: () => ShellRoute,
+const AuthCallbackRoute = AuthCallbackRouteImport.update({
+  id: '/callback',
+  path: '/callback',
+  getParentRoute: () => AuthRoute,
 } as any)
-const ShellJourneysRoute = ShellJourneysRouteImport.update({
-  id: '/journeys',
-  path: '/journeys',
-  getParentRoute: () => ShellRoute,
-} as any)
-const ShellPacksRoute = ShellPacksRouteImport.update({
-  id: '/packs',
-  path: '/packs',
-  getParentRoute: () => ShellRoute,
-} as any)
-const ShellPremiumRoute = ShellPremiumRouteImport.update({
-  id: '/premium',
-  path: '/premium',
-  getParentRoute: () => ShellRoute,
-} as any)
-const ShellProductivityRoute = ShellProductivityRouteImport.update({
-  id: '/productivity',
-  path: '/productivity',
-  getParentRoute: () => ShellRoute,
-} as any)
-const ShellProjectsRoute = ShellProjectsRouteImport.update({
-  id: '/projects',
-  path: '/projects',
-  getParentRoute: () => ShellRoute,
-} as any)
-const ShellSettingsRoute = ShellSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => ShellRoute,
-} as any)
-const ShellStudiesRoute = ShellStudiesRouteImport.update({
-  id: '/studies',
-  path: '/studies',
+const ShellTranslateRoute = ShellTranslateRouteImport.update({
+  id: '/translate',
+  path: '/translate',
   getParentRoute: () => ShellRoute,
 } as any)
 const ShellStudioRoute = ShellStudioRouteImport.update({
@@ -167,55 +117,99 @@ const ShellStudioRoute = ShellStudioRouteImport.update({
   path: '/studio',
   getParentRoute: () => ShellRoute,
 } as any)
-const ShellTranslateRoute = ShellTranslateRouteImport.update({
-  id: '/translate',
-  path: '/translate',
+const ShellStudiesRoute = ShellStudiesRouteImport.update({
+  id: '/studies',
+  path: '/studies',
   getParentRoute: () => ShellRoute,
 } as any)
-const AuthCallbackRoute = AuthCallbackRouteImport.update({
-  id: '/callback',
-  path: '/callback',
-  getParentRoute: () => AuthRoute,
+const ShellSettingsRoute = ShellSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => ShellRoute,
 } as any)
-const ShellAgentsAgentIdRoute = ShellAgentsAgentIdRouteImport.update({
-  id: '/$agentId',
-  path: '/$agentId',
-  getParentRoute: () => ShellAgentsRoute,
+const ShellProjectsRoute = ShellProjectsRouteImport.update({
+  id: '/projects',
+  path: '/projects',
+  getParentRoute: () => ShellRoute,
 } as any)
-const ShellContentContentIdRoute = ShellContentContentIdRouteImport.update({
-  id: '/$contentId',
-  path: '/$contentId',
-  getParentRoute: () => ShellContentRoute,
+const ShellProductivityRoute = ShellProductivityRouteImport.update({
+  id: '/productivity',
+  path: '/productivity',
+  getParentRoute: () => ShellRoute,
 } as any)
-const ShellDocumentsDocumentIdRoute =
-  ShellDocumentsDocumentIdRouteImport.update({
-    id: '/$documentId',
-    path: '/$documentId',
-    getParentRoute: () => ShellDocumentsRoute,
-  } as any)
-const ShellJourneysJourneyIdRoute = ShellJourneysJourneyIdRouteImport.update({
-  id: '/$journeyId',
-  path: '/$journeyId',
-  getParentRoute: () => ShellJourneysRoute,
+const ShellPremiumRoute = ShellPremiumRouteImport.update({
+  id: '/premium',
+  path: '/premium',
+  getParentRoute: () => ShellRoute,
 } as any)
-const ShellPacksSlugRoute = ShellPacksSlugRouteImport.update({
-  id: '/$slug',
-  path: '/$slug',
-  getParentRoute: () => ShellPacksRoute,
+const ShellPassportRoute = ShellPassportRouteImport.update({
+  id: '/passport',
+  path: '/passport',
+  getParentRoute: () => ShellRoute,
 } as any)
-const ShellProjectsProjectIdRoute = ShellProjectsProjectIdRouteImport.update({
-  id: '/$projectId',
-  path: '/$projectId',
-  getParentRoute: () => ShellProjectsRoute,
+const ShellPacksRoute = ShellPacksRouteImport.update({
+  id: '/packs',
+  path: '/packs',
+  getParentRoute: () => ShellRoute,
 } as any)
-const ShellStudiesSubjectIdRoute = ShellStudiesSubjectIdRouteImport.update({
-  id: '/$subjectId',
-  path: '/$subjectId',
-  getParentRoute: () => ShellStudiesRoute,
+const ShellJourneysRoute = ShellJourneysRouteImport.update({
+  id: '/journeys',
+  path: '/journeys',
+  getParentRoute: () => ShellRoute,
 } as any)
-const ShellStudioAiAcademyRoute = ShellStudioAiAcademyRouteImport.update({
-  id: '/ai-academy',
-  path: '/ai-academy',
+const ShellFinanceRoute = ShellFinanceRouteImport.update({
+  id: '/finance',
+  path: '/finance',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellDocumentsRoute = ShellDocumentsRouteImport.update({
+  id: '/documents',
+  path: '/documents',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellDashboardRoute = ShellDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellCreatorRoute = ShellCreatorRouteImport.update({
+  id: '/creator',
+  path: '/creator',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellContentRoute = ShellContentRouteImport.update({
+  id: '/content',
+  path: '/content',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellCommunityRoute = ShellCommunityRouteImport.update({
+  id: '/community',
+  path: '/community',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellChallengesRoute = ShellChallengesRouteImport.update({
+  id: '/challenges',
+  path: '/challenges',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellAssistantRoute = ShellAssistantRouteImport.update({
+  id: '/assistant',
+  path: '/assistant',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellArenaRoute = ShellArenaRouteImport.update({
+  id: '/arena',
+  path: '/arena',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellAgentsRoute = ShellAgentsRouteImport.update({
+  id: '/agents',
+  path: '/agents',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellStudioLanguagesRoute = ShellStudioLanguagesRouteImport.update({
+  id: '/languages',
+  path: '/languages',
   getParentRoute: () => ShellStudioRoute,
 } as any)
 const ShellStudioCreatorGrowthRoute =
@@ -224,34 +218,74 @@ const ShellStudioCreatorGrowthRoute =
     path: '/creator-growth',
     getParentRoute: () => ShellStudioRoute,
   } as any)
-const ShellStudioLanguagesRoute = ShellStudioLanguagesRouteImport.update({
-  id: '/languages',
-  path: '/languages',
+const ShellStudioAiAcademyRoute = ShellStudioAiAcademyRouteImport.update({
+  id: '/ai-academy',
+  path: '/ai-academy',
   getParentRoute: () => ShellStudioRoute,
 } as any)
-const ShellCommunitySquadsSquadIdRoute =
-  ShellCommunitySquadsSquadIdRouteImport.update({
-    id: '/squads/$squadId',
-    path: '/squads/$squadId',
-    getParentRoute: () => ShellCommunityRoute,
+const ShellStudiesSubjectIdRoute = ShellStudiesSubjectIdRouteImport.update({
+  id: '/$subjectId',
+  path: '/$subjectId',
+  getParentRoute: () => ShellStudiesRoute,
+} as any)
+const ShellProjectsProjectIdRoute = ShellProjectsProjectIdRouteImport.update({
+  id: '/$projectId',
+  path: '/$projectId',
+  getParentRoute: () => ShellProjectsRoute,
+} as any)
+const ShellPacksSlugRoute = ShellPacksSlugRouteImport.update({
+  id: '/$slug',
+  path: '/$slug',
+  getParentRoute: () => ShellPacksRoute,
+} as any)
+const ShellJourneysJourneyIdRoute = ShellJourneysJourneyIdRouteImport.update({
+  id: '/$journeyId',
+  path: '/$journeyId',
+  getParentRoute: () => ShellJourneysRoute,
+} as any)
+const ShellDocumentsDocumentIdRoute =
+  ShellDocumentsDocumentIdRouteImport.update({
+    id: '/$documentId',
+    path: '/$documentId',
+    getParentRoute: () => ShellDocumentsRoute,
   } as any)
+const ShellContentContentIdRoute = ShellContentContentIdRouteImport.update({
+  id: '/$contentId',
+  path: '/$contentId',
+  getParentRoute: () => ShellContentRoute,
+} as any)
+const ShellAgentsAgentIdRoute = ShellAgentsAgentIdRouteImport.update({
+  id: '/$agentId',
+  path: '/$agentId',
+  getParentRoute: () => ShellAgentsRoute,
+} as any)
 const ShellFinanceAccountsAccountIdRoute =
   ShellFinanceAccountsAccountIdRouteImport.update({
     id: '/accounts/$accountId',
     path: '/accounts/$accountId',
     getParentRoute: () => ShellFinanceRoute,
   } as any)
+const ShellCommunitySquadsSquadIdRoute =
+  ShellCommunitySquadsSquadIdRouteImport.update({
+    id: '/squads/$squadId',
+    path: '/squads/$squadId',
+    getParentRoute: () => ShellCommunityRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
   '/auth': typeof AuthRouteWithChildren
   '/confirm-email': typeof ConfirmEmailRoute
   '/onboarding': typeof OnboardingRoute
+  '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
   '/agents': typeof ShellAgentsRouteWithChildren
   '/arena': typeof ShellArenaRoute
   '/assistant': typeof ShellAssistantRoute
+  '/challenges': typeof ShellChallengesRoute
   '/community': typeof ShellCommunityRouteWithChildren
   '/content': typeof ShellContentRouteWithChildren
   '/creator': typeof ShellCreatorRoute
@@ -260,6 +294,7 @@ export interface FileRoutesByFullPath {
   '/finance': typeof ShellFinanceRouteWithChildren
   '/journeys': typeof ShellJourneysRouteWithChildren
   '/packs': typeof ShellPacksRouteWithChildren
+  '/passport': typeof ShellPassportRoute
   '/premium': typeof ShellPremiumRoute
   '/productivity': typeof ShellProductivityRoute
   '/projects': typeof ShellProjectsRouteWithChildren
@@ -283,14 +318,18 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
   '/auth': typeof AuthRouteWithChildren
   '/confirm-email': typeof ConfirmEmailRoute
   '/onboarding': typeof OnboardingRoute
+  '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
   '/agents': typeof ShellAgentsRouteWithChildren
   '/arena': typeof ShellArenaRoute
   '/assistant': typeof ShellAssistantRoute
+  '/challenges': typeof ShellChallengesRoute
   '/community': typeof ShellCommunityRouteWithChildren
   '/content': typeof ShellContentRouteWithChildren
   '/creator': typeof ShellCreatorRoute
@@ -299,6 +338,7 @@ export interface FileRoutesByTo {
   '/finance': typeof ShellFinanceRouteWithChildren
   '/journeys': typeof ShellJourneysRouteWithChildren
   '/packs': typeof ShellPacksRouteWithChildren
+  '/passport': typeof ShellPassportRoute
   '/premium': typeof ShellPremiumRoute
   '/productivity': typeof ShellProductivityRoute
   '/projects': typeof ShellProjectsRouteWithChildren
@@ -324,14 +364,18 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_shell': typeof ShellRouteWithChildren
+  '/about': typeof AboutRoute
   '/auth': typeof AuthRouteWithChildren
   '/confirm-email': typeof ConfirmEmailRoute
   '/onboarding': typeof OnboardingRoute
+  '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
   '/_shell/agents': typeof ShellAgentsRouteWithChildren
   '/_shell/arena': typeof ShellArenaRoute
   '/_shell/assistant': typeof ShellAssistantRoute
+  '/_shell/challenges': typeof ShellChallengesRoute
   '/_shell/community': typeof ShellCommunityRouteWithChildren
   '/_shell/content': typeof ShellContentRouteWithChildren
   '/_shell/creator': typeof ShellCreatorRoute
@@ -340,6 +384,7 @@ export interface FileRoutesById {
   '/_shell/finance': typeof ShellFinanceRouteWithChildren
   '/_shell/journeys': typeof ShellJourneysRouteWithChildren
   '/_shell/packs': typeof ShellPacksRouteWithChildren
+  '/_shell/passport': typeof ShellPassportRoute
   '/_shell/premium': typeof ShellPremiumRoute
   '/_shell/productivity': typeof ShellProductivityRoute
   '/_shell/projects': typeof ShellProjectsRouteWithChildren
@@ -365,14 +410,18 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/about'
     | '/auth'
     | '/confirm-email'
     | '/onboarding'
+    | '/privacy'
     | '/reset-password'
     | '/sitemap.xml'
+    | '/terms'
     | '/agents'
     | '/arena'
     | '/assistant'
+    | '/challenges'
     | '/community'
     | '/content'
     | '/creator'
@@ -381,6 +430,7 @@ export interface FileRouteTypes {
     | '/finance'
     | '/journeys'
     | '/packs'
+    | '/passport'
     | '/premium'
     | '/productivity'
     | '/projects'
@@ -404,14 +454,18 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/about'
     | '/auth'
     | '/confirm-email'
     | '/onboarding'
+    | '/privacy'
     | '/reset-password'
     | '/sitemap.xml'
+    | '/terms'
     | '/agents'
     | '/arena'
     | '/assistant'
+    | '/challenges'
     | '/community'
     | '/content'
     | '/creator'
@@ -420,6 +474,7 @@ export interface FileRouteTypes {
     | '/finance'
     | '/journeys'
     | '/packs'
+    | '/passport'
     | '/premium'
     | '/productivity'
     | '/projects'
@@ -444,14 +499,18 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_shell'
+    | '/about'
     | '/auth'
     | '/confirm-email'
     | '/onboarding'
+    | '/privacy'
     | '/reset-password'
     | '/sitemap.xml'
+    | '/terms'
     | '/_shell/agents'
     | '/_shell/arena'
     | '/_shell/assistant'
+    | '/_shell/challenges'
     | '/_shell/community'
     | '/_shell/content'
     | '/_shell/creator'
@@ -460,6 +519,7 @@ export interface FileRouteTypes {
     | '/_shell/finance'
     | '/_shell/journeys'
     | '/_shell/packs'
+    | '/_shell/passport'
     | '/_shell/premium'
     | '/_shell/productivity'
     | '/_shell/projects'
@@ -485,55 +545,23 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ShellRoute: typeof ShellRouteWithChildren
+  AboutRoute: typeof AboutRoute
   AuthRoute: typeof AuthRouteWithChildren
   ConfirmEmailRoute: typeof ConfirmEmailRoute
   OnboardingRoute: typeof OnboardingRoute
+  PrivacyRoute: typeof PrivacyRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  TermsRoute: typeof TermsRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_shell': {
-      id: '/_shell'
-      path: ''
-      fullPath: '/'
-      preLoaderRoute: typeof ShellRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth': {
-      id: '/auth'
-      path: '/auth'
-      fullPath: '/auth'
-      preLoaderRoute: typeof AuthRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/confirm-email': {
-      id: '/confirm-email'
-      path: '/confirm-email'
-      fullPath: '/confirm-email'
-      preLoaderRoute: typeof ConfirmEmailRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/onboarding': {
-      id: '/onboarding'
-      path: '/onboarding'
-      fullPath: '/onboarding'
-      preLoaderRoute: typeof OnboardingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/reset-password': {
-      id: '/reset-password'
-      path: '/reset-password'
-      fullPath: '/reset-password'
-      preLoaderRoute: typeof ResetPasswordRouteImport
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sitemap.xml': {
@@ -543,116 +571,74 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_shell/agents': {
-      id: '/_shell/agents'
-      path: '/agents'
-      fullPath: '/agents'
-      preLoaderRoute: typeof ShellAgentsRouteImport
-      parentRoute: typeof ShellRoute
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_shell/arena': {
-      id: '/_shell/arena'
-      path: '/arena'
-      fullPath: '/arena'
-      preLoaderRoute: typeof ShellArenaRouteImport
-      parentRoute: typeof ShellRoute
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_shell/assistant': {
-      id: '/_shell/assistant'
-      path: '/assistant'
-      fullPath: '/assistant'
-      preLoaderRoute: typeof ShellAssistantRouteImport
-      parentRoute: typeof ShellRoute
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_shell/community': {
-      id: '/_shell/community'
-      path: '/community'
-      fullPath: '/community'
-      preLoaderRoute: typeof ShellCommunityRouteImport
-      parentRoute: typeof ShellRoute
+    '/confirm-email': {
+      id: '/confirm-email'
+      path: '/confirm-email'
+      fullPath: '/confirm-email'
+      preLoaderRoute: typeof ConfirmEmailRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_shell/content': {
-      id: '/_shell/content'
-      path: '/content'
-      fullPath: '/content'
-      preLoaderRoute: typeof ShellContentRouteImport
-      parentRoute: typeof ShellRoute
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_shell/creator': {
-      id: '/_shell/creator'
-      path: '/creator'
-      fullPath: '/creator'
-      preLoaderRoute: typeof ShellCreatorRouteImport
-      parentRoute: typeof ShellRoute
+    '/about': {
+      id: '/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof AboutRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_shell/dashboard': {
-      id: '/_shell/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof ShellDashboardRouteImport
-      parentRoute: typeof ShellRoute
+    '/_shell': {
+      id: '/_shell'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof ShellRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_shell/documents': {
-      id: '/_shell/documents'
-      path: '/documents'
-      fullPath: '/documents'
-      preLoaderRoute: typeof ShellDocumentsRouteImport
-      parentRoute: typeof ShellRoute
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_shell/finance': {
-      id: '/_shell/finance'
-      path: '/finance'
-      fullPath: '/finance'
-      preLoaderRoute: typeof ShellFinanceRouteImport
-      parentRoute: typeof ShellRoute
+    '/auth/callback': {
+      id: '/auth/callback'
+      path: '/callback'
+      fullPath: '/auth/callback'
+      preLoaderRoute: typeof AuthCallbackRouteImport
+      parentRoute: typeof AuthRoute
     }
-    '/_shell/journeys': {
-      id: '/_shell/journeys'
-      path: '/journeys'
-      fullPath: '/journeys'
-      preLoaderRoute: typeof ShellJourneysRouteImport
-      parentRoute: typeof ShellRoute
-    }
-    '/_shell/packs': {
-      id: '/_shell/packs'
-      path: '/packs'
-      fullPath: '/packs'
-      preLoaderRoute: typeof ShellPacksRouteImport
-      parentRoute: typeof ShellRoute
-    }
-    '/_shell/premium': {
-      id: '/_shell/premium'
-      path: '/premium'
-      fullPath: '/premium'
-      preLoaderRoute: typeof ShellPremiumRouteImport
-      parentRoute: typeof ShellRoute
-    }
-    '/_shell/productivity': {
-      id: '/_shell/productivity'
-      path: '/productivity'
-      fullPath: '/productivity'
-      preLoaderRoute: typeof ShellProductivityRouteImport
-      parentRoute: typeof ShellRoute
-    }
-    '/_shell/projects': {
-      id: '/_shell/projects'
-      path: '/projects'
-      fullPath: '/projects'
-      preLoaderRoute: typeof ShellProjectsRouteImport
-      parentRoute: typeof ShellRoute
-    }
-    '/_shell/settings': {
-      id: '/_shell/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof ShellSettingsRouteImport
-      parentRoute: typeof ShellRoute
-    }
-    '/_shell/studies': {
-      id: '/_shell/studies'
-      path: '/studies'
-      fullPath: '/studies'
-      preLoaderRoute: typeof ShellStudiesRouteImport
+    '/_shell/translate': {
+      id: '/_shell/translate'
+      path: '/translate'
+      fullPath: '/translate'
+      preLoaderRoute: typeof ShellTranslateRouteImport
       parentRoute: typeof ShellRoute
     }
     '/_shell/studio': {
@@ -662,74 +648,137 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShellStudioRouteImport
       parentRoute: typeof ShellRoute
     }
-    '/_shell/translate': {
-      id: '/_shell/translate'
-      path: '/translate'
-      fullPath: '/translate'
-      preLoaderRoute: typeof ShellTranslateRouteImport
+    '/_shell/studies': {
+      id: '/_shell/studies'
+      path: '/studies'
+      fullPath: '/studies'
+      preLoaderRoute: typeof ShellStudiesRouteImport
       parentRoute: typeof ShellRoute
     }
-    '/auth/callback': {
-      id: '/auth/callback'
-      path: '/callback'
-      fullPath: '/auth/callback'
-      preLoaderRoute: typeof AuthCallbackRouteImport
-      parentRoute: typeof AuthRoute
+    '/_shell/settings': {
+      id: '/_shell/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof ShellSettingsRouteImport
+      parentRoute: typeof ShellRoute
     }
-    '/_shell/agents/$agentId': {
-      id: '/_shell/agents/$agentId'
-      path: '/$agentId'
-      fullPath: '/agents/$agentId'
-      preLoaderRoute: typeof ShellAgentsAgentIdRouteImport
-      parentRoute: typeof ShellAgentsRoute
+    '/_shell/projects': {
+      id: '/_shell/projects'
+      path: '/projects'
+      fullPath: '/projects'
+      preLoaderRoute: typeof ShellProjectsRouteImport
+      parentRoute: typeof ShellRoute
     }
-    '/_shell/content/$contentId': {
-      id: '/_shell/content/$contentId'
-      path: '/$contentId'
-      fullPath: '/content/$contentId'
-      preLoaderRoute: typeof ShellContentContentIdRouteImport
-      parentRoute: typeof ShellContentRoute
+    '/_shell/productivity': {
+      id: '/_shell/productivity'
+      path: '/productivity'
+      fullPath: '/productivity'
+      preLoaderRoute: typeof ShellProductivityRouteImport
+      parentRoute: typeof ShellRoute
     }
-    '/_shell/documents/$documentId': {
-      id: '/_shell/documents/$documentId'
-      path: '/$documentId'
-      fullPath: '/documents/$documentId'
-      preLoaderRoute: typeof ShellDocumentsDocumentIdRouteImport
-      parentRoute: typeof ShellDocumentsRoute
+    '/_shell/premium': {
+      id: '/_shell/premium'
+      path: '/premium'
+      fullPath: '/premium'
+      preLoaderRoute: typeof ShellPremiumRouteImport
+      parentRoute: typeof ShellRoute
     }
-    '/_shell/journeys/$journeyId': {
-      id: '/_shell/journeys/$journeyId'
-      path: '/$journeyId'
-      fullPath: '/journeys/$journeyId'
-      preLoaderRoute: typeof ShellJourneysJourneyIdRouteImport
-      parentRoute: typeof ShellJourneysRoute
+    '/_shell/passport': {
+      id: '/_shell/passport'
+      path: '/passport'
+      fullPath: '/passport'
+      preLoaderRoute: typeof ShellPassportRouteImport
+      parentRoute: typeof ShellRoute
     }
-    '/_shell/packs/$slug': {
-      id: '/_shell/packs/$slug'
-      path: '/$slug'
-      fullPath: '/packs/$slug'
-      preLoaderRoute: typeof ShellPacksSlugRouteImport
-      parentRoute: typeof ShellPacksRoute
+    '/_shell/packs': {
+      id: '/_shell/packs'
+      path: '/packs'
+      fullPath: '/packs'
+      preLoaderRoute: typeof ShellPacksRouteImport
+      parentRoute: typeof ShellRoute
     }
-    '/_shell/projects/$projectId': {
-      id: '/_shell/projects/$projectId'
-      path: '/$projectId'
-      fullPath: '/projects/$projectId'
-      preLoaderRoute: typeof ShellProjectsProjectIdRouteImport
-      parentRoute: typeof ShellProjectsRoute
+    '/_shell/journeys': {
+      id: '/_shell/journeys'
+      path: '/journeys'
+      fullPath: '/journeys'
+      preLoaderRoute: typeof ShellJourneysRouteImport
+      parentRoute: typeof ShellRoute
     }
-    '/_shell/studies/$subjectId': {
-      id: '/_shell/studies/$subjectId'
-      path: '/$subjectId'
-      fullPath: '/studies/$subjectId'
-      preLoaderRoute: typeof ShellStudiesSubjectIdRouteImport
-      parentRoute: typeof ShellStudiesRoute
+    '/_shell/finance': {
+      id: '/_shell/finance'
+      path: '/finance'
+      fullPath: '/finance'
+      preLoaderRoute: typeof ShellFinanceRouteImport
+      parentRoute: typeof ShellRoute
     }
-    '/_shell/studio/ai-academy': {
-      id: '/_shell/studio/ai-academy'
-      path: '/ai-academy'
-      fullPath: '/studio/ai-academy'
-      preLoaderRoute: typeof ShellStudioAiAcademyRouteImport
+    '/_shell/documents': {
+      id: '/_shell/documents'
+      path: '/documents'
+      fullPath: '/documents'
+      preLoaderRoute: typeof ShellDocumentsRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/dashboard': {
+      id: '/_shell/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof ShellDashboardRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/creator': {
+      id: '/_shell/creator'
+      path: '/creator'
+      fullPath: '/creator'
+      preLoaderRoute: typeof ShellCreatorRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/content': {
+      id: '/_shell/content'
+      path: '/content'
+      fullPath: '/content'
+      preLoaderRoute: typeof ShellContentRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/community': {
+      id: '/_shell/community'
+      path: '/community'
+      fullPath: '/community'
+      preLoaderRoute: typeof ShellCommunityRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/challenges': {
+      id: '/_shell/challenges'
+      path: '/challenges'
+      fullPath: '/challenges'
+      preLoaderRoute: typeof ShellChallengesRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/assistant': {
+      id: '/_shell/assistant'
+      path: '/assistant'
+      fullPath: '/assistant'
+      preLoaderRoute: typeof ShellAssistantRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/arena': {
+      id: '/_shell/arena'
+      path: '/arena'
+      fullPath: '/arena'
+      preLoaderRoute: typeof ShellArenaRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/agents': {
+      id: '/_shell/agents'
+      path: '/agents'
+      fullPath: '/agents'
+      preLoaderRoute: typeof ShellAgentsRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/studio/languages': {
+      id: '/_shell/studio/languages'
+      path: '/languages'
+      fullPath: '/studio/languages'
+      preLoaderRoute: typeof ShellStudioLanguagesRouteImport
       parentRoute: typeof ShellStudioRoute
     }
     '/_shell/studio/creator-growth': {
@@ -739,19 +788,61 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShellStudioCreatorGrowthRouteImport
       parentRoute: typeof ShellStudioRoute
     }
-    '/_shell/studio/languages': {
-      id: '/_shell/studio/languages'
-      path: '/languages'
-      fullPath: '/studio/languages'
-      preLoaderRoute: typeof ShellStudioLanguagesRouteImport
+    '/_shell/studio/ai-academy': {
+      id: '/_shell/studio/ai-academy'
+      path: '/ai-academy'
+      fullPath: '/studio/ai-academy'
+      preLoaderRoute: typeof ShellStudioAiAcademyRouteImport
       parentRoute: typeof ShellStudioRoute
     }
-    '/_shell/community/squads/$squadId': {
-      id: '/_shell/community/squads/$squadId'
-      path: '/squads/$squadId'
-      fullPath: '/community/squads/$squadId'
-      preLoaderRoute: typeof ShellCommunitySquadsSquadIdRouteImport
-      parentRoute: typeof ShellCommunityRoute
+    '/_shell/studies/$subjectId': {
+      id: '/_shell/studies/$subjectId'
+      path: '/$subjectId'
+      fullPath: '/studies/$subjectId'
+      preLoaderRoute: typeof ShellStudiesSubjectIdRouteImport
+      parentRoute: typeof ShellStudiesRoute
+    }
+    '/_shell/projects/$projectId': {
+      id: '/_shell/projects/$projectId'
+      path: '/$projectId'
+      fullPath: '/projects/$projectId'
+      preLoaderRoute: typeof ShellProjectsProjectIdRouteImport
+      parentRoute: typeof ShellProjectsRoute
+    }
+    '/_shell/packs/$slug': {
+      id: '/_shell/packs/$slug'
+      path: '/$slug'
+      fullPath: '/packs/$slug'
+      preLoaderRoute: typeof ShellPacksSlugRouteImport
+      parentRoute: typeof ShellPacksRoute
+    }
+    '/_shell/journeys/$journeyId': {
+      id: '/_shell/journeys/$journeyId'
+      path: '/$journeyId'
+      fullPath: '/journeys/$journeyId'
+      preLoaderRoute: typeof ShellJourneysJourneyIdRouteImport
+      parentRoute: typeof ShellJourneysRoute
+    }
+    '/_shell/documents/$documentId': {
+      id: '/_shell/documents/$documentId'
+      path: '/$documentId'
+      fullPath: '/documents/$documentId'
+      preLoaderRoute: typeof ShellDocumentsDocumentIdRouteImport
+      parentRoute: typeof ShellDocumentsRoute
+    }
+    '/_shell/content/$contentId': {
+      id: '/_shell/content/$contentId'
+      path: '/$contentId'
+      fullPath: '/content/$contentId'
+      preLoaderRoute: typeof ShellContentContentIdRouteImport
+      parentRoute: typeof ShellContentRoute
+    }
+    '/_shell/agents/$agentId': {
+      id: '/_shell/agents/$agentId'
+      path: '/$agentId'
+      fullPath: '/agents/$agentId'
+      preLoaderRoute: typeof ShellAgentsAgentIdRouteImport
+      parentRoute: typeof ShellAgentsRoute
     }
     '/_shell/finance/accounts/$accountId': {
       id: '/_shell/finance/accounts/$accountId'
@@ -759,6 +850,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/finance/accounts/$accountId'
       preLoaderRoute: typeof ShellFinanceAccountsAccountIdRouteImport
       parentRoute: typeof ShellFinanceRoute
+    }
+    '/_shell/community/squads/$squadId': {
+      id: '/_shell/community/squads/$squadId'
+      path: '/squads/$squadId'
+      fullPath: '/community/squads/$squadId'
+      preLoaderRoute: typeof ShellCommunitySquadsSquadIdRouteImport
+      parentRoute: typeof ShellCommunityRoute
     }
   }
 }
@@ -891,6 +989,7 @@ interface ShellRouteChildren {
   ShellAgentsRoute: typeof ShellAgentsRouteWithChildren
   ShellArenaRoute: typeof ShellArenaRoute
   ShellAssistantRoute: typeof ShellAssistantRoute
+  ShellChallengesRoute: typeof ShellChallengesRoute
   ShellCommunityRoute: typeof ShellCommunityRouteWithChildren
   ShellContentRoute: typeof ShellContentRouteWithChildren
   ShellCreatorRoute: typeof ShellCreatorRoute
@@ -899,6 +998,7 @@ interface ShellRouteChildren {
   ShellFinanceRoute: typeof ShellFinanceRouteWithChildren
   ShellJourneysRoute: typeof ShellJourneysRouteWithChildren
   ShellPacksRoute: typeof ShellPacksRouteWithChildren
+  ShellPassportRoute: typeof ShellPassportRoute
   ShellPremiumRoute: typeof ShellPremiumRoute
   ShellProductivityRoute: typeof ShellProductivityRoute
   ShellProjectsRoute: typeof ShellProjectsRouteWithChildren
@@ -912,6 +1012,7 @@ const ShellRouteChildren: ShellRouteChildren = {
   ShellAgentsRoute: ShellAgentsRouteWithChildren,
   ShellArenaRoute: ShellArenaRoute,
   ShellAssistantRoute: ShellAssistantRoute,
+  ShellChallengesRoute: ShellChallengesRoute,
   ShellCommunityRoute: ShellCommunityRouteWithChildren,
   ShellContentRoute: ShellContentRouteWithChildren,
   ShellCreatorRoute: ShellCreatorRoute,
@@ -920,6 +1021,7 @@ const ShellRouteChildren: ShellRouteChildren = {
   ShellFinanceRoute: ShellFinanceRouteWithChildren,
   ShellJourneysRoute: ShellJourneysRouteWithChildren,
   ShellPacksRoute: ShellPacksRouteWithChildren,
+  ShellPassportRoute: ShellPassportRoute,
   ShellPremiumRoute: ShellPremiumRoute,
   ShellProductivityRoute: ShellProductivityRoute,
   ShellProjectsRoute: ShellProjectsRouteWithChildren,
@@ -944,11 +1046,14 @@ const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ShellRoute: ShellRouteWithChildren,
+  AboutRoute: AboutRoute,
   AuthRoute: AuthRouteWithChildren,
   ConfirmEmailRoute: ConfirmEmailRoute,
   OnboardingRoute: OnboardingRoute,
+  PrivacyRoute: PrivacyRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  TermsRoute: TermsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
