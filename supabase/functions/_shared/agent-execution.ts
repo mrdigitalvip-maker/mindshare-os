@@ -83,6 +83,31 @@ function backgroundRetryDelayMs(attemptCount: number) {
   return attemptCount <= 1 ? 5 * 60_000 : 15 * 60_000;
 }
 
+function formatExecutionTime(timezone?: string | null) {
+  const now = new Date();
+  const executionTimezone = timezone?.trim() || "UTC";
+  let localDateTime = now.toISOString();
+  try {
+    localDateTime = new Intl.DateTimeFormat("pt-BR", {
+      timeZone: executionTimezone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hourCycle: "h23",
+    }).format(now);
+  } catch {
+    localDateTime = now.toISOString();
+  }
+  return {
+    utc: now.toISOString(),
+    timezone: executionTimezone,
+    localDateTime,
+  };
+}
+
 export async function executeAgentRun({
   admin,
   userId,
@@ -109,7 +134,7 @@ export async function executeAgentRun({
 
     const { data: agent } = await admin
       .from("agents")
-      .select("id,name,description,goal,instructions,tone,expected_output,capabilities,active")
+      .select("id,name,description,goal,instructions,tone,expected_output,capabilities,active,schedule_timezone")
       .eq("id", agentId)
       .eq("user_id", userId)
       .maybeSingle();
@@ -191,12 +216,17 @@ export async function executeAgentRun({
 
     const apiKey = Deno.env.get("OPENAI_API_KEY");
     if (!apiKey) throw new AgentExecutionError("configuration_error");
+    const executionTime = formatExecutionTime(agent.schedule_timezone);
     const system = [
       `You are the user-owned KIVRYN agent ${agent.name}.`,
       `Goal: ${agent.goal ?? agent.description ?? "Help with the requested work."}`,
       `Instructions: ${agent.instructions ?? "Be accurate and useful."}`,
       `Tone: ${agent.tone ?? "professional"}`,
       `Expected output: ${agent.expected_output ?? "A clear response"}`,
+      `Authoritative execution timestamp (UTC): ${executionTime.utc}`,
+      `Authoritative execution timezone: ${executionTime.timezone}`,
+      `Authoritative local execution date/time: ${executionTime.localDateTime}`,
+      "Use the authoritative execution date/time above whenever the request depends on today, the current date, the current time, or relative time. Never infer those values from model knowledge.",
       `Allowed capabilities: ${capabilities.join(", ") || "none"}.`,
       `KIVRYN specialized skills: ${specializedSkillsJson}`,
       `KIVRYN connectors: ${connectorsJson}`,
