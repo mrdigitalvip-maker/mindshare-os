@@ -12,6 +12,24 @@ type ClaimedRun = {
   attempt_count: number;
 };
 
+type NotificationDeliveryResult = {
+  recorded: boolean;
+  pushAttempted: boolean;
+  pushAccepted: number;
+  pushFailed: number;
+  pushRequestFailed: boolean;
+  quietHoursSuppressed: boolean;
+};
+
+const emptyDeliveryResult = (): NotificationDeliveryResult => ({
+  recorded: false,
+  pushAttempted: false,
+  pushAccepted: 0,
+  pushFailed: 0,
+  pushRequestFailed: false,
+  quietHoursSuppressed: false,
+});
+
 Deno.serve(async (request) => {
   const schedulerSecret = Deno.env.get("SCHEDULER_SECRET");
   if (!schedulerSecret || request.headers.get("x-scheduler-secret") !== schedulerSecret)
@@ -42,6 +60,20 @@ Deno.serve(async (request) => {
   let retrying = 0;
   let notified = 0;
   let approvalsPending = 0;
+  let pushAttempted = 0;
+  let pushAccepted = 0;
+  let pushFailed = 0;
+  let pushRequestFailed = 0;
+  let quietHoursSuppressed = 0;
+
+  const observeDelivery = (delivery: NotificationDeliveryResult) => {
+    if (delivery.recorded) notified++;
+    if (delivery.pushAttempted) pushAttempted++;
+    pushAccepted += delivery.pushAccepted;
+    pushFailed += delivery.pushFailed;
+    if (delivery.pushRequestFailed) pushRequestFailed++;
+    if (delivery.quietHoursSuppressed) quietHoursSuppressed++;
+  };
 
   for (const run of claimed) {
     try {
@@ -56,7 +88,7 @@ Deno.serve(async (request) => {
       completed++;
       if (result.approvalRequired) approvalsPending++;
       if (run.notify_on_run) {
-        const delivered = await notifyResult({
+        observeDelivery(await notifyResult({
           admin,
           url,
           schedulerSecret,
@@ -67,8 +99,7 @@ Deno.serve(async (request) => {
           message: result.approvalRequired
             ? `${result.output}\n\nNenhuma alteração foi aplicada. Revise e aprove o plano no KIVRYN.`
             : result.output,
-        });
-        if (delivered) notified++;
+        }));
       }
     } catch (error) {
       if (error instanceof AgentExecutionError && error.retryScheduled) {
@@ -78,7 +109,7 @@ Deno.serve(async (request) => {
       failed++;
       const code = error instanceof AgentExecutionError ? error.code : "provider_error";
       if (run.notify_on_run) {
-        const delivered = await notifyResult({
+        observeDelivery(await notifyResult({
           admin,
           url,
           schedulerSecret,
@@ -88,8 +119,7 @@ Deno.serve(async (request) => {
             code === "premium_required"
               ? "Esta execução programada exige Premium ativo. O agendamento continua salvo."
               : "A execução falhou após as tentativas permitidas e foi registrada no histórico do Agent.",
-        });
-        if (delivered) notified++;
+        }));
       }
     }
   }
@@ -103,6 +133,11 @@ Deno.serve(async (request) => {
     retrying,
     failed,
     notified,
+    pushAttempted,
+    pushAccepted,
+    pushFailed,
+    pushRequestFailed,
+    quietHoursSuppressed,
   });
 });
 
@@ -120,7 +155,7 @@ async function notifyResult({
   run: ClaimedRun;
   title: string;
   message: string;
-}) {
+}): Promise<NotificationDeliveryResult> {
   const dedupeKey = `agent-run:${run.run_id}`;
   const deliveredOn = new Date().toISOString().slice(0, 10);
   const { error: dedupeError } = await admin.from("notification_deliveries").insert({
@@ -129,37 +164,64 @@ async function notifyResult({
     kind: "general",
     delivered_on: deliveredOn,
   });
-  if (dedupeError) return false;
+  if (dedupeError) return emptyDeliveryResult();
 
   const safeMessage = message.trim().slice(0, 600);
-  await admin.from("notifications").insert({
+  const { error: notificationError } = await admin.from("notifications").insert({
     user_id: run.user_id,
     type: "agent_run",
     title: title.slice(0, 120),
     message: safeMessage,
   });
+  if (notificationError) return emptyDeliveryResult();
 
-  const { data: pref } = await admin
+  const recorded = { ...emptyDeliveryResult(), recorded: true };
+  const { data: pref, error: prefError } = await admin
     .from("notification_preferences")
     .select("timezone,quiet_hours_start,quiet_hours_end")
     .eq("user_id", run.user_id)
     .maybeSingle();
-  if (pref && insideQuietHours(pref.timezone, pref.quiet_hours_start, pref.quiet_hours_end)) return true;
+  if (prefError) return recorded;
+  if (pref && insideQuietHours(pref.timezone, pref.quiet_hours_start, pref.quiet_hours_end)) {
+    return { ...recorded, quietHoursSuppressed: true };
+  }
 
-  await fetch(`${url}/functions/v1/push-send`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-scheduler-secret": schedulerSecret,
-    },
-    body: JSON.stringify({
-      userId: run.user_id,
-      title,
-      body: safeMessage.slice(0, 220),
-      url: `/agents/${run.agent_id}`,
-    }),
-  }).catch(() => null);
-  return true;
+  let pushResponse: Response;
+  try {
+    pushResponse = await fetch(`${url}/functions/v1/push-send`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-scheduler-secret": schedulerSecret,
+      },
+      body: JSON.stringify({
+        userId: run.user_id,
+        title,
+        body: safeMessage.slice(0, 220),
+        url: `/agents/${run.agent_id}`,
+      }),
+    });
+  } catch {
+    return { ...recorded, pushAttempted: true, pushRequestFailed: true };
+  }
+
+  if (!pushResponse.ok) {
+    return { ...recorded, pushAttempted: true, pushRequestFailed: true };
+  }
+
+  try {
+    const payload = await pushResponse.json() as Record<string, unknown>;
+    const accepted = Math.max(0, Number(payload.accepted) || 0);
+    const failed = Math.max(0, Number(payload.failed) || 0);
+    return {
+      ...recorded,
+      pushAttempted: true,
+      pushAccepted: accepted,
+      pushFailed: failed,
+    };
+  } catch {
+    return { ...recorded, pushAttempted: true, pushRequestFailed: true };
+  }
 }
 
 function insideQuietHours(timezone?: string | null, start?: string | null, end?: string | null) {
