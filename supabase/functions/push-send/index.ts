@@ -1,6 +1,8 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3.6.7";
+import { createECDH } from "node:crypto";
+import { Buffer } from "node:buffer";
 import { jsonResponse, preflightResponse, rejectDisallowedOrigin } from "../_shared/http.ts";
 
 Deno.serve(async (request) => {
@@ -10,11 +12,16 @@ Deno.serve(async (request) => {
   const url = Deno.env.get("SUPABASE_URL"),
     anon = Deno.env.get("SUPABASE_ANON_KEY"),
     service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  const publicKey = Deno.env.get("VAPID_PUBLIC_KEY"),
+  const configuredPublicKey = Deno.env.get("VAPID_PUBLIC_KEY"),
     privateKey = Deno.env.get("VAPID_PRIVATE_KEY"),
     subject = Deno.env.get("VAPID_SUBJECT");
   if (!url || !anon || !service)
     return jsonResponse(request, { error: "configuration_error" }, 503);
+
+  const publicKey = privateKey ? deriveVapidPublicKey(privateKey) : null;
+  const storedPublicKeyMatchesPrivate = Boolean(
+    configuredPublicKey && publicKey && configuredPublicKey === publicKey,
+  );
 
   const bearer = request.headers.get("Authorization") ?? "";
   const authClient = createClient(url, anon, { global: { headers: { Authorization: bearer } } });
@@ -32,7 +39,11 @@ Deno.serve(async (request) => {
   if (input.action === "config") {
     if (!webPushConfigured || !publicKey)
       return jsonResponse(request, { error: "web_push_not_configured", configured: false }, 503);
-    return jsonResponse(request, { configured: true, publicKey }, 200);
+    return jsonResponse(
+      request,
+      { configured: true, publicKey, storedPublicKeyMatchesPrivate },
+      200,
+    );
   }
 
   const userId = internal ? input.userId : user?.id;
@@ -126,11 +137,22 @@ Deno.serve(async (request) => {
       webPushConfigured,
       webSubscriptions,
       nativeDevices,
+      storedPublicKeyMatchesPrivate,
       webFailureStatuses: [...webFailureStatuses].sort((a, b) => a - b),
     },
     200,
   );
 });
+
+function deriveVapidPublicKey(privateKey: string): string | null {
+  try {
+    const ecdh = createECDH("prime256v1");
+    ecdh.setPrivateKey(Buffer.from(privateKey, "base64url"));
+    return ecdh.getPublicKey().toString("base64url");
+  } catch {
+    return null;
+  }
+}
 
 function nativeRoute(path: string) {
   const project = path.match(/^\/projects\/([A-Za-z0-9-]+)$/)?.[1];
