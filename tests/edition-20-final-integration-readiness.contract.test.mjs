@@ -24,7 +24,8 @@ test("E20 wires Agent run deep-link, builder reset, and settings refresh/error h
     read("src/routes/_shell.agents.$agentId.tsx"),
   ]);
 
-  assert.match(listRoute, /search=\{\{ tab: "run" \} as never\}/);
+  assert.match(listRoute, /search=\{\{ tab: "run" \}\}/);
+  assert.match(listRoute, /search=\{\{ tab: undefined \}\}/);
   assert.match(listRoute, /const resetAndClose = \(\) =>/);
   assert.match(listRoute, /setStep\(1\)/);
   assert.match(listRoute, /setForm\(emptyAgentForm\(\)\)/);
