@@ -6,15 +6,15 @@ const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
 test("E20 keeps every release-ready root module backed by a route file", async () => {
   const modules = await read("src/lib/modules.ts");
-  const releaseModules = [
-    ...modules.matchAll(
-      /id:\s*"([^"]+)"[\s\S]*?releaseReady:\s*true[\s\S]*?path:\s*"\/([^"]+)"/g,
-    ),
-  ].map((match) => ({ id: match[1], route: match[2] }));
+  const releaseRoutes = modules
+    .split(/\n\s*\},/)
+    .filter((block) => /releaseReady:\s*true/.test(block))
+    .map((block) => block.match(/path:\s*"\/([^"]+)"/)?.[1])
+    .filter(Boolean);
 
-  assert.ok(releaseModules.length >= 10, "release allowlist should not silently collapse");
-  for (const module of releaseModules) {
-    await access(new URL(`../src/routes/_shell.${module.route}.tsx`, import.meta.url));
+  assert.ok(releaseRoutes.length >= 10, "release allowlist should not silently collapse");
+  for (const route of releaseRoutes) {
+    await access(new URL(`../src/routes/_shell.${route}.tsx`, import.meta.url));
   }
 });
 
