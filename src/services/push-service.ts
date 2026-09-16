@@ -107,10 +107,11 @@ export const PushService = {
       },
     });
     if (error) throw error;
-    const delivered = Number((data as { delivered?: unknown } | null)?.delivered ?? 0);
-    if (!Number.isFinite(delivered) || delivered < 1) {
+    const result = data as { accepted?: unknown; delivered?: unknown } | null;
+    const accepted = Number(result?.accepted ?? result?.delivered ?? 0);
+    if (!Number.isFinite(accepted) || accepted < 1) {
       throw new Error("No active push subscription accepted the test notification.");
     }
-    return delivered;
+    return accepted;
   },
 };
