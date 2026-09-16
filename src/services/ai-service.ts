@@ -120,7 +120,7 @@ async function invoke<T>(body: Record<string, unknown>): Promise<T> {
 
   const call = async (forceRefresh = false) => {
     const accessToken = await functionAccessToken(forceRefresh);
-    return supabase.functions.invoke<EdgeSuccess<T> | EdgeFailure>("ai-chat", {
+    return supabase.functions.invoke<EdgeSuccess<T> | EdgeFailure>("ai-chat-web", {
       body,
       signal: controller.signal,
       headers: { Authorization: `Bearer ${accessToken}` },
