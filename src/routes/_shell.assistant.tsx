@@ -161,6 +161,8 @@ function Assistant() {
     setHistoryOpen(false);
     shouldFollow.current = true;
     setShowLatest(false);
+    void navigate({ to: "/assistant", search: { conversation: undefined }, replace: true });
+    toast.success("Novo chat iniciado");
     window.setTimeout(() => inputRef.current?.focus(), 0);
   }
 

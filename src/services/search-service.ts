@@ -28,6 +28,10 @@ function escapePattern(text: string) {
   return `%${text.replaceAll("%", "\\%").replaceAll("_", "\\_")}%`;
 }
 
+function rowsOrEmpty(result: { data: any[] | null; error: unknown }): any[] {
+  return result.error ? [] : (result.data ?? []);
+}
+
 export const SearchService = {
   async search(query: string): Promise<SearchResult[]> {
     const text = query.trim();
@@ -140,8 +144,6 @@ export const SearchService = {
         .or(`title.ilike.${pattern},description.ilike.${pattern}`)
         .limit(8),
     ]);
-    const failed = queries.find((result) => result.error);
-    if (failed?.error) throw failed.error;
     const [
       projects,
       tasks,
@@ -157,7 +159,7 @@ export const SearchService = {
       studioLessons,
     ] = queries;
     return [
-      ...(projects.data ?? []).map((item) => ({
+      ...rowsOrEmpty(projects).map((item) => ({
         id: item.id,
         title: item.title,
         description: item.description ?? "Project",
@@ -165,7 +167,7 @@ export const SearchService = {
         category: "Projects" as const,
         occurredAt: item.updated_at,
       })),
-      ...(tasks.data ?? []).map((item) => ({
+      ...rowsOrEmpty(tasks).map((item) => ({
         id: item.id,
         title: item.title,
         description: item.description ?? "Task",
@@ -173,7 +175,7 @@ export const SearchService = {
         category: "Tasks" as const,
         occurredAt: item.updated_at,
       })),
-      ...(documents.data ?? []).map((item) => ({
+      ...rowsOrEmpty(documents).map((item) => ({
         id: item.id,
         title: item.title ?? "Untitled document",
         description: item.type ?? "Document",
@@ -181,7 +183,7 @@ export const SearchService = {
         category: "Documents" as const,
         occurredAt: item.updated_at,
       })),
-      ...(notes.data ?? []).map((item) => ({
+      ...rowsOrEmpty(notes).map((item) => ({
         id: item.id,
         title: item.title ?? "Untitled note",
         description: "Note",
@@ -189,7 +191,7 @@ export const SearchService = {
         category: "Notes" as const,
         occurredAt: item.updated_at,
       })),
-      ...(studies.data ?? []).map((item) => ({
+      ...rowsOrEmpty(studies).map((item) => ({
         id: item.id,
         title: item.name ?? "Untitled subject",
         description: "Study subject",
@@ -197,7 +199,7 @@ export const SearchService = {
         category: "Studies" as const,
         occurredAt: item.created_at,
       })),
-      ...(agents.data ?? []).map((item) => ({
+      ...rowsOrEmpty(agents).map((item) => ({
         id: item.id,
         title: item.name ?? "Untitled agent",
         description: item.description ?? "Agent",
@@ -205,7 +207,7 @@ export const SearchService = {
         category: "Agents" as const,
         occurredAt: item.created_at,
       })),
-      ...(translations.data ?? []).map((item) => ({
+      ...rowsOrEmpty(translations).map((item) => ({
         id: item.id,
         title: (item.original_text ?? "Translation").slice(0, 80),
         description: (item.translated_text ?? "Saved translation").slice(0, 100),
@@ -213,7 +215,7 @@ export const SearchService = {
         category: "Translations" as const,
         occurredAt: item.created_at,
       })),
-      ...(conversations.data ?? []).map((item) => ({
+      ...rowsOrEmpty(conversations).map((item) => ({
         id: item.id,
         title: item.title ?? "Untitled conversation",
         description: "AI conversation",
@@ -221,7 +223,7 @@ export const SearchService = {
         category: "Conversations" as const,
         occurredAt: item.updated_at,
       })),
-      ...(financeAccounts.data ?? []).map((item) => ({
+      ...rowsOrEmpty(financeAccounts).map((item) => ({
         id: item.id,
         title: item.name ?? "Untitled account",
         description: `${item.type ?? "Account"} · ${item.currency ?? "USD"}`,
@@ -229,7 +231,7 @@ export const SearchService = {
         category: "Finance" as const,
         occurredAt: item.created_at,
       })),
-      ...(financeTransactions.data ?? []).map((item) => ({
+      ...rowsOrEmpty(financeTransactions).map((item) => ({
         id: item.id,
         title: item.title ?? item.category ?? "Transaction",
         description: item.category ?? "Finance transaction",
@@ -237,7 +239,7 @@ export const SearchService = {
         category: "Finance" as const,
         occurredAt: item.transaction_date,
       })),
-      ...(studioTracks.data ?? []).map(
+      ...rowsOrEmpty(studioTracks).map(
         (item: {
           id: string;
           title: string;
@@ -258,7 +260,7 @@ export const SearchService = {
           occurredAt: item.updated_at,
         }),
       ),
-      ...(studioLessons.data ?? []).map(
+      ...rowsOrEmpty(studioLessons).map(
         (item: { id: string; title: string; description: string; updated_at: string }) => ({
           id: item.id,
           title: item.title,
