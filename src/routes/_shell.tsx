@@ -35,7 +35,7 @@ import type { TranslationKey } from "@/i18n";
 
 const SIDEBAR_STORAGE_KEY = "nexora.web.sidebar.v1";
 const navigationGroups = [
-  { id: "command", modules: ["dashboard", "assistant", "search"] },
+  { id: "command", modules: ["dashboard", "assistant", "agents", "search"] },
   { id: "execute", modules: ["projects", "productivity"] },
   { id: "learn", modules: ["studies", "journeys", "passport", "packs"] },
   { id: "create", modules: ["creator"] },
@@ -75,6 +75,7 @@ function ShellLayout() {
 
   const moduleLabel = (id: string) => {
     if (id === "passport") return "Passport";
+    if (id === "agents") return "Agents";
     if (id === "challenges") return resolvedLocale === "en" ? "Challenges" : "Desafios";
     return t(`nav.${id}` as TranslationKey);
   };
