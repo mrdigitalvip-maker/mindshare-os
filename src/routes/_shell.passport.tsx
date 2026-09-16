@@ -9,6 +9,7 @@ import { WorkspaceProgress, WorkspaceShell } from "@/components/workspace-ui";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage } from "@/providers/language-provider";
 import {
+  addWebPassportVocabulary,
   completeWebPassportLesson,
   finishWebRoleplay,
   getWebPassportProfile,
@@ -83,6 +84,12 @@ const copy = {
     noListening: "Nenhum exemplo de áudio disponível na próxima lição.",
     vocabulary: "Vocabulário para revisar",
     noVocabulary: "Tudo revisado por enquanto.",
+    addVocabulary: "Adicionar vocabulário",
+    termPlaceholder: "Termo (ex.: boarding pass)",
+    translationPlaceholder: "Tradução",
+    contextPlaceholder: "Contexto opcional",
+    saveWord: "Salvar palavra",
+    savingWord: "Salvando…",
     again: "Novamente",
     hard: "Difícil",
     good: "Bom",
@@ -151,6 +158,12 @@ const copy = {
     noListening: "No listening example is available in the next lesson.",
     vocabulary: "Vocabulary to review",
     noVocabulary: "You're all caught up for now.",
+    addVocabulary: "Add vocabulary",
+    termPlaceholder: "Term (e.g. boarding pass)",
+    translationPlaceholder: "Translation",
+    contextPlaceholder: "Optional context",
+    saveWord: "Save word",
+    savingWord: "Saving…",
     again: "Again",
     hard: "Hard",
     good: "Good",
@@ -244,7 +257,7 @@ function PassportWorkspace() {
   });
   const missions = useQuery({
     queryKey: passportKeys.missions(userId, trackId),
-    queryFn: () => listWebPassportMissions(userId, trackId),
+    queryFn: () => listWebPassportMissions(userId, trackId, resolvedLocale),
     enabled: Boolean(userId && trackId && profile.data?.placementScore != null),
   });
   const roleplay = useQuery({
@@ -283,6 +296,15 @@ function PassportWorkspace() {
     mutationFn: ({ id, grade }: { id: string; grade: number }) => reviewWebVocabulary(userId, id, grade),
     onSuccess: invalidatePassport,
     onError: () => toast.error(resolvedLocale === "en" ? "Review could not be saved." : "Não foi possível salvar a revisão."),
+  });
+  const addVocabulary = useMutation({
+    mutationFn: (input: { term: string; translation: string; context: string }) =>
+      addWebPassportVocabulary(userId, trackId, input),
+    onSuccess: async () => {
+      await invalidatePassport();
+      toast.success(resolvedLocale === "en" ? "Vocabulary saved." : "Vocabulário salvo.");
+    },
+    onError: () => toast.error(resolvedLocale === "en" ? "Vocabulary could not be saved." : "Não foi possível salvar o vocabulário."),
   });
   const updateMission = useMutation({
     mutationFn: ({ id, status }: { id: string; status: "completed" | "skipped" }) =>
@@ -350,6 +372,8 @@ function PassportWorkspace() {
               loading={lessons.isLoading || vocabulary.isLoading || missions.isLoading || roleplay.isLoading}
               completeLesson={(id) => completeLesson.mutate(id)}
               reviewVocabulary={(id, grade) => reviewVocabulary.mutate({ id, grade })}
+              addVocabulary={(term, translation, context) => addVocabulary.mutate({ term, translation, context })}
+              vocabularyBusy={addVocabulary.isPending}
               updateMission={(id, status) => updateMission.mutate({ id, status })}
               startRoleplay={(scenario) => startRoleplay.mutate(scenario)}
               sendRoleplay={(sessionId, message) => sendRoleplay.mutate({ sessionId, message })}
@@ -483,6 +507,8 @@ function PassportReady({
   loading,
   completeLesson,
   reviewVocabulary,
+  addVocabulary,
+  vocabularyBusy,
   updateMission,
   startRoleplay,
   sendRoleplay,
@@ -499,6 +525,8 @@ function PassportReady({
   loading: boolean;
   completeLesson(id: string): void;
   reviewVocabulary(id: string, grade: number): void;
+  addVocabulary(term: string, translation: string, context: string): void;
+  vocabularyBusy: boolean;
   updateMission(id: string, status: "completed" | "skipped"): void;
   startRoleplay(scenario: string): void;
   sendRoleplay(sessionId: string, message: string): void;
@@ -513,6 +541,9 @@ function PassportReady({
   const activeSession = sessions.find((session) => session.status === "active") ?? null;
   const [scenario, setScenario] = useState<(typeof scenarios)[number]>("airport");
   const [message, setMessage] = useState("");
+  const [vocabularyTerm, setVocabularyTerm] = useState("");
+  const [vocabularyTranslation, setVocabularyTranslation] = useState("");
+  const [vocabularyContext, setVocabularyContext] = useState("");
   const destinations = useMemo(() => destinationsForTrack(track), [track?.slug, track?.title]);
   const routeStages = [text.routeStart, text.routePractice, text.routeReal, text.routeReady];
   const studioTitle = `${(track?.title ?? text.language).toUpperCase()} LEARNING STUDIO`;
@@ -524,6 +555,15 @@ function PassportReady({
     utterance.lang = slug === "spanish" ? "es-ES" : slug === "portuguese" ? "pt-BR" : slug === "french" ? "fr-FR" : "en-US";
     window.speechSynthesis.cancel();
     window.speechSynthesis.speak(utterance);
+  };
+
+  const saveVocabulary = () => {
+    const term = vocabularyTerm.trim();
+    if (!term || vocabularyBusy) return;
+    addVocabulary(term, vocabularyTranslation.trim(), vocabularyContext.trim());
+    setVocabularyTerm("");
+    setVocabularyTranslation("");
+    setVocabularyContext("");
   };
 
   return (
@@ -613,6 +653,13 @@ function PassportReady({
 
         <article className="v2-surface rounded-2xl p-5">
           <h3 className="text-lg font-semibold">{text.vocabulary}</h3>
+          <div className="mt-4 grid gap-2 rounded-xl border border-border bg-background/40 p-4">
+            <p className="text-sm font-medium">{text.addVocabulary}</p>
+            <input className="rounded-xl border border-border bg-background px-3 py-2 text-sm" maxLength={160} value={vocabularyTerm} placeholder={text.termPlaceholder} onChange={(event) => setVocabularyTerm(event.target.value)} />
+            <input className="rounded-xl border border-border bg-background px-3 py-2 text-sm" value={vocabularyTranslation} placeholder={text.translationPlaceholder} onChange={(event) => setVocabularyTranslation(event.target.value)} />
+            <input className="rounded-xl border border-border bg-background px-3 py-2 text-sm" value={vocabularyContext} placeholder={text.contextPlaceholder} onChange={(event) => setVocabularyContext(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") saveVocabulary(); }} />
+            <Button size="sm" disabled={!vocabularyTerm.trim() || vocabularyBusy} onClick={saveVocabulary}>{vocabularyBusy ? text.savingWord : text.saveWord}</Button>
+          </div>
           {!vocabulary.length ? <p className="mt-3 text-sm text-muted-foreground">{text.noVocabulary}</p> : null}
           <div className="mt-4 grid gap-3">
             {vocabulary.map((item) => (
