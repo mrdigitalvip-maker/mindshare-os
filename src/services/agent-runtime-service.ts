@@ -37,6 +37,27 @@ export type PendingAgentPlan = {
   appliedStepIds: string[];
 };
 
+export type AgentActionAuditStatus =
+  | "approval_required"
+  | "approved"
+  | "applied"
+  | "rejected"
+  | "failed";
+
+export type AgentActionAuditEvent = {
+  id: string;
+  agentId: string;
+  runId: string;
+  stepId: string;
+  actionType: string;
+  domain: "tasks" | "projects" | "studies";
+  status: AgentActionAuditStatus;
+  resourceId: string | null;
+  idempotent: boolean | null;
+  errorCode: string | null;
+  occurredAt: string;
+};
+
 async function authenticatedUserId() {
   const { data, error } = await supabase.auth.getUser();
   if (error || !data.user) throw new Error("Sessão autenticada necessária.");
@@ -104,5 +125,33 @@ export const AgentRuntimeService = {
         status: row.action_plan_status,
         appliedStepIds: Array.isArray(row.applied_step_ids) ? row.applied_step_ids : [],
       }));
+  },
+
+  async listAudit(agentId: string, limit = 100): Promise<AgentActionAuditEvent[]> {
+    const userId = await authenticatedUserId();
+    const safeLimit = Math.min(Math.max(Math.trunc(limit), 1), 200);
+    const { data, error } = await (supabase as any)
+      .from("agent_action_audit_events")
+      .select(
+        "id,agent_id,run_id,step_id,action_type,domain,status,resource_id,idempotent,error_code,occurred_at",
+      )
+      .eq("user_id", userId)
+      .eq("agent_id", agentId)
+      .order("occurred_at", { ascending: false })
+      .limit(safeLimit);
+    if (error) throw error;
+    return (data ?? []).map((row: any) => ({
+      id: row.id,
+      agentId: row.agent_id,
+      runId: row.run_id,
+      stepId: row.step_id,
+      actionType: row.action_type,
+      domain: row.domain,
+      status: row.status,
+      resourceId: row.resource_id ?? null,
+      idempotent: typeof row.idempotent === "boolean" ? row.idempotent : null,
+      errorCode: row.error_code ?? null,
+      occurredAt: row.occurred_at,
+    }));
   },
 };
