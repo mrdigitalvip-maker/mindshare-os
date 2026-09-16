@@ -19,6 +19,15 @@ test("Web Push repair uses the backend VAPID public key as the single source of 
   assert.doesNotMatch(client, /VITE_VAPID_PUBLIC_KEY/);
 });
 
+test("Web Push derives its canonical public key from the private VAPID key", () => {
+  assert.match(edge, /createECDH\("prime256v1"\)/);
+  assert.match(edge, /setPrivateKey\(Buffer\.from\(privateKey, "base64url"\)\)/);
+  assert.match(edge, /getPublicKey\(\)\.toString\("base64url"\)/);
+  assert.match(edge, /const publicKey = privateKey \? deriveVapidPublicKey\(privateKey\) : null/);
+  assert.match(edge, /storedPublicKeyMatchesPrivate/);
+  assert.match(edge, /webpush\.setVapidDetails\(subject, publicKey, privateKey\)/);
+});
+
 test("Web Push delivery exposes accepted and provider diagnostics", () => {
   assert.match(edge, /webPushConfigured/);
   assert.match(edge, /webSubscriptions/);
