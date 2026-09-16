@@ -21,10 +21,22 @@ import {
 } from "@/services";
 import { useSubscription } from "@/hooks/use-subscription";
 
-export const Route = createFileRoute("/_shell/agents/$agentId")({ component: AgentWorkspace });
+type AgentTab = "overview" | "run" | "schedule" | "history" | "settings";
+const agentTabs = new Set<AgentTab>(["overview", "run", "schedule", "history", "settings"]);
+
+export const Route = createFileRoute("/_shell/agents/$agentId")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    tab:
+      typeof search.tab === "string" && agentTabs.has(search.tab as AgentTab)
+        ? (search.tab as AgentTab)
+        : undefined,
+  }),
+  component: AgentWorkspace,
+});
 
 function AgentWorkspace() {
   const { agentId } = Route.useParams();
+  const { tab } = Route.useSearch();
   const nav = useNavigate();
   const client = useQueryClient();
   const sub = useSubscription();
@@ -128,7 +140,7 @@ function AgentWorkspace() {
     <PageShell>
       <p className="text-xs uppercase text-muted-foreground">Workspace do agente</p>
       <h1 className="font-display text-3xl">{a.name}</h1>
-      <Tabs defaultValue="overview" className="mt-6">
+      <Tabs key={tab ?? "overview"} defaultValue={tab ?? "overview"} className="mt-6">
         <TabsList className="max-w-full justify-start overflow-x-auto">
           <TabsTrigger value="overview">Visão geral</TabsTrigger>
           <TabsTrigger value="run">Executar</TabsTrigger>
@@ -357,9 +369,20 @@ function AgentWorkspace() {
         <TabsContent value="settings">
           <Settings
             agent={a}
+            onSaved={async () => {
+              await Promise.all([
+                client.invalidateQueries({ queryKey: ["workspace", "agents"] }),
+                client.invalidateQueries({ queryKey: ["workspace", "agents", agentId] }),
+              ]);
+            }}
             onDelete={async () => {
-              await AgentService.remove(a.id);
-              nav({ to: "/agents" });
+              try {
+                await AgentService.remove(a.id);
+                await client.invalidateQueries({ queryKey: ["workspace", "agents"] });
+                await nav({ to: "/agents" });
+              } catch (error) {
+                toast.error(error instanceof Error ? error.message : "Não foi possível excluir o agente.");
+              }
             }}
           />
         </TabsContent>
@@ -627,10 +650,12 @@ function scheduleLabel(schedule: AgentSchedule) {
 
 function Settings({
   agent,
+  onSaved,
   onDelete,
 }: {
   agent: Awaited<ReturnType<typeof AgentService.listRows>>[number];
-  onDelete: () => void;
+  onSaved: () => Promise<void>;
+  onDelete: () => void | Promise<void>;
 }) {
   const [name, setName] = useState(agent.name ?? "");
   const [description, setDescription] = useState(agent.description ?? "");
@@ -639,7 +664,11 @@ function Settings({
   const [active, setActive] = useState(!!agent.active);
   const save = useMutation({
     mutationFn: () => AgentService.update(agent.id, { name, description, goal, instructions, active }),
-    onSuccess: () => toast.success("Agente atualizado"),
+    onSuccess: async () => {
+      await onSaved();
+      toast.success("Agente atualizado");
+    },
+    onError: (error: Error) => toast.error(error.message),
   });
   return (
     <div className="mt-4 max-w-xl space-y-3">
@@ -656,8 +685,10 @@ function Settings({
         <Switch checked={active} onCheckedChange={setActive} />
       </label>
       <div className="flex gap-2">
-        <Button onClick={() => save.mutate()}>Salvar</Button>
-        <Button variant="destructive" onClick={() => confirm("Excluir agente?") && onDelete()}>
+        <Button disabled={save.isPending || !name.trim()} onClick={() => save.mutate()}>
+          {save.isPending ? "Salvando…" : "Salvar"}
+        </Button>
+        <Button variant="destructive" onClick={() => confirm("Excluir agente?") && void onDelete()}>
           <Trash2 /> Excluir
         </Button>
       </div>
