@@ -2,9 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-const [migration, webService, mobileHome, roleplay] = await Promise.all([
+const [migration, webService, webRoute, mobileHome, roleplay] = await Promise.all([
   readFile(new URL("../supabase/migrations/20260916120000_passport_daily_missions_runtime.sql", import.meta.url), "utf8"),
   readFile(new URL("../src/services/passport-web-service.ts", import.meta.url), "utf8"),
+  readFile(new URL("../src/routes/_shell.passport.tsx", import.meta.url), "utf8"),
   readFile(new URL("../mobile/services/passport-home-service.ts", import.meta.url), "utf8"),
   readFile(new URL("../supabase/functions/passport-roleplay/index.ts", import.meta.url), "utf8"),
 ]);
@@ -19,12 +20,17 @@ test("Passport daily missions are owner-scoped and idempotent", () => {
   assert.match(migration, /grant execute on function public\.ensure_passport_daily_missions/i);
 });
 
-test("Web Passport ensures missions before reading and supports real vocabulary persistence", () => {
+test("Web Passport ensures localized missions and supports real vocabulary persistence", () => {
   assert.match(webService, /rpc\("ensure_passport_daily_missions"/);
   assert.match(webService, /export async function addWebPassportVocabulary/);
   assert.match(webService, /\.from\("passport_vocabulary"\)/);
   assert.match(webService, /user_id: uid/);
   assert.match(webService, /review_passport_vocabulary/);
+  assert.match(webRoute, /listWebPassportMissions\(userId, trackId, resolvedLocale\)/);
+  assert.match(webRoute, /addWebPassportVocabulary/);
+  assert.match(webRoute, /addVocabulary/);
+  assert.match(webRoute, /vocabularyTerm/);
+  assert.match(webRoute, /saveVocabulary/);
 });
 
 test("mobile Passport source ensures the same daily mission contract", () => {
