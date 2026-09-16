@@ -28,6 +28,13 @@ Deno.serve(async (request) => {
   if (!user && !internal) return jsonResponse(request, { error: "unauthorized" }, 401);
 
   const input = await request.json().catch(() => ({}));
+  const webPushConfigured = Boolean(publicKey && privateKey && subject);
+  if (input.action === "config") {
+    if (!webPushConfigured || !publicKey)
+      return jsonResponse(request, { error: "web_push_not_configured", configured: false }, 503);
+    return jsonResponse(request, { configured: true, publicKey }, 200);
+  }
+
   const userId = internal ? input.userId : user?.id;
   if (!userId || typeof input.title !== "string" || typeof input.body !== "string")
     return jsonResponse(request, { error: "invalid_request" }, 400);
@@ -49,10 +56,16 @@ Deno.serve(async (request) => {
   if (error || devicesError)
     return jsonResponse(request, { error: "delivery_lookup_failed" }, 500);
 
-  if (publicKey && privateKey && subject) webpush.setVapidDetails(subject, publicKey, privateKey);
+  if (webPushConfigured && publicKey && privateKey && subject)
+    webpush.setVapidDetails(subject, publicKey, privateKey);
+
   let accepted = 0,
     failed = 0;
-  for (const subscription of publicKey && privateKey && subject ? (subscriptions ?? []) : []) {
+  const webSubscriptions = subscriptions?.length ?? 0;
+  const webFailureStatuses = new Set<number>();
+
+  if (!webPushConfigured) failed += webSubscriptions;
+  for (const subscription of webPushConfigured ? (subscriptions ?? []) : []) {
     try {
       await webpush.sendNotification(
         {
@@ -69,6 +82,7 @@ Deno.serve(async (request) => {
       accepted++;
     } catch (cause) {
       const status = Number((cause as { statusCode?: number }).statusCode);
+      if (Number.isFinite(status) && status > 0) webFailureStatuses.add(status);
       if (status === 404 || status === 410)
         await admin.from("push_subscriptions").delete().eq("id", subscription.id);
       failed++;
@@ -76,6 +90,7 @@ Deno.serve(async (request) => {
   }
 
   const route = nativeRoute(safePath);
+  const nativeDevices = devices?.filter((device) => device.provider === "expo").length ?? 0;
   for (const device of devices ?? []) {
     if (device.provider !== "expo") continue;
     try {
@@ -103,7 +118,18 @@ Deno.serve(async (request) => {
       failed++;
     }
   }
-  return jsonResponse(request, { accepted, failed }, 200);
+  return jsonResponse(
+    request,
+    {
+      accepted,
+      failed,
+      webPushConfigured,
+      webSubscriptions,
+      nativeDevices,
+      webFailureStatuses: [...webFailureStatuses].sort((a, b) => a - b),
+    },
+    200,
+  );
 });
 
 function nativeRoute(path: string) {
