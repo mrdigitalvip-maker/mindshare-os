@@ -1,5 +1,6 @@
 import { demoAssistantReply } from "@/lib/demo/demo-data";
 import { DEMO_MODE, canCallBackend } from "@/lib/demo/config";
+import { parseNexoraMutationActions, type NexoraMutationAction } from "@/lib/nexora-actions";
 import { supabase } from "@/lib/supabase";
 import { createClientId } from "@/lib/utils";
 import { getRequiredUserId } from "./supabase-service";
@@ -166,7 +167,10 @@ export interface AiSendResult {
   assistantMessage: AiChatMessage;
   capabilities: Record<AiCapability, boolean>;
   action?: { type: "navigation"; name: string };
+  proposedActions: NexoraMutationAction[];
 }
+
+type RawAiSendResult = Omit<AiSendResult, "proposedActions"> & { proposedActions?: unknown };
 
 export type AiConversation = { id: string; title: string; createdAt: string; updatedAt: string };
 
@@ -281,9 +285,14 @@ export const AIService = {
           studyAssistance: false,
           financialInsights: false,
         },
+        proposedActions: [],
       };
     }
-    return invoke({ action: "send", ...input });
+    const result = await invoke<RawAiSendResult>({ action: "send", ...input });
+    return {
+      ...result,
+      proposedActions: parseNexoraMutationActions(result.proposedActions),
+    };
   },
 
   async execute(action: AiAction, input: Record<string, unknown>): Promise<AiActionResult> {
