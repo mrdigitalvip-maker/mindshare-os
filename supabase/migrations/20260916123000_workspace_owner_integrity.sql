@@ -1,5 +1,41 @@
--- Edition 8: strengthen Projects/Tasks ownership invariants.
--- Existing client filters remain defense-in-depth; the database owns the invariant.
+-- Edition 8: strengthen Projects/Tasks ownership invariants and keep
+-- the legacy completed flag consistent with execution_status for every client.
+
+create or replace function public.sync_task_completion_state()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if tg_op = 'INSERT' then
+    if coalesce(new.completed, false) then
+      new.execution_status := 'completed';
+    elsif new.execution_status = 'completed' then
+      new.completed := true;
+    end if;
+    return new;
+  end if;
+
+  if new.completed is distinct from old.completed
+     and new.execution_status is not distinct from old.execution_status then
+    new.execution_status := case when new.completed then 'completed' else 'not_started' end;
+  elsif new.execution_status is distinct from old.execution_status
+        and new.completed is not distinct from old.completed then
+    new.completed := (new.execution_status = 'completed');
+  elsif new.completed is distinct from old.completed
+        and new.execution_status is distinct from old.execution_status
+        and new.completed <> (new.execution_status = 'completed') then
+    raise exception 'completed and execution_status must describe the same completion state';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists tasks_sync_completion_state on public.tasks;
+create trigger tasks_sync_completion_state
+before insert or update of completed, execution_status on public.tasks
+for each row execute function public.sync_task_completion_state();
 
 drop policy if exists projects_select on public.projects;
 drop policy if exists projects_insert on public.projects;
