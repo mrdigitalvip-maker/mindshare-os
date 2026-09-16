@@ -1,7 +1,26 @@
-import { supabase } from "@/lib/supabase";
 import type { NexoraMutationAction } from "@/lib/nexora-actions";
+import { supabase } from "@/lib/supabase";
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+type ActionRpcArgs = {
+  p_action_id: string;
+  p_request_id: string;
+  p_conversation_id: string | null;
+  p_confirmed: true;
+  p_action: NexoraMutationAction;
+};
+
+type ActionRpcResponse = {
+  data: unknown;
+  error: unknown;
+};
+
+// The checked-in generated Database type currently omits Postgres Functions.
+// Keep this narrow adapter local to the one audited RPC instead of weakening the app-wide client type.
+const actionRpcClient = supabase as unknown as {
+  rpc: (fn: "apply_nexora_action", args: ActionRpcArgs) => PromiseLike<ActionRpcResponse>;
+};
 
 export type NexoraActionErrorCopy = {
   message: string;
@@ -68,13 +87,13 @@ export async function applyNexoraAction(input: {
 }) {
   if (!input.confirmed) throw new Error("confirmation_required");
   try {
-    const { data, error } = await supabase.rpc("apply_nexora_action", {
+    const { data, error } = await actionRpcClient.rpc("apply_nexora_action", {
       p_action_id: input.actionId,
       p_request_id: input.requestId,
       p_conversation_id: input.conversationId,
       p_confirmed: true,
       p_action: input.action,
-    } as never);
+    });
     if (error) throw error;
     const result = data as { status?: unknown; resourceId?: unknown; idempotent?: unknown } | null;
     if (
