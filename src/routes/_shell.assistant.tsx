@@ -34,6 +34,12 @@ import {
 import { useChat, type ChatMessage } from "@/hooks/use-chat";
 import { useAuth } from "@/lib/auth-context";
 import { copyText } from "@/lib/clipboard";
+import {
+  actionPreview,
+  actionReceipt,
+  type NexoraMutationAction,
+  type NexoraMutationStatus,
+} from "@/lib/nexora-actions";
 import { createClientId } from "@/lib/utils";
 import {
   AIService,
@@ -43,6 +49,7 @@ import {
   workspaceQueryKeys,
   type AiConversation,
 } from "@/services";
+import { applyNexoraAction, NexoraActionError } from "@/services/nexora-action-service";
 
 export const Route = createFileRoute("/_shell/assistant")({
   head: () => ({ meta: [{ title: "Assistente — KIVRYN" }] }),
@@ -58,6 +65,20 @@ const SUGGESTIONS = [
   "Ajude a estruturar um novo projeto",
   "Monte um plano de estudos para esta semana",
 ];
+
+type ProposalItem = {
+  action: NexoraMutationAction;
+  actionId: string;
+  requestId: string;
+  status: NexoraMutationStatus;
+  message?: string;
+  canRetry?: boolean;
+};
+
+type ProposalState = {
+  conversationId: string | null;
+  items: ProposalItem[];
+};
 
 function Assistant() {
   const { conversation } = Route.useSearch();
@@ -75,9 +96,11 @@ function Assistant() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const shouldFollow = useRef(true);
   const openedFromSearch = useRef<string | null>(null);
+  const applyingActions = useRef(new Set<string>());
   const [showLatest, setShowLatest] = useState(false);
   const [taskPreview, setTaskPreview] = useState<string | null>(null);
   const [contentPreview, setContentPreview] = useState<{ title: string; body: string } | null>(null);
+  const [proposal, setProposal] = useState<ProposalState | null>(null);
   const { sendMessage, isSending, loadConversationHistory, startConversation } = useChat();
   const conversationsKey = ["workspace", user?.id, "ai-conversations"] as const;
   const conversations = useQuery({
@@ -89,7 +112,7 @@ function Assistant() {
 
   useEffect(() => {
     if (shouldFollow.current) endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isSending]);
+  }, [messages, isSending, proposal]);
 
   useEffect(() => inputRef.current?.focus(), []);
 
@@ -113,6 +136,8 @@ function Assistant() {
   async function openConversation(id: string) {
     if (isSending) return;
     setLoadError(null);
+    setProposal(null);
+    applyingActions.current.clear();
     try {
       setMessages(await loadConversationHistory(id));
       setActiveId(id);
@@ -127,6 +152,8 @@ function Assistant() {
 
   function createConversation() {
     startConversation();
+    applyingActions.current.clear();
+    setProposal(null);
     setActiveId(null);
     setMessages([]);
     setInput("");
@@ -141,6 +168,7 @@ function Assistant() {
     const normalized = text.trim();
     if (!normalized || isSending) return;
     const optimistic: ChatMessage = { id: createClientId(), role: "user", content: normalized };
+    setProposal(null);
     setMessages((current) => [...current, optimistic]);
     setInput("");
     setLoadError(null);
@@ -152,6 +180,22 @@ function Assistant() {
         result.userMessage,
         result.assistantMessage,
       ]);
+      setProposal(
+        result.proposedActions.length
+          ? {
+              conversationId: result.conversationId,
+              items: result.proposedActions.map((action) => {
+                const stableId = createClientId();
+                return {
+                  action,
+                  actionId: stableId,
+                  requestId: stableId,
+                  status: "pending" as const,
+                };
+              }),
+            }
+          : null,
+      );
       setActiveId(result.conversationId);
       await queryClient.invalidateQueries({ queryKey: conversationsKey });
       await queryClient.invalidateQueries({ queryKey: workspaceQueryKeys.dashboard(user?.id) });
@@ -168,6 +212,62 @@ function Assistant() {
           action: { label: "Ver Premium", onClick: () => navigate({ to: "/premium" }) },
         });
       }
+    }
+  }
+
+  function updateProposalItem(actionId: string, patch: Partial<ProposalItem>) {
+    setProposal((current) =>
+      current
+        ? {
+            ...current,
+            items: current.items.map((item) =>
+              item.actionId === actionId ? { ...item, ...patch } : item,
+            ),
+          }
+        : current,
+    );
+  }
+
+  async function confirmAction(item: ProposalItem) {
+    if (
+      applyingActions.current.has(item.actionId) ||
+      !proposal ||
+      proposal.conversationId !== activeId ||
+      !["pending", "failed"].includes(item.status)
+    ) {
+      return;
+    }
+
+    applyingActions.current.add(item.actionId);
+    updateProposalItem(item.actionId, { status: "applying", message: undefined });
+    try {
+      await applyNexoraAction({
+        actionId: item.actionId,
+        requestId: item.requestId,
+        conversationId: proposal.conversationId,
+        confirmed: true,
+        action: item.action,
+      });
+      const receipt = actionReceipt(item.action);
+      updateProposalItem(item.actionId, {
+        status: "applied",
+        message: receipt,
+        canRetry: false,
+      });
+      await queryClient.invalidateQueries({});
+      toast.success(receipt);
+    } catch (error) {
+      const safe =
+        error instanceof NexoraActionError
+          ? error.safe
+          : { message: "Não foi possível aplicar a alteração.", retry: true };
+      updateProposalItem(item.actionId, {
+        status: "failed",
+        message: safe.message,
+        canRetry: safe.retry,
+      });
+    } finally {
+      applyingActions.current.delete(item.actionId);
     }
   }
 
@@ -289,6 +389,19 @@ function Assistant() {
                   </span>
                   KIVRYN está pensando…
                 </div>
+              )}
+              {proposal && (
+                <ProposalCard
+                  items={proposal.items}
+                  onCancel={(item) =>
+                    updateProposalItem(item.actionId, {
+                      status: "cancelled",
+                      message: "Alteração cancelada. Nada foi modificado.",
+                      canRetry: false,
+                    })
+                  }
+                  onConfirm={(item) => void confirmAction(item)}
+                />
               )}
               <div ref={endRef} />
             </div>
@@ -480,6 +593,67 @@ function Assistant() {
         </DialogContent>
       </Dialog>
     </PageShell>
+  );
+}
+
+function ProposalCard({
+  items,
+  onCancel,
+  onConfirm,
+}: {
+  items: ProposalItem[];
+  onCancel: (item: ProposalItem) => void;
+  onConfirm: (item: ProposalItem) => void;
+}) {
+  return (
+    <div className="rounded-2xl border border-intelligence/30 bg-surface-elevated/70 p-4 shadow-sm">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-intelligence">
+        {items.length === 1 ? "Alteração proposta" : "Alterações propostas"}
+      </p>
+      <p className="mt-1 text-xs text-muted-foreground">
+        Revise antes de confirmar. A KIVRYN não altera seu espaço de trabalho sem sua aprovação.
+      </p>
+      <div className="mt-4 space-y-4">
+        {items.map((item) => {
+          const preview = actionPreview(item.action);
+          const actionable = item.status === "pending" || item.status === "failed";
+          return (
+            <div key={item.actionId} className="rounded-xl border border-border/70 bg-background/40 p-3">
+              <p className="text-sm font-semibold">{preview.label}</p>
+              {preview.details.length > 0 && (
+                <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
+                  {preview.details.map((detail) => <li key={detail}>• {detail}</li>)}
+                </ul>
+              )}
+              {item.message && (
+                <p
+                  className={`mt-2 text-sm ${item.status === "failed" ? "text-destructive" : "text-muted-foreground"}`}
+                  role={item.status === "failed" ? "alert" : undefined}
+                >
+                  {item.message}
+                </p>
+              )}
+              {actionable ? (
+                <div className="mt-3 flex flex-wrap justify-end gap-2">
+                  <Button size="sm" variant="outline" onClick={() => onCancel(item)}>
+                    Cancelar
+                  </Button>
+                  {(item.status === "pending" || item.canRetry) && (
+                    <Button size="sm" onClick={() => onConfirm(item)}>
+                      {item.status === "failed" ? "Tentar novamente" : "Confirmar"}
+                    </Button>
+                  )}
+                </div>
+              ) : item.status === "applying" ? (
+                <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground" role="status">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Aplicando…
+                </div>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
