@@ -168,6 +168,10 @@ function ChallengesWorkspace() {
   const abandon = useMutation({
     mutationFn: (id: string) => abandonWebPersonalChallenge(userId, id),
     onSuccess: invalidate,
+    onError: () =>
+      toast.error(
+        resolvedLocale === "en" ? "Challenge could not be ended." : "Não foi possível encerrar o desafio.",
+      ),
   });
   const rankingOptIn = useMutation({
     mutationFn: (enabled: boolean) => setWebChallengeRankingOptIn(userId, enabled),

@@ -27,6 +27,15 @@ export const Route = createFileRoute("/_shell/agents")({
 const capabilities = WEB_AGENT_SKILLS.map(
   (skill) => [skill.capability, skill.name, skill.description] as const,
 );
+const emptyAgentForm = () => ({
+  name: "",
+  description: "",
+  goal: "",
+  instructions: "",
+  tone: "Profissional",
+  expected_output: "",
+  capabilities: [] as string[],
+});
 function Agents() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   return pathname !== "/agents" && pathname !== "/agents/" ? <Outlet /> : <AgentsIndex />;
@@ -184,13 +193,17 @@ function AgentsIndex() {
                       : "Never"}
                   </p>
                   <div className="mt-4 flex gap-2">
-                    <Link to="/agents/$agentId" params={{ agentId: a.id }}>
+                    <Link
+                      to="/agents/$agentId"
+                      params={{ agentId: a.id }}
+                      search={{ tab: undefined }}
+                    >
                       <Button variant="outline">Open</Button>
                     </Link>
                     <Link
                       to="/agents/$agentId"
                       params={{ agentId: a.id }}
-                      search={{ tab: "run" } as never}
+                      search={{ tab: "run" }}
                     >
                       <Button disabled={!a.active}>
                         <Play />
@@ -211,27 +224,24 @@ function AgentsIndex() {
 function Builder({ open, close }: { open: boolean; close: () => void }) {
   const client = useQueryClient();
   const [step, setStep] = useState(1);
-  const [form, setForm] = useState({
-    name: "",
-    description: "",
-    goal: "",
-    instructions: "",
-    tone: "Profissional",
-    expected_output: "",
-    capabilities: [] as string[],
-  });
+  const [form, setForm] = useState(emptyAgentForm);
+  const resetAndClose = () => {
+    setStep(1);
+    setForm(emptyAgentForm());
+    close();
+  };
   const field = (k: string, v: string) => setForm((c) => ({ ...c, [k]: v }));
   const create = useMutation({
     mutationFn: () => AgentService.create({ ...form, active: true }),
     onSuccess: async () => {
       await client.invalidateQueries({ queryKey: workspaceQueryKeys.agents });
       toast.success("Agente criado");
-      close();
+      resetAndClose();
     },
     onError: (e: Error) => toast.error(e.message),
   });
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && close()}>
+    <Dialog open={open} onOpenChange={(o) => !o && resetAndClose()}>
       <DialogContent className="max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Novo agente · etapa {step} de 5</DialogTitle>
@@ -308,7 +318,10 @@ function Builder({ open, close }: { open: boolean; close: () => void }) {
           </div>
         )}
         <div className="mt-4 flex justify-between">
-          <Button variant="outline" onClick={() => (step === 1 ? close() : setStep(step - 1))}>
+          <Button
+            variant="outline"
+            onClick={() => (step === 1 ? resetAndClose() : setStep(step - 1))}
+          >
             {step === 1 ? "Cancelar" : "Voltar"}
           </Button>
           <Button
