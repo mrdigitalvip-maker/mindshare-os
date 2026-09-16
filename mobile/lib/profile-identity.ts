@@ -2,9 +2,9 @@ import type { User } from "@supabase/supabase-js";
 import {
   normalizeHumanName,
   resolveCanonicalDisplayName,
-} from "../../supabase/functions/_shared/user-identity";
+} from "./user-identity";
 
-export { homeGreeting } from "../../supabase/functions/_shared/user-identity";
+export { homeGreeting } from "./user-identity";
 
 export type ProfileRecord = {
   id: string;
