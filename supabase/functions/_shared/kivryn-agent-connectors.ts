@@ -3,7 +3,7 @@ import type { KivrynAgentSkill, KivrynContextScope } from "./kivryn-agent-skills
 export const KIVRYN_CONNECTOR_REGISTRY_VERSION = 1 as const;
 
 export type KivrynAgentConnector = {
-  id: "workspace.tasks" | "workspace.projects" | "workspace.studies";
+  id: "workspace.tasks" | "workspace.projects" | "workspace.studies" | "workspace.documents";
   name: string;
   version: 1;
   kind: "internal_context";
@@ -34,6 +34,14 @@ const REGISTRY: readonly KivrynAgentConnector[] = [
     version: 1,
     kind: "internal_context",
     readScopes: ["studies", "passport"],
+    canMutate: false,
+  },
+  {
+    id: "workspace.documents",
+    name: "Documents Context",
+    version: 1,
+    kind: "internal_context",
+    readScopes: ["documents"],
     canMutate: false,
   },
 ];

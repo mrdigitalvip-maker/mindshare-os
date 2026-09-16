@@ -4,7 +4,8 @@ export type KivrynContextScope =
   | "tasks"
   | "projects"
   | "studies"
-  | "passport";
+  | "passport"
+  | "documents";
 
 type AdminClient = {
   from: (table: string) => any;
@@ -29,6 +30,7 @@ export type KivrynPersonalContext = {
   projects: Array<Record<string, unknown>>;
   studies: Array<Record<string, unknown>>;
   passport: Array<Record<string, unknown>>;
+  documents: Array<Record<string, unknown>>;
   omittedScopes: KivrynContextScope[];
 };
 
@@ -38,6 +40,8 @@ const CAPABILITY_SCOPES: Record<string, readonly KivrynContextScope[]> = {
   productivity: ["tasks", "projects"],
   planning: ["tasks", "projects"],
   study: ["studies", "passport"],
+  writing: ["documents"],
+  summarization: ["documents"],
 };
 
 function cleanText(value: unknown, max = 240): string | null {
@@ -140,6 +144,15 @@ export async function loadKivrynPersonalContext(input: {
             .order("updated_at", { ascending: false })
             .limit(4))
       : null,
+    requested.has("documents")
+      ? safeLoad("documents", async () =>
+          input.admin
+            .from("documents")
+            .select("id,title,content,type,updated_at")
+            .eq("user_id", input.userId)
+            .order("updated_at", { ascending: false })
+            .limit(8))
+      : null,
   ].filter(Boolean) as Array<Promise<{ scope: KivrynContextScope; ok: boolean; data: any }>>;
 
   const loaded = await Promise.all(loaders);
@@ -151,6 +164,7 @@ export async function loadKivrynPersonalContext(input: {
   const projectRows = (byScope.get("projects")?.data ?? []) as Record<string, unknown>[];
   const studyRows = (byScope.get("studies")?.data ?? []) as Record<string, unknown>[];
   const passportRows = (byScope.get("passport")?.data ?? []) as Record<string, unknown>[];
+  const documentRows = (byScope.get("documents")?.data ?? []) as Record<string, unknown>[];
 
   return {
     scopes,
@@ -208,6 +222,13 @@ export async function loadKivrynPersonalContext(input: {
       current_level: 8,
       updated_at: 40,
     })),
+    documents: documentRows.map((row) => compactRow(row, {
+      id: 64,
+      title: 220,
+      content: 1200,
+      type: 40,
+      updated_at: 40,
+    })),
     omittedScopes,
   };
 }
@@ -221,11 +242,12 @@ export function serializeKivrynPersonalContext(context: KivrynPersonalContext, m
     projects: [...context.projects],
     studies: [...context.studies],
     passport: [...context.passport],
+    documents: [...context.documents],
     omittedScopes: context.omittedScopes,
   };
   let json = JSON.stringify(safe);
   while (json.length > maxChars) {
-    const lists = [safe.tasks, safe.projects, safe.studies, safe.passport].filter((list) => list.length);
+    const lists = [safe.tasks, safe.projects, safe.studies, safe.passport, safe.documents].filter((list) => list.length);
     if (!lists.length) break;
     lists.sort((a, b) => b.length - a.length)[0].pop();
     json = JSON.stringify(safe);
@@ -240,8 +262,9 @@ export function serializeKivrynPersonalContext(context: KivrynPersonalContext, m
     projects: [],
     studies: [],
     passport: [],
+    documents: [],
     omittedScopes: safe.omittedScopes,
   });
   if (minimal.length <= maxChars) return minimal;
-  return JSON.stringify({ scopes: [], profile: null, preferences: null, tasks: [], projects: [], studies: [], passport: [], omittedScopes: [] });
+  return JSON.stringify({ scopes: [], profile: null, preferences: null, tasks: [], projects: [], studies: [], passport: [], documents: [], omittedScopes: [] });
 }
