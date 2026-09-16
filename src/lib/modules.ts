@@ -212,6 +212,7 @@ export const MODULES: NexoraModule[] = [
   },
   {
     id: "agents",
+    releaseReady: true,
     label: "Agents",
     path: "/agents",
     icon: Bot,
