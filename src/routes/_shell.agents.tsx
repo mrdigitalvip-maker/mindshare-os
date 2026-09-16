@@ -193,13 +193,17 @@ function AgentsIndex() {
                       : "Never"}
                   </p>
                   <div className="mt-4 flex gap-2">
-                    <Link to="/agents/$agentId" params={{ agentId: a.id }} search={{}}>
+                    <Link
+                      to="/agents/$agentId"
+                      params={{ agentId: a.id }}
+                      search={{ tab: undefined }}
+                    >
                       <Button variant="outline">Open</Button>
                     </Link>
                     <Link
                       to="/agents/$agentId"
                       params={{ agentId: a.id }}
-                      search={{ tab: "run" } as never}
+                      search={{ tab: "run" }}
                     >
                       <Button disabled={!a.active}>
                         <Play />
