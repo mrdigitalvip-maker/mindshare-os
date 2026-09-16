@@ -147,6 +147,11 @@ export const PushService = {
     return subscription;
   },
   async sendTest(): Promise<number> {
+    // Make the test path self-healing. If the backend VAPID key changed or the
+    // browser holds a stale subscription, repair/persist it immediately before
+    // asking the provider to deliver the test notification.
+    await this.enable();
+
     const { data, error } = await supabase.functions.invoke("push-send", {
       body: {
         title: "KIVRYN notifications are ready",

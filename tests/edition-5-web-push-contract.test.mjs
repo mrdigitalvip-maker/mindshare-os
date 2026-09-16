@@ -28,6 +28,17 @@ test("Web Push derives its canonical public key from the private VAPID key", () 
   assert.match(edge, /webpush\.setVapidDetails\(subject, publicKey, privateKey\)/);
 });
 
+test("Web Push test auto-repairs the browser subscription before delivery", () => {
+  const sendTestStart = client.indexOf("async sendTest(): Promise<number>");
+  const sendTestEnd = client.indexOf("return accepted;", sendTestStart);
+  const sendTestBody = client.slice(sendTestStart, sendTestEnd);
+  assert.match(sendTestBody, /await this\.enable\(\)/);
+  assert.ok(
+    sendTestBody.indexOf("await this.enable()") < sendTestBody.indexOf('supabase.functions.invoke("push-send"'),
+    "sendTest must repair the subscription before invoking push-send",
+  );
+});
+
 test("Web Push delivery exposes accepted and provider diagnostics", () => {
   assert.match(edge, /webPushConfigured/);
   assert.match(edge, /webSubscriptions/);
