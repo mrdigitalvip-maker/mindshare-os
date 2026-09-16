@@ -23,7 +23,7 @@ TabsList.displayName = TabsPrimitive.List.displayName;
 const TabsTrigger = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.Trigger>,
   React.ComponentPropsWithoutRef<typeof TabsPrimitive.Trigger>
->(({ className, value, ...props }, ref) => (
+>(({ className, value, onClick, ...props }, ref) => (
   <TabsPrimitive.Trigger
     ref={ref}
     value={value}
@@ -32,6 +32,17 @@ const TabsTrigger = React.forwardRef<
       "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background cursor-pointer transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow",
       className,
     )}
+    onClick={(event) => {
+      onClick?.(event);
+      if (event.defaultPrevented || event.detail !== 0) return;
+
+      // Radix Tabs selects on mouse down. HTMLElement.click() only dispatches a
+      // click event, so programmatic navigation (for example, Studies' "Iniciar
+      // registro") needs the same mouse-down signal a real pointer produces.
+      event.currentTarget.dispatchEvent(
+        new MouseEvent("mousedown", { bubbles: true, cancelable: true, button: 0 }),
+      );
+    }}
     {...props}
   />
 ));
