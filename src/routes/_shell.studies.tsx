@@ -301,7 +301,7 @@ function StudiesIndex() {
               <RefreshCw />
               Try again
             </Button>
-            <Button className="min-h-11" variant="ghost" onClick={() => nav({ to: "/" })}>
+            <Button className="min-h-11" variant="ghost" onClick={() => nav({ to: "/dashboard" })}>
               Go to dashboard
             </Button>
           </div>
