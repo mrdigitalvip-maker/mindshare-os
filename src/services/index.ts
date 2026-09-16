@@ -1,5 +1,6 @@
 export * from "./mock-data";
 export * from "./workspace-services";
+export { ProductivityService } from "./productivity-service-bound";
 export * from "./auth-service";
 export * from "./ai-service";
 export * from "./search-service";

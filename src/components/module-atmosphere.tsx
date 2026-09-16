@@ -16,7 +16,10 @@ export function ModuleAtmosphere() {
 
   const accent = passport ? "#62f5b0" : "#ff6bc9";
   const accent2 = passport ? "#5dd8ff" : "#8d7cff";
-  const destination = passport ? "/passport" : "/creator/copilot";
+  // Creator Copilot lives inside the canonical /creator route, in the AI
+  // section. Keep the CTA on a registered route instead of /creator/copilot,
+  // which is not part of the router and previously produced a Not Found page.
+  const destination = passport ? "/passport" : "/creator#ai";
   const title = passport ? "PASSPORT LIVE" : "CREATOR SIGNAL";
   const subtitle = passport
     ? en
