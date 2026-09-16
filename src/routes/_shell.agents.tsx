@@ -193,7 +193,7 @@ function AgentsIndex() {
                       : "Never"}
                   </p>
                   <div className="mt-4 flex gap-2">
-                    <Link to="/agents/$agentId" params={{ agentId: a.id }}>
+                    <Link to="/agents/$agentId" params={{ agentId: a.id }} search={{}}>
                       <Button variant="outline">Open</Button>
                     </Link>
                     <Link
