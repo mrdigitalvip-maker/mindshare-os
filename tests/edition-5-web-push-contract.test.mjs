@@ -8,9 +8,24 @@ const [client, edge, scheduled] = await Promise.all([
   readFile(new URL("../supabase/functions/scheduled-agent-runs/index.ts", import.meta.url), "utf8"),
 ]);
 
-test("Web Push test consumes the push-send accepted count", () => {
-  assert.match(edge, /return jsonResponse\(request, \{ accepted, failed \}, 200\)/);
+test("Web Push repair uses the backend VAPID public key as the single source of truth", () => {
+  assert.match(edge, /input\.action === "config"/);
+  assert.match(edge, /configured: true, publicKey/);
+  assert.match(client, /body: \{ action: "config" \}/);
+  assert.match(client, /subscriptionUsesPublicKey/);
+  assert.match(client, /await subscription\.unsubscribe\(\)/);
+  assert.match(client, /\.delete\(\)[\s\S]*\.eq\("endpoint", staleEndpoint\)/);
+  assert.match(client, /applicationServerKey: decodeVapidPublicKey\(config\.publicKey\)/);
+  assert.doesNotMatch(client, /VITE_VAPID_PUBLIC_KEY/);
+});
+
+test("Web Push delivery exposes accepted and provider diagnostics", () => {
+  assert.match(edge, /webPushConfigured/);
+  assert.match(edge, /webSubscriptions/);
+  assert.match(edge, /webFailureStatuses/);
   assert.match(client, /result\?\.accepted \?\? result\?\.delivered \?\? 0/);
+  assert.match(client, /result\?\.webPushConfigured === false/);
+  assert.match(client, /Provider HTTP:/);
   assert.match(client, /return accepted/);
 });
 
