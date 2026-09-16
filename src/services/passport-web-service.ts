@@ -91,6 +91,18 @@ const record = (value: unknown): Record<string, unknown> =>
     ? (value as Record<string, unknown>)
     : {};
 
+const vocabularyFrom = (value: unknown): WebVocabularyItem => {
+  const row = record(value);
+  return {
+    id: String(row.id),
+    term: String(row.term),
+    translation: String(row.translation ?? ""),
+    context: String(row.context ?? ""),
+    stage: String(row.stage ?? "new"),
+    nextReviewAt: String(row.next_review_at ?? ""),
+  };
+};
+
 export async function listWebPassportTracks(): Promise<WebPassportTrack[]> {
   const { data, error } = await passportDb
     .from("studio_tracks")
@@ -262,17 +274,33 @@ export async function listWebDueVocabulary(
     .order("next_review_at", { ascending: true })
     .limit(20);
   if (error) throw error;
-  return (data ?? []).map((value) => {
-    const row = record(value);
-    return {
-      id: String(row.id),
-      term: String(row.term),
-      translation: String(row.translation ?? ""),
-      context: String(row.context ?? ""),
-      stage: String(row.stage ?? "new"),
-      nextReviewAt: String(row.next_review_at ?? ""),
-    };
-  });
+  return (data ?? []).map(vocabularyFrom);
+}
+
+export async function addWebPassportVocabulary(
+  userId: string,
+  trackId: string,
+  input: { term: string; translation?: string; context?: string },
+): Promise<WebVocabularyItem> {
+  const uid = requireUser(userId);
+  const languageTrackId = trackId.trim();
+  const term = input.term.trim();
+  if (!languageTrackId) throw new Error("Language track required.");
+  if (!term || term.length > 160) throw new Error("Vocabulary term must be between 1 and 160 characters.");
+
+  const { data, error } = await passportDb
+    .from("passport_vocabulary")
+    .insert({
+      user_id: uid,
+      track_id: languageTrackId,
+      term,
+      translation: input.translation?.trim() ?? "",
+      context: input.context?.trim() ?? "",
+    })
+    .select("id,term,translation,context,stage,next_review_at")
+    .single();
+  if (error) throw error;
+  return vocabularyFrom(data);
 }
 
 export async function reviewWebVocabulary(userId: string, vocabularyId: string, grade: number) {
@@ -288,14 +316,23 @@ export async function reviewWebVocabulary(userId: string, vocabularyId: string, 
 export async function listWebPassportMissions(
   userId: string,
   trackId: string,
+  locale: "pt-BR" | "en" = "pt-BR",
 ): Promise<WebPassportMission[]> {
   requireUser(userId);
+  const missionDate = localDateKey();
+  const { error: ensureError } = await passportDb.rpc("ensure_passport_daily_missions", {
+    p_track_id: trackId,
+    p_mission_date: missionDate,
+    p_locale: locale,
+  });
+  if (ensureError) throw ensureError;
+
   const { data, error } = await passportDb
     .from("passport_daily_missions")
     .select("id,title,prompt,mission_type,status")
     .eq("user_id", userId)
     .eq("track_id", trackId)
-    .eq("mission_date", localDateKey())
+    .eq("mission_date", missionDate)
     .order("created_at", { ascending: true });
   if (error) throw error;
   return (data ?? []).map((value) => {

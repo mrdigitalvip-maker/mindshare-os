@@ -7,6 +7,7 @@ import type {
   PassportVocabularyItem,
 } from "@/lib/passport";
 import { workspaceMutationError } from "@/lib/mutation-errors";
+import { supabase } from "@/lib/supabase";
 import {
   listPassportDailyMissions,
   listPassportDueVocabulary,
@@ -73,6 +74,15 @@ export async function loadPassportHomeSnapshot(
       completedMissions: 0,
     };
   }
+
+  const { error: missionEnsureError } = await supabase.rpc(
+    "ensure_passport_daily_missions" as never,
+    {
+      p_track_id: profile.trackId,
+      p_mission_date: date,
+    } as never,
+  );
+  if (missionEnsureError) throw workspaceMutationError(missionEnsureError);
 
   const [allLessons, dueVocabulary, missions] = await Promise.all([
     listPassportLessons(uid, profile.trackId),
