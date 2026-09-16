@@ -2,9 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-const [migration, services] = await Promise.all([
+const [migration, services, tabs, studiesWorkspace] = await Promise.all([
   readFile(new URL("../supabase/migrations/20260916123000_workspace_owner_integrity.sql", import.meta.url), "utf8"),
   readFile(new URL("../src/services/workspace-services.ts", import.meta.url), "utf8"),
+  readFile(new URL("../src/components/ui/tabs.tsx", import.meta.url), "utf8"),
+  readFile(new URL("../src/routes/_shell.studies.$subjectId.tsx", import.meta.url), "utf8"),
 ]);
 
 test("Projects and Tasks keep ownership after updates", () => {
@@ -36,4 +38,12 @@ test("Studies persist subjects and sessions through user-scoped services", () =>
   assert.match(services, /\.from\("study_notes"\)/);
   assert.match(services, /\.from\("study_goals"\)/);
   assert.match(services, /user_id: userId/);
+});
+
+test("Studies overview can navigate to the session recorder", () => {
+  assert.match(tabs, /data-value=\{value\}/);
+  assert.match(studiesWorkspace, /\[data-value=sessions\]/);
+  assert.match(studiesWorkspace, /Iniciar registro/);
+  assert.match(studiesWorkspace, /Registrar sessão/);
+  assert.match(studiesWorkspace, /Concluir sessão/);
 });
