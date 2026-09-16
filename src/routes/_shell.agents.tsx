@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { Bot, Crown, Play, Plus, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -28,6 +28,11 @@ const capabilities = WEB_AGENT_SKILLS.map(
   (skill) => [skill.capability, skill.name, skill.description] as const,
 );
 function Agents() {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  return pathname !== "/agents" && pathname !== "/agents/" ? <Outlet /> : <AgentsIndex />;
+}
+
+function AgentsIndex() {
   const [builder, setBuilder] = useState(false);
   const [search, setSearch] = useState("");
   const subscription = useSubscription();
