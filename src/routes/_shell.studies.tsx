@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -32,6 +32,11 @@ import { WorkspaceProgress } from "@/components/workspace-ui";
 export const Route = createFileRoute("/_shell/studies")({ component: Studies });
 
 function Studies() {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  return pathname !== "/studies" && pathname !== "/studies/" ? <Outlet /> : <StudiesIndex />;
+}
+
+function StudiesIndex() {
   const { t } = useLanguage();
   const nav = useNavigate();
   const client = useQueryClient();
