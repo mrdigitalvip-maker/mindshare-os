@@ -15,6 +15,7 @@ import {
   AgentRuntimeService,
   AgentScheduleService,
   AgentService,
+  type AgentActionAuditStatus,
   type AgentSchedule,
   type PendingAgentPlan,
 } from "@/services";
@@ -42,6 +43,10 @@ function AgentWorkspace() {
   const pendingPlans = useQuery({
     queryKey: ["workspace", "agent-pending-plans", agentId],
     queryFn: () => AgentRuntimeService.listPending(agentId),
+  });
+  const actionAudit = useQuery({
+    queryKey: ["workspace", "agent-action-audit", agentId],
+    queryFn: () => AgentRuntimeService.listAudit(agentId),
   });
   const [input, setInput] = useState("");
   const [context, setContext] = useState("");
@@ -76,7 +81,9 @@ function AgentWorkspace() {
       toast.success("Plano aprovado e aplicado pelo KIVRYN");
       await Promise.all([
         client.invalidateQueries({ queryKey: ["workspace"] }),
+        client.invalidateQueries({ queryKey: ["workspace", "agent-runs", agentId] }),
         client.invalidateQueries({ queryKey: ["workspace", "agent-pending-plans", agentId] }),
+        client.invalidateQueries({ queryKey: ["workspace", "agent-action-audit", agentId] }),
       ]);
     },
     onError: (e: Error) => toast.error(e.message),
@@ -93,6 +100,7 @@ function AgentWorkspace() {
       await Promise.all([
         client.invalidateQueries({ queryKey: ["workspace", "agent-runs", agentId] }),
         client.invalidateQueries({ queryKey: ["workspace", "agent-pending-plans", agentId] }),
+        client.invalidateQueries({ queryKey: ["workspace", "agent-action-audit", agentId] }),
       ]);
     },
     onError: (e: Error) => toast.error(e.message),
@@ -248,49 +256,101 @@ function AgentWorkspace() {
         </TabsContent>
 
         <TabsContent value="history">
-          <div className="mt-4 space-y-3">
-            {runs.data?.map((r) => {
-              const detailed = r as typeof r & {
-                trigger?: string;
-                scheduled_for?: string | null;
-                action_plan_status?: string;
-                connector_ids?: string[];
-                subagent_ids?: string[];
-              };
-              return (
-                <details key={r.id} className="glass rounded-xl p-4">
-                  <summary className="min-h-11 cursor-pointer py-2">
-                    <span className="font-medium">{r.status}</span> ·{" "}
-                    {detailed.trigger === "scheduled" ? "Programado" : "Manual"} ·{" "}
-                    {new Date(r.created_at || r.started_at || "").toLocaleString("pt-BR")}
-                  </summary>
-                  {detailed.scheduled_for && (
-                    <p className="text-xs text-muted-foreground">
-                      Previsto para {new Date(detailed.scheduled_for).toLocaleString("pt-BR")}
-                    </p>
-                  )}
-                  {detailed.action_plan_status && detailed.action_plan_status !== "none" && (
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Plano de ações: {detailed.action_plan_status}
-                    </p>
-                  )}
-                  {!!detailed.subagent_ids?.length && (
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Subagents: {detailed.subagent_ids.join(", ")}
-                    </p>
-                  )}
-                  <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                    {typeof r.input === "string" ? r.input : "Entrada salva"}
+          <div className="mt-4 space-y-4">
+            <section className="glass rounded-2xl p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="font-semibold">Trilha de ações</h2>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Registro somente leitura das decisões e execuções do Agent.
                   </p>
-                  <p className="mt-3 whitespace-pre-wrap text-sm">
-                    {typeof r.output === "string"
-                      ? r.output
-                      : r.error_code || "Execução em andamento"}
+                </div>
+                <ShieldCheck className="h-5 w-5 shrink-0 text-intelligence" />
+              </div>
+              <div className="mt-4 space-y-2">
+                {actionAudit.isLoading && (
+                  <p className="text-sm text-muted-foreground">Carregando trilha…</p>
+                )}
+                {actionAudit.isError && (
+                  <p role="alert" className="text-sm text-destructive">
+                    Não foi possível carregar a trilha de ações.
                   </p>
-                </details>
-              );
-            })}
-            {!runs.data?.length && <p className="text-muted-foreground">Nenhuma execução ainda.</p>}
+                )}
+                {actionAudit.data?.map((event) => (
+                  <div key={event.id} className="rounded-xl border bg-background/50 p-3 text-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="font-medium">{event.actionType.replaceAll("_", " ")}</span>
+                      <span className="text-xs font-medium">
+                        {actionAuditStatusLabel(event.status)}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {event.domain} · {new Date(event.occurredAt).toLocaleString("pt-BR")}
+                    </p>
+                    {(event.idempotent === true || event.errorCode) && (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {event.idempotent === true ? "Retry seguro (idempotente)" : ""}
+                        {event.idempotent === true && event.errorCode ? " · " : ""}
+                        {event.errorCode ? `Código: ${event.errorCode}` : ""}
+                      </p>
+                    )}
+                  </div>
+                ))}
+                {!actionAudit.isLoading && !actionAudit.data?.length && (
+                  <p className="text-sm text-muted-foreground">
+                    Nenhuma ação do Agent auditada ainda.
+                  </p>
+                )}
+              </div>
+            </section>
+
+            <section className="space-y-3">
+              <h2 className="px-1 text-sm font-semibold">Execuções do Agent</h2>
+              {runs.data?.map((r) => {
+                const detailed = r as typeof r & {
+                  trigger?: string;
+                  scheduled_for?: string | null;
+                  action_plan_status?: string;
+                  connector_ids?: string[];
+                  subagent_ids?: string[];
+                };
+                return (
+                  <details key={r.id} className="glass rounded-xl p-4">
+                    <summary className="min-h-11 cursor-pointer py-2">
+                      <span className="font-medium">{r.status}</span> ·{" "}
+                      {detailed.trigger === "scheduled" ? "Programado" : "Manual"} ·{" "}
+                      {new Date(r.created_at || r.started_at || "").toLocaleString("pt-BR")}
+                    </summary>
+                    {detailed.scheduled_for && (
+                      <p className="text-xs text-muted-foreground">
+                        Previsto para {new Date(detailed.scheduled_for).toLocaleString("pt-BR")}
+                      </p>
+                    )}
+                    {detailed.action_plan_status && detailed.action_plan_status !== "none" && (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Plano de ações: {detailed.action_plan_status}
+                      </p>
+                    )}
+                    {!!detailed.subagent_ids?.length && (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Subagents: {detailed.subagent_ids.join(", ")}
+                      </p>
+                    )}
+                    <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                      {typeof r.input === "string" ? r.input : "Entrada salva"}
+                    </p>
+                    <p className="mt-3 whitespace-pre-wrap text-sm">
+                      {typeof r.output === "string"
+                        ? r.output
+                        : r.error_code || "Execução em andamento"}
+                    </p>
+                  </details>
+                );
+              })}
+              {!runs.data?.length && (
+                <p className="text-muted-foreground">Nenhuma execução ainda.</p>
+              )}
+            </section>
           </div>
         </TabsContent>
 
@@ -306,6 +366,21 @@ function AgentWorkspace() {
       </Tabs>
     </PageShell>
   );
+}
+
+function actionAuditStatusLabel(status: AgentActionAuditStatus) {
+  switch (status) {
+    case "approval_required":
+      return "Aguardando aprovação";
+    case "approved":
+      return "Aprovada";
+    case "applied":
+      return "Aplicada";
+    case "rejected":
+      return "Rejeitada";
+    case "failed":
+      return "Falhou";
+  }
 }
 
 function PlanApprovalCard({
