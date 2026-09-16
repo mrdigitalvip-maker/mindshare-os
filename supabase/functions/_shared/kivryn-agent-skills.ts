@@ -9,7 +9,8 @@ export type KivrynContextScope =
   | "tasks"
   | "projects"
   | "studies"
-  | "passport";
+  | "passport"
+  | "documents";
 
 export type KivrynAgentSkill = {
   id: string;
@@ -36,7 +37,7 @@ const DEFINITIONS: Record<string, Omit<KivrynAgentSkill, "actionDomains">> = {
       "Prefer concrete language, useful structure and faithful transformation of supplied facts.",
       "Do not invent research, sources, personal facts or tool results.",
     ],
-    contextScopes: BASE_CONTEXT,
+    contextScopes: [...BASE_CONTEXT, "documents"],
   },
   planning: {
     id: "planning.v1",
@@ -62,7 +63,7 @@ const DEFINITIONS: Record<string, Omit<KivrynAgentSkill, "actionDomains">> = {
       "Distinguish confirmed information from inference or uncertainty.",
       "Never claim access to material that KIVRYN did not include in the current context.",
     ],
-    contextScopes: BASE_CONTEXT,
+    contextScopes: [...BASE_CONTEXT, "documents"],
   },
   study: {
     id: "study.v1",
