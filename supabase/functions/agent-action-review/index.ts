@@ -1,5 +1,9 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import {
+  createKivrynActionAuditEvent,
+  type KivrynActionAuditEvent,
+} from "../_shared/kivryn-action-audit.ts";
 import { prepareAgenticCoreRun } from "../_shared/kivryn-agentic-core.ts";
 import { jsonResponse, preflightResponse, rejectDisallowedOrigin } from "../_shared/http.ts";
 
@@ -12,6 +16,57 @@ type ReviewBody = {
 
 function fail(request: Request, code: string, status = 400) {
   return jsonResponse(request, { ok: false, error: { code, message: "Agent action review failed." } }, status);
+}
+
+async function persistAuditEvents(
+  admin: ReturnType<typeof createClient>,
+  userId: string,
+  agentId: string,
+  events: KivrynActionAuditEvent[],
+) {
+  if (!events.length) return true;
+  const rows = events.map((event) => ({
+    user_id: userId,
+    agent_id: agentId,
+    run_id: event.runId,
+    step_id: event.stepId,
+    action_type: event.action,
+    domain: event.domain,
+    status: event.status,
+    resource_id: event.resourceId ?? null,
+    idempotent: typeof event.idempotent === "boolean" ? event.idempotent : null,
+    error_code: event.errorCode ?? null,
+    occurred_at: event.occurredAt,
+  }));
+  const { error } = await admin
+    .from("agent_action_audit_events")
+    .upsert(rows, {
+      onConflict: "run_id,step_id,status",
+      ignoreDuplicates: true,
+    });
+  return !error;
+}
+
+function auditForSteps(
+  runId: string,
+  steps: Array<{ id: string; action: any; domain: any }>,
+  status: "approved" | "rejected" | "failed",
+  stepIds: ReadonlySet<string>,
+  extra?: { resourceId?: string; idempotent?: boolean; errorCode?: string },
+) {
+  return steps
+    .filter((step) => stepIds.has(step.id))
+    .map((step) =>
+      createKivrynActionAuditEvent({
+        runId,
+        stepId: step.id,
+        action: step.action,
+        domain: step.domain,
+        status,
+        ...extra,
+      }),
+    )
+    .filter((event): event is KivrynActionAuditEvent => event !== null);
 }
 
 Deno.serve(async (request) => {
@@ -70,7 +125,47 @@ Deno.serve(async (request) => {
     return fail(request, "stale_or_forged_plan", 409);
   }
 
+  const { data: agent, error: agentError } = await admin
+    .from("agents")
+    .select("id,capabilities")
+    .eq("id", run.agent_id)
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (agentError) return fail(request, "persistence_error", 500);
+  if (!agent) return fail(request, "resource_not_found", 404);
+
+  const alreadyApplied = new Set(
+    Array.isArray(run.applied_step_ids)
+      ? run.applied_step_ids.filter((id: unknown): id is string => typeof id === "string")
+      : [],
+  );
+
+  const proposal = prepareAgenticCoreRun({
+    capabilities: agent.capabilities,
+    proposedPlan: run.action_plan,
+    runId: run.id,
+    requestId: `review_${run.id}`,
+  });
+  if (!proposal.ok) return fail(request, "invalid_or_unauthorized_plan", 409);
+
+  if (!(await persistAuditEvents(admin, user.id, agent.id, proposal.audit))) {
+    return fail(request, "audit_persistence_error", 500);
+  }
+
+  const allStepIds = proposal.plan.steps.map((step) => step.id);
+
   if (body.decision === "reject") {
+    const rejectedIds = new Set(allStepIds.filter((id) => !alreadyApplied.has(id)));
+    const rejectedEvents = auditForSteps(
+      run.id,
+      proposal.plan.steps,
+      "rejected",
+      rejectedIds,
+    );
+    if (!(await persistAuditEvents(admin, user.id, agent.id, rejectedEvents))) {
+      return fail(request, "audit_persistence_error", 500);
+    }
+
     const { error } = await admin
       .from("agent_runs")
       .update({ action_plan_status: "rejected" })
@@ -83,33 +178,13 @@ Deno.serve(async (request) => {
       data: {
         runId: run.id,
         status: "rejected",
-        appliedStepIds: Array.isArray(run.applied_step_ids) ? run.applied_step_ids : [],
+        appliedStepIds: [...alreadyApplied],
       },
     });
   }
 
-  const { data: agent, error: agentError } = await admin
-    .from("agents")
-    .select("id,capabilities")
-    .eq("id", run.agent_id)
-    .eq("user_id", user.id)
-    .maybeSingle();
-  if (agentError) return fail(request, "persistence_error", 500);
-  if (!agent) return fail(request, "resource_not_found", 404);
-
-  const rawPlan = run.action_plan as { steps?: Array<{ id?: unknown }> };
-  const allStepIds = Array.isArray(rawPlan?.steps)
-    ? rawPlan.steps
-        .map((step) => step?.id)
-        .filter((id): id is string => typeof id === "string")
-    : [];
-  const alreadyApplied = new Set(
-    Array.isArray(run.applied_step_ids)
-      ? run.applied_step_ids.filter((id: unknown): id is string => typeof id === "string")
-      : [],
-  );
   const requested = body.approvedStepIds?.length
-    ? body.approvedStepIds
+    ? body.approvedStepIds.filter((id) => !alreadyApplied.has(id))
     : allStepIds.filter((id) => !alreadyApplied.has(id));
   const approvedStepIds = [...new Set(requested)];
   if (!approvedStepIds.length) return fail(request, "no_steps_selected", 400);
@@ -128,8 +203,22 @@ Deno.serve(async (request) => {
   if (!prepared.ok || !prepared.commands.length)
     return fail(request, "invalid_or_unauthorized_plan", 409);
 
+  const commandIds = new Set(prepared.commands.map((command) => command.stepId));
+  const approvedEvents = auditForSteps(
+    run.id,
+    prepared.plan.steps,
+    "approved",
+    commandIds,
+  );
+  if (!(await persistAuditEvents(admin, user.id, agent.id, approvedEvents))) {
+    return fail(request, "audit_persistence_error", 500);
+  }
+
   const appliedThisReview: string[] = [];
   for (const command of prepared.commands) {
+    const step = prepared.plan.steps.find((candidate) => candidate.id === command.stepId);
+    if (!step) return fail(request, "invalid_or_unauthorized_plan", 409);
+
     const { data, error } = await scoped.rpc("apply_nexora_action", {
       p_action_id: command.actionId,
       p_request_id: command.requestId,
@@ -138,6 +227,16 @@ Deno.serve(async (request) => {
       p_action: command.action,
     });
     if (error) {
+      const failed = createKivrynActionAuditEvent({
+        runId: run.id,
+        stepId: step.id,
+        action: step.action,
+        domain: step.domain,
+        status: "failed",
+        errorCode: "action_apply_failed",
+      });
+      if (failed) await persistAuditEvents(admin, user.id, agent.id, [failed]);
+
       const applied = [...new Set([...alreadyApplied, ...appliedThisReview])];
       await admin
         .from("agent_runs")
@@ -149,8 +248,39 @@ Deno.serve(async (request) => {
         .eq("user_id", user.id);
       return fail(request, "action_apply_failed", 409);
     }
-    const result = data as { status?: unknown } | null;
-    if (result?.status !== "applied") return fail(request, "invalid_action_result", 500);
+
+    const result = data as {
+      status?: unknown;
+      resourceId?: unknown;
+      idempotent?: unknown;
+    } | null;
+    if (result?.status !== "applied") {
+      const failed = createKivrynActionAuditEvent({
+        runId: run.id,
+        stepId: step.id,
+        action: step.action,
+        domain: step.domain,
+        status: "failed",
+        errorCode: "invalid_action_result",
+      });
+      if (failed) await persistAuditEvents(admin, user.id, agent.id, [failed]);
+      return fail(request, "invalid_action_result", 500);
+    }
+
+    const appliedEvent = createKivrynActionAuditEvent({
+      runId: run.id,
+      stepId: step.id,
+      action: step.action,
+      domain: step.domain,
+      status: "applied",
+      ...(typeof result.resourceId === "string" ? { resourceId: result.resourceId } : {}),
+      ...(typeof result.idempotent === "boolean" ? { idempotent: result.idempotent } : {}),
+    });
+    if (!appliedEvent || !(await persistAuditEvents(admin, user.id, agent.id, [appliedEvent]))) {
+      // The workspace RPC is idempotent. Leaving this step pending lets a safe retry
+      // recover the missing receipt without duplicating the workspace mutation.
+      return fail(request, "audit_persistence_error", 500);
+    }
     appliedThisReview.push(command.stepId);
   }
 
