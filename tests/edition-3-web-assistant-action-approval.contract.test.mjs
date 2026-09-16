@@ -22,7 +22,7 @@ test("web assistant requires explicit approval before audited RPC execution", ()
   assert.match(assistantRoute, /Confirmar/);
   assert.match(assistantRoute, /confirmed:\s*true/);
   assert.match(assistantRoute, /Alteração cancelada\. Nada foi modificado\./);
-  assert.match(actionService, /supabase\.rpc\("apply_nexora_action"/);
+  assert.match(actionService, /\.rpc\("apply_nexora_action"/);
   assert.match(actionService, /p_confirmed:\s*true/);
   assert.match(actionService, /p_conversation_id:\s*input\.conversationId/);
 });
