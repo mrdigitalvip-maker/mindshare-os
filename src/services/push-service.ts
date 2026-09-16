@@ -18,6 +18,21 @@ export type NotificationPreferences = {
   quiet_hours_end: string | null;
 };
 export type PushSubscriptionState = "subscribed" | "not-subscribed" | "unavailable";
+
+type WebPushConfiguration = {
+  configured: true;
+  publicKey: string;
+};
+
+type PushDeliveryResult = {
+  accepted?: unknown;
+  delivered?: unknown;
+  failed?: unknown;
+  webPushConfigured?: unknown;
+  webSubscriptions?: unknown;
+  webFailureStatuses?: unknown;
+};
+
 const defaults: NotificationPreferences = {
   tasks_enabled: true,
   projects_enabled: true,
@@ -28,6 +43,27 @@ const defaults: NotificationPreferences = {
   quiet_hours_start: "22:00",
   quiet_hours_end: "08:00",
 };
+
+async function webPushConfiguration(): Promise<WebPushConfiguration> {
+  const { data, error } = await supabase.functions.invoke("push-send", {
+    body: { action: "config" },
+  });
+  if (error) throw error;
+  const result = data as { configured?: unknown; publicKey?: unknown } | null;
+  if (result?.configured !== true || typeof result.publicKey !== "string" || !result.publicKey) {
+    throw new Error("Web Push backend VAPID configuration is unavailable.");
+  }
+  return { configured: true, publicKey: result.publicKey };
+}
+
+function subscriptionUsesPublicKey(subscription: PushSubscription, publicKey: string): boolean {
+  const applicationServerKey = subscription.options.applicationServerKey;
+  if (!applicationServerKey) return false;
+  const current = new Uint8Array(applicationServerKey);
+  const expected = decodeVapidPublicKey(publicKey);
+  return current.length === expected.length && current.every((byte, index) => byte === expected[index]);
+}
+
 export const PushService = {
   support() {
     return !isPushNotificationSupported()
@@ -67,16 +103,28 @@ export const PushService = {
     if (error) throw error;
   },
   async enable() {
-    const publicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined;
-    if (!publicKey) throw new Error("VITE_VAPID_PUBLIC_KEY is not configured.");
     const userId = await getRequiredUserId();
+    const config = await webPushConfiguration();
     const prepared = await preparePushNotifications();
-    const subscription =
-      prepared.subscription ??
-      (await prepared.registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: decodeVapidPublicKey(publicKey),
-      }));
+    let subscription = prepared.subscription;
+
+    if (subscription && !subscriptionUsesPublicKey(subscription, config.publicKey)) {
+      const staleEndpoint = subscription.endpoint;
+      await subscription.unsubscribe();
+      const { error: staleDeleteError } = await db
+        .from("push_subscriptions")
+        .delete()
+        .eq("user_id", userId)
+        .eq("endpoint", staleEndpoint);
+      if (staleDeleteError) throw staleDeleteError;
+      subscription = null;
+    }
+
+    subscription ??= await prepared.registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: decodeVapidPublicKey(config.publicKey),
+    });
+
     const json = subscription.toJSON();
     if (!json.endpoint || !json.keys?.p256dh || !json.keys.auth)
       throw new Error("The browser returned an incomplete push subscription.");
@@ -107,10 +155,21 @@ export const PushService = {
       },
     });
     if (error) throw error;
-    const result = data as { accepted?: unknown; delivered?: unknown } | null;
+    const result = data as PushDeliveryResult | null;
     const accepted = Number(result?.accepted ?? result?.delivered ?? 0);
     if (!Number.isFinite(accepted) || accepted < 1) {
-      throw new Error("No active push subscription accepted the test notification.");
+      if (result?.webPushConfigured === false) {
+        throw new Error("Web Push backend VAPID configuration is incomplete.");
+      }
+      const failed = Number(result?.failed ?? 0);
+      const subscriptions = Number(result?.webSubscriptions ?? 0);
+      const statuses = Array.isArray(result?.webFailureStatuses)
+        ? result.webFailureStatuses.filter((value): value is number => typeof value === "number")
+        : [];
+      const detail = statuses.length > 0 ? ` Provider HTTP: ${statuses.join(", ")}.` : "";
+      throw new Error(
+        `No push delivery was accepted (${subscriptions} web subscription(s), ${failed} failed).${detail}`,
+      );
     }
     return accepted;
   },
