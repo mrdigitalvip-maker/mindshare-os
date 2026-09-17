@@ -1,4 +1,4 @@
-import { createFileRoute, Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Folder, Loader2, Plus, Search } from "lucide-react";
@@ -152,6 +152,7 @@ function ProjectRow({
   project: Awaited<ReturnType<typeof ProjectService.list>>[number];
   tasks: Awaited<ReturnType<typeof TaskService.listTasks>>;
 }) {
+  const navigate = useNavigate();
   const completedTasks = tasks.filter((task) => task.status === "done").length;
   const status = project.status?.toLowerCase() ?? "active";
   const completed = status === "completed";
@@ -162,10 +163,13 @@ function ProjectRow({
       : null;
 
   return (
-    <Link
-      to="/projects/$projectId"
-      params={{ projectId: project.id }}
-      className="group flex min-w-0 items-center gap-4 px-4 py-4 transition hover:bg-surface/70 sm:px-5"
+    <button
+      type="button"
+      onClick={() =>
+        void navigate({ to: "/projects/$projectId", params: { projectId: project.id } })
+      }
+      aria-label={`Abrir projeto ${project.title}`}
+      className="group flex w-full min-w-0 items-center gap-4 px-4 py-4 text-left transition hover:bg-surface/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:px-5"
     >
       <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-surface text-muted-foreground">
         <Folder className="h-5 w-5" />
@@ -192,7 +196,7 @@ function ProjectRow({
       <span className="text-xl text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-foreground">
         ›
       </span>
-    </Link>
+    </button>
   );
 }
 
