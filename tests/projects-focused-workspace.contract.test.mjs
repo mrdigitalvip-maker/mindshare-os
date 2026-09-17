@@ -16,9 +16,11 @@ test("web projects stay focused on canonical project operations", async () => {
     "Ativos",
     "Concluídos",
     "Criar projeto",
-    'to="/projects/$projectId"',
+    'to: "/projects/$projectId"',
+    "params: { projectId: project.id }",
   ]) assert.ok(source.includes(contract), contract);
 
+  assert.match(source, /const navigate = useNavigate\(\)/);
   assert.doesNotMatch(source, /PROJECT OPERATING SYSTEM/);
   assert.doesNotMatch(source, /INTELIGÊNCIA KIVRYN/);
   assert.doesNotMatch(source, /CONEXÕES/);
