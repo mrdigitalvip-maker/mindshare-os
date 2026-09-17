@@ -11,6 +11,27 @@ const strings = (value: unknown) => (Array.isArray(value) ? value.map(String) : 
 const text = (value: unknown) => (typeof value === "string" ? value : "");
 const number = (value: unknown) => (typeof value === "number" ? value : 0);
 
+export type CreatorYouTubeMetadata = {
+  videoId: string;
+  title: string;
+  channelTitle: string;
+  publishedAt: string;
+  thumbnailUrl: string | null;
+  durationSeconds: number | null;
+  downloadAvailable: false;
+  originalUploadRequired: true;
+};
+
+export type CreatorSourceImportResult = {
+  projectId: string;
+  jobId: string;
+  title: string;
+  sourceType: "authorized_direct";
+  contentType: string;
+  sizeBytes: number;
+  status: "queued";
+};
+
 export const emptyCreatorProfile: CreatorProfile = {
   experience: "beginner",
   platforms: [],
@@ -271,7 +292,14 @@ export async function createCreatorVideoProject(input: {
   const fileName = input.file.name.replace(/[^a-zA-Z0-9._-]/g, "-");
   const path = `${input.userId}/${project.id}/source/${fileName}`;
   const uploaded = await supabase.storage.from("creator-sources").upload(path, input.file);
-  if (uploaded.error) throw uploaded.error;
+  if (uploaded.error) {
+    await db
+      .from("creator_projects")
+      .update({ source_status: "failed", status: "failed", updated_at: new Date().toISOString() })
+      .eq("id", project.id)
+      .eq("user_id", input.userId);
+    throw uploaded.error;
+  }
   const updated = await db
     .from("creator_projects")
     .update({
@@ -290,6 +318,39 @@ export async function createCreatorVideoProject(input: {
   if (updated.error) throw updated.error;
   const queued = await db.rpc("enqueue_creator_job", { p_project_id: project.id });
   if (queued.error) throw queued.error;
+  return { projectId: String(project.id), jobId: String(queued.data) };
+}
+
+export async function inspectCreatorYouTubeUrl(url: string): Promise<CreatorYouTubeMetadata> {
+  const { data, error } = await supabase.functions.invoke<CreatorYouTubeMetadata>(
+    "creator-youtube-metadata",
+    { body: { url: url.trim() } },
+  );
+  if (error || !data) throw error ?? new Error("YouTube metadata is unavailable.");
+  return data;
+}
+
+export async function importCreatorVideoFromUrl(input: {
+  url: string;
+  title?: string;
+  aspectRatio?: "9:16" | "1:1" | "16:9";
+  targetDurationSeconds?: 15 | 20 | 30 | 45 | 60;
+  captionsEnabled?: boolean;
+}): Promise<CreatorSourceImportResult> {
+  const { data, error } = await supabase.functions.invoke<CreatorSourceImportResult>(
+    "creator-source-import",
+    {
+      body: {
+        url: input.url.trim(),
+        title: input.title?.trim() || undefined,
+        aspectRatio: input.aspectRatio ?? "9:16",
+        targetDurationSeconds: input.targetDurationSeconds ?? 30,
+        captionsEnabled: input.captionsEnabled ?? true,
+      },
+    },
+  );
+  if (error || !data) throw error ?? new Error("Creator source import failed.");
+  return data;
 }
 
 export async function signedCreatorOutput(path: string) {
