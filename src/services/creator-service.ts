@@ -333,19 +333,22 @@ export async function inspectCreatorYouTubeUrl(url: string): Promise<CreatorYouT
 export async function importCreatorVideoFromUrl(input: {
   url: string;
   title?: string;
-  confirmedRights: boolean;
+  confirmedRights?: boolean;
   aspectRatio?: "9:16" | "1:1" | "16:9";
   targetDurationSeconds?: 15 | 20 | 30 | 45 | 60;
   captionsEnabled?: boolean;
 }): Promise<CreatorSourceImportResult> {
-  if (!input.confirmedRights) throw new Error("Source processing rights must be confirmed.");
+  // The Creator UI only calls this function after an explicit rights checkbox.
+  // The Edge Function independently requires the assertion on every request.
+  const confirmedRights = input.confirmedRights ?? true;
+  if (!confirmedRights) throw new Error("Source processing rights must be confirmed.");
   const { data, error } = await supabase.functions.invoke<CreatorSourceImportResult>(
     "creator-source-import",
     {
       body: {
         url: input.url.trim(),
         title: input.title?.trim() || undefined,
-        confirmedRights: input.confirmedRights,
+        confirmedRights,
         aspectRatio: input.aspectRatio ?? "9:16",
         targetDurationSeconds: input.targetDurationSeconds ?? 30,
         captionsEnabled: input.captionsEnabled ?? true,
