@@ -1,3 +1,4 @@
+import { KIVRYN_INTEGRATION_PROVIDERS } from "./kivryn-integration-registry.ts";
 export type CreatorProvider = "youtube" | "tiktok" | "instagram";
 export const PROVIDERS = {
   youtube: {
@@ -5,8 +6,8 @@ export const PROVIDERS = {
     tokenUrl: "https://oauth2.googleapis.com/token",
     identityUrl: "https://www.googleapis.com/youtube/v3/channels?part=id,snippet&mine=true",
     scopes: [
-      "https://www.googleapis.com/auth/youtube.readonly",
-      "https://www.googleapis.com/auth/yt-analytics.readonly",
+      ...(KIVRYN_INTEGRATION_PROVIDERS.youtube.capabilityScopes["profile.read"] ?? []),
+      ...(KIVRYN_INTEGRATION_PROVIDERS.youtube.capabilityScopes["analytics.read"] ?? []),
     ],
     readiness: "CONFIG_REQUIRED",
   },
@@ -14,7 +15,10 @@ export const PROVIDERS = {
     authorizationUrl: "https://www.tiktok.com/v2/auth/authorize/",
     tokenUrl: "https://open.tiktokapis.com/v2/oauth/token/",
     identityUrl: "https://open.tiktokapis.com/v2/user/info/?fields=open_id,display_name",
-    scopes: ["user.info.basic", "video.list"],
+    scopes: [
+      ...(KIVRYN_INTEGRATION_PROVIDERS.tiktok.capabilityScopes["profile.read"] ?? []),
+      ...(KIVRYN_INTEGRATION_PROVIDERS.tiktok.capabilityScopes["media.list"] ?? []),
+    ],
     readiness: "APP_REVIEW_REQUIRED",
   },
   instagram: {
