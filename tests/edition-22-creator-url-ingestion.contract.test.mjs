@@ -35,7 +35,11 @@ test("E22 direct URL import requires explicit rights and public HTTPS video sour
   ]);
   assert.match(creator, /I own this video or have permission to process it/);
   assert.match(creator, /if \(!sourceAuthorized\)/);
-  assert.match(service, /confirmedRights/);
+  assert.match(creator, /confirmedRights:\s*sourceAuthorized/);
+  assert.match(service, /confirmedRights:\s*boolean/);
+  assert.match(service, /input\.confirmedRights !== true/);
+  assert.match(service, /confirmedRights:\s*input\.confirmedRights/);
+  assert.doesNotMatch(service, /confirmedRights\s*\?\?\s*true/);
   assert.match(importer, /input\.confirmedRights !== true/);
   assert.match(importer, /rights_confirmation_required/);
   assert.match(importer, /url\.protocol !== "https:"/);
