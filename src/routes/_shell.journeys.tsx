@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
@@ -17,11 +17,18 @@ import {
   parityKeys,
   safeBackendError,
 } from "@/services/parity-service";
+
 export const Route = createFileRoute("/_shell/journeys")({ component: Journeys });
+
 function Journeys() {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  return pathname !== "/journeys" && pathname !== "/journeys/" ? <Outlet /> : <JourneysIndex />;
+}
+
+function JourneysIndex() {
   const { t } = useLanguage();
-  const qc = useQueryClient(),
-    nav = useNavigate();
+  const qc = useQueryClient();
+  const nav = useNavigate();
   const [open, setOpen] = useState(false);
   const mission = useQuery({ queryKey: parityKeys.mission, queryFn: dailyMission });
   const journeys = useQuery({ queryKey: parityKeys.journeys, queryFn: listJourneys });
@@ -54,6 +61,7 @@ function Journeys() {
     },
     onError: (e) => toast.error(safeBackendError(e)),
   });
+
   function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
@@ -64,6 +72,7 @@ function Journeys() {
       targetDate: String(f.get("targetDate") || "") || undefined,
     });
   }
+
   return (
     <PageShell>
       <WorkspaceShell>

@@ -36,7 +36,7 @@ import type { TranslationKey } from "@/i18n";
 const SIDEBAR_STORAGE_KEY = "nexora.web.sidebar.v1";
 const navigationGroups = [
   { id: "command", modules: ["dashboard", "assistant", "agents", "search"] },
-  { id: "execute", modules: ["projects", "productivity"] },
+  { id: "execute", modules: ["projects", "productivity", "documents"] },
   { id: "learn", modules: ["studies", "journeys", "passport", "packs"] },
   { id: "create", modules: ["creator"] },
   { id: "connect", modules: ["community", "challenges", "arena"] },

@@ -203,6 +203,7 @@ export const MODULES: NexoraModule[] = [
   },
   {
     id: "documents",
+    releaseReady: true,
     label: "Documents",
     path: "/documents",
     icon: FileText,
