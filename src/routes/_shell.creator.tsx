@@ -241,6 +241,7 @@ function CreatorStudio() {
       await importCreatorVideoFromUrl({
         url: sourceUrl,
         title: sourceTitle || undefined,
+        confirmedRights: sourceAuthorized,
         aspectRatio: "9:16",
         targetDurationSeconds: 30,
         captionsEnabled: true,
