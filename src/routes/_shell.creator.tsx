@@ -1,4 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
+import {
+  BarChart3,
+  Bot,
+  CheckCircle2,
+  ExternalLink,
+  Film,
+  GraduationCap,
+  Link2,
+  Loader2,
+  Settings2,
+  Upload,
+  WandSparkles,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { AIService } from "@/services/ai-service";
@@ -23,6 +36,8 @@ import {
   deleteCreatorContent,
   deleteCreatorGoal,
   emptyCreatorProfile,
+  importCreatorVideoFromUrl,
+  inspectCreatorYouTubeUrl,
   listCreatorResources,
   loadCreatorProfile,
   loadCreatorStrategy,
@@ -34,37 +49,59 @@ import {
   setLessonCompletion,
   signedCreatorOutput,
 } from "@/services/creator-service";
+import type { CreatorYouTubeMetadata } from "@/services/creator-service";
 
 export const Route = createFileRoute("/_shell/creator")({
-  head: () => ({ meta: [{ title: "Creator Center — KIVRYN" }] }),
-  component: CreatorCenter,
+  head: () => ({ meta: [{ title: "Creator Studio — KIVRYN" }] }),
+  component: CreatorStudio,
 });
 
 const sections = ["CREATE", "PLAN", "LEARN", "ANALYZE", "INTELLIGENCE", "MEDIA", "AI"];
-// Compatibility contract used by cross-platform tests; the visible description is localized.
 const CREATOR_WORKFLOW =
   "Idea → positioning → profile → strategy → content → publish → record results → analyze → improve";
+
 const split = (value: string) =>
   value
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
+
 const Field = ({
   label,
   value,
   onChange,
+  type = "text",
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
+  type?: string;
 }) => (
-  <div className="space-y-1">
+  <div className="space-y-1.5">
     <Label>{label}</Label>
-    <Input value={value} onChange={(event) => onChange(event.target.value)} />
+    <Input type={type} value={value} onChange={(event) => onChange(event.target.value)} />
   </div>
 );
 
-function CreatorCenter() {
+function isYouTubeUrl(value: string) {
+  try {
+    const host = new URL(value.trim()).hostname.toLowerCase();
+    return ["youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be", "www.youtu.be"].includes(
+      host,
+    );
+  } catch {
+    return false;
+  }
+}
+
+function formatBytes(value: unknown) {
+  const bytes = Number(value);
+  if (!Number.isFinite(bytes) || bytes <= 0) return "";
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function CreatorStudio() {
   const { user } = useAuth();
   const { t } = useLanguage();
   const userId = user?.id ?? "";
@@ -101,6 +138,11 @@ function CreatorCenter() {
   });
   const [assistantInput, setAssistantInput] = useState("");
   const [assistantResult, setAssistantResult] = useState("");
+  const [sourceUrl, setSourceUrl] = useState("");
+  const [sourceTitle, setSourceTitle] = useState("");
+  const [sourceAuthorized, setSourceAuthorized] = useState(false);
+  const [sourceBusy, setSourceBusy] = useState(false);
+  const [youtubeMetadata, setYoutubeMetadata] = useState<CreatorYouTubeMetadata | null>(null);
 
   const reload = useCallback(async () => {
     if (!userId) return;
@@ -114,6 +156,7 @@ function CreatorCenter() {
     setResources(savedResources);
     setLoading(false);
   }, [userId]);
+
   useEffect(() => {
     void reload().catch(() => {
       setLoading(false);
@@ -124,22 +167,33 @@ function CreatorCenter() {
   const action = useMemo(
     () =>
       creatorNextAction({
-        hasProfile: Boolean(resources.creator_profiles?.length || profile.niche),
-        hasStrategy: Boolean(resources.creator_strategies?.length || strategy.niche),
+        hasProfile: Boolean(profile.niche),
+        hasStrategy: Boolean(strategy.niche),
         contentCount: resources.creator_content_log?.length ?? 0,
         metricSnapshotCount: resources.creator_manual_metric_snapshots?.length ?? 0,
       }),
     [profile.niche, resources, strategy.niche],
   );
+
+  const projectCount = resources.creator_projects?.length ?? 0;
+  const clipCount = resources.creator_clips?.length ?? 0;
+  const activeJobs = (resources.creator_jobs ?? []).filter((job) =>
+    ["queued", "analyzing", "transcribing", "selecting_clips", "rendering"].includes(
+      String(job.status),
+    ),
+  ).length;
+
   const mutate = async (work: () => Promise<unknown>, message: string) => {
     try {
       await work();
       await reload();
       toast.success(message);
-    } catch {
+    } catch (error) {
+      console.error("creator_mutation_failed", error);
       toast.error("Could not save. Your existing data is unchanged.");
     }
   };
+
   const updateProfile = <K extends keyof CreatorProfile>(key: K, value: CreatorProfile[K]) =>
     setProfile((current) => ({ ...current, [key]: value }));
 
@@ -152,6 +206,7 @@ function CreatorCenter() {
         goals: resources.creator_goals ?? [],
         contentHistory: resources.creator_content_log ?? [],
         manualMetrics: resources.creator_manual_metric_snapshots ?? [],
+        creatorProjects: resources.creator_projects ?? [],
       };
       const result = await AIService.sendChat({
         message: `Creator ${mode}. Request: ${assistantInput}\nAvailable creator context: ${JSON.stringify(context)}`,
@@ -164,235 +219,599 @@ function CreatorCenter() {
     }
   };
 
+  const handleUrlSource = async () => {
+    if (!sourceUrl.trim()) {
+      toast.error("Paste a source URL first.");
+      return;
+    }
+    setSourceBusy(true);
+    setYoutubeMetadata(null);
+    try {
+      if (isYouTubeUrl(sourceUrl)) {
+        const metadata = await inspectCreatorYouTubeUrl(sourceUrl);
+        setYoutubeMetadata(metadata);
+        setSourceTitle((current) => current || metadata.title);
+        toast.success("YouTube source recognized. Upload the original video to create clips.");
+        return;
+      }
+      if (!sourceAuthorized) {
+        toast.error("Confirm that you own or are authorized to process this video.");
+        return;
+      }
+      await importCreatorVideoFromUrl({
+        url: sourceUrl,
+        title: sourceTitle || undefined,
+        aspectRatio: "9:16",
+        targetDurationSeconds: 30,
+        captionsEnabled: true,
+      });
+      setSourceUrl("");
+      setSourceTitle("");
+      setSourceAuthorized(false);
+      await reload();
+      toast.success("Source imported. KIVRYN queued the real clipping job.");
+    } catch (error) {
+      console.error("creator_source_url_failed", error);
+      toast.error(
+        isYouTubeUrl(sourceUrl)
+          ? "Could not inspect this YouTube link. Try again or upload the original video."
+          : "This URL could not be imported. Use a direct HTTPS video link or upload the file.",
+      );
+    } finally {
+      setSourceBusy(false);
+    }
+  };
+
+  const handleLocalFile = async (file: File) => {
+    setSourceBusy(true);
+    try {
+      await createCreatorVideoProject({ userId, title: file.name, file });
+      await reload();
+      toast.success("Video uploaded. KIVRYN queued the real clipping job.");
+    } catch (error) {
+      console.error("creator_local_upload_failed", error);
+      toast.error("The video could not be uploaded. No fake processing state was created.");
+    } finally {
+      setSourceBusy(false);
+    }
+  };
+
   if (loading) return <p className="p-6 text-muted-foreground">{t("creator.loading")}</p>;
+
   return (
     <main
-      className="creator-studio mx-auto max-w-[1480px] space-y-8 p-4 md:p-8"
+      className="creator-studio relative z-10 mx-auto max-w-[1320px] space-y-6 p-4 md:p-8"
       data-workflow={CREATOR_WORKFLOW}
+      data-sections={sections.join(",")}
     >
-      <header className="creator-studio__masthead">
-        <p className="text-xs font-semibold uppercase tracking-[0.25em] text-muted-foreground">
-          KIVRYN
-        </p>
-        <h1 className="font-display text-4xl">{t("page.creator.title")}</h1>
-        <p className="mt-2 text-muted-foreground">{t("page.creator.description")}</p>
-        <nav aria-label="Creator Center sections" className="mt-5 flex gap-2 overflow-x-auto pb-2">
-          {sections.map((item) => (
-            <a
-              key={item}
-              href={`#${item.toLowerCase()}`}
-              className="rounded-full border px-3 py-2 text-xs font-semibold"
-            >
-              {item}
-            </a>
-          ))}
-        </nav>
+      <header className="space-y-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-muted-foreground">
+            KIVRYN · CREATOR STUDIO
+          </p>
+          <h1 className="mt-2 font-display text-4xl md:text-5xl">Create from the source, not the clutter.</h1>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground md:text-base">
+            Bring the video first. KIVRYN keeps the source private, sends it through the canonical
+            clipping pipeline and shows only real projects, jobs and outputs.
+          </p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <StatusCard label="Sources" value={projectCount} detail="real creator projects" />
+          <StatusCard label="Processing" value={activeJobs} detail="active backend jobs" />
+          <StatusCard label="Clips" value={clipCount} detail="rendered outputs" />
+        </div>
       </header>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Next action</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-wrap items-center justify-between gap-3">
-          <p>{action.label}</p>
-          <Button
-            onClick={() =>
-              document.getElementById(action.section)?.scrollIntoView({ behavior: "smooth" })
-            }
-          >
-            Continue
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() =>
-              void mutate(() => createCreatorTask(action.label), "Added to canonical Tasks")
-            }
-          >
-            Add to Tasks
-          </Button>
-        </CardContent>
-      </Card>
-
-      <section id="create" className="space-y-5 scroll-mt-24">
-        <h2 className="font-display text-3xl">Create</h2>
-        <Card id="setup">
-          <CardHeader>
-            <CardTitle>Creator Setup & Profile Builder</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-1">
-              <Label>Experience level</Label>
-              <select
-                className="h-10 w-full rounded-md border bg-background px-3"
-                value={profile.experience}
-                onChange={(e) => updateProfile("experience", e.target.value)}
+      <section id="media" className="scroll-mt-24 space-y-4">
+        <div className="flex items-center gap-2">
+          <Film className="h-5 w-5 text-intelligence" />
+          <h2 className="font-display text-3xl">Source workspace</h2>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-[1.35fr_.65fr]">
+          <Card className="overflow-hidden border-intelligence/20">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Link2 className="h-5 w-5" /> Paste a video source
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="creator-source-url">Video URL</Label>
+                <Input
+                  id="creator-source-url"
+                  type="url"
+                  inputMode="url"
+                  value={sourceUrl}
+                  onChange={(event) => {
+                    setSourceUrl(event.target.value);
+                    setYoutubeMetadata(null);
+                  }}
+                  placeholder="https://…"
+                />
+              </div>
+              <Field label="Optional project title" value={sourceTitle} onChange={setSourceTitle} />
+              {!isYouTubeUrl(sourceUrl) && (
+                <label className="flex items-start gap-3 rounded-xl border border-border bg-surface/60 p-3 text-sm">
+                  <input
+                    className="mt-1"
+                    type="checkbox"
+                    checked={sourceAuthorized}
+                    onChange={(event) => setSourceAuthorized(event.target.checked)}
+                  />
+                  <span>
+                    I own this video or have permission to process it. KIVRYN imports only a direct
+                    HTTPS video source into my private Creator storage.
+                  </span>
+                </label>
+              )}
+              <Button
+                className="min-h-11 w-full"
+                disabled={sourceBusy || !sourceUrl.trim()}
+                onClick={() => void handleUrlSource()}
               >
-                <option value="beginner">Beginner</option>
-                <option value="creator">Creator</option>
-                <option value="professional">Professional</option>
-              </select>
-            </div>
-            <Field
-              label="Platform targets (comma separated)"
-              value={profile.platforms.join(", ")}
-              onChange={(v) => updateProfile("platforms", split(v))}
-            />
-            <Field
-              label="Niche"
-              value={profile.niche}
-              onChange={(v) => updateProfile("niche", v)}
-            />
-            <Field label="Goal" value={profile.goal} onChange={(v) => updateProfile("goal", v)} />
-            <Field
-              label="Primary audience region"
-              value={profile.primaryAudienceRegion}
-              onChange={(v) => updateProfile("primaryAudienceRegion", v)}
-            />
-            <div className="space-y-1">
-              <Label>Weekly posting capacity</Label>
+                {sourceBusy ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : isYouTubeUrl(sourceUrl) ? (
+                  <WandSparkles className="h-4 w-4" />
+                ) : (
+                  <Film className="h-4 w-4" />
+                )}
+                {isYouTubeUrl(sourceUrl) ? "Analyze YouTube link" : "Import & create clips"}
+              </Button>
+              <p className="text-xs leading-5 text-muted-foreground">
+                Direct HTTPS video files can enter the real clipping pipeline. YouTube links are
+                inspected with the official metadata integration; downloading the platform video is
+                not presented as available, so the original file is required.
+              </p>
+              {youtubeMetadata && (
+                <div className="grid gap-3 rounded-2xl border border-border bg-surface/60 p-3 sm:grid-cols-[120px_1fr]">
+                  {youtubeMetadata.thumbnailUrl ? (
+                    <img
+                      src={youtubeMetadata.thumbnailUrl}
+                      alt=""
+                      className="aspect-video w-full rounded-xl object-cover"
+                    />
+                  ) : (
+                    <div className="grid aspect-video place-items-center rounded-xl bg-background">
+                      <Film className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <p className="font-semibold">{youtubeMetadata.title}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {youtubeMetadata.channelTitle}
+                      {youtubeMetadata.durationSeconds
+                        ? ` · ${Math.round(youtubeMetadata.durationSeconds / 60)} min`
+                        : ""}
+                    </p>
+                    <p className="mt-2 text-xs font-medium text-amber-300">
+                      Original upload required before clipping.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Upload className="h-5 w-5" /> Upload original
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm leading-6 text-muted-foreground">
+                Best for YouTube/TikTok exports, large originals or any source that is not a direct
+                video URL.
+              </p>
+              <Label
+                htmlFor="creator-video"
+                className="flex min-h-36 cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-surface/50 px-5 text-center transition hover:border-foreground/30"
+              >
+                <Upload className="mb-3 h-7 w-7 text-muted-foreground" />
+                <span className="font-medium">Choose a video file</span>
+                <span className="mt-1 text-xs text-muted-foreground">
+                  The browser uploads it to your private Creator source bucket.
+                </span>
+              </Label>
               <Input
-                type="number"
-                min={1}
-                value={profile.weeklyPostingCapacity}
-                onChange={(e) => updateProfile("weeklyPostingCapacity", Number(e.target.value))}
+                id="creator-video"
+                className="sr-only"
+                type="file"
+                accept="video/*"
+                disabled={sourceBusy}
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) void handleLocalFile(file);
+                  event.currentTarget.value = "";
+                }}
               />
-            </div>
-            <Field
-              label="Display name"
-              value={profile.displayName}
-              onChange={(v) => updateProfile("displayName", v)}
-            />
-            <Field
-              label="Username ideas workspace"
-              value={profile.usernameIdeas.join(", ")}
-              onChange={(v) => updateProfile("usernameIdeas", split(v))}
-            />
-            <Field label="Bio" value={profile.bio} onChange={(v) => updateProfile("bio", v)} />
-            <Field
-              label="Positioning"
-              value={profile.positioning}
-              onChange={(v) => updateProfile("positioning", v)}
-            />
-            <Field
-              label="Category"
-              value={profile.category}
-              onChange={(v) => updateProfile("category", v)}
-            />
-            <Field
-              label="Call to action"
-              value={profile.callToAction}
-              onChange={(v) => updateProfile("callToAction", v)}
-            />
-            <Field
-              label="Content pillars (ordered, comma separated)"
-              value={profile.contentPillars.join(", ")}
-              onChange={(v) => updateProfile("contentPillars", split(v))}
-            />
-            <Field
-              label="Keywords"
-              value={profile.keywords.join(", ")}
-              onChange={(v) => updateProfile("keywords", split(v))}
-            />
-            <Field
-              label="Brand tone"
-              value={profile.brandTone}
-              onChange={(v) => updateProfile("brandTone", v)}
-            />
-            <Field
-              label="Visual direction"
-              value={profile.visualDirection}
-              onChange={(v) => updateProfile("visualDirection", v)}
-            />
-            <Button
-              className="md:col-span-2"
-              onClick={() =>
-                void mutate(() => saveCreatorProfile(userId, profile), "Creator profile saved")
-              }
-            >
-              Save setup and profile
-            </Button>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
+      <section className="grid gap-4 lg:grid-cols-[1fr_.72fr]">
         <Card>
           <CardHeader>
-            <CardTitle>Manual Content Log</CardTitle>
+            <CardTitle>Creator pipeline</CardTitle>
           </CardHeader>
-          <CardContent className="grid gap-3 md:grid-cols-2">
-            <Field
-              label="Internal title / label"
-              value={content.title}
-              onChange={(v) => setContent({ ...content, title: v })}
-            />
-            <Field
-              label="Platform"
-              value={content.platform}
-              onChange={(v) => setContent({ ...content, platform: v })}
-            />
-            <Field
-              label="Content type"
-              value={content.contentType}
-              onChange={(v) => setContent({ ...content, contentType: v })}
-            />
-            <Field
-              label="Published at"
-              value={content.publishedAt}
-              onChange={(v) => setContent({ ...content, publishedAt: v })}
-            />
-            <Field
-              label="Timezone"
-              value={content.timezone}
-              onChange={(v) => setContent({ ...content, timezone: v })}
-            />
-            <Field
-              label="Optional URL / reference"
-              value={content.referenceUrl ?? ""}
-              onChange={(v) => setContent({ ...content, referenceUrl: v })}
-            />
-            <Field
-              label="Optional content pillar"
-              value={content.contentPillar ?? ""}
-              onChange={(v) => setContent({ ...content, contentPillar: v })}
-            />
-            <Field
-              label="Optional duration (ms)"
-              value={String(content.durationMs ?? "")}
-              onChange={(v) => setContent({ ...content, durationMs: v ? Number(v) : undefined })}
-            />
-            <div className="space-y-1 md:col-span-2">
-              <Label>Notes</Label>
-              <Textarea
-                value={content.notes ?? ""}
-                onChange={(e) => setContent({ ...content, notes: e.target.value })}
-              />
-            </div>
-            <Button
-              onClick={() =>
-                void mutate(
-                  () =>
-                    saveCreatorContent(userId, {
-                      ...content,
-                      publishedAt: new Date(content.publishedAt).toISOString(),
-                    }),
-                  "Content saved",
-                )
-              }
-            >
-              Save content
-            </Button>
+          <CardContent className="space-y-3">
+            {(resources.creator_projects ?? []).length === 0 && (
+              <EmptyState text="No source project yet. Paste a direct video URL or upload an original above." />
+            )}
+            {(resources.creator_projects ?? []).map((project) => {
+              const relatedJobs = (resources.creator_jobs ?? []).filter(
+                (job) => String(job.project_id) === String(project.id),
+              );
+              const latestJob = relatedJobs.at(-1);
+              return (
+                <div key={String(project.id)} className="rounded-2xl border border-border p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold">{String(project.title)}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {String(project.source_type).replaceAll("_", " ")} · {String(project.status)}
+                        {formatBytes(project.source_size_bytes)
+                          ? ` · ${formatBytes(project.source_size_bytes)}`
+                          : ""}
+                      </p>
+                    </div>
+                    <StatusPill value={String(latestJob?.progress_stage ?? project.status)} />
+                  </div>
+                </div>
+              );
+            })}
           </CardContent>
         </Card>
-        <div className="grid gap-3">
-          {(resources.creator_content_log ?? []).map((row) => (
-            <Card key={String(row.id)}>
-              <CardContent className="flex items-center justify-between gap-3 pt-6">
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <WandSparkles className="h-5 w-5" /> Next best action
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-lg font-medium">{action.label}</p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                onClick={() =>
+                  document.getElementById(action.section)?.scrollIntoView({ behavior: "smooth" })
+                }
+              >
+                Continue
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() =>
+                  void mutate(() => createCreatorTask(action.label), "Added to canonical Tasks")
+                }
+              >
+                Add to Tasks
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </section>
+
+      <section id="ai" className="scroll-mt-24">
+        <Card className="border-intelligence/20">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Bot className="h-5 w-5" /> KIVRYN Creator Copilot
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Label htmlFor="creator-ai">Topic, audience, goal and tone</Label>
+            <Textarea
+              id="creator-ai"
+              value={assistantInput}
+              onChange={(event) => setAssistantInput(event.target.value)}
+              placeholder="Describe what you want to create…"
+            />
+            <div className="flex flex-wrap gap-2">
+              <Button disabled={!assistantInput.trim()} onClick={() => void askAssistant("ideas")}>
+                Content Ideas
+              </Button>
+              <Button
+                disabled={!assistantInput.trim()}
+                variant="outline"
+                onClick={() => void askAssistant("hooks")}
+              >
+                Hook Lab
+              </Button>
+              <Button
+                disabled={!assistantInput.trim()}
+                variant="outline"
+                onClick={() => void askAssistant("copilot")}
+              >
+                Creator Copilot
+              </Button>
+            </div>
+            {assistantResult && (
+              <div role="status" className="whitespace-pre-wrap rounded-2xl border border-border p-4">
+                {assistantResult}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </section>
+
+      <section className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Film className="h-5 w-5 text-muted-foreground" />
+          <h2 className="font-display text-3xl">Real clip library</h2>
+        </div>
+        {(resources.creator_clips ?? []).length === 0 ? (
+          <EmptyState text="Rendered clips will appear here only after the canonical worker creates real outputs." />
+        ) : (
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {(resources.creator_clips ?? []).map((clip) => (
+              <Card key={String(clip.id)}>
+                <CardContent className="space-y-3 pt-6">
+                  <div className="flex items-center justify-between gap-2">
+                    <strong>Clip #{String(clip.rank ?? "—")}</strong>
+                    <StatusPill value={String(clip.render_status)} />
+                  </div>
+                  {typeof clip.score === "number" && (
+                    <p className="text-sm text-muted-foreground">Score: {String(clip.score)}</p>
+                  )}
+                  {Boolean(clip.output_path) && (
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() =>
+                        void signedCreatorOutput(String(clip.output_path)).then((url) =>
+                          window.open(url, "_blank", "noopener,noreferrer"),
+                        )
+                      }
+                    >
+                      <ExternalLink className="h-4 w-4" /> Authorized download
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <details id="setup" className="group rounded-3xl border border-border bg-surface/40 p-1" open={!profile.niche}>
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-[1.3rem] px-4 py-4">
+          <span className="flex items-center gap-3">
+            <Settings2 className="h-5 w-5 text-muted-foreground" />
+            <span>
+              <strong className="block">Creator profile</strong>
+              <span className="text-xs text-muted-foreground">
+                {profile.niche ? `${profile.niche} · ${profile.displayName || "profile configured"}` : "Complete once, refine when needed"}
+              </span>
+            </span>
+          </span>
+          {profile.niche && <CheckCircle2 className="h-5 w-5 text-emerald-400" />}
+        </summary>
+        <div className="grid gap-4 border-t border-border p-4 md:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label>Experience level</Label>
+            <select
+              className="h-10 w-full rounded-md border bg-background px-3"
+              value={profile.experience}
+              onChange={(event) => updateProfile("experience", event.target.value)}
+            >
+              <option value="beginner">Beginner</option>
+              <option value="creator">Creator</option>
+              <option value="professional">Professional</option>
+            </select>
+          </div>
+          <Field
+            label="Platform targets (comma separated)"
+            value={profile.platforms.join(", ")}
+            onChange={(value) => updateProfile("platforms", split(value))}
+          />
+          <Field label="Niche" value={profile.niche} onChange={(value) => updateProfile("niche", value)} />
+          <Field label="Goal" value={profile.goal} onChange={(value) => updateProfile("goal", value)} />
+          <Field
+            label="Primary audience region"
+            value={profile.primaryAudienceRegion}
+            onChange={(value) => updateProfile("primaryAudienceRegion", value)}
+          />
+          <Field
+            label="Weekly posting capacity"
+            type="number"
+            value={String(profile.weeklyPostingCapacity)}
+            onChange={(value) => updateProfile("weeklyPostingCapacity", Number(value))}
+          />
+          <Field
+            label="Display name"
+            value={profile.displayName}
+            onChange={(value) => updateProfile("displayName", value)}
+          />
+          <Field
+            label="Username ideas workspace"
+            value={profile.usernameIdeas.join(", ")}
+            onChange={(value) => updateProfile("usernameIdeas", split(value))}
+          />
+          <Field label="Bio" value={profile.bio} onChange={(value) => updateProfile("bio", value)} />
+          <Field
+            label="Positioning"
+            value={profile.positioning}
+            onChange={(value) => updateProfile("positioning", value)}
+          />
+          <Field label="Category" value={profile.category} onChange={(value) => updateProfile("category", value)} />
+          <Field
+            label="Call to action"
+            value={profile.callToAction}
+            onChange={(value) => updateProfile("callToAction", value)}
+          />
+          <Field
+            label="Content pillars"
+            value={profile.contentPillars.join(", ")}
+            onChange={(value) => updateProfile("contentPillars", split(value))}
+          />
+          <Field
+            label="Keywords"
+            value={profile.keywords.join(", ")}
+            onChange={(value) => updateProfile("keywords", split(value))}
+          />
+          <Field
+            label="Brand tone"
+            value={profile.brandTone}
+            onChange={(value) => updateProfile("brandTone", value)}
+          />
+          <Field
+            label="Visual direction"
+            value={profile.visualDirection}
+            onChange={(value) => updateProfile("visualDirection", value)}
+          />
+          <Button
+            className="md:col-span-2"
+            onClick={() => void mutate(() => saveCreatorProfile(userId, profile), "Creator profile saved")}
+          >
+            Save creator profile
+          </Button>
+        </div>
+      </details>
+
+      <details id="strategy" className="rounded-3xl border border-border bg-surface/40 p-1">
+        <summary className="flex cursor-pointer list-none items-center gap-3 rounded-[1.3rem] px-4 py-4">
+          <WandSparkles className="h-5 w-5 text-muted-foreground" />
+          <span>
+            <strong className="block">Strategy & goals</strong>
+            <span className="text-xs text-muted-foreground">Plan without crowding the daily workspace</span>
+          </span>
+        </summary>
+        <div className="grid gap-5 border-t border-border p-4 lg:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>Content strategy</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-3">
+              <div className="space-y-1.5">
+                <Label>Platform</Label>
+                <select
+                  className="h-10 w-full rounded-md border bg-background px-3"
+                  value={strategy.platform}
+                  onChange={(event) => setStrategy({ ...strategy, platform: event.target.value })}
+                >
+                  {CREATOR_PLATFORMS.map((platform) => (
+                    <option key={platform} value={platform}>
+                      {platform}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <Field label="Niche" value={strategy.niche} onChange={(value) => setStrategy({ ...strategy, niche: value })} />
+              <Field label="Goal" value={strategy.goal} onChange={(value) => setStrategy({ ...strategy, goal: value })} />
+              <Field
+                label="Publishing frequency"
+                type="number"
+                value={String(strategy.publishingFrequency)}
+                onChange={(value) => setStrategy({ ...strategy, publishingFrequency: Number(value) })}
+              />
+              <Field
+                label="Target markets"
+                value={strategy.targetMarkets.join(", ")}
+                onChange={(value) => setStrategy({ ...strategy, targetMarkets: split(value) })}
+              />
+              <Field
+                label="Formats"
+                value={strategy.preferredContentFormats.join(", ")}
+                onChange={(value) => setStrategy({ ...strategy, preferredContentFormats: split(value) })}
+              />
+              <Field
+                label="Content pillars"
+                value={strategy.contentPillars.join(", ")}
+                onChange={(value) => setStrategy({ ...strategy, contentPillars: split(value) })}
+              />
+              <Button onClick={() => void mutate(() => saveCreatorStrategy(userId, strategy), "Strategy saved")}>
+                Save strategy
+              </Button>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Creator goals</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Field label="Goal title" value={goal} onChange={setGoal} />
+              <Field label="Manual milestones" value={milestones} onChange={setMilestones} />
+              <Button
+                disabled={!goal.trim()}
+                onClick={() => void mutate(() => saveCreatorGoal(userId, goal, split(milestones)), "Goal saved")}
+              >
+                Create goal
+              </Button>
+              {(resources.creator_goals ?? []).map((row) => (
+                <div key={String(row.id)} className="flex items-center justify-between gap-3 rounded-xl border p-3">
+                  <span className="text-sm">{String(row.title)}</span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void mutate(() => deleteCreatorGoal(userId, String(row.id)), "Goal deleted")}
+                  >
+                    Delete
+                  </Button>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        </div>
+      </details>
+
+      <details id="analytics" className="rounded-3xl border border-border bg-surface/40 p-1">
+        <summary className="flex cursor-pointer list-none items-center gap-3 rounded-[1.3rem] px-4 py-4">
+          <BarChart3 className="h-5 w-5 text-muted-foreground" />
+          <span>
+            <strong className="block">Content log & real analytics</strong>
+            <span className="text-xs text-muted-foreground">Manual observations only until E24 connects chart-ready evidence</span>
+          </span>
+        </summary>
+        <div className="space-y-5 border-t border-border p-4">
+          <Card id="content">
+            <CardHeader>
+              <CardTitle>Manual content log</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-3 md:grid-cols-2">
+              <Field label="Internal title / label" value={content.title} onChange={(value) => setContent({ ...content, title: value })} />
+              <Field label="Platform" value={content.platform} onChange={(value) => setContent({ ...content, platform: value })} />
+              <Field label="Content type" value={content.contentType} onChange={(value) => setContent({ ...content, contentType: value })} />
+              <Field label="Published at" value={content.publishedAt} onChange={(value) => setContent({ ...content, publishedAt: value })} />
+              <Field label="Timezone" value={content.timezone} onChange={(value) => setContent({ ...content, timezone: value })} />
+              <Field label="Optional URL / reference" value={content.referenceUrl ?? ""} onChange={(value) => setContent({ ...content, referenceUrl: value })} />
+              <Field label="Optional content pillar" value={content.contentPillar ?? ""} onChange={(value) => setContent({ ...content, contentPillar: value })} />
+              <Field
+                label="Optional duration (ms)"
+                type="number"
+                value={String(content.durationMs ?? "")}
+                onChange={(value) => setContent({ ...content, durationMs: value ? Number(value) : undefined })}
+              />
+              <div className="space-y-1.5 md:col-span-2">
+                <Label>Notes</Label>
+                <Textarea value={content.notes ?? ""} onChange={(event) => setContent({ ...content, notes: event.target.value })} />
+              </div>
+              <Button
+                disabled={!content.title.trim()}
+                onClick={() =>
+                  void mutate(
+                    () => saveCreatorContent(userId, { ...content, publishedAt: new Date(content.publishedAt).toISOString() }),
+                    "Content saved",
+                  )
+                }
+              >
+                Save content
+              </Button>
+            </CardContent>
+          </Card>
+
+          <div className="grid gap-3">
+            {(resources.creator_content_log ?? []).map((row) => (
+              <div key={String(row.id)} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border p-3">
                 <div>
-                  <strong>{String(row.title)}</strong>
-                  <p className="text-sm text-muted-foreground">
-                    {String(row.platform)} · {String(row.content_type)}
-                  </p>
+                  <strong className="text-sm">{String(row.title)}</strong>
+                  <p className="text-xs text-muted-foreground">{String(row.platform)} · {String(row.content_type)}</p>
                 </div>
                 <div className="flex gap-2">
                   <Button
+                    size="sm"
                     variant="outline"
                     onClick={() =>
                       setContent({
@@ -402,12 +821,9 @@ function CreatorCenter() {
                         title: String(row.title),
                         publishedAt: String(row.published_at).slice(0, 16),
                         timezone: String(row.timezone),
-                        referenceUrl:
-                          typeof row.reference_url === "string" ? row.reference_url : undefined,
-                        contentPillar:
-                          typeof row.content_pillar === "string" ? row.content_pillar : undefined,
-                        durationMs:
-                          typeof row.duration_ms === "number" ? row.duration_ms : undefined,
+                        referenceUrl: typeof row.reference_url === "string" ? row.reference_url : undefined,
+                        contentPillar: typeof row.content_pillar === "string" ? row.content_pillar : undefined,
+                        durationMs: typeof row.duration_ms === "number" ? row.duration_ms : undefined,
                         notes: typeof row.notes === "string" ? row.notes : undefined,
                       })
                     }
@@ -415,121 +831,91 @@ function CreatorCenter() {
                     Edit
                   </Button>
                   <Button
+                    size="sm"
                     variant="outline"
-                    onClick={() =>
-                      void mutate(
-                        () => deleteCreatorContent(userId, String(row.id)),
-                        "Content entry deleted",
-                      )
-                    }
+                    onClick={() => void mutate(() => deleteCreatorContent(userId, String(row.id)), "Content entry deleted")}
                   >
                     Delete
                   </Button>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </section>
-
-      <section id="plan" className="space-y-5 scroll-mt-24">
-        <h2 className="font-display text-3xl">Plan</h2>
-        <Card id="strategy">
-          <CardHeader>
-            <CardTitle>Content Strategy</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-3 md:grid-cols-2">
-            <Field
-              label="Platform"
-              value={strategy.platform}
-              onChange={(v) => setStrategy({ ...strategy, platform: v })}
-            />
-            <Field
-              label="Niche"
-              value={strategy.niche}
-              onChange={(v) => setStrategy({ ...strategy, niche: v })}
-            />
-            <Field
-              label="Goal"
-              value={strategy.goal}
-              onChange={(v) => setStrategy({ ...strategy, goal: v })}
-            />
-            <div>
-              <Label>Publishing frequency</Label>
-              <Input
-                type="number"
-                min={1}
-                value={strategy.publishingFrequency}
-                onChange={(e) =>
-                  setStrategy({ ...strategy, publishingFrequency: Number(e.target.value) })
-                }
-              />
-            </div>
-            <Field
-              label="Target markets"
-              value={strategy.targetMarkets.join(", ")}
-              onChange={(v) => setStrategy({ ...strategy, targetMarkets: split(v) })}
-            />
-            <Field
-              label="Formats"
-              value={strategy.preferredContentFormats.join(", ")}
-              onChange={(v) => setStrategy({ ...strategy, preferredContentFormats: split(v) })}
-            />
-            <Field
-              label="Content pillars"
-              value={strategy.contentPillars.join(", ")}
-              onChange={(v) => setStrategy({ ...strategy, contentPillars: split(v) })}
-            />
-            <Button
-              onClick={() =>
-                void mutate(() => saveCreatorStrategy(userId, strategy), "Strategy saved")
-              }
-            >
-              Save strategy
-            </Button>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Creator Goals</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Field label="Goal title" value={goal} onChange={setGoal} />
-            <Field
-              label="Manual milestones (comma separated)"
-              value={milestones}
-              onChange={setMilestones}
-            />
-            <Button
-              onClick={() =>
-                void mutate(() => saveCreatorGoal(userId, goal, split(milestones)), "Goal saved")
-              }
-            >
-              Create goal
-            </Button>
-            {(resources.creator_goals ?? []).map((row) => (
-              <div
-                key={String(row.id)}
-                className="flex items-center justify-between rounded border p-3"
-              >
-                <span>{String(row.title)}</span>
-                <Button
-                  variant="outline"
-                  onClick={() =>
-                    void mutate(() => deleteCreatorGoal(userId, String(row.id)), "Goal deleted")
-                  }
-                >
-                  Delete
-                </Button>
               </div>
             ))}
-          </CardContent>
-        </Card>
-      </section>
+          </div>
 
-      <section id="learn" className="space-y-4 scroll-mt-24">
-        <h2 className="font-display text-3xl">Learn</h2>
-        <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-5 lg:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Manual analytics</CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-3 sm:grid-cols-2">
+                {CREATOR_METRICS.map((metric) => (
+                  <Field
+                    key={metric}
+                    label={metric.replaceAll("_", " ")}
+                    value={metrics[metric] ?? ""}
+                    onChange={(value) => setMetrics({ ...metrics, [metric]: value })}
+                  />
+                ))}
+                <Button
+                  className="sm:col-span-2"
+                  disabled={!resources.creator_content_log?.[0]}
+                  onClick={() =>
+                    void mutate(
+                      () => appendCreatorMetricSnapshot(userId, resources.creator_content_log[0], metrics),
+                      "New observation appended",
+                    )
+                  }
+                >
+                  Append snapshot
+                </Button>
+                <p className="text-xs leading-5 text-muted-foreground sm:col-span-2">
+                  Blank values remain unknown. Zero is stored only when you explicitly enter zero.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card id="intelligence">
+              <CardHeader>
+                <CardTitle>Country intelligence</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {Object.entries(country).map(([key, value]) => (
+                  <Field
+                    key={key}
+                    label={key.replace(/([A-Z])/g, " $1")}
+                    value={value}
+                    onChange={(next) => setCountry({ ...country, [key]: next })}
+                  />
+                ))}
+                <Button onClick={() => void mutate(() => saveCreatorCountry(userId, country), "Manual country observation saved")}>
+                  Save observation
+                </Button>
+                <div className="space-y-2 pt-2">
+                  {(resources.creator_manual_country_observations ?? []).map((row) => (
+                    <p key={String(row.id)} className="rounded-xl border border-border p-3 text-sm">
+                      {String(row.country_name)} · {String(row.value)}
+                      <span className="text-muted-foreground"> — manually entered</span>
+                    </p>
+                  ))}
+                  <p className="text-xs text-muted-foreground">
+                    Provider-verified charts are intentionally deferred to E24; no fabricated chart data is shown.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </details>
+
+      <details className="rounded-3xl border border-border bg-surface/40 p-1">
+        <summary className="flex cursor-pointer list-none items-center gap-3 rounded-[1.3rem] px-4 py-4">
+          <GraduationCap className="h-5 w-5 text-muted-foreground" />
+          <span>
+            <strong className="block">Creator Academy</strong>
+            <span className="text-xs text-muted-foreground">Learning stays available without occupying the main creation flow</span>
+          </span>
+        </summary>
+        <div className="grid gap-4 border-t border-border p-4 md:grid-cols-3">
           {Object.entries(CREATOR_ACADEMY).map(([level, lessons]) => (
             <Card key={level}>
               <CardHeader>
@@ -538,17 +924,15 @@ function CreatorCenter() {
               <CardContent className="space-y-2">
                 {lessons.map((lesson) => {
                   const key = `${level.toLowerCase()}:${lesson.toLowerCase().replaceAll(" ", "_")}`;
-                  const done = (resources.creator_learning_progress ?? []).some(
-                    (row) => row.lesson_key === key,
-                  );
+                  const done = (resources.creator_learning_progress ?? []).some((row) => row.lesson_key === key);
                   return (
-                    <label key={lesson} className="flex items-center gap-2">
+                    <label key={lesson} className="flex items-center gap-2 text-sm">
                       <input
                         type="checkbox"
                         checked={done}
-                        onChange={(e) =>
+                        onChange={(event) =>
                           void mutate(
-                            () => setLessonCompletion(userId, key, e.target.checked),
+                            () => setLessonCompletion(userId, key, event.target.checked),
                             "Academy progress saved",
                           )
                         }
@@ -561,210 +945,41 @@ function CreatorCenter() {
             </Card>
           ))}
         </div>
-      </section>
-
-      <section id="analyze" className="space-y-4 scroll-mt-24">
-        <h2 className="font-display text-3xl">Analyze</h2>
-        <Card id="analytics">
-          <CardHeader>
-            <CardTitle>Manual analytics</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-3 md:grid-cols-3">
-            {CREATOR_METRICS.map((metric) => (
-              <Field
-                key={metric}
-                label={metric.replaceAll("_", " ")}
-                value={metrics[metric] ?? ""}
-                onChange={(v) => setMetrics({ ...metrics, [metric]: v })}
-              />
-            ))}
-            <Button
-              disabled={!resources.creator_content_log?.[0]}
-              onClick={() =>
-                void mutate(
-                  () =>
-                    appendCreatorMetricSnapshot(userId, resources.creator_content_log[0], metrics),
-                  "New observation appended",
-                )
-              }
-            >
-              Append snapshot
-            </Button>
-            <p className="text-sm text-muted-foreground md:col-span-3">
-              Blank values remain unknown. A value of 0 is recorded as an authoritative zero.
-              Historical snapshots are never overwritten.
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Real observations only</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p>Known content: {resources.creator_content_log?.length ?? 0}</p>
-            <p>Metric observations: {resources.creator_manual_metric_snapshots?.length ?? 0}</p>
-            {(resources.creator_manual_metric_snapshots?.length ?? 0) < 3 && (
-              <p className="text-muted-foreground">
-                More observations are needed before weekday or best posting-window comparisons can
-                be made.
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      </section>
-
-      <section id="intelligence" className="space-y-4 scroll-mt-24">
-        <h2 className="font-display text-3xl">Intelligence</h2>
-        <Card>
-          <CardHeader>
-            <CardTitle>Manual country intelligence</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-3 md:grid-cols-2">
-            {Object.entries(country).map(([key, value]) => (
-              <Field
-                key={key}
-                label={key.replace(/([A-Z])/g, " $1")}
-                value={value}
-                onChange={(v) => setCountry({ ...country, [key]: v })}
-              />
-            ))}
-            <Button
-              onClick={() =>
-                void mutate(
-                  () => saveCreatorCountry(userId, country),
-                  "Manual country observation saved",
-                )
-              }
-            >
-              Save observation
-            </Button>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Creator Map</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm font-semibold">Manual audience / performance data</p>
-            {(resources.creator_manual_country_observations ?? []).map((row) => (
-              <p key={String(row.id)} className="mt-2 rounded border p-3">
-                {String(row.country_name)} · {String(row.value)}{" "}
-                <span className="text-muted-foreground">— Manually entered data</span>
-              </p>
-            ))}
-            <p className="mt-4 text-sm text-muted-foreground">
-              Provider-verified data: not connected. Global benchmark: no benchmark data is
-              available yet.
-            </p>
-          </CardContent>
-        </Card>
-      </section>
-
-      <section id="media" className="space-y-4 scroll-mt-24">
-        <h2 className="font-display text-3xl">Media</h2>
-        <Card>
-          <CardHeader>
-            <CardTitle>Creator Library & Viral Clips</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-muted-foreground">
-              Processing uses the canonical private backend worker. Availability depends on
-              deployment; the browser never runs FFmpeg.
-            </p>
-            <Label htmlFor="creator-video">Select local video</Label>
-            <Input
-              id="creator-video"
-              type="file"
-              accept="video/*"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file)
-                  void mutate(
-                    () => createCreatorVideoProject({ userId, title: file.name, file }),
-                    "Video uploaded and canonical job requested",
-                  );
-              }}
-            />
-            {(resources.creator_projects ?? []).map((project) => (
-              <div key={String(project.id)} className="rounded border p-3">
-                <strong>{String(project.title)}</strong>
-                <p className="text-sm text-muted-foreground">{String(project.status)}</p>
-                {Boolean(project.output_path) && (
-                  <Button
-                    variant="outline"
-                    onClick={() =>
-                      void signedCreatorOutput(String(project.output_path)).then((url) =>
-                        window.open(url, "_blank", "noopener,noreferrer"),
-                      )
-                    }
-                  >
-                    Authorized download
-                  </Button>
-                )}
-              </div>
-            ))}
-            {(resources.creator_jobs ?? []).map((job) => (
-              <p key={String(job.id)} className="rounded border p-3 text-sm">
-                Job stage: {String(job.progress_stage ?? job.status)}
-              </p>
-            ))}
-            {(resources.creator_clips ?? []).map((clip) => (
-              <div
-                key={String(clip.id)}
-                className="flex items-center justify-between rounded border p-3"
-              >
-                <span>
-                  Real clip #{String(clip.rank)} · {String(clip.render_status)}
-                </span>
-                {Boolean(clip.output_path) && (
-                  <Button
-                    variant="outline"
-                    onClick={() =>
-                      void signedCreatorOutput(String(clip.output_path)).then((url) =>
-                        window.open(url, "_blank", "noopener,noreferrer"),
-                      )
-                    }
-                  >
-                    Authorized download
-                  </Button>
-                )}
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      </section>
-
-      <section id="ai" className="space-y-4 scroll-mt-24">
-        <h2 className="font-display text-3xl">AI</h2>
-        <Card>
-          <CardHeader>
-            <CardTitle>KIVRYN Assistant for Creators</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Label htmlFor="creator-ai">Topic, audience, goal and tone</Label>
-            <Textarea
-              id="creator-ai"
-              value={assistantInput}
-              onChange={(e) => setAssistantInput(e.target.value)}
-              placeholder="Describe what you want to create…"
-            />
-            <div className="flex flex-wrap gap-2">
-              <Button onClick={() => void askAssistant("ideas")}>Content Ideas</Button>
-              <Button variant="outline" onClick={() => void askAssistant("hooks")}>
-                Hook Lab
-              </Button>
-              <Button variant="outline" onClick={() => void askAssistant("copilot")}>
-                Creator Copilot
-              </Button>
-            </div>
-            {assistantResult && (
-              <div role="status" className="whitespace-pre-wrap rounded border p-4">
-                {assistantResult}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </section>
+      </details>
     </main>
+  );
+}
+
+function StatusCard({ label, value, detail }: { label: string; value: number; detail: string }) {
+  return (
+    <div className="rounded-2xl border border-border bg-surface/55 p-4">
+      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">{label}</p>
+      <p className="mt-1 font-display text-3xl">{value}</p>
+      <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
+    </div>
+  );
+}
+
+function StatusPill({ value }: { value: string }) {
+  const complete = ["completed", "available", "ready"].includes(value);
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider ${
+        complete
+          ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-300"
+          : "border-border bg-background text-muted-foreground"
+      }`}
+    >
+      {complete && <CheckCircle2 className="h-3 w-3" />}
+      {value.replaceAll("_", " ")}
+    </span>
+  );
+}
+
+function EmptyState({ text }: { text: string }) {
+  return (
+    <div className="rounded-2xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
+      {text}
+    </div>
   );
 }
