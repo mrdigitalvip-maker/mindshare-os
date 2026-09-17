@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { PageHeader, PageShell } from "@/components/page-shell";
@@ -6,11 +6,19 @@ import { RouteState } from "@/components/parity-state";
 import { Input } from "@/components/ui/input";
 import { listPacks, parityKeys } from "@/services/parity-service";
 import { WorkspaceShell } from "@/components/workspace-ui";
+
 export const Route = createFileRoute("/_shell/packs")({ component: Packs });
+
 function Packs() {
-  const q = useQuery({ queryKey: parityKeys.packs, queryFn: listPacks }),
-    [category, setCategory] = useState("");
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  return pathname !== "/packs" && pathname !== "/packs/" ? <Outlet /> : <PacksIndex />;
+}
+
+function PacksIndex() {
+  const q = useQuery({ queryKey: parityKeys.packs, queryFn: listPacks });
+  const [category, setCategory] = useState("");
   const shown = q.data?.filter((p) => !category || p.category === category);
+
   return (
     <PageShell>
       <PageHeader
