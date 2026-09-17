@@ -301,6 +301,10 @@ function CreatorStudio() {
           <StatusCard label="Processing" value={activeJobs} detail="active backend jobs" />
           <StatusCard label="Clips" value={clipCount} detail="rendered outputs" />
         </div>
+        <p className="text-xs leading-5 text-muted-foreground">
+          Standalone Creator works without social credentials. Social publishing integrations are not connected
+          unless a verified provider connection is configured.
+        </p>
       </header>
 
       <section id="media" className="scroll-mt-24 space-y-4">
