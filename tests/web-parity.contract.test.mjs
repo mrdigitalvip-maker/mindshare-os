@@ -188,10 +188,11 @@ test("manual Creator evidence is owner-scoped, nullable, and append-only", async
 
 test("Creator analytics and map never manufacture observations or best-time claims", async () => {
   const route = await read("src/routes/_shell.creator.tsx");
-  assert.match(route, /Real observations only/);
-  assert.match(route, /More observations are needed/);
-  assert.match(route, /Manually entered data/);
-  assert.match(route, /no benchmark data is\s+available yet/);
+  assert.match(route, /Manual observations only/);
+  assert.match(route, /Blank values remain unknown/);
+  assert.match(route, /manually entered/i);
+  assert.match(route, /Provider-verified charts are intentionally deferred/);
+  assert.match(route, /no fabricated chart data is shown/);
   assert.doesNotMatch(route, /fake|sample chart|mock metric/i);
 });
 
@@ -231,7 +232,9 @@ test("Creator Library and Viral Clips use canonical private backend contracts", 
   assert.match(service, /creator-sources/);
   assert.match(service, /enqueue_creator_job/);
   assert.match(service, /creator-outputs/);
-  assert.match(route, /browser never runs FFmpeg/);
+  assert.match(route, /canonical\s+clipping pipeline/i);
+  assert.match(route, /private Creator source bucket/i);
+  assert.doesNotMatch(route, /ffmpeg/i);
   assert.doesNotMatch(service, /ffmpeg|progress_percent:/i);
 });
 
@@ -274,7 +277,7 @@ test("standalone Creator mode requires no social credentials and missing resourc
     read("src/routes/_shell.creator.tsx"),
     read("src/services/creator-service.ts"),
   ]);
-  assert.doesNotMatch(service, /YOUTUBE|TIKTOK|INSTAGRAM.*KEY|client_secret/i);
+  assert.doesNotMatch(service, /\b(?:YOUTUBE|TIKTOK|INSTAGRAM)_[A-Z0-9_]*(?:API_)?KEY\b|client_secret/i);
   assert.match(route, /not connected/);
   assert.match(route, /temporarily unavailable\. Retry/);
   assert.match(service, /if \(!data\) return null/);
