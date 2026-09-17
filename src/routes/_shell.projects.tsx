@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Folder, Loader2, Plus, Search } from "lucide-react";
@@ -21,6 +21,11 @@ export const Route = createFileRoute("/_shell/projects")({
 type ProjectFilter = "all" | "active" | "completed";
 
 function Projects() {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  return pathname !== "/projects" && pathname !== "/projects/" ? <Outlet /> : <ProjectsIndex />;
+}
+
+function ProjectsIndex() {
   const { t } = useLanguage();
   const [creating, setCreating] = useState(false);
   const [search, setSearch] = useState("");
