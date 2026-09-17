@@ -4,6 +4,7 @@ import { jsonResponse, preflightResponse, rejectDisallowedOrigin } from "../_sha
 
 const MAX_SOURCE_BYTES = 200 * 1024 * 1024;
 const MAX_REDIRECTS = 3;
+const REQUEST_TIMEOUT_MS = 120_000;
 const VIDEO_TYPES = new Set([
   "video/mp4",
   "video/webm",
@@ -72,7 +73,7 @@ async function fetchSource(initial: URL) {
   for (let hop = 0; hop <= MAX_REDIRECTS; hop += 1) {
     await assertPublicHttpsUrl(current);
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 120_000);
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
     let response: Response;
     try {
       response = await fetch(current, {
@@ -84,9 +85,12 @@ async function fetchSource(initial: URL) {
         },
         signal: controller.signal,
       });
-    } finally {
+    } catch (error) {
       clearTimeout(timeout);
+      if (controller.signal.aborted) throw new Error("source_fetch_timeout");
+      throw error;
     }
+    clearTimeout(timeout);
     if (response.status >= 300 && response.status < 400) {
       const location = response.headers.get("location");
       await response.body?.cancel().catch(() => undefined);
@@ -156,6 +160,10 @@ Deno.serve(async (request) => {
   if (!user) return jsonResponse(request, { error: { code: "unauthorized" } }, 401);
 
   const input = await request.json().catch(() => ({}));
+  if (input.confirmedRights !== true) {
+    return jsonResponse(request, { error: { code: "rights_confirmation_required" } }, 400);
+  }
+
   const rawUrl = String(input.url ?? "").trim().slice(0, 2048);
   let requestedUrl: URL;
   try {
@@ -171,7 +179,7 @@ Deno.serve(async (request) => {
     fetched = await fetchSource(requestedUrl);
   } catch (error) {
     const code = error instanceof Error ? error.message : "source_fetch_failed";
-    const status = code === "source_fetch_failed" ? 422 : 400;
+    const status = code === "source_fetch_failed" || code === "source_fetch_timeout" ? 422 : 400;
     return jsonResponse(request, { error: { code } }, status);
   }
 
@@ -234,18 +242,28 @@ Deno.serve(async (request) => {
   }
 
   const path = `${user.id}/${project.id}/source/${fileName}`;
-  const storageResponse = await fetch(storageObjectUrl(supabaseUrl, path), {
-    method: "POST",
-    headers: {
-      Authorization: authorization,
-      apikey: anonKey,
-      "Content-Type": contentType,
-      "Content-Length": String(size),
-      "Cache-Control": "3600",
-      "x-upsert": "false",
-    },
-    body: fetched.response.body,
-  }).catch(() => null);
+  const storageController = new AbortController();
+  const storageTimeout = setTimeout(() => storageController.abort(), REQUEST_TIMEOUT_MS);
+  let storageResponse: Response | null = null;
+  try {
+    storageResponse = await fetch(storageObjectUrl(supabaseUrl, path), {
+      method: "POST",
+      headers: {
+        Authorization: authorization,
+        apikey: anonKey,
+        "Content-Type": contentType,
+        "Content-Length": String(size),
+        "Cache-Control": "3600",
+        "x-upsert": "false",
+      },
+      body: fetched.response.body,
+      signal: storageController.signal,
+    });
+  } catch {
+    await fetched.response.body?.cancel().catch(() => undefined);
+  } finally {
+    clearTimeout(storageTimeout);
+  }
 
   if (!storageResponse?.ok) {
     await auth
@@ -253,8 +271,15 @@ Deno.serve(async (request) => {
       .update({ source_status: "failed", status: "failed", updated_at: new Date().toISOString() })
       .eq("id", project.id)
       .eq("user_id", user.id);
-    console.error("creator_source_import_storage_failed", storageResponse?.status ?? 0);
-    return jsonResponse(request, { error: { code: "storage_upload_failed" }, projectId: project.id }, 502);
+    console.error(
+      "creator_source_import_storage_failed",
+      storageController.signal.aborted ? "timeout" : storageResponse?.status ?? 0,
+    );
+    return jsonResponse(
+      request,
+      { error: { code: storageController.signal.aborted ? "storage_upload_timeout" : "storage_upload_failed" }, projectId: project.id },
+      502,
+    );
   }
 
   const uploadedAt = new Date().toISOString();
