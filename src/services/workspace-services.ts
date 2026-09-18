@@ -528,7 +528,7 @@ export const DocumentService = {
       })
       .eq("id", id)
       .eq("user_id", userId);
-    if (error) throw error;
+    if (error) throw agentMutationError(error);
   },
   async remove(id: string): Promise<void> {
     if (DEMO_MODE) {
@@ -1100,6 +1100,23 @@ function mapAgent(row: AgentRow): Agent {
   };
 }
 
+function agentMutationError(error: unknown): Error {
+  const message =
+    error && typeof error === "object" && "message" in error
+      ? String((error as { message?: unknown }).message ?? "")
+      : error instanceof Error
+        ? error.message
+        : String(error ?? "");
+
+  if (message.includes("premium_required")) {
+    return new Error("Agentes exigem Premium ativo.");
+  }
+
+  return error instanceof Error
+    ? error
+    : new Error(message || "Não foi possível salvar o Agent agora.");
+}
+
 export const AgentService = {
   async listRows(): Promise<AgentRow[]> {
     const userId = await getRequiredUserId();
@@ -1125,7 +1142,7 @@ export const AgentService = {
       .insert({ ...input, user_id: userId })
       .select()
       .single();
-    if (error) throw error;
+    if (error) throw agentMutationError(error);
     return data;
   },
   async createDraft(): Promise<Agent> {
