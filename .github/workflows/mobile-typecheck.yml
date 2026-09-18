@@ -102,5 +102,8 @@ jobs:
       - name: Run E59/E60 Google Workspace source parity
         run: bun test tests/google-workspace-e59-e60-source-parity.test.ts
 
+      - name: Run E61/E62 approved Google action source parity
+        run: bun test tests/approved-google-actions-e61-e62-source-parity.test.ts
+
       - name: Run existing Creator engine and intelligence contracts
         run: bun test tests/creator-video-engine-revision-14.test.ts tests/creator-intelligence-revision-14.test.ts
