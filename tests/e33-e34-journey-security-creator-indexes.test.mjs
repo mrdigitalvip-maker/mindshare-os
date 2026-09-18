@@ -6,6 +6,7 @@ const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf
 
 const journey = read("supabase/migrations/202609180009_e33_journey_pack_rpc_security.sql");
 const creator = read("supabase/migrations/202609180010_e34_creator_fk_indexes.sql");
+const creatorRls = read("supabase/migrations/202609180011_e34_creator_rls_initplan.sql");
 const shell = read("src/routes/_shell.tsx");
 const packs = read("src/routes/_shell.packs.tsx");
 const packDetail = read("src/routes/_shell.packs.$slug.tsx");
@@ -45,4 +46,19 @@ test("E34 covers the Creator FK paths reported by the advisor without replacing 
   }
   assert.match(creator, /where replaces_clip_id is not null/);
   assert.doesNotMatch(creator, /drop index/i);
+});
+
+
+test("E34 preserves Creator owner-only RLS while using initplan-safe auth evaluation", () => {
+  for (const policy of [
+    "creator_analytics_content_owner_select",
+    "creator_analytics_owner_select",
+    "creator_country_owner_select",
+    "creator_clips_owner_select",
+  ]) {
+    assert.match(creatorRls, new RegExp(policy));
+  }
+  assert.match(creatorRls, /\(select auth\.uid\(\)\) = user_id/);
+  assert.match(creatorRls, /p\.user_id = \(select auth\.uid\(\)\)/);
+  assert.doesNotMatch(creatorRls, /auth\.uid\(\) = user_id/);
 });
