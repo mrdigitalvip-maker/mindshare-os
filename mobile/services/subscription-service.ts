@@ -1,5 +1,6 @@
 import { normalizeEntitlement, type Entitlement } from "@/lib/subscription";
 import { supabase } from "@/lib/supabase";
+
 export type SubscriptionSummary = {
   entitlement: Entitlement;
   plan: string | null;
@@ -8,25 +9,35 @@ export type SubscriptionSummary = {
   currentPeriodEnd: string | null;
   cancelAtPeriodEnd: boolean | null;
 };
+
 export async function getSubscription(userId: string): Promise<SubscriptionSummary> {
   const id = userId.trim();
   if (!id) throw new Error("Authenticated user ID is required.");
-  const { data, error } = await supabase
-    .from("subscriptions")
-    .select("plan, status, provider, entitlement, current_period_end, cancel_at_period_end")
-    .eq("user_id", id)
-    .maybeSingle();
+
+  const { data, error } = await supabase.rpc("get_subscription_runtime" as never);
   if (error) throw error;
+  const runtime = (data ?? {}) as Record<string, unknown>;
+  const status = typeof runtime.status === "string" ? runtime.status : null;
+  const premium = runtime.is_premium === true;
+  const entitlement: Entitlement = premium
+    ? status === "trialing"
+      ? "trialing"
+      : "active"
+    : normalizeEntitlement(status);
+
+  const provider = runtime.provider;
   return {
-    entitlement:
-      data?.entitlement === "premium"
-        ? normalizeEntitlement(data?.status === "canceled" ? "active" : data?.status)
-        : "free",
-    plan: data?.plan ?? null,
-    status: data?.status ?? null,
-    provider: (data?.provider as SubscriptionSummary["provider"]) ?? null,
-    currentPeriodEnd: data?.current_period_end ?? null,
+    entitlement,
+    plan: typeof runtime.plan === "string" ? runtime.plan : premium ? "pro" : "free",
+    status,
+    provider: ["stripe", "google_play", "manual"].includes(String(provider))
+      ? (provider as SubscriptionSummary["provider"])
+      : null,
+    currentPeriodEnd:
+      typeof runtime.current_period_end === "string" ? runtime.current_period_end : null,
     cancelAtPeriodEnd:
-      typeof data?.cancel_at_period_end === "boolean" ? data.cancel_at_period_end : null,
+      typeof runtime.cancel_at_period_end === "boolean"
+        ? runtime.cancel_at_period_end
+        : null,
   };
 }
