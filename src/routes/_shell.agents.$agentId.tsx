@@ -720,12 +720,7 @@ function Settings({
       await onSaved();
       toast.success("Agente atualizado");
     },
-    onError: (error: Error) =>
-      toast.error(
-        error.message.includes("premium_required")
-          ? "Premium ativo é necessário para ativar este Agent."
-          : error.message,
-      ),
+    onError: (error: Error) => toast.error(error.message),
   });
   return (
     <div className="mt-4 max-w-xl space-y-3">
