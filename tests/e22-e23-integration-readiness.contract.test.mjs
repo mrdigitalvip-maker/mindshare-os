@@ -20,12 +20,19 @@ test("E22→E23 integration foundation is provider-agnostic and future providers
     assert.match(registry, new RegExp(`\\b${provider}: \\{`), provider);
   }
 
-  for (const provider of ["gmail", "google_calendar", "google_drive", "slack", "whatsapp"]) {
+  for (const provider of ["slack", "whatsapp"]) {
     const block = registry.match(new RegExp(`${provider}: \\{([\\s\\S]*?)\\n  \\},`))?.[1] ?? "";
     assert.match(block, /implemented: false/, `${provider} must not pretend to be implemented`);
     assert.match(block, /readiness: "coming_soon"/, `${provider} must be truthfully unavailable`);
     assert.match(block, /authMode: "unconfigured"/, `${provider} auth must remain unconfigured`);
-    assert.match(block, /capabilityScopes: \{\}/, `${provider} must not invent provider scopes`);
+    assert.match(block, /capabilityScopes: \\{\\}/, `${provider} must not invent provider scopes`);
+  }
+
+  for (const provider of ["gmail", "google_calendar", "google_drive"]) {
+    const block = registry.match(new RegExp(`${provider}: \\{([\\s\\S]*?)\\n  \\},`))?.[1] ?? "";
+    assert.match(block, /implemented: true/, `${provider} is activated by E59`);
+    assert.match(block, /readiness: "configuration_required"/, `${provider} remains runtime-gated`);
+    assert.match(block, /authMode: "oauth"/, `${provider} uses real OAuth`);
   }
 
   assert.match(registry, /credentialBoundary: "server_only"/);
