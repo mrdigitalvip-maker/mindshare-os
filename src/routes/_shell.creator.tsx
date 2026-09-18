@@ -1244,7 +1244,7 @@ function CreatorStudio() {
                         </div>
                         {Boolean(snapshot && (snapshot.period_start || snapshot.period_end)) && (
                           <p className="mt-2 text-[11px] text-muted-foreground">
-                            Period: {String(snapshot.period_start ?? "—")} → {String(snapshot.period_end ?? "—")}
+                            Period: {String(snapshot?.period_start ?? "—")} → {String(snapshot?.period_end ?? "—")}
                           </p>
                         )}
                       </div>
