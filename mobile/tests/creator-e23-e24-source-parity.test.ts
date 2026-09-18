@@ -67,6 +67,11 @@ describe("E23 + E24 Android source parity", () => {
     expect(mobileAnalytics).not.toMatch(/access_token|refresh_token|client_secret/i);
   });
 
+  test("shared Assistant context remains type-safe for Android source validation", () => {
+    const assistantContext = read("supabase/functions/_shared/assistant-context.ts");
+    expect(assistantContext).toContain("documents: []");
+  });
+
   test("E23 + E24 do not add an Android billing/native release dependency", () => {
     const pkg = read("mobile/package.json");
     expect(pkg).not.toMatch(/react-native-iap|nitro-modules/i);
