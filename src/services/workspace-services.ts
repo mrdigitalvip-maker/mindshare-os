@@ -239,7 +239,7 @@ export const ProjectService = {
     if (!data) throw new Error("Projeto não encontrado ou sem permissão para excluir.");
   },
   async get(id: string): Promise<Project | null> {
-    return (await this.list()).find((project) => project.id === id) ?? null;
+    return (await ProjectService.list()).find((project) => project.id === id) ?? null;
   },
 };
 
@@ -626,7 +626,7 @@ export const ContentService = {
     }));
   },
   async getDraft(id: string): Promise<ContentDraft | null> {
-    return (await this.listDrafts()).find((draft) => draft.id === id) ?? null;
+    return (await ContentService.listDrafts()).find((draft) => draft.id === id) ?? null;
   },
   async createDraft(input?: {
     title?: string;
@@ -757,14 +757,14 @@ export const StudyService = {
   },
   async listSubjectSessions(id: string): Promise<StudySessionRow[]> {
     if (DEMO_MODE) return [];
-    return (await this.listHistory()).filter((session) => session.subject_id === id);
+    return (await StudyService.listHistory()).filter((session) => session.subject_id === id);
   },
   async listPlans(): Promise<StudyPlan[]> {
     if (DEMO_MODE) {
       await delay();
       return readMockDatabase().studies;
     }
-    const [subjects, sessions] = await Promise.all([this.listSubjects(), this.listHistory()]);
+    const [subjects, sessions] = await Promise.all([StudyService.listSubjects(), StudyService.listHistory()]);
     return subjects.map((subject) => mapStudyPlan(subject, sessions));
   },
   async createSubject(input: Omit<StudySubjectInsert, "id" | "user_id">): Promise<StudySubjectRow> {
@@ -792,7 +792,7 @@ export const StudyService = {
       });
       return created;
     }
-    const subject = await this.createSubject({ name: "New study plan", color: colors[0] });
+    const subject = await StudyService.createSubject({ name: "New study plan", color: colors[0] });
     return mapStudyPlan(subject, []);
   },
   async updateSubject(id: string, patch: StudySubjectUpdate): Promise<void> {
@@ -833,7 +833,7 @@ export const StudyService = {
     if (error) throw error;
   },
   async finishSession(id: string, duration: number): Promise<void> {
-    return this.updateSession(id, { completed: true, duration });
+    return StudyService.updateSession(id, { completed: true, duration });
   },
   async removeSession(id: string): Promise<void> {
     const userId = await getRequiredUserId();
@@ -941,7 +941,7 @@ export const StudyService = {
     if (error) throw error;
   },
   async getSummary(): Promise<{ totalMinutes: number; completedSessions: number }> {
-    const sessions = await this.listHistory();
+    const sessions = await StudyService.listHistory();
     return {
       totalMinutes: sessions.reduce((total, session) => total + (session.duration ?? 0), 0),
       completedSessions: sessions.filter((session) => session.completed).length,
@@ -966,17 +966,17 @@ export const FinanceService = {
     return data ?? [];
   },
   async getAccount(id: string): Promise<FinanceAccountRow | null> {
-    return (await this.listAccounts()).find((account) => account.id === id) ?? null;
+    return (await FinanceService.listAccounts()).find((account) => account.id === id) ?? null;
   },
   async listAccountTransactions(id: string): Promise<FinanceTransactionRow[]> {
-    return (await this.listTransactions()).filter((transaction) => transaction.account_id === id);
+    return (await FinanceService.listTransactions()).filter((transaction) => transaction.account_id === id);
   },
   async listGoals(): Promise<FinanceGoal[]> {
     if (DEMO_MODE) {
       await delay();
       return readMockDatabase().financeGoals;
     }
-    return (await this.listAccounts()).map(accountAsGoal);
+    return (await FinanceService.listAccounts()).map(accountAsGoal);
   },
   async createAccount(
     input: Omit<FinanceAccountInsert, "id" | "user_id">,
@@ -1006,7 +1006,7 @@ export const FinanceService = {
       return created;
     }
     return accountAsGoal(
-      await this.createAccount({
+      await FinanceService.createAccount({
         name: "New account",
         balance: 0,
         currency: "USD",
@@ -1074,8 +1074,8 @@ export const FinanceService = {
   },
   async getSummary(): Promise<{ balance: number; income: number; expenses: number }> {
     const [transactions, accounts] = await Promise.all([
-      this.listTransactions(),
-      this.listAccounts(),
+      FinanceService.listTransactions(),
+      FinanceService.listAccounts(),
     ]);
     const income = transactions
       .filter((item) => item.type === "income")
@@ -1133,7 +1133,7 @@ export const AgentService = {
       await delay();
       return readMockDatabase().agents;
     }
-    return (await this.listRows()).map(mapAgent);
+    return (await AgentService.listRows()).map(mapAgent);
   },
   async create(input: Omit<AgentInsert, "id" | "user_id">): Promise<AgentRow> {
     const userId = await getRequiredUserId();
@@ -1160,7 +1160,7 @@ export const AgentService = {
       });
       return created;
     }
-    return mapAgent(await this.create({ name: "New agent", active: false }));
+    return mapAgent(await AgentService.create({ name: "New agent", active: false }));
   },
   async update(id: string, patch: AgentUpdate): Promise<void> {
     const userId = await getRequiredUserId();
@@ -1177,10 +1177,10 @@ export const AgentService = {
     if (error) throw error;
   },
   async setActive(id: string, active: boolean): Promise<void> {
-    return this.update(id, { active });
+    return AgentService.update(id, { active });
   },
   async listRuns(agentId?: string): Promise<AgentRunRow[]> {
-    const agents = await this.listRows();
+    const agents = await AgentService.listRows();
     const ownedIds = agents.map((agent) => agent.id);
     if (agentId && !ownedIds.includes(agentId))
       throw new Error("Agent not found for the authenticated user.");
