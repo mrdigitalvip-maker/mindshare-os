@@ -258,7 +258,7 @@ function projectCreationErrorMessage(error: unknown): string {
     message === "FREE_CREATION_LIMIT_REACHED" ||
     (code === "P0001" && details.includes('"resource":"projects"'))
   ) {
-    return "Você atingiu o limite de 3 projetos ativos do plano Free. Arquive um projeto ou faça upgrade para criar outro.";
+    return "O plano gratuito permite até 3 projetos ativos.";
   }
 
   return "Não foi possível criar o projeto. Tente novamente.";
