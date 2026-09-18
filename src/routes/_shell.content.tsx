@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ContentService, workspaceQueryKeys } from "@/services";
 import { useAuth } from "@/lib/auth-context";
 import { WorkspaceShell } from "@/components/workspace-ui";
+import { useLanguage } from "@/providers/language-provider";
 export const Route = createFileRoute("/_shell/content")({ component: ContentRoute });
 const formats = ["Social Post", "Email", "Article", "Script", "Ad Copy", "Description"];
 function ContentRoute() {
@@ -20,6 +21,8 @@ function ContentRoute() {
 }
 
 function ContentIndex() {
+  const { resolvedLocale } = useLanguage();
+  const L = (pt: string, en: string) => (resolvedLocale === "pt-BR" ? pt : en);
   const navigate = useNavigate();
   const client = useQueryClient();
   const { user, isAuthenticated } = useAuth();
@@ -42,13 +45,13 @@ function ContentIndex() {
     <PageShell>
       <WorkspaceShell>
         <PageHeader
-          eyebrow="Editorial workspace"
-          title="Content Studio"
-          description="Create, generate and refine drafts without losing your original."
+          eyebrow={L("Espaço editorial", "Editorial workspace")}
+          title={L("Estúdio de Conteúdo", "Content Studio")}
+          description={L("Crie, gere e refine rascunhos sem perder o original.", "Create, generate and refine drafts without losing your original.")}
           actions={
             <Button onClick={() => setOpen(true)}>
               <Plus />
-              Create content
+              {L("Criar conteúdo", "Create content")}
             </Button>
           }
         />
@@ -56,7 +59,7 @@ function ContentIndex() {
           <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input
             className="pl-9"
-            placeholder="Search drafts"
+            placeholder={L("Buscar rascunhos", "Search drafts")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -78,20 +81,20 @@ function ContentIndex() {
             className="mt-6 rounded-2xl border border-destructive/30 bg-destructive/5 p-6"
             role="alert"
           >
-            <h2 className="text-lg font-semibold">We couldn't load your content.</h2>
+            <h2 className="text-lg font-semibold">{L("Não foi possível carregar seu conteúdo.", "We couldn't load your content.")}</h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Your saved drafts are unchanged. Check your connection and try again.
+              {L("Seus rascunhos salvos não foram alterados. Verifique a conexão e tente novamente.", "Your saved drafts are unchanged. Check your connection and try again.")}
             </p>
             <Button className="mt-4" variant="outline" onClick={() => drafts.refetch()}>
-              Try again
+              {L("Tentar novamente", "Try again")}
             </Button>
           </div>
         ) : !visible.length ? (
           <EmptyState
             icon={FileText}
-            title="No drafts found"
-            description="Create a structured draft to open the editorial workspace."
-            action={<Button onClick={() => setOpen(true)}>Create content</Button>}
+            title={L("Nenhum rascunho encontrado", "No drafts found")}
+            description={L("Crie um rascunho estruturado para abrir o espaço editorial.", "Create a structured draft to open the editorial workspace.")}
+            action={<Button onClick={() => setOpen(true)}>{L("Criar conteúdo", "Create content")}</Button>}
           />
         ) : (
           <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -101,14 +104,14 @@ function ContentIndex() {
                 onClick={() => navigate({ to: "/content/$contentId", params: { contentId: d.id } })}
                 className="glass min-w-0 rounded-2xl p-5 text-left"
               >
-                <p className="text-xs uppercase tracking-wider text-muted-foreground">Draft</p>
+                <p className="text-xs uppercase tracking-wider text-muted-foreground">{L("Rascunho", "Draft")}</p>
                 <h2 className="mt-2 truncate text-lg font-semibold">{d.title}</h2>
                 <p className="mt-3 line-clamp-3 text-sm text-muted-foreground">
-                  {d.body || "Empty draft"}
+                  {d.body || L("Rascunho vazio", "Empty draft")}
                 </p>
                 <p className="mt-4 text-xs text-muted-foreground">
-                  {d.updatedAt ? `Edited ${new Date(d.updatedAt).toLocaleString()}` : "Draft"} ·
-                  Continue →
+                  {d.updatedAt ? `${L("Editado", "Edited")} ${new Date(d.updatedAt).toLocaleString(resolvedLocale)}` : L("Rascunho", "Draft")} ·
+                  {L("Continuar", "Continue")} →
                 </p>
               </button>
             ))}
