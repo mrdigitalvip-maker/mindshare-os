@@ -152,7 +152,7 @@ function Community() {
             <section className="v2-surface rounded-2xl p-5">
               <h2 className="text-xl font-semibold">Seu perfil</h2>
               <p className="my-3 text-sm text-muted-foreground">
-                Crie seu perfil privado para começar.
+                Crie seu perfil da Comunidade para começar.
               </p>
               <Button
                 onClick={() =>
@@ -245,6 +245,7 @@ function Community() {
             </div>
           )}
         </section>
+        {profileReady ? (
         <section className="mt-8">
           <h2 className="text-xl font-semibold">Atividade verificada</h2>
           {!q.data?.activity.length ? (
@@ -293,6 +294,7 @@ function Community() {
             </div>
           )}
         </section>
+        ) : null}
       </RouteState>
     </PageShell>
   );
