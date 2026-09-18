@@ -78,8 +78,10 @@ test("E22→E23 keeps OAuth scopes and credentials server-side without weakening
   assert.match(creatorIntelligence, /KIVRYN_INTEGRATION_PROVIDERS/);
   assert.doesNotMatch(creatorIntelligence, /https:\/\/www\.googleapis\.com\/auth\/youtube\.readonly/);
   assert.match(registry, /https:\/\/www\.googleapis\.com\/auth\/youtube\.readonly/);
-  assert.match(oauthStart, /Deno\.env\.get\("YOUTUBE_CLIENT_ID"\)/);
-  assert.match(oauthStart, /Deno\.env\.get\("TIKTOK_CLIENT_KEY"\)/);
+  assert.match(
+    oauthStart,
+    /Deno\.env\.get\(provider === "youtube" \? "YOUTUBE_CLIENT_ID" : "TIKTOK_CLIENT_KEY"\)/,
+  );
   assert.match(oauthCallback, /encryptServerSecret\(accessToken\)/);
   assert.match(oauthCallback, /encryptServerSecret\(String\(token\.refresh_token\)\)/);
   assert.doesNotMatch(env, /^VITE_.*(?:SECRET|PRIVATE|SERVICE_ROLE|TOKEN)/m);
