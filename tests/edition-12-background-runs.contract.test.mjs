@@ -94,6 +94,6 @@ test("Web Agents surface background queue health without adding a new top-level 
   const source = await readFile(webAgentsPath, "utf8");
   assert.match(source, /BackgroundRunService\.list\(\)/);
   assert.match(source, /refetchInterval: 30_000/);
-  assert.match(source, /label="Background"/);
-  assert.match(source, /aguardando retry/);
+  assert.match(source, /label=\{L\("Segundo plano", "Background"\)\}/);
+  assert.match(source, /L\("aguardando nova tentativa", "waiting for retry"\)/);
 });
