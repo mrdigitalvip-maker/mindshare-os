@@ -1,7 +1,11 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { jsonResponse, preflightResponse, rejectDisallowedOrigin } from "../_shared/http.ts";
-import { decryptServerSecret, safeProviderError } from "../_shared/creator-intelligence.ts";
+import {
+  decryptServerSecret,
+  encryptServerSecret,
+  safeProviderError,
+} from "../_shared/creator-intelligence.ts";
 
 type AdminClient = ReturnType<typeof createClient>;
 type CreatorConnection = {
@@ -82,6 +86,87 @@ async function providerJson(url: string, access: string, init?: RequestInit) {
     });
   }
   return await response.json();
+}
+
+async function resolveProviderAccess(
+  admin: AdminClient,
+  connection: CreatorConnection,
+  credential: {
+    access_token_ciphertext: string;
+    refresh_token_ciphertext: string | null;
+    expires_at: string | null;
+    scopes: string[] | null;
+  },
+) {
+  let scopes = Array.isArray(credential.scopes) ? credential.scopes.map(String) : [];
+  const expiresAt = credential.expires_at ? Date.parse(credential.expires_at) : Number.POSITIVE_INFINITY;
+  if (expiresAt > Date.now() + 5 * 60_000) {
+    return { access: await decryptServerSecret(credential.access_token_ciphertext), scopes };
+  }
+  if (!credential.refresh_token_ciphertext) {
+    throw Object.assign(new Error("credential_expired"), { providerStatus: 401 });
+  }
+
+  const refreshToken = await decryptServerSecret(credential.refresh_token_ciphertext);
+  const isYouTube = connection.platform === "youtube";
+  const clientId = Deno.env.get(isYouTube ? "YOUTUBE_CLIENT_ID" : "TIKTOK_CLIENT_KEY");
+  const clientSecret = Deno.env.get(isYouTube ? "YOUTUBE_CLIENT_SECRET" : "TIKTOK_CLIENT_SECRET");
+  if (!clientId || !clientSecret) throw new Error("provider_not_configured");
+
+  const body = new URLSearchParams(
+    isYouTube
+      ? {
+          client_id: clientId,
+          client_secret: clientSecret,
+          grant_type: "refresh_token",
+          refresh_token: refreshToken,
+        }
+      : {
+          client_key: clientId,
+          client_secret: clientSecret,
+          grant_type: "refresh_token",
+          refresh_token: refreshToken,
+        },
+  );
+  const response = await fetch(
+    isYouTube
+      ? "https://oauth2.googleapis.com/token"
+      : "https://open.tiktokapis.com/v2/oauth/token/",
+    {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body,
+    },
+  );
+  if (!response.ok) {
+    throw Object.assign(new Error("credential_expired"), { providerStatus: 401 });
+  }
+  const refreshed = (await response.json()) as Record<string, unknown>;
+  const accessToken = typeof refreshed.access_token === "string" ? refreshed.access_token : "";
+  if (!accessToken) {
+    throw Object.assign(new Error("credential_expired"), { providerStatus: 401 });
+  }
+  if (typeof refreshed.scope === "string" && refreshed.scope.trim()) {
+    scopes = refreshed.scope.split(/[ ,]+/).filter(Boolean);
+  }
+  const rotatedRefresh =
+    typeof refreshed.refresh_token === "string" && refreshed.refresh_token
+      ? refreshed.refresh_token
+      : refreshToken;
+  const expiresIn = finiteNumber(refreshed.expires_in);
+  const updated = await admin
+    .from("creator_provider_credentials")
+    .update({
+      access_token_ciphertext: await encryptServerSecret(accessToken),
+      refresh_token_ciphertext: await encryptServerSecret(rotatedRefresh),
+      expires_at:
+        expiresIn === undefined ? credential.expires_at : new Date(Date.now() + expiresIn * 1000).toISOString(),
+      scopes,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("connection_id", connection.id);
+  if (updated.error) throw new Error("credential_refresh_persistence_failed");
+  return { access: accessToken, scopes };
 }
 
 async function youtubeSync(access: string): Promise<NormalizedContent[]> {
@@ -463,10 +548,10 @@ Deno.serve(async (request) => {
 
     const { data: credential } = await admin
       .from("creator_provider_credentials")
-      .select("access_token_ciphertext,expires_at,scopes")
+      .select("access_token_ciphertext,refresh_token_ciphertext,expires_at,scopes")
       .eq("connection_id", connection.id)
       .maybeSingle();
-    if (!credential || (credential.expires_at && Date.parse(credential.expires_at) <= Date.now())) {
+    if (!credential) {
       await admin
         .from("creator_platform_connections")
         .update({ status: "expired", safe_error_code: "credential_expired" })
@@ -474,25 +559,24 @@ Deno.serve(async (request) => {
       continue;
     }
 
-    const scopes = Array.isArray(credential.scopes) ? credential.scopes.map(String) : [];
-    if (
-      (connection.platform === "youtube" &&
-        (!scopes.includes(YOUTUBE_READ_SCOPE) || !scopes.includes(YOUTUBE_ANALYTICS_SCOPE))) ||
-      (connection.platform === "tiktok" && !scopes.includes(TIKTOK_VIDEO_SCOPE))
-    ) {
-      await admin
-        .from("creator_platform_connections")
-        .update({ safe_error_code: "insufficient_scope" })
-        .eq("id", connection.id);
-      continue;
-    }
-
     try {
-      const access = await decryptServerSecret(credential.access_token_ciphertext);
+      const resolved = await resolveProviderAccess(admin, connection, credential);
+      const scopes = resolved.scopes;
+      if (
+        (connection.platform === "youtube" &&
+          (!scopes.includes(YOUTUBE_READ_SCOPE) || !scopes.includes(YOUTUBE_ANALYTICS_SCOPE))) ||
+        (connection.platform === "tiktok" && !scopes.includes(TIKTOK_VIDEO_SCOPE))
+      ) {
+        await admin
+          .from("creator_platform_connections")
+          .update({ safe_error_code: "insufficient_scope" })
+          .eq("id", connection.id);
+        continue;
+      }
       const rows =
         connection.platform === "youtube"
-          ? await youtubeSync(access)
-          : await tiktokSync(access);
+          ? await youtubeSync(resolved.access)
+          : await tiktokSync(resolved.access);
       const persisted = await persistProviderRows(admin, connection, rows);
       const updated = await admin
         .from("creator_platform_connections")
