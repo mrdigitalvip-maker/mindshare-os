@@ -657,7 +657,11 @@ export default function Settings() {
                       ? text.configRequired
                       : provider.readiness === "app_review_required"
                         ? text.reviewRequired
-                        : text.creatorAvailable;
+                        : provider.provider === "gmail" ||
+                            provider.provider === "google_calendar" ||
+                            provider.provider === "google_drive"
+                          ? text.connected.replace(text.connected, resolvedLocale === "en" ? "Ready to connect" : "Disponível para conectar")
+                          : text.creatorAvailable;
                 return (
                   <View key={provider.provider} style={s.integrationRow}>
                     <View style={s.flex}>
@@ -698,7 +702,12 @@ export default function Settings() {
             <Feedback text={workspaceMessage} error={workspaceMessage === text.workspaceReadError} />
           ) : null}
           <Text style={s.help}>{text.integrationApproval}</Text>
-          {(integrations.data ?? []).some((provider) => provider.implemented && provider.canConnect) ? (
+          {(integrations.data ?? []).some(
+            (provider) =>
+              provider.implemented &&
+              provider.canConnect &&
+              (provider.provider === "youtube" || provider.provider === "tiktok"),
+          ) ? (
             <Action
               secondary
               label={text.openCreator}
