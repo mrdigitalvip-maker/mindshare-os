@@ -141,13 +141,13 @@ function StudiesIndex() {
   return (
     <PageShell>
       <PageHeader
-        eyebrow="Learning workspace"
+        eyebrow={resolvedLocale === "pt-BR" ? "Espaço de aprendizagem" : "Learning workspace"}
         title={t("page.studies.title")}
         description={t("page.studies.description")}
         actions={
           <Button className="min-h-11" onClick={() => setOpen(true)}>
             <Plus />
-            New subject
+            {resolvedLocale === "pt-BR" ? "Nova matéria" : "New subject"}
           </Button>
         }
       />
@@ -166,23 +166,22 @@ function StudiesIndex() {
                 <Sparkles className="h-5 w-5" />
               </div>
               <p className="text-xs font-semibold uppercase tracking-[.22em] text-intelligence">
-                Learning pulse
+                {resolvedLocale === "pt-BR" ? "Pulso de aprendizagem" : "Learning pulse"}
               </p>
               <h2
                 id="learning-overview-title"
                 className="mt-2 max-w-xl text-2xl font-semibold tracking-tight sm:text-3xl"
               >
-                Continue building durable knowledge.
+                {resolvedLocale === "pt-BR" ? "Continue construindo conhecimento duradouro." : "Continue building durable knowledge."}
               </h2>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
-                Every metric below is calculated from your persisted subjects and completed
-                sessions.
+                {resolvedLocale === "pt-BR" ? "Todas as métricas abaixo são calculadas a partir das suas matérias persistidas e sessões concluídas." : "Every metric below is calculated from your persisted subjects and completed sessions."}
               </p>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="min-w-32 rounded-2xl border bg-background/70 p-4">
                 <p className="text-2xl font-semibold tabular-nums">{studyPlans.length}</p>
-                <p className="mt-1 text-xs text-muted-foreground">Active subjects</p>
+                <p className="mt-1 text-xs text-muted-foreground">{resolvedLocale === "pt-BR" ? "Matérias ativas" : "Active subjects"}</p>
               </div>
               <div className="min-w-32 rounded-2xl border bg-background/70 p-4">
                 <p className="text-2xl font-semibold tabular-nums">
@@ -192,7 +191,7 @@ function StudiesIndex() {
                   )}
                   %
                 </p>
-                <p className="mt-1 text-xs text-muted-foreground">Avg. completion</p>
+                <p className="mt-1 text-xs text-muted-foreground">{resolvedLocale === "pt-BR" ? "Conclusão média" : "Avg. completion"}</p>
               </div>
             </div>
           </div>
@@ -204,10 +203,10 @@ function StudiesIndex() {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[.2em] text-intelligence">
-                  Today
+                  {resolvedLocale === "pt-BR" ? "Hoje" : "Today"}
                 </p>
                 <h2 id="study-today" className="mt-1 text-xl font-semibold">
-                  Your next learning move
+                  {resolvedLocale === "pt-BR" ? "Seu próximo passo de aprendizagem" : "Your next learning move"}
                 </h2>
               </div>
               <Button
@@ -218,7 +217,7 @@ function StudiesIndex() {
                   })
                 }
               >
-                Start studying
+                {resolvedLocale === "pt-BR" ? "Começar a estudar" : "Start studying"}
               </Button>
             </div>
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
@@ -235,43 +234,42 @@ function StudiesIndex() {
                     }
                   >
                     <span className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Target className="h-3.5 w-3.5" /> Open goal
+                      <Target className="h-3.5 w-3.5" /> {resolvedLocale === "pt-BR" ? "Abrir meta" : "Open goal"}
                     </span>
                     <strong className="mt-2 block truncate text-sm">{goal.title}</strong>
                   </button>
                 ))}
               {!studyGoals.some((goal) => !goal.completed) && (
                 <p className="text-sm text-muted-foreground">
-                  No open goals. Continue your most recent subject or create a goal in its
-                  workspace.
+                  {resolvedLocale === "pt-BR" ? "Nenhuma meta aberta. Continue sua matéria mais recente ou crie uma meta no espaço dela." : "No open goals. Continue your most recent subject or create a goal in its workspace."}
                 </p>
               )}
             </div>
           </section>
           <section className="v2-surface rounded-2xl p-5" aria-labelledby="study-progress">
             <p className="text-xs font-semibold uppercase tracking-[.2em] text-muted-foreground">
-              Progress
+              {resolvedLocale === "pt-BR" ? "Progresso" : "Progress"}
             </p>
             <h2 id="study-progress" className="mt-1 text-xl font-semibold">
-              Real activity
+              {resolvedLocale === "pt-BR" ? "Atividade real" : "Real activity"}
             </h2>
             <dl className="mt-5 grid grid-cols-2 gap-4">
               <div>
-                <dt className="text-xs text-muted-foreground">Sessions</dt>
+                <dt className="text-xs text-muted-foreground">{resolvedLocale === "pt-BR" ? "Sessões" : "Sessions"}</dt>
                 <dd className="mt-1 text-2xl font-semibold tabular-nums">{studySessions.length}</dd>
               </div>
               <div>
-                <dt className="text-xs text-muted-foreground">Minutes</dt>
+                <dt className="text-xs text-muted-foreground">{resolvedLocale === "pt-BR" ? "Minutos" : "Minutes"}</dt>
                 <dd className="mt-1 text-2xl font-semibold tabular-nums">
                   {studySessions.reduce((sum, item) => sum + (item.duration ?? 0), 0)}
                 </dd>
               </div>
               <div>
-                <dt className="text-xs text-muted-foreground">Goals</dt>
+                <dt className="text-xs text-muted-foreground">{resolvedLocale === "pt-BR" ? "Metas" : "Goals"}</dt>
                 <dd className="mt-1 text-2xl font-semibold tabular-nums">{studyGoals.length}</dd>
               </div>
               <div>
-                <dt className="text-xs text-muted-foreground">Completed</dt>
+                <dt className="text-xs text-muted-foreground">{resolvedLocale === "pt-BR" ? "Concluídas" : "Completed"}</dt>
                 <dd className="mt-1 flex items-center gap-1 text-2xl font-semibold tabular-nums">
                   <CheckCircle2 className="h-4 w-4 text-emerald-400" />
                   {studyGoals.filter((item) => item.completed).length}
@@ -286,7 +284,7 @@ function StudiesIndex() {
           className="mt-8 rounded-2xl border border-destructive/30 bg-destructive/5 p-6"
           role="alert"
         >
-          <h2 className="text-lg font-semibold">Studies could not load completely.</h2>
+          <h2 className="text-lg font-semibold">{resolvedLocale === "pt-BR" ? "Os Estudos não puderam ser carregados por completo." : "Studies could not load completely."}</h2>
           <p className="mt-2 text-sm text-muted-foreground">
             The {failedQueries.map(([name]) => name).join(", ")} query failed. Your saved work is
             unchanged.
@@ -299,10 +297,10 @@ function StudiesIndex() {
               disabled={failedQueries.some(([, query]) => query.isFetching)}
             >
               <RefreshCw />
-              Try again
+              {resolvedLocale === "pt-BR" ? "Tentar novamente" : "Try again"}
             </Button>
             <Button className="min-h-11" variant="ghost" onClick={() => nav({ to: "/dashboard" })}>
-              Go to dashboard
+              {resolvedLocale === "pt-BR" ? "Ir para o início" : "Go to dashboard"}
             </Button>
           </div>
         </div>
@@ -330,13 +328,13 @@ function StudiesIndex() {
           <div className="flex items-end justify-between gap-4">
             <div>
               <p className="text-xs font-medium uppercase tracking-[.2em] text-muted-foreground">
-                Your library
+                {resolvedLocale === "pt-BR" ? "Sua biblioteca" : "Your library"}
               </p>
               <h2 id="subjects-title" className="mt-1 text-2xl font-semibold">
-                Active subjects
+                {resolvedLocale === "pt-BR" ? "Matérias ativas" : "Active subjects"}
               </h2>
             </div>
-            <span className="text-sm text-muted-foreground">{studyPlans.length} total</span>
+            <span className="text-sm text-muted-foreground">{studyPlans.length} {resolvedLocale === "pt-BR" ? "no total" : "total"}</span>
           </div>
           <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {studyPlans.map((plan) => (
@@ -354,7 +352,7 @@ function StudiesIndex() {
                 <h3 className="mt-5 truncate text-lg font-semibold">{plan.title}</h3>
                 <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
                   <Clock3 className="h-4 w-4" />
-                  <span>{plan.progress}% sessions completed</span>
+                  <span>{plan.progress}% {resolvedLocale === "pt-BR" ? "das sessões concluídas" : "sessions completed"}</span>
                 </div>
                 <div className="mt-3">
                   <WorkspaceProgress value={plan.progress} label={`${plan.title} progress`} />
@@ -429,7 +427,7 @@ function StudiesIndex() {
             disabled={!name.trim() || create.isPending}
             onClick={() => create.mutate()}
           >
-            {create.isPending ? "Creating…" : "Create and open"}
+            {create.isPending ? (resolvedLocale === "pt-BR" ? "Criando…" : "Creating…") : (resolvedLocale === "pt-BR" ? "Criar e abrir" : "Create and open")}
           </Button>
         </DialogContent>
       </Dialog>
