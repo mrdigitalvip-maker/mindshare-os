@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FileText, Plus, Search } from "lucide-react";
@@ -12,9 +12,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { ContentService, workspaceQueryKeys } from "@/services";
 import { useAuth } from "@/lib/auth-context";
 import { WorkspaceShell } from "@/components/workspace-ui";
-export const Route = createFileRoute("/_shell/content")({ component: Content });
+export const Route = createFileRoute("/_shell/content")({ component: ContentRoute });
 const formats = ["Social Post", "Email", "Article", "Script", "Ad Copy", "Description"];
-function Content() {
+function ContentRoute() {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  return pathname !== "/content" && pathname !== "/content/" ? <Outlet /> : <ContentIndex />;
+}
+
+function ContentIndex() {
   const navigate = useNavigate();
   const client = useQueryClient();
   const { user, isAuthenticated } = useAuth();
