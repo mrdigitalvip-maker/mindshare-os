@@ -93,5 +93,8 @@ jobs:
       - name: Run E53/E54 Studio and Passport source parity
         run: bun test tests/studio-passport-e53-e54-source-parity.test.ts
 
+      - name: Run E55/E56 Creator and runtime source parity
+        run: bun test tests/creator-runtime-e55-e56-source-parity.test.ts
+
       - name: Run existing Creator engine and intelligence contracts
         run: bun test tests/creator-video-engine-revision-14.test.ts tests/creator-intelligence-revision-14.test.ts
