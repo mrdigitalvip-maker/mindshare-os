@@ -6,7 +6,12 @@ import { useLanguage } from "@/providers/language-provider";
 import { useAuth } from "@/providers/auth-provider";
 import { useRouter } from "expo-router";
 import { createAndUploadCreatorVideo, enqueueCreatorProject } from "@/services/creator-service";
-import { fetchCreatorYouTubeMetadata, type CreatorYouTubeMetadata } from "@/services/creator-youtube-service";
+import {
+  CreatorYouTubeMetadataError,
+  fetchCreatorYouTubeMetadata,
+  type CreatorYouTubeMetadata,
+  type CreatorYouTubeMetadataErrorCode,
+} from "@/services/creator-youtube-service";
 import {
   CREATOR_ASPECT_RATIOS,
   CREATOR_CLIP_DURATIONS,
@@ -79,6 +84,42 @@ const copy = {
   },
 } as const;
 
+const metadataErrorMessages: Record<
+  "pt-BR" | "en",
+  Record<CreatorYouTubeMetadataErrorCode, string>
+> = {
+  "pt-BR": {
+    configuration_error: "A integração de metadados do YouTube não está configurada no servidor.",
+    origin_not_allowed: "Este aplicativo não está autorizado a usar a integração do YouTube.",
+    unauthorized: "Sua sessão expirou. Entre novamente e tente de novo.",
+    invalid_youtube_url: "Use um link HTTPS válido do YouTube.",
+    quota_check_failed: "Não foi possível verificar seu limite de análise do YouTube.",
+    daily_limit_reached: "Você atingiu o limite diário de análises do YouTube.",
+    youtube_provider_configuration: "A configuração da YouTube Data API precisa ser revisada.",
+    youtube_provider_quota: "A cota da YouTube Data API foi atingida. Tente novamente mais tarde.",
+    youtube_video_not_found: "Este vídeo não foi encontrado ou não está disponível publicamente.",
+    youtube_metadata_unavailable: "O YouTube não retornou os metadados agora. Tente novamente.",
+  },
+  en: {
+    configuration_error: "YouTube metadata integration is not configured on the server.",
+    origin_not_allowed: "This app is not authorized to use the YouTube integration.",
+    unauthorized: "Your session expired. Sign in again and retry.",
+    invalid_youtube_url: "Use a valid HTTPS YouTube link.",
+    quota_check_failed: "KIVRYN could not verify your YouTube analysis limit.",
+    daily_limit_reached: "You reached today's YouTube analysis limit.",
+    youtube_provider_configuration: "The YouTube Data API configuration needs to be reviewed.",
+    youtube_provider_quota: "The YouTube Data API quota was reached. Please retry later.",
+    youtube_video_not_found: "This video was not found or is not publicly available.",
+    youtube_metadata_unavailable: "YouTube did not return metadata right now. Please retry.",
+  },
+};
+
+function metadataErrorMessage(error: unknown, language: "pt-BR" | "en", fallback: string) {
+  return error instanceof CreatorYouTubeMetadataError
+    ? metadataErrorMessages[language][error.code]
+    : fallback;
+}
+
 type AspectRatio = (typeof CREATOR_ASPECT_RATIOS)[number];
 type ClipDuration = (typeof CREATOR_CLIP_DURATIONS)[number];
 
@@ -135,9 +176,9 @@ export default function NewCreatorProject() {
       const result = await fetchCreatorYouTubeMetadata(url);
       setMetadata(result);
       if (!title.trim()) setTitle(result.title);
-    } catch {
+    } catch (error) {
       setMetadata(null);
-      setMetadataError(c.metadataError);
+      setMetadataError(metadataErrorMessage(error, language, c.metadataError));
     } finally {
       setMetadataBusy(false);
     }

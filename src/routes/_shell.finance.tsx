@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Pencil, Plus, Search, Trash2, Wallet } from "lucide-react";
@@ -13,13 +13,19 @@ import { FinanceService, workspaceQueryKeys } from "@/services";
 
 export const Route = createFileRoute("/_shell/finance")({
   head: () => ({ meta: [{ title: "Finance — KIVRYN" }] }),
-  component: Finance,
+  component: FinanceRoute,
 });
 type Account = Awaited<ReturnType<typeof FinanceService.listAccounts>>[number];
 type Transaction = Awaited<ReturnType<typeof FinanceService.listTransactions>>[number];
 type Editor = { kind: "account"; value?: Account } | { kind: "transaction"; value?: Transaction };
-function Finance() {
+function FinanceRoute() {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  return pathname !== "/finance" && pathname !== "/finance/" ? <Outlet /> : <FinanceIndex />;
+}
+
+function FinanceIndex() {
   const { t, resolvedLocale } = useLanguage();
+  const L = (pt: string, en: string) => (resolvedLocale === "pt-BR" ? pt : en);
   const money = useMemo(
     () => new Intl.NumberFormat(resolvedLocale, { style: "currency", currency: "USD" }),
     [resolvedLocale],
@@ -63,30 +69,30 @@ function Finance() {
     [transactions.data, search, kind],
   );
   const accountName = (id: string | null) =>
-    accounts.data?.find((account) => account.id === id)?.name ?? "No account";
+    accounts.data?.find((account) => account.id === id)?.name ?? L("Sem conta", "No account");
 
   return (
     <PageShell>
       <PageHeader
-        eyebrow="Personal"
+        eyebrow={L("Pessoal", "Personal")}
         title={t("page.finance.title")}
         description={t("page.finance.description")}
         actions={
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setEditor({ kind: "account" })}>
-              <Plus /> Account
+              <Plus /> {L("Conta", "Account")}
             </Button>
             <Button onClick={() => setEditor({ kind: "transaction" })}>
-              <Plus /> Transaction
+              <Plus /> {L("Transação", "Transaction")}
             </Button>
           </div>
         }
       />
-      <section className="mt-8 grid gap-4 sm:grid-cols-3" aria-label="Financial summary">
+      <section className="mt-8 grid gap-4 sm:grid-cols-3" aria-label={L("Resumo financeiro", "Financial summary")}>
         {[
-          { label: "Balance", value: summary.data?.balance },
-          { label: "Income", value: summary.data?.income },
-          { label: "Expenses", value: summary.data?.expenses },
+          { label: L("Saldo", "Balance"), value: summary.data?.balance },
+          { label: L("Receitas", "Income"), value: summary.data?.income },
+          { label: L("Despesas", "Expenses"), value: summary.data?.expenses },
         ].map((item) => (
           <div className="v2-surface rounded-2xl p-5" key={item.label}>
             <p className="text-sm text-muted-foreground">{item.label}</p>
@@ -99,7 +105,7 @@ function Finance() {
       <section className="mt-10" aria-labelledby="finance-accounts">
         <div className="flex items-center justify-between">
           <h2 id="finance-accounts" className="font-display text-2xl">
-            Accounts
+            {L("Contas", "Accounts")}
           </h2>
         </div>
         <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -115,13 +121,13 @@ function Finance() {
                 <div>
                   <Wallet className="h-5 w-5 text-intelligence" />
                   <h3 className="mt-3 text-lg font-medium">{account.name}</h3>
-                  <p className="text-sm text-muted-foreground">{account.type} · Open account</p>
+                  <p className="text-sm text-muted-foreground">{account.type} · {L("Abrir conta", "Open account")}</p>
                 </div>
                 <div>
                   <Button
                     size="icon"
                     variant="ghost"
-                    aria-label={`Edit ${account.name}`}
+                    aria-label={`${L("Editar", "Edit")} ${account.name}`}
                     onClick={(event) => {
                       event.stopPropagation();
                       setEditor({ kind: "account", value: account });
@@ -132,10 +138,10 @@ function Finance() {
                   <Button
                     size="icon"
                     variant="ghost"
-                    aria-label={`Delete ${account.name}`}
+                    aria-label={`${L("Excluir", "Delete")} ${account.name}`}
                     onClick={(event) => {
                       event.stopPropagation();
-                      if (confirm(`Delete ${account.name}?`)) removeAccount.mutate(account.id);
+                      if (confirm(`${L("Excluir", "Delete")} ${account.name}?`)) removeAccount.mutate(account.id);
                     }}
                   >
                     <Trash2 />
@@ -148,25 +154,24 @@ function Finance() {
         {!accounts.isLoading && !accounts.data?.length && (
           <div className="mt-4 rounded-2xl border border-dashed p-8 text-center">
             <Wallet className="mx-auto h-8 w-8 text-muted-foreground" />
-            <h3 className="mt-4 text-lg font-semibold">Build your money command center</h3>
+            <h3 className="mt-4 text-lg font-semibold">{L("Construa sua central financeira", "Build your money command center")}</h3>
             <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-              Create your first account. Balances and every metric shown here come only from your
-              saved finance data.
+              {L("Crie sua primeira conta. Saldos e todas as métricas exibidas aqui vêm apenas dos seus dados financeiros salvos.", "Create your first account. Balances and every metric shown here come only from your saved finance data.")}
             </p>
             <Button className="mt-5" onClick={() => setEditor({ kind: "account" })}>
-              <Plus /> Create first account
+              <Plus /> {L("Criar primeira conta", "Create first account")}
             </Button>
           </div>
         )}
       </section>
       <section className="mt-10">
-        <h2 className="font-display text-2xl">Transaction history</h2>
+        <h2 className="font-display text-2xl">{L("Histórico de transações", "Transaction history")}</h2>
         <div className="mt-4 flex flex-col gap-3 sm:flex-row">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input
               className="pl-9"
-              placeholder="Search description or category"
+              placeholder={L("Buscar descrição ou categoria", "Search description or category")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -176,9 +181,9 @@ function Finance() {
             value={kind}
             onChange={(e) => setKind(e.target.value)}
           >
-            <option value="all">All types</option>
-            <option value="income">Income</option>
-            <option value="expense">Expense</option>
+            <option value="all">{L("Todos os tipos", "All types")}</option>
+            <option value="income">{L("Receita", "Income")}</option>
+            <option value="expense">{L("Despesa", "Expense")}</option>
           </select>
         </div>
         {!transactions.isLoading && !visible.length ? (
@@ -193,13 +198,13 @@ function Finance() {
               <article className="v2-surface flex items-center gap-3 rounded-2xl p-4" key={item.id}>
                 <div className="min-w-0 flex-1">
                   <h3 className="truncate font-medium">
-                    {item.title || item.category || "Transaction"}
+                    {item.title || item.category || L("Transação", "Transaction")}
                   </h3>
                   <p className="text-xs text-muted-foreground">
                     {accountName(item.account_id)} ·{" "}
                     {item.transaction_date
-                      ? new Date(item.transaction_date).toLocaleDateString()
-                      : "No date"}
+                      ? new Date(item.transaction_date).toLocaleDateString(resolvedLocale)
+                      : L("Sem data", "No date")}
                   </p>
                 </div>
                 <strong className={item.type === "income" ? "text-emerald-500" : "text-foreground"}>
@@ -210,7 +215,7 @@ function Finance() {
                   size="icon"
                   variant="ghost"
                   onClick={() => setEditor({ kind: "transaction", value: item })}
-                  aria-label="Edit transaction"
+                  aria-label={L("Editar transação", "Edit transaction")}
                 >
                   <Pencil />
                 </Button>
@@ -218,9 +223,9 @@ function Finance() {
                   size="icon"
                   variant="ghost"
                   onClick={() =>
-                    confirm("Delete this transaction?") && removeTransaction.mutate(item.id)
+                    confirm(L("Excluir esta transação?", "Delete this transaction?")) && removeTransaction.mutate(item.id)
                   }
-                  aria-label="Delete transaction"
+                  aria-label={L("Excluir transação", "Delete transaction")}
                 >
                   <Trash2 />
                 </Button>
@@ -253,6 +258,8 @@ function FinanceDialog({
   close: () => void;
   saved: () => void;
 }) {
+  const { resolvedLocale } = useLanguage();
+  const L = (pt: string, en: string) => (resolvedLocale === "pt-BR" ? pt : en);
   const account = editor?.kind === "account" ? editor.value : undefined;
   const transaction = editor?.kind === "transaction" ? editor.value : undefined;
   const [name, setName] = useState(account?.name ?? "");
@@ -268,13 +275,13 @@ function FinanceDialog({
   const save = useMutation({
     mutationFn: async () => {
       if (editor?.kind === "account") {
-        if (!name.trim()) throw new Error("Account name is required");
+        if (!name.trim()) throw new Error(L("O nome da conta é obrigatório", "Account name is required"));
         const patch = { name: name.trim(), type: accountType, balance: Number(balance) };
         if (account) await FinanceService.updateAccount(account.id, patch);
         else await FinanceService.createAccount(patch);
       } else {
         if (!accountId || !amount || Number(amount) <= 0)
-          throw new Error("Choose an account and enter a positive amount");
+          throw new Error(L("Escolha uma conta e informe um valor positivo", "Choose an account and enter a positive amount"));
         const patch = {
           account_id: accountId,
           title: description.trim() || null,
@@ -287,7 +294,7 @@ function FinanceDialog({
       }
     },
     onSuccess: () => {
-      toast.success(editor?.kind === "account" ? "Account saved" : "Transaction saved");
+      toast.success(editor?.kind === "account" ? L("Conta salva", "Account saved") : L("Transação salva", "Transaction saved"));
       saved();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -298,28 +305,28 @@ function FinanceDialog({
         <DialogHeader>
           <DialogTitle>
             {editor?.kind === "account"
-              ? `${account ? "Edit" : "New"} account`
-              : `${transaction ? "Edit" : "New"} transaction`}
+              ? `${account ? L("Editar", "Edit") : L("Nova", "New")} ${L("conta", "account")}`
+              : `${transaction ? L("Editar", "Edit") : L("Nova", "New")} ${L("transação", "transaction")}`}
           </DialogTitle>
         </DialogHeader>
         {editor?.kind === "account" ? (
           <div className="space-y-4">
-            <Field label="Name">
+            <Field label={L("Nome", "Name")}>
               <Input value={name} onChange={(e) => setName(e.target.value)} />
             </Field>
-            <Field label="Type">
+            <Field label={L("Tipo", "Type")}>
               <select
                 className="h-11 w-full rounded-md border bg-background px-3"
                 value={accountType}
                 onChange={(e) => setAccountType(e.target.value)}
               >
-                <option value="checking">Checking</option>
-                <option value="savings">Savings</option>
-                <option value="cash">Cash</option>
-                <option value="credit">Credit</option>
+                <option value="checking">{L("Conta corrente", "Checking")}</option>
+                <option value="savings">{L("Poupança", "Savings")}</option>
+                <option value="cash">{L("Dinheiro", "Cash")}</option>
+                <option value="credit">{L("Crédito", "Credit")}</option>
               </select>
             </Field>
-            <Field label="Opening balance">
+            <Field label={L("Saldo inicial", "Opening balance")}>
               <Input
                 type="number"
                 step="0.01"
@@ -330,11 +337,11 @@ function FinanceDialog({
           </div>
         ) : (
           <div className="space-y-4">
-            <Field label="Description">
+            <Field label={L("Descrição", "Description")}>
               <Input value={description} onChange={(e) => setDescription(e.target.value)} />
             </Field>
             <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Amount">
+              <Field label={L("Valor", "Amount")}>
                 <Input
                   type="number"
                   min="0.01"
@@ -343,24 +350,24 @@ function FinanceDialog({
                   onChange={(e) => setAmount(e.target.value)}
                 />
               </Field>
-              <Field label="Type">
+              <Field label={L("Tipo", "Type")}>
                 <select
                   className="h-11 w-full rounded-md border bg-background px-3"
                   value={type}
                   onChange={(e) => setType(e.target.value)}
                 >
-                  <option value="expense">Expense</option>
-                  <option value="income">Income</option>
+                  <option value="expense">{L("Despesa", "Expense")}</option>
+                  <option value="income">{L("Receita", "Income")}</option>
                 </select>
               </Field>
             </div>
-            <Field label="Account">
+            <Field label={L("Conta", "Account")}>
               <select
                 className="h-11 w-full rounded-md border bg-background px-3"
                 value={accountId}
                 onChange={(e) => setAccountId(e.target.value)}
               >
-                <option value="">Choose account</option>
+                <option value="">{L("Escolha uma conta", "Choose account")}</option>
                 {accounts.map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.name}
@@ -368,17 +375,17 @@ function FinanceDialog({
                 ))}
               </select>
             </Field>
-            <Field label="Date">
+            <Field label={L("Data", "Date")}>
               <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
             </Field>
           </div>
         )}
         <div className="mt-5 flex justify-end gap-2">
           <Button variant="outline" onClick={close}>
-            Cancel
+            {L("Cancelar", "Cancel")}
           </Button>
           <Button disabled={save.isPending} onClick={() => save.mutate()}>
-            {save.isPending ? "Saving…" : "Save"}
+            {save.isPending ? L("Salvando…", "Saving…") : L("Salvar", "Save")}
           </Button>
         </div>
       </DialogContent>

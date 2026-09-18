@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { listPacks, parityKeys } from "@/services/parity-service";
 import { WorkspaceShell } from "@/components/workspace-ui";
+import { useLanguage } from "@/providers/language-provider";
 
 export const Route = createFileRoute("/_shell/packs")({ component: Packs });
 
@@ -16,6 +17,8 @@ function Packs() {
 }
 
 function PacksIndex() {
+  const { resolvedLocale } = useLanguage();
+  const L = (pt: string, en: string) => (resolvedLocale === "pt-BR" ? pt : en);
   const navigate = useNavigate();
   const q = useQuery({ queryKey: parityKeys.packs, queryFn: listPacks });
   const [category, setCategory] = useState("");
@@ -24,18 +27,18 @@ function PacksIndex() {
   return (
     <PageShell>
       <PageHeader
-        title="Journey Packs"
-        description="Blueprints oficiais que criam Jornadas canônicas em todos os clientes."
+        title={L("Packs de Jornadas", "Journey Packs")}
+        description={L("Blueprints oficiais que criam Jornadas canônicas em todos os clientes.", "Official blueprints that create canonical Journeys across all clients.")}
       />
       <WorkspaceShell>
         <label htmlFor="pack-category" className="sr-only">
-          Filtrar categoria
+          {L("Filtrar categoria", "Filter category")}
         </label>
         <Input
           id="pack-category"
           value={category}
           onChange={(e) => setCategory(e.target.value)}
-          placeholder="Filtrar por categoria"
+          placeholder={L("Filtrar por categoria", "Filter by category")}
           className="mb-5 max-w-sm"
         />
         <RouteState
@@ -48,7 +51,7 @@ function PacksIndex() {
             {shown?.map((p) => (
               <article key={p.id} className="v2-surface min-w-0 rounded-2xl p-5">
                 <p className="text-xs uppercase text-muted-foreground">
-                  {p.category} · {p.duration_days} dias
+                  {p.category} · {p.duration_days} {L("dias", "days")}
                 </p>
                 <h2 className="mt-2 text-lg font-semibold">{p.title}</h2>
                 <p className="mt-1 text-sm text-muted-foreground">{p.short_description}</p>
@@ -58,7 +61,7 @@ function PacksIndex() {
                   className="mt-3 h-auto min-h-11 px-0"
                   onClick={() => void navigate({ to: "/packs/$slug", params: { slug: p.slug } })}
                 >
-                  Ver Pack
+                  {L("Ver Pack", "View Pack")}
                 </Button>
               </article>
             ))}

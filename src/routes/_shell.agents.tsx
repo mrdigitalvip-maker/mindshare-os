@@ -20,6 +20,7 @@ import {
 } from "@/services";
 import { useSubscription } from "@/hooks/use-subscription";
 import { MetricCard, PremiumGate, WorkspaceShell } from "@/components/workspace-ui";
+import { useLanguage } from "@/providers/language-provider";
 export const Route = createFileRoute("/_shell/agents")({
   head: () => ({ meta: [{ title: "Agentes — KIVRYN" }] }),
   component: Agents,
@@ -42,6 +43,8 @@ function Agents() {
 }
 
 function AgentsIndex() {
+  const { resolvedLocale } = useLanguage();
+  const L = (pt: string, en: string) => (resolvedLocale === "pt-BR" ? pt : en);
   const [builder, setBuilder] = useState(false);
   const [search, setSearch] = useState("");
   const subscription = useSubscription();
@@ -74,55 +77,79 @@ function AgentsIndex() {
   const retryingBackground = (backgroundRuns.data ?? []).filter(
     (run) => run.status === "retry_wait",
   ).length;
+  const premium = subscription.data?.isPremium === true;
+  const entitlementLoading = subscription.isPending && !subscription.data;
+  const entitlementError = subscription.isError;
+  const openBuilder = () => {
+    if (entitlementLoading) return;
+    if (entitlementError) {
+      toast.error(L("Não foi possível verificar seu acesso Premium. Tente novamente.", "Could not verify your Premium access. Try again."));
+      return;
+    }
+    if (premium) {
+      setBuilder(true);
+      return;
+    }
+    toast.error(L("Faça upgrade para criar e executar agentes.", "Upgrade to create and run agents."));
+  };
   return (
     <PageShell>
       <WorkspaceShell>
         <PageHeader
-          eyebrow="Recurso Premium"
-          title="Agentes"
-          description="Crie especialistas reutilizáveis com skills KIVRYN versionadas e execução segura."
+          eyebrow={L("Recurso Premium", "Premium feature")}
+          title={L("Agentes", "Agents")}
+          description={L("Crie especialistas reutilizáveis com skills KIVRYN versionadas e execução segura.", "Create reusable specialists with versioned KIVRYN skills and safe execution.")}
           actions={
-            <Button
-              onClick={() =>
-                subscription.data?.isPremium
-                  ? setBuilder(true)
-                  : toast.error("Faça upgrade para criar e executar agentes.")
-              }
-            >
+            <Button disabled={entitlementLoading} onClick={openBuilder}>
               <Plus />
-              Novo agente
+              {L("Novo agente", "New agent")}
             </Button>
           }
         />
-        {!subscription.data?.isPremium && (
+        {entitlementLoading ? (
+          <PremiumGate>
+            <p className="text-sm text-muted-foreground">{L("Verificando acesso Premium…", "Checking Premium access…")}</p>
+          </PremiumGate>
+        ) : entitlementError ? (
+          <PremiumGate>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm text-destructive">
+                {L("Não foi possível verificar seu acesso Premium.", "Could not verify your Premium access.")}
+              </p>
+              <Button size="sm" variant="outline" onClick={() => void subscription.refetch()}>
+                {L("Tentar novamente", "Try again")}
+              </Button>
+            </div>
+          </PremiumGate>
+        ) : !premium ? (
           <PremiumGate>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="text-sm">
                 <Crown className="mr-2 inline h-4 w-4 text-gold" />
-                Agentes são exclusivos do Premium.
+                {L("Agentes são exclusivos do Premium.", "Agents are a Premium feature.")}
               </p>
               <Link to="/premium">
-                <Button size="sm">Ver Premium</Button>
+                <Button size="sm">{L("Ver Premium", "View Premium")}</Button>
               </Link>
             </div>
           </PremiumGate>
-        )}
+        ) : null}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <MetricCard
-            label="Active agents"
+            label={L("Agentes ativos", "Active agents")}
             value={(query.data ?? []).filter((a) => a.active).length}
           />
-          <MetricCard label="Recent runs" value={(runs.data ?? []).length} hint="Persisted runs" />
+          <MetricCard label={L("Execuções recentes", "Recent runs")} value={(runs.data ?? []).length} hint={L("Execuções persistidas", "Persisted runs")} />
           <MetricCard
-            label="Background"
+            label={L("Segundo plano", "Background")}
             value={activeBackground}
-            hint={retryingBackground ? `${retryingBackground} aguardando retry` : "Fila saudável"}
+            hint={retryingBackground ? `${retryingBackground} ${L("aguardando nova tentativa", "waiting for retry")}` : L("Fila saudável", "Healthy queue")}
           />
           <MetricCard
-            label="Last execution"
+            label={L("Última execução", "Last execution")}
             value={
               runs.data?.[0]
-                ? new Date(runs.data[0].started_at || runs.data[0].created_at).toLocaleDateString()
+                ? new Date(runs.data[0].started_at || runs.data[0].created_at).toLocaleDateString(resolvedLocale)
                 : "—"
             }
           />
@@ -132,8 +159,8 @@ function AgentsIndex() {
           <Search className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
           <Input
             className="pl-9"
-            aria-label="Search agents"
-            placeholder="Search by name or purpose"
+            aria-label={L("Buscar agentes", "Search agents")}
+            placeholder={L("Buscar por nome ou objetivo", "Search by name or purpose")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -141,23 +168,17 @@ function AgentsIndex() {
         {!visible.length ? (
           <EmptyState
             icon={Bot}
-            title={search ? "No agents match your search" : "Build a reusable AI specialist"}
+            title={search ? L("Nenhum agente corresponde à busca", "No agents match your search") : L("Crie um especialista de IA reutilizável", "Build a reusable AI specialist")}
             description={
               search
-                ? "Try a different name or purpose."
-                : "Define a purpose and select KIVRYN skills. Skills shape how the Agent works without granting silent workspace mutations."
+                ? L("Tente outro nome ou objetivo.", "Try a different name or purpose.")
+                : L("Defina um objetivo e selecione skills KIVRYN. As skills moldam como o Agent trabalha sem conceder alterações silenciosas no workspace.", "Define a purpose and select KIVRYN skills. Skills shape how the Agent works without granting silent workspace mutations.")
             }
             action={
               !search && (
-                <Button
-                  onClick={() =>
-                    subscription.data?.isPremium
-                      ? setBuilder(true)
-                      : toast.error("Premium is required.")
-                  }
-                >
+                <Button disabled={entitlementLoading} onClick={openBuilder}>
                   <Plus />
-                  Create your first agent
+                  {L("Criar primeiro agente", "Create your first agent")}
                 </Button>
               )
             }
@@ -184,13 +205,13 @@ function AgentsIndex() {
                     </div>
                   )}
                   <span className="mt-4 inline-flex rounded-full border px-2 py-1 text-xs">
-                    {a.active ? "Ativo" : "Inativo"}
+                    {a.active ? L("Ativo", "Active") : L("Inativo", "Inactive")}
                   </span>
                   <p className="mt-3 text-xs text-muted-foreground">
-                    Last run:{" "}
+                    {L("Última execução", "Last run")}:{" "}
                     {recent
-                      ? new Date(recent.started_at || recent.created_at).toLocaleString()
-                      : "Never"}
+                      ? new Date(recent.started_at || recent.created_at).toLocaleString(resolvedLocale)
+                      : L("Nunca", "Never")}
                   </p>
                   <div className="mt-4 flex gap-2">
                     <Link
@@ -198,7 +219,7 @@ function AgentsIndex() {
                       params={{ agentId: a.id }}
                       search={{ tab: undefined }}
                     >
-                      <Button variant="outline">Open</Button>
+                      <Button variant="outline">{L("Abrir", "Open")}</Button>
                     </Link>
                     <Link
                       to="/agents/$agentId"
@@ -207,7 +228,7 @@ function AgentsIndex() {
                     >
                       <Button disabled={!a.active}>
                         <Play />
-                        Run
+                        {L("Executar", "Run")}
                       </Button>
                     </Link>
                   </div>
@@ -222,6 +243,8 @@ function AgentsIndex() {
   );
 }
 function Builder({ open, close }: { open: boolean; close: () => void }) {
+  const { resolvedLocale } = useLanguage();
+  const L = (pt: string, en: string) => (resolvedLocale === "pt-BR" ? pt : en);
   const client = useQueryClient();
   const [step, setStep] = useState(1);
   const [form, setForm] = useState(emptyAgentForm);
@@ -235,22 +258,23 @@ function Builder({ open, close }: { open: boolean; close: () => void }) {
     mutationFn: () => AgentService.create({ ...form, active: true }),
     onSuccess: async () => {
       await client.invalidateQueries({ queryKey: workspaceQueryKeys.agents });
-      toast.success("Agente criado");
+      toast.success(L("Agente criado", "Agent created"));
       resetAndClose();
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) =>
+      toast.error(e.message.includes("premium_required") ? L("Agentes exigem Premium ativo.", "Agents require active Premium.") : e.message),
   });
   return (
     <Dialog open={open} onOpenChange={(o) => !o && resetAndClose()}>
       <DialogContent className="max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Novo agente · etapa {step} de 5</DialogTitle>
+          <DialogTitle>{L("Novo agente", "New agent")} · {L("etapa", "step")} {step} {L("de", "of")} 5</DialogTitle>
         </DialogHeader>
         {step === 1 && (
           <div className="space-y-3">
-            <Label>Nome</Label>
+            <Label>{L("Nome", "Name")}</Label>
             <Input value={form.name} onChange={(e) => field("name", e.target.value)} />
-            <Label>Descrição</Label>
+            <Label>{L("Descrição", "Description")}</Label>
             <Textarea
               value={form.description}
               onChange={(e) => field("description", e.target.value)}
@@ -259,9 +283,9 @@ function Builder({ open, close }: { open: boolean; close: () => void }) {
         )}
         {step === 2 && (
           <div className="space-y-3">
-            <Label>What should this agent do?</Label>
+            <Label>{L("O que este agente deve fazer?", "What should this agent do?")}</Label>
             <Textarea value={form.goal} onChange={(e) => field("goal", e.target.value)} />
-            <Label>What result should it produce?</Label>
+            <Label>{L("Qual resultado ele deve produzir?", "What result should it produce?")}</Label>
             <Textarea
               value={form.expected_output}
               onChange={(e) => field("expected_output", e.target.value)}
@@ -270,21 +294,21 @@ function Builder({ open, close }: { open: boolean; close: () => void }) {
         )}
         {step === 3 && (
           <div className="space-y-3">
-            <Label>Instruções</Label>
+            <Label>{L("Instruções", "Instructions")}</Label>
             <Textarea
               value={form.instructions}
               onChange={(e) => field("instructions", e.target.value)}
             />
-            <Label>Tom</Label>
+            <Label>{L("Tom", "Tone")}</Label>
             <Input value={form.tone} onChange={(e) => field("tone", e.target.value)} />
           </div>
         )}
         {step === 4 && (
           <div className="space-y-3">
             <div>
-              <Label>Skills especializadas</Label>
+              <Label>{L("Skills especializadas", "Specialized skills")}</Label>
               <p className="mt-1 text-xs text-muted-foreground">
-                Cada skill adiciona um método de trabalho versionado. Autoridade para alterar o workspace continua separada e exige aprovação KIVRYN.
+                {L("Cada skill adiciona um método de trabalho versionado. Autoridade para alterar o workspace continua separada e exige aprovação KIVRYN.", "Each skill adds a versioned way of working. Authority to mutate the workspace remains separate and requires KIVRYN approval.")}
               </p>
             </div>
             {capabilities.map(([value, label, description]) => (
@@ -322,13 +346,13 @@ function Builder({ open, close }: { open: boolean; close: () => void }) {
             variant="outline"
             onClick={() => (step === 1 ? resetAndClose() : setStep(step - 1))}
           >
-            {step === 1 ? "Cancelar" : "Voltar"}
+            {step === 1 ? L("Cancelar", "Cancel") : L("Voltar", "Back")}
           </Button>
           <Button
             disabled={(step === 1 && !form.name.trim()) || create.isPending}
             onClick={() => (step < 5 ? setStep(step + 1) : create.mutate())}
           >
-            {step < 5 ? "Continuar" : "Criar agente"}
+            {step < 5 ? L("Continuar", "Continue") : L("Criar agente", "Create agent")}
           </Button>
         </div>
       </DialogContent>

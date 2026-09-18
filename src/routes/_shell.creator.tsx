@@ -57,7 +57,12 @@ import {
   syncCreatorProviderAnalytics,
   disconnectCreatorProvider,
 } from "@/services/creator-service";
-import type { CreatorProvider, CreatorYouTubeMetadata } from "@/services/creator-service";
+import {
+  CreatorYouTubeMetadataError,
+  type CreatorProvider,
+  type CreatorYouTubeMetadata,
+  type CreatorYouTubeMetadataErrorCode,
+} from "@/services/creator-service";
 
 export const Route = createFileRoute("/_shell/creator")({
   head: () => ({ meta: [{ title: "Creator Studio — KIVRYN" }] }),
@@ -90,6 +95,63 @@ const Field = ({
     <Input type={type} value={value} onChange={(event) => onChange(event.target.value)} />
   </div>
 );
+
+const youtubeMetadataErrorCopy: Record<
+  "pt-BR" | "en",
+  Record<CreatorYouTubeMetadataErrorCode, string>
+> = {
+  "pt-BR": {
+    configuration_error:
+      "A integração de metadados do YouTube não está configurada no servidor.",
+    origin_not_allowed:
+      "Este domínio não está autorizado a usar a integração do YouTube.",
+    unauthorized: "Sua sessão expirou. Entre novamente e tente de novo.",
+    invalid_youtube_url: "Use um link válido do YouTube.",
+    quota_check_failed:
+      "Não foi possível verificar seu limite de análise do YouTube. Tente novamente.",
+    daily_limit_reached:
+      "Você atingiu o limite diário de análises do YouTube.",
+    youtube_provider_configuration:
+      "A configuração da YouTube Data API precisa ser revisada.",
+    youtube_provider_quota:
+      "A cota da YouTube Data API foi atingida. Tente novamente mais tarde.",
+    youtube_video_not_found:
+      "Este vídeo não foi encontrado ou não está disponível publicamente.",
+    youtube_metadata_unavailable:
+      "O YouTube não retornou os metadados agora. Tente novamente.",
+  },
+  en: {
+    configuration_error:
+      "YouTube metadata integration is not configured on the server.",
+    origin_not_allowed:
+      "This domain is not authorized to use the YouTube integration.",
+    unauthorized: "Your session expired. Sign in again and retry.",
+    invalid_youtube_url: "Use a valid YouTube link.",
+    quota_check_failed:
+      "KIVRYN could not verify your YouTube analysis limit. Please retry.",
+    daily_limit_reached:
+      "You reached today's YouTube analysis limit.",
+    youtube_provider_configuration:
+      "The YouTube Data API configuration needs to be reviewed.",
+    youtube_provider_quota:
+      "The YouTube Data API quota was reached. Please retry later.",
+    youtube_video_not_found:
+      "This video was not found or is not publicly available.",
+    youtube_metadata_unavailable:
+      "YouTube did not return metadata right now. Please retry.",
+  },
+};
+
+function creatorYouTubeMetadataErrorMessage(
+  error: unknown,
+  locale: "pt-BR" | "en",
+) {
+  const code =
+    error instanceof CreatorYouTubeMetadataError
+      ? error.code
+      : "youtube_metadata_unavailable";
+  return youtubeMetadataErrorCopy[locale][code];
+}
 
 function isYouTubeUrl(value: string) {
   try {
@@ -126,6 +188,87 @@ function metricRecord(value: unknown): Record<string, number> {
   );
 }
 
+const creatorStatusPt: Record<string, string> = {
+  draft: "rascunho",
+  ready: "pronto",
+  uploading: "enviando",
+  available: "disponível",
+  failed: "falhou",
+  queued: "na fila",
+  analyzing: "analisando",
+  transcribing: "transcrevendo",
+  selecting_clips: "selecionando cortes",
+  rendering: "renderizando",
+  completed: "concluído",
+  cancelled: "cancelado",
+  cancel_requested: "cancelamento solicitado",
+  retry_wait: "aguardando nova tentativa",
+  connected: "conectado",
+  not_connected: "não conectado",
+  revoked: "revogado",
+  expired: "expirado",
+  unknown: "desconhecido",
+  authorized_direct: "fonte direta autorizada",
+  local_video: "vídeo local",
+};
+
+function creatorStatusLabel(value: unknown, locale: "pt-BR" | "en") {
+  const normalized = String(value ?? "unknown");
+  if (locale === "pt-BR") return creatorStatusPt[normalized] ?? normalized.replaceAll("_", " ");
+  return normalized.replaceAll("_", " ");
+}
+
+const creatorMetricPt: Record<string, string> = {
+  views: "visualizações",
+  reach: "alcance",
+  watch_time_ms: "tempo de exibição",
+  average_view_duration_ms: "duração média de visualização",
+  retention_ratio: "retenção",
+  likes: "curtidas",
+  comments: "comentários",
+  shares: "compartilhamentos",
+  saves: "salvamentos",
+  followers_gained: "seguidores conquistados",
+};
+
+function creatorMetricLabel(value: string, locale: "pt-BR" | "en") {
+  return locale === "pt-BR" ? creatorMetricPt[value] ?? value.replaceAll("_", " ") : value.replaceAll("_", " ");
+}
+
+const creatorAcademyPt: Record<string, string> = {
+  START: "INÍCIO",
+  GROWTH: "CRESCIMENTO",
+  PRO: "PRO",
+  "Choose your niche": "Escolha seu nicho",
+  "Build your profile": "Construa seu perfil",
+  "Content pillar basics": "Fundamentos de pilares de conteúdo",
+  Retention: "Retenção",
+  Storytelling: "Narrativa",
+  "Calls to action": "Chamadas para ação",
+  "Content systems": "Sistemas de conteúdo",
+  Experiments: "Experimentos",
+  "Audience analysis": "Análise de público",
+};
+
+function creatorAcademyLabel(value: string, locale: "pt-BR" | "en") {
+  return locale === "pt-BR" ? creatorAcademyPt[value] ?? value : value;
+}
+
+const creatorCountryFieldPt: Record<string, string> = {
+  platform: "Plataforma",
+  countryIso: "Código do país",
+  countryName: "País",
+  metricContext: "Contexto da métrica",
+  value: "Valor",
+  period: "Período",
+  notes: "Observações",
+};
+
+function creatorCountryFieldLabel(value: string, locale: "pt-BR" | "en") {
+  if (locale === "pt-BR") return creatorCountryFieldPt[value] ?? value;
+  return value.replace(/([A-Z])/g, " $1").replace(/^./, (letter) => letter.toUpperCase());
+}
+
 function creatorJobActive(status: unknown) {
   return ["queued", "analyzing", "transcribing", "selecting_clips", "rendering"].includes(
     String(status),
@@ -134,7 +277,8 @@ function creatorJobActive(status: unknown) {
 
 function CreatorStudio() {
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, resolvedLocale } = useLanguage();
+  const L = (pt: string, en: string) => (resolvedLocale === "pt-BR" ? pt : en);
   const userId = user?.id ?? "";
   const [profile, setProfile] = useState<CreatorProfile>(emptyCreatorProfile);
   const [strategy, setStrategy] = useState<CreatorStrategy>({
@@ -195,7 +339,7 @@ function CreatorStudio() {
   useEffect(() => {
     void reload().catch(() => {
       setLoading(false);
-      toast.error("Creator data is temporarily unavailable. Retry when ready.");
+      toast.error(L("Os dados do Creator estão temporariamente indisponíveis. Tente novamente.", "Creator data is temporarily unavailable. Retry when ready."));
     });
   }, [reload]);
 
@@ -206,9 +350,9 @@ function CreatorStudio() {
     const connectionError = current.searchParams.get("error");
     if (!connectionStatus && !connectionError) return;
     if (connectionStatus === "connected") {
-      toast.success("Creator provider connected. Sync analytics when ready.");
+      toast.success(L("Provedor do Creator conectado. Sincronize os analytics quando quiser.", "Creator provider connected. Sync analytics when ready."));
     } else if (connectionError) {
-      toast.error(`Provider connection failed: ${connectionError.replaceAll("_", " ")}.`);
+      toast.error(`${L("Falha ao conectar provedor", "Provider connection failed")}: ${connectionError.replaceAll("_", " ")}.`);
     }
     current.searchParams.delete("creator_connection");
     current.searchParams.delete("error");
@@ -283,7 +427,7 @@ function CreatorStudio() {
       toast.success(message);
     } catch (error) {
       console.error("creator_mutation_failed", error);
-      toast.error("Could not save. Your existing data is unchanged.");
+      toast.error(L("Não foi possível salvar. Seus dados existentes não foram alterados.", "Could not save. Your existing data is unchanged."));
     }
   };
 
@@ -314,7 +458,7 @@ function CreatorStudio() {
 
   const handleUrlSource = async () => {
     if (!sourceUrl.trim()) {
-      toast.error("Paste a source URL first.");
+      toast.error(L("Cole primeiro uma URL de origem.", "Paste a source URL first."));
       return;
     }
     setSourceBusy(true);
@@ -324,11 +468,11 @@ function CreatorStudio() {
         const metadata = await inspectCreatorYouTubeUrl(sourceUrl);
         setYoutubeMetadata(metadata);
         setSourceTitle((current) => current || metadata.title);
-        toast.success("YouTube source recognized. Upload the original video to create clips.");
+        toast.success(L("Fonte do YouTube reconhecida. Envie o vídeo original para criar cortes.", "YouTube source recognized. Upload the original video to create clips."));
         return;
       }
       if (!sourceAuthorized) {
-        toast.error("Confirm that you own or are authorized to process this video.");
+        toast.error(L("Confirme que você possui ou tem autorização para processar este vídeo.", "Confirm that you own or are authorized to process this video."));
         return;
       }
       await importCreatorVideoFromUrl({
@@ -343,13 +487,15 @@ function CreatorStudio() {
       setSourceTitle("");
       setSourceAuthorized(false);
       await reload();
-      toast.success("Source imported. KIVRYN queued the real clipping job.");
+      toast.success(L("Fonte importada. A KIVRYN colocou o processamento real de cortes na fila.", "Source imported. KIVRYN queued the real clipping job."));
     } catch (error) {
       console.error("creator_source_url_failed", error);
       toast.error(
         isYouTubeUrl(sourceUrl)
-          ? "Could not inspect this YouTube link. Try again or upload the original video."
-          : "This URL could not be imported. Use a direct HTTPS video link or upload the file.",
+          ? creatorYouTubeMetadataErrorMessage(error, resolvedLocale)
+          : resolvedLocale === "pt-BR"
+            ? "Esta URL não pôde ser importada. Use um link HTTPS direto para o vídeo ou envie o arquivo."
+            : "This URL could not be imported. Use a direct HTTPS video link or upload the file.",
       );
     } finally {
       setSourceBusy(false);
@@ -361,10 +507,10 @@ function CreatorStudio() {
     try {
       await createCreatorVideoProject({ userId, title: file.name, file });
       await reload();
-      toast.success("Video uploaded. KIVRYN queued the real clipping job.");
+      toast.success(L("Vídeo enviado. A KIVRYN colocou o processamento real de cortes na fila.", "Video uploaded. KIVRYN queued the real clipping job."));
     } catch (error) {
       console.error("creator_local_upload_failed", error);
-      toast.error("The video could not be uploaded. No fake processing state was created.");
+      toast.error(L("Não foi possível enviar o vídeo. Nenhum estado fictício de processamento foi criado.", "The video could not be uploaded. No fake processing state was created."));
     } finally {
       setSourceBusy(false);
     }
@@ -379,10 +525,10 @@ function CreatorStudio() {
       await cancelCreatorJob(jobId);
       setCancelConfirmJobId(null);
       await reload();
-      toast.success("Creator processing cancelled.");
+      toast.success(L("Processamento do Creator cancelado.", "Creator processing cancelled."));
     } catch (error) {
       console.error("creator_job_cancel_failed", error);
-      toast.error("This Creator job could not be cancelled.");
+      toast.error(L("Não foi possível cancelar este processamento do Creator.", "This Creator job could not be cancelled."));
     }
   };
 
@@ -418,10 +564,10 @@ function CreatorStudio() {
         captionsEnabled: draft.captionsEnabled,
       });
       await reload();
-      toast.success("Rerender queued in the canonical Creator worker.");
+      toast.success(L("Nova renderização colocada na fila do worker canônico do Creator.", "Rerender queued in the canonical Creator worker."));
     } catch (error) {
       console.error("creator_rerender_failed", error);
-      toast.error("Could not queue this rerender. Check the clip range and retry.");
+      toast.error(L("Não foi possível colocar a nova renderização na fila. Revise o intervalo do corte e tente novamente.", "Could not queue this rerender. Check the clip range and retry."));
     }
   };
 
@@ -438,8 +584,14 @@ function CreatorStudio() {
       console.error("creator_provider_connect_failed", error);
       toast.error(
         provider === "youtube"
-          ? "YouTube connection is not configured or available."
-          : "TikTok connection requires an approved provider app.",
+          ? L(
+              "A conexão com o YouTube não está configurada ou disponível.",
+              "YouTube connection is not configured or available.",
+            )
+          : L(
+              "A conexão com o TikTok exige um aplicativo de provedor aprovado.",
+              "TikTok connection requires an approved provider app.",
+            ),
       );
       setProviderBusy(null);
     }
@@ -451,11 +603,14 @@ function CreatorStudio() {
       const result = await syncCreatorProviderAnalytics(connectionId);
       await reload();
       toast.success(
-        `Provider analytics synced: ${result.content ?? 0} content records, ${result.snapshots ?? 0} new snapshots.`,
+        L(
+          `Analytics do provedor sincronizados: ${result.content ?? 0} registros de conteúdo e ${result.snapshots ?? 0} novos snapshots.`,
+          `Provider analytics synced: ${result.content ?? 0} content records, ${result.snapshots ?? 0} new snapshots.`,
+        ),
       );
     } catch (error) {
       console.error("creator_analytics_sync_failed", error);
-      toast.error("Provider analytics could not be synced.");
+      toast.error(L("Não foi possível sincronizar os analytics do provedor.", "Provider analytics could not be synced."));
     } finally {
       setProviderBusy(null);
     }
@@ -471,10 +626,10 @@ function CreatorStudio() {
       await disconnectCreatorProvider(connectionId);
       setDisconnectConfirmId(null);
       await reload();
-      toast.success("Provider disconnected. Existing analytics history was retained.");
+      toast.success(L("Provedor desconectado. O histórico de analytics existente foi preservado.", "Provider disconnected. Existing analytics history was retained."));
     } catch (error) {
       console.error("creator_provider_disconnect_failed", error);
-      toast.error("Provider could not be disconnected.");
+      toast.error(L("Não foi possível desconectar o provedor.", "Provider could not be disconnected."));
     } finally {
       setProviderBusy(null);
     }
@@ -493,38 +648,42 @@ function CreatorStudio() {
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-muted-foreground">
             KIVRYN · CREATOR STUDIO
           </p>
-          <h1 className="mt-2 font-display text-4xl md:text-5xl">Create from the source, not the clutter.</h1>
+          <h1 className="mt-2 font-display text-4xl md:text-5xl">{L("Crie a partir da fonte, sem ruído.", "Create from the source, not the clutter.")}</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground md:text-base">
-            Bring the video first. KIVRYN keeps the source private, sends it through the canonical
-            clipping pipeline and shows only real projects, jobs and outputs.
+            {L(
+              "Comece pelo vídeo. A KIVRYN mantém a fonte privada, envia pelo pipeline canônico de cortes e mostra apenas projetos, processamentos e resultados reais.",
+              "Bring the video first. KIVRYN keeps the source private, sends it through the canonical clipping pipeline and shows only real projects, jobs and outputs.",
+            )}
           </p>
         </div>
         <div className="grid gap-3 sm:grid-cols-3">
-          <StatusCard label="Sources" value={projectCount} detail="real creator projects" />
-          <StatusCard label="Processing" value={activeJobs} detail="active backend jobs" />
-          <StatusCard label="Clips" value={clipCount} detail="rendered outputs" />
+          <StatusCard label={L("Fontes", "Sources")} value={projectCount} detail={L("projetos reais do Creator", "real creator projects")} />
+          <StatusCard label={L("Processando", "Processing")} value={activeJobs} detail={L("processamentos ativos no backend", "active backend jobs")} />
+          <StatusCard label={L("Cortes", "Clips")} value={clipCount} detail={L("resultados renderizados", "rendered outputs")} />
         </div>
         <p className="text-xs leading-5 text-muted-foreground">
-          Standalone Creator works without social credentials. Social publishing integrations are not connected
-          unless a verified provider connection is configured.
+          {L(
+            "O Creator funciona sem credenciais sociais. Integrações de publicação só ficam conectadas quando existe uma conexão de provedor verificada.",
+            "Standalone Creator works without social credentials. Social publishing integrations are not connected unless a verified provider connection is configured.",
+          )}
         </p>
       </header>
 
       <section id="media" className="scroll-mt-24 space-y-4">
         <div className="flex items-center gap-2">
           <Film className="h-5 w-5 text-intelligence" />
-          <h2 className="font-display text-3xl">Source workspace</h2>
+          <h2 className="font-display text-3xl">{L("Espaço de fontes", "Source workspace")}</h2>
         </div>
         <div className="grid gap-4 lg:grid-cols-[1.35fr_.65fr]">
           <Card className="overflow-hidden border-intelligence/20">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Link2 className="h-5 w-5" /> Paste a video source
+                <Link2 className="h-5 w-5" /> {L("Cole uma fonte de vídeo", "Paste a video source")}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-1.5">
-                <Label htmlFor="creator-source-url">Video URL</Label>
+                <Label htmlFor="creator-source-url">{L("URL do vídeo", "Video URL")}</Label>
                 <Input
                   id="creator-source-url"
                   type="url"
@@ -537,7 +696,7 @@ function CreatorStudio() {
                   placeholder="https://…"
                 />
               </div>
-              <Field label="Optional project title" value={sourceTitle} onChange={setSourceTitle} />
+              <Field label={L("Título do projeto (opcional)", "Optional project title")} value={sourceTitle} onChange={setSourceTitle} />
               {!isYouTubeUrl(sourceUrl) && (
                 <label className="flex items-start gap-3 rounded-xl border border-border bg-surface/60 p-3 text-sm">
                   <input
@@ -547,8 +706,10 @@ function CreatorStudio() {
                     onChange={(event) => setSourceAuthorized(event.target.checked)}
                   />
                   <span>
-                    I own this video or have permission to process it. KIVRYN imports only a direct
-                    HTTPS video source into my private Creator storage.
+                    {L(
+                      "Eu possuo este vídeo ou tenho permissão para processá-lo. A KIVRYN importa apenas uma fonte HTTPS direta para meu armazenamento privado do Creator.",
+                      "I own this video or have permission to process it. KIVRYN imports only a direct HTTPS video source into my private Creator storage.",
+                    )}
                   </span>
                 </label>
               )}
@@ -564,12 +725,13 @@ function CreatorStudio() {
                 ) : (
                   <Film className="h-4 w-4" />
                 )}
-                {isYouTubeUrl(sourceUrl) ? "Analyze YouTube link" : "Import & create clips"}
+                {isYouTubeUrl(sourceUrl) ? L("Analisar link do YouTube", "Analyze YouTube link") : L("Importar e criar cortes", "Import & create clips")}
               </Button>
               <p className="text-xs leading-5 text-muted-foreground">
-                Direct HTTPS video files can enter the real clipping pipeline. YouTube links are
-                inspected with the official metadata integration; downloading the platform video is
-                not presented as available, so the original file is required.
+                {L(
+                  "Arquivos de vídeo HTTPS diretos podem entrar no pipeline real de cortes. Links do YouTube são inspecionados pela integração oficial de metadados; o download do vídeo da plataforma não é oferecido, portanto o arquivo original é necessário.",
+                  "Direct HTTPS video files can enter the real clipping pipeline. YouTube links are inspected with the official metadata integration; downloading the platform video is not presented as available, so the original file is required.",
+                )}
               </p>
               {youtubeMetadata && (
                 <div className="grid gap-3 rounded-2xl border border-border bg-surface/60 p-3 sm:grid-cols-[120px_1fr]">
@@ -593,7 +755,7 @@ function CreatorStudio() {
                         : ""}
                     </p>
                     <p className="mt-2 text-xs font-medium text-amber-300">
-                      Original upload required before clipping.
+                      {L("Envio do arquivo original necessário antes dos cortes.", "Original upload required before clipping.")}
                     </p>
                   </div>
                 </div>
@@ -604,22 +766,24 @@ function CreatorStudio() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Upload className="h-5 w-5" /> Upload original
+                <Upload className="h-5 w-5" /> {L("Enviar original", "Upload original")}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm leading-6 text-muted-foreground">
-                Best for YouTube/TikTok exports, large originals or any source that is not a direct
-                video URL.
+                {L(
+                  "Ideal para exportações do YouTube/TikTok, arquivos originais grandes ou qualquer fonte que não seja uma URL direta de vídeo.",
+                  "Best for YouTube/TikTok exports, large originals or any source that is not a direct video URL.",
+                )}
               </p>
               <Label
                 htmlFor="creator-video"
                 className="flex min-h-36 cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-surface/50 px-5 text-center transition hover:border-foreground/30"
               >
                 <Upload className="mb-3 h-7 w-7 text-muted-foreground" />
-                <span className="font-medium">Choose a video file</span>
+                <span className="font-medium">{L("Escolher arquivo de vídeo", "Choose a video file")}</span>
                 <span className="mt-1 text-xs text-muted-foreground">
-                  The browser uploads it to your private Creator source bucket.
+                  {L("O navegador envia o arquivo para seu bucket privado de fontes do Creator.", "The browser uploads it to your private Creator source bucket.")}
                 </span>
               </Label>
               <Input
@@ -642,11 +806,11 @@ function CreatorStudio() {
       <section className="grid gap-4 lg:grid-cols-[1fr_.72fr]">
         <Card>
           <CardHeader>
-            <CardTitle>Creator pipeline</CardTitle>
+            <CardTitle>{L("Pipeline do Creator", "Creator pipeline")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {(resources.creator_projects ?? []).length === 0 && (
-              <EmptyState text="No source project yet. Paste a direct video URL or upload an original above." />
+              <EmptyState text={L("Ainda não há projeto de origem. Cole uma URL direta de vídeo ou envie um original acima.", "No source project yet. Paste a direct video URL or upload an original above.")} />
             )}
             {(resources.creator_projects ?? []).map((project) => {
               const relatedJobs = (resources.creator_jobs ?? []).filter(
@@ -659,13 +823,13 @@ function CreatorStudio() {
                     <div className="min-w-0">
                       <p className="truncate font-semibold">{String(project.title)}</p>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        {String(project.source_type).replaceAll("_", " ")} · {String(project.status)}
+                        {creatorStatusLabel(project.source_type, resolvedLocale)} · {creatorStatusLabel(project.status, resolvedLocale)}
                         {formatBytes(project.source_size_bytes)
                           ? ` · ${formatBytes(project.source_size_bytes)}`
                           : ""}
                       </p>
                     </div>
-                    <StatusPill value={String(latestJob?.progress_stage ?? project.status)} />
+                    <StatusPill value={String(latestJob?.progress_stage ?? project.status)} locale={resolvedLocale} />
                   </div>
                 </div>
               );
@@ -676,7 +840,7 @@ function CreatorStudio() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <WandSparkles className="h-5 w-5" /> Next best action
+              <WandSparkles className="h-5 w-5" /> {L("Próxima melhor ação", "Next best action")}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -687,15 +851,18 @@ function CreatorStudio() {
                   document.getElementById(action.section)?.scrollIntoView({ behavior: "smooth" })
                 }
               >
-                Continue
+                {L("Continuar", "Continue")}
               </Button>
               <Button
                 variant="outline"
                 onClick={() =>
-                  void mutate(() => createCreatorTask(action.label), "Added to canonical Tasks")
+                  void mutate(
+                    () => createCreatorTask(action.label),
+                    L("Adicionado às Tarefas canônicas", "Added to canonical Tasks"),
+                  )
                 }
               >
-                Add to Tasks
+                {L("Adicionar às Tarefas", "Add to Tasks")}
               </Button>
             </div>
           </CardContent>
@@ -710,23 +877,23 @@ function CreatorStudio() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Label htmlFor="creator-ai">Topic, audience, goal and tone</Label>
+            <Label htmlFor="creator-ai">{L("Tema, público, objetivo e tom", "Topic, audience, goal and tone")}</Label>
             <Textarea
               id="creator-ai"
               value={assistantInput}
               onChange={(event) => setAssistantInput(event.target.value)}
-              placeholder="Describe what you want to create…"
+              placeholder={L("Descreva o que você quer criar…", "Describe what you want to create…")}
             />
             <div className="flex flex-wrap gap-2">
               <Button disabled={!assistantInput.trim()} onClick={() => void askAssistant("ideas")}>
-                Content Ideas
+                {L("Ideias de conteúdo", "Content Ideas")}
               </Button>
               <Button
                 disabled={!assistantInput.trim()}
                 variant="outline"
                 onClick={() => void askAssistant("hooks")}
               >
-                Hook Lab
+                {L("Laboratório de hooks", "Hook Lab")}
               </Button>
               <Button
                 disabled={!assistantInput.trim()}
@@ -749,14 +916,14 @@ function CreatorStudio() {
         <div className="flex items-center gap-2">
           <Scissors className="h-5 w-5 text-intelligence" />
           <div>
-            <h2 className="font-display text-3xl">Clipping workflow</h2>
+            <h2 className="font-display text-3xl">{L("Fluxo de cortes", "Clipping workflow")}</h2>
             <p className="text-sm text-muted-foreground">
-              Real worker stages only: analyze → transcribe → select clips → render.
+              {L("Apenas etapas reais do worker: analisar → transcrever → selecionar cortes → renderizar.", "Real worker stages only: analyze → transcribe → select clips → render.")}
             </p>
           </div>
         </div>
         {creatorJobs.length === 0 ? (
-          <EmptyState text="No clipping jobs yet. Import or upload a source to start the canonical worker." />
+          <EmptyState text={L("Ainda não há processamentos de cortes. Importe ou envie uma fonte para iniciar o worker canônico.", "No clipping jobs yet. Import or upload a source to start the canonical worker.")} />
         ) : (
           <div className="grid gap-3 md:grid-cols-2">
             {creatorJobs.slice(0, 8).map((job) => {
@@ -767,17 +934,17 @@ function CreatorStudio() {
                   <CardContent className="space-y-3 pt-6">
                     <div className="flex items-center justify-between gap-3">
                       <div>
-                        <strong className="text-sm">Job {jobId.slice(0, 8)}</strong>
+                        <strong className="text-sm">{L("Processamento", "Job")} {jobId.slice(0, 8)}</strong>
                         <p className="mt-1 text-xs text-muted-foreground">
-                          Stage: {String(job.progress_stage ?? job.status ?? "unknown").replaceAll("_", " ")}
+                          {L("Etapa", "Stage")}: {creatorStatusLabel(job.progress_stage ?? job.status ?? "unknown", resolvedLocale)}
                         </p>
                       </div>
-                      <StatusPill value={String(job.status ?? "unknown")} />
+                      <StatusPill value={String(job.status ?? "unknown")} locale={resolvedLocale} />
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                      <span>Attempts: {String(job.attempt_count ?? 0)}</span>
+                      <span>{L("Tentativas", "Attempts")}: {String(job.attempt_count ?? 0)}</span>
                       <span>
-                        {job.error_code ? `Error: ${String(job.error_code)}` : "No worker error"}
+                        {job.error_code ? `${L("Erro", "Error")}: ${String(job.error_code)}` : L("Sem erro do worker", "No worker error")}
                       </span>
                     </div>
                     {active && (
@@ -786,7 +953,7 @@ function CreatorStudio() {
                         className="w-full"
                         onClick={() => void handleCancelJob(jobId)}
                       >
-                        {cancelConfirmJobId === jobId ? "Confirm cancel" : "Cancel processing"}
+                        {cancelConfirmJobId === jobId ? L("Confirmar cancelamento", "Confirm cancel") : L("Cancelar processamento", "Cancel processing")}
                       </Button>
                     )}
                   </CardContent>
@@ -800,10 +967,10 @@ function CreatorStudio() {
       <section className="space-y-3">
         <div className="flex items-center gap-2">
           <Film className="h-5 w-5 text-muted-foreground" />
-          <h2 className="font-display text-3xl">Real clip library</h2>
+          <h2 className="font-display text-3xl">{L("Biblioteca real de cortes", "Real clip library")}</h2>
         </div>
         {(resources.creator_clips ?? []).length === 0 ? (
-          <EmptyState text="Rendered clips will appear here only after the canonical worker creates real outputs." />
+          <EmptyState text={L("Os cortes renderizados aparecerão aqui somente depois que o worker canônico criar resultados reais.", "Rendered clips will appear here only after the canonical worker creates real outputs.")} />
         ) : (
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {(resources.creator_clips ?? []).map((clip) => {
@@ -814,13 +981,13 @@ function CreatorStudio() {
                   <CardContent className="space-y-3 pt-6">
                     <div className="flex items-center justify-between gap-2">
                       <strong>Clip #{String(clip.rank ?? "—")}</strong>
-                      <StatusPill value={String(clip.render_status)} />
+                      <StatusPill value={String(clip.render_status)} locale={resolvedLocale} />
                     </div>
                     <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                      {typeof clip.score === "number" && <span>Score: {String(clip.score)}</span>}
+                      {typeof clip.score === "number" && <span>{L("Pontuação", "Score")}: {String(clip.score)}</span>}
                       {clip.duration_ms != null && <span>{(Number(clip.duration_ms) / 1000).toFixed(1)}s</span>}
                       {Boolean(clip.aspect_ratio) && <span>{String(clip.aspect_ratio)}</span>}
-                      {Boolean(clip.render_version) && <span>Render v{String(clip.render_version)}</span>}
+                      {Boolean(clip.render_version) && <span>{L("Renderização", "Render")} v{String(clip.render_version)}</span>}
                     </div>
                     {Boolean(clip.score_reason) && (
                       <p className="text-sm leading-5 text-muted-foreground">{String(clip.score_reason)}</p>
@@ -837,32 +1004,32 @@ function CreatorStudio() {
                         onClick={() =>
                           void signedCreatorOutput(String(clip.output_path))
                             .then((url) => window.open(url, "_blank", "noopener,noreferrer"))
-                            .catch(() => toast.error("Authorized clip URL could not be created."))
+                            .catch(() => toast.error(L("Não foi possível criar a URL autorizada do corte.", "Authorized clip URL could not be created.")))
                         }
                       >
-                        <ExternalLink className="h-4 w-4" /> Authorized download
+                        <ExternalLink className="h-4 w-4" /> {L("Download autorizado", "Authorized download")}
                       </Button>
                     )}
                     {available && (
                       <details className="rounded-xl border border-border p-3">
-                        <summary className="cursor-pointer text-sm font-medium">Rerender this clip</summary>
+                        <summary className="cursor-pointer text-sm font-medium">{L("Renderizar este corte novamente", "Rerender this clip")}</summary>
                         <div className="mt-3 grid gap-3">
                           <div className="grid grid-cols-2 gap-2">
                             <Field
-                              label="Start (seconds)"
+                              label={L("Início (segundos)", "Start (seconds)")}
                               type="number"
                               value={draft.startSeconds}
                               onChange={(value) => updateClipDraft(clip, { startSeconds: value })}
                             />
                             <Field
-                              label="End (seconds)"
+                              label={L("Fim (segundos)", "End (seconds)")}
                               type="number"
                               value={draft.endSeconds}
                               onChange={(value) => updateClipDraft(clip, { endSeconds: value })}
                             />
                           </div>
                           <div className="space-y-1.5">
-                            <Label>Aspect ratio</Label>
+                            <Label>{L("Proporção", "Aspect ratio")}</Label>
                             <select
                               className="h-10 w-full rounded-md border bg-background px-3"
                               value={draft.aspectRatio}
@@ -885,10 +1052,10 @@ function CreatorStudio() {
                                 updateClipDraft(clip, { captionsEnabled: event.target.checked })
                               }
                             />
-                            Render captions
+                            {L("Renderizar legendas", "Render captions")}
                           </label>
                           <Button onClick={() => void handleRerenderClip(clip)}>
-                            <RefreshCw className="h-4 w-4" /> Queue rerender
+                            <RefreshCw className="h-4 w-4" /> {L("Colocar nova renderização na fila", "Queue rerender")}
                           </Button>
                         </div>
                       </details>
@@ -906,9 +1073,11 @@ function CreatorStudio() {
           <span className="flex items-center gap-3">
             <Settings2 className="h-5 w-5 text-muted-foreground" />
             <span>
-              <strong className="block">Creator profile</strong>
+              <strong className="block">{L("Perfil do Creator", "Creator profile")}</strong>
               <span className="text-xs text-muted-foreground">
-                {profile.niche ? `${profile.niche} · ${profile.displayName || "profile configured"}` : "Complete once, refine when needed"}
+                {profile.niche
+                  ? `${profile.niche} · ${profile.displayName || L("perfil configurado", "profile configured")}`
+                  : L("Configure uma vez e refine quando precisar", "Complete once, refine when needed")}
               </span>
             </span>
           </span>
@@ -916,82 +1085,87 @@ function CreatorStudio() {
         </summary>
         <div className="grid gap-4 border-t border-border p-4 md:grid-cols-2">
           <div className="space-y-1.5">
-            <Label>Experience level</Label>
+            <Label>{L("Nível de experiência", "Experience level")}</Label>
             <select
               className="h-10 w-full rounded-md border bg-background px-3"
               value={profile.experience}
               onChange={(event) => updateProfile("experience", event.target.value)}
             >
-              <option value="beginner">Beginner</option>
-              <option value="creator">Creator</option>
-              <option value="professional">Professional</option>
+              <option value="beginner">{L("Iniciante", "Beginner")}</option>
+              <option value="creator">{L("Criador", "Creator")}</option>
+              <option value="professional">{L("Profissional", "Professional")}</option>
             </select>
           </div>
           <Field
-            label="Platform targets (comma separated)"
+            label={L("Plataformas-alvo (separadas por vírgula)", "Platform targets (comma separated)")}
             value={profile.platforms.join(", ")}
             onChange={(value) => updateProfile("platforms", split(value))}
           />
-          <Field label="Niche" value={profile.niche} onChange={(value) => updateProfile("niche", value)} />
-          <Field label="Goal" value={profile.goal} onChange={(value) => updateProfile("goal", value)} />
+          <Field label={L("Nicho", "Niche")} value={profile.niche} onChange={(value) => updateProfile("niche", value)} />
+          <Field label={L("Objetivo", "Goal")} value={profile.goal} onChange={(value) => updateProfile("goal", value)} />
           <Field
-            label="Primary audience region"
+            label={L("Região principal do público", "Primary audience region")}
             value={profile.primaryAudienceRegion}
             onChange={(value) => updateProfile("primaryAudienceRegion", value)}
           />
           <Field
-            label="Weekly posting capacity"
+            label={L("Capacidade semanal de publicações", "Weekly posting capacity")}
             type="number"
             value={String(profile.weeklyPostingCapacity)}
             onChange={(value) => updateProfile("weeklyPostingCapacity", Number(value))}
           />
           <Field
-            label="Display name"
+            label={L("Nome de exibição", "Display name")}
             value={profile.displayName}
             onChange={(value) => updateProfile("displayName", value)}
           />
           <Field
-            label="Username ideas workspace"
+            label={L("Espaço de ideias de nome de usuário", "Username ideas workspace")}
             value={profile.usernameIdeas.join(", ")}
             onChange={(value) => updateProfile("usernameIdeas", split(value))}
           />
-          <Field label="Bio" value={profile.bio} onChange={(value) => updateProfile("bio", value)} />
+          <Field label={L("Bio", "Bio")} value={profile.bio} onChange={(value) => updateProfile("bio", value)} />
           <Field
-            label="Positioning"
+            label={L("Posicionamento", "Positioning")}
             value={profile.positioning}
             onChange={(value) => updateProfile("positioning", value)}
           />
-          <Field label="Category" value={profile.category} onChange={(value) => updateProfile("category", value)} />
+          <Field label={L("Categoria", "Category")} value={profile.category} onChange={(value) => updateProfile("category", value)} />
           <Field
-            label="Call to action"
+            label={L("Chamada para ação", "Call to action")}
             value={profile.callToAction}
             onChange={(value) => updateProfile("callToAction", value)}
           />
           <Field
-            label="Content pillars"
+            label={L("Pilares de conteúdo", "Content pillars")}
             value={profile.contentPillars.join(", ")}
             onChange={(value) => updateProfile("contentPillars", split(value))}
           />
           <Field
-            label="Keywords"
+            label={L("Palavras-chave", "Keywords")}
             value={profile.keywords.join(", ")}
             onChange={(value) => updateProfile("keywords", split(value))}
           />
           <Field
-            label="Brand tone"
+            label={L("Tom da marca", "Brand tone")}
             value={profile.brandTone}
             onChange={(value) => updateProfile("brandTone", value)}
           />
           <Field
-            label="Visual direction"
+            label={L("Direção visual", "Visual direction")}
             value={profile.visualDirection}
             onChange={(value) => updateProfile("visualDirection", value)}
           />
           <Button
             className="md:col-span-2"
-            onClick={() => void mutate(() => saveCreatorProfile(userId, profile), "Creator profile saved")}
+            onClick={() =>
+              void mutate(
+                () => saveCreatorProfile(userId, profile),
+                L("Perfil do Creator salvo", "Creator profile saved"),
+              )
+            }
           >
-            Save creator profile
+            {L("Salvar perfil do Creator", "Save creator profile")}
           </Button>
         </div>
       </details>
@@ -1000,18 +1174,18 @@ function CreatorStudio() {
         <summary className="flex cursor-pointer list-none items-center gap-3 rounded-[1.3rem] px-4 py-4">
           <WandSparkles className="h-5 w-5 text-muted-foreground" />
           <span>
-            <strong className="block">Strategy & goals</strong>
-            <span className="text-xs text-muted-foreground">Plan without crowding the daily workspace</span>
+            <strong className="block">{L("Estratégia e metas", "Strategy & goals")}</strong>
+            <span className="text-xs text-muted-foreground">{L("Planeje sem sobrecarregar o espaço de trabalho diário", "Plan without crowding the daily workspace")}</span>
           </span>
         </summary>
         <div className="grid gap-5 border-t border-border p-4 lg:grid-cols-2">
           <Card>
             <CardHeader>
-              <CardTitle>Content strategy</CardTitle>
+              <CardTitle>{L("Estratégia de conteúdo", "Content strategy")}</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-3">
               <div className="space-y-1.5">
-                <Label>Platform</Label>
+                <Label>{L("Plataforma", "Platform")}</Label>
                 <select
                   className="h-10 w-full rounded-md border bg-background px-3"
                   value={strategy.platform}
@@ -1024,46 +1198,58 @@ function CreatorStudio() {
                   ))}
                 </select>
               </div>
-              <Field label="Niche" value={strategy.niche} onChange={(value) => setStrategy({ ...strategy, niche: value })} />
-              <Field label="Goal" value={strategy.goal} onChange={(value) => setStrategy({ ...strategy, goal: value })} />
+              <Field label={L("Nicho", "Niche")} value={strategy.niche} onChange={(value) => setStrategy({ ...strategy, niche: value })} />
+              <Field label={L("Objetivo", "Goal")} value={strategy.goal} onChange={(value) => setStrategy({ ...strategy, goal: value })} />
               <Field
-                label="Publishing frequency"
+                label={L("Frequência de publicação", "Publishing frequency")}
                 type="number"
                 value={String(strategy.publishingFrequency)}
                 onChange={(value) => setStrategy({ ...strategy, publishingFrequency: Number(value) })}
               />
               <Field
-                label="Target markets"
+                label={L("Mercados-alvo", "Target markets")}
                 value={strategy.targetMarkets.join(", ")}
                 onChange={(value) => setStrategy({ ...strategy, targetMarkets: split(value) })}
               />
               <Field
-                label="Formats"
+                label={L("Formatos", "Formats")}
                 value={strategy.preferredContentFormats.join(", ")}
                 onChange={(value) => setStrategy({ ...strategy, preferredContentFormats: split(value) })}
               />
               <Field
-                label="Content pillars"
+                label={L("Pilares de conteúdo", "Content pillars")}
                 value={strategy.contentPillars.join(", ")}
                 onChange={(value) => setStrategy({ ...strategy, contentPillars: split(value) })}
               />
-              <Button onClick={() => void mutate(() => saveCreatorStrategy(userId, strategy), "Strategy saved")}>
-                Save strategy
+              <Button
+                onClick={() =>
+                  void mutate(
+                    () => saveCreatorStrategy(userId, strategy),
+                    L("Estratégia salva", "Strategy saved"),
+                  )
+                }
+              >
+                {L("Salvar estratégia", "Save strategy")}
               </Button>
             </CardContent>
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle>Creator goals</CardTitle>
+              <CardTitle>{L("Metas do Creator", "Creator goals")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Field label="Goal title" value={goal} onChange={setGoal} />
-              <Field label="Manual milestones" value={milestones} onChange={setMilestones} />
+              <Field label={L("Título da meta", "Goal title")} value={goal} onChange={setGoal} />
+              <Field label={L("Marcos manuais", "Manual milestones")} value={milestones} onChange={setMilestones} />
               <Button
                 disabled={!goal.trim()}
-                onClick={() => void mutate(() => saveCreatorGoal(userId, goal, split(milestones)), "Goal saved")}
+                onClick={() =>
+                  void mutate(
+                    () => saveCreatorGoal(userId, goal, split(milestones)),
+                    L("Meta salva", "Goal saved"),
+                  )
+                }
               >
-                Create goal
+                {L("Criar meta", "Create goal")}
               </Button>
               {(resources.creator_goals ?? []).map((row) => (
                 <div key={String(row.id)} className="flex items-center justify-between gap-3 rounded-xl border p-3">
@@ -1071,9 +1257,14 @@ function CreatorStudio() {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => void mutate(() => deleteCreatorGoal(userId, String(row.id)), "Goal deleted")}
+                    onClick={() =>
+                      void mutate(
+                        () => deleteCreatorGoal(userId, String(row.id)),
+                        L("Meta excluída", "Goal deleted"),
+                      )
+                    }
                   >
-                    Delete
+                    {L("Excluir", "Delete")}
                   </Button>
                 </div>
               ))}
@@ -1086,21 +1277,23 @@ function CreatorStudio() {
         <summary className="flex cursor-pointer list-none items-center gap-3 rounded-[1.3rem] px-4 py-4">
           <BarChart3 className="h-5 w-5 text-muted-foreground" />
           <span>
-            <strong className="block">Content log & real analytics</strong>
-            <span className="text-xs text-muted-foreground">Provider evidence and manual observations stay visibly separated</span>
+            <strong className="block">{L("Registro de conteúdo e analytics reais", "Content log & real analytics")}</strong>
+            <span className="text-xs text-muted-foreground">{L("Evidências do provedor e observações manuais permanecem claramente separadas", "Provider evidence and manual observations stay visibly separated")}</span>
           </span>
         </summary>
         <div className="space-y-5 border-t border-border p-4">
           <Card className="border-intelligence/20">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <BarChart3 className="h-5 w-5" /> Provider-verified analytics
+                <BarChart3 className="h-5 w-5" /> {L("Analytics verificados pelo provedor", "Provider-verified analytics")}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-5">
               <p className="text-sm leading-6 text-muted-foreground">
-                KIVRYN stores only metrics actually returned by an authorized provider. Missing fields stay unknown;
-                provider zeroes remain zero.
+                {L(
+                  "A KIVRYN armazena apenas métricas realmente retornadas por um provedor autorizado. Campos ausentes permanecem desconhecidos; zeros do provedor continuam sendo zero.",
+                  "KIVRYN stores only metrics actually returned by an authorized provider. Missing fields stay unknown; provider zeroes remain zero.",
+                )}
               </p>
               <div className="grid gap-3 md:grid-cols-2">
                 {(["youtube", "tiktok"] as const).map((provider) => {
@@ -1116,21 +1309,21 @@ function CreatorStudio() {
                           <strong>{label}</strong>
                           <p className="mt-1 text-xs text-muted-foreground">
                             {connected
-                              ? `Connected as ${String(connected.provider_display_name ?? connected.external_account_id ?? label)}`
+                              ? `${L("Conectado como", "Connected as")} ${String(connected.provider_display_name ?? connected.external_account_id ?? label)}`
                               : latestConnection
-                                ? `Status: ${String(latestConnection.status).replaceAll("_", " ")}`
-                                : "Not connected"}
+                                ? `${L("Status", "Status")}: ${creatorStatusLabel(latestConnection.status, resolvedLocale)}`
+                                : L("Não conectado", "Not connected")}
                           </p>
                         </div>
-                        <StatusPill value={connected ? "connected" : String(latestConnection?.status ?? "not_connected")} />
+                        <StatusPill value={connected ? "connected" : String(latestConnection?.status ?? "not_connected")} locale={resolvedLocale} />
                       </div>
                       {connected ? (
                         <div className="mt-4 space-y-2">
                           <p className="text-xs text-muted-foreground">
-                            Granted evidence:{" "}
+                            {L("Evidências concedidas", "Granted evidence")}:{" "}
                             {Array.isArray(connected.granted_metrics) && connected.granted_metrics.length
-                              ? connected.granted_metrics.map(String).join(", ")
-                              : "No metrics observed yet"}
+                              ? connected.granted_metrics.map((metric) => creatorMetricLabel(String(metric), resolvedLocale)).join(", ")
+                              : L("Nenhuma métrica observada ainda", "No metrics observed yet")}
                           </p>
                           <div className="flex flex-wrap gap-2">
                             <Button
@@ -1143,7 +1336,7 @@ function CreatorStudio() {
                               ) : (
                                 <RefreshCw className="h-4 w-4" />
                               )}
-                              Sync analytics
+                              {L("Sincronizar analytics", "Sync analytics")}
                             </Button>
                             <Button
                               size="sm"
@@ -1152,7 +1345,9 @@ function CreatorStudio() {
                               onClick={() => void handleDisconnectProvider(String(connected.id))}
                             >
                               <Unplug className="h-4 w-4" />
-                              {disconnectConfirmId === String(connected.id) ? "Confirm disconnect" : "Disconnect"}
+                              {disconnectConfirmId === String(connected.id)
+                                ? L("Confirmar desconexão", "Confirm disconnect")
+                                : L("Desconectar", "Disconnect")}
                             </Button>
                           </div>
                         </div>
@@ -1164,7 +1359,9 @@ function CreatorStudio() {
                           onClick={() => void handleConnectProvider(provider)}
                         >
                           {providerBusy === provider && <Loader2 className="h-4 w-4 animate-spin" />}
-                          {provider === "youtube" ? "Connect YouTube" : "Connect TikTok"}
+                          {provider === "youtube"
+                            ? L("Conectar YouTube", "Connect YouTube")
+                            : L("Conectar TikTok", "Connect TikTok")}
                         </Button>
                       )}
                     </div>
@@ -1174,9 +1371,9 @@ function CreatorStudio() {
 
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
                 <div>
-                  <strong className="text-sm">Verified content performance</strong>
+                  <strong className="text-sm">{L("Desempenho de conteúdo verificado", "Verified content performance")}</strong>
                   <p className="text-xs text-muted-foreground">
-                    Latest persisted provider snapshot per content item.
+                    {L("Snapshot persistido mais recente do provedor para cada conteúdo.", "Latest persisted provider snapshot per content item.")}
                   </p>
                 </div>
                 <Button
@@ -1190,12 +1387,17 @@ function CreatorStudio() {
                   ) : (
                     <RefreshCw className="h-4 w-4" />
                   )}
-                  Sync analytics
+                  {L("Sincronizar analytics", "Sync analytics")}
                 </Button>
               </div>
 
               {providerAnalytics.length === 0 ? (
-                <EmptyState text="No provider-verified analytics yet. Connect an approved provider and sync; KIVRYN renders nothing until verified evidence exists." />
+                <EmptyState
+                  text={L(
+                    "Ainda não há analytics verificados pelo provedor. Conecte um provedor aprovado e sincronize; a KIVRYN não exibe dados até existir evidência verificada.",
+                    "No provider-verified analytics yet. Connect an approved provider and sync; KIVRYN renders nothing until verified evidence exists.",
+                  )}
+                />
               ) : (
                 <div className="space-y-3">
                   {providerAnalytics.slice(0, 20).map(({ content: item, snapshot, metrics: verified }) => {
@@ -1219,13 +1421,13 @@ function CreatorStudio() {
                             </p>
                           </div>
                           <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-300">
-                            provider verified
+                            {L("verificado pelo provedor", "provider verified")}
                           </span>
                         </div>
                         {typeof views === "number" && (
                           <div className="mt-3">
                             <div className="mb-1 flex justify-between text-xs text-muted-foreground">
-                              <span>views</span>
+                              <span>{creatorMetricLabel("views", resolvedLocale)}</span>
                               <span>{views.toLocaleString()}</span>
                             </div>
                             <div className="h-1.5 overflow-hidden rounded-full bg-border">
@@ -1238,13 +1440,13 @@ function CreatorStudio() {
                             .filter(([name]) => name !== "views")
                             .map(([name, value]) => (
                               <span key={name}>
-                                {name.replaceAll("_", " ")}: {value.toLocaleString()}
+                                {creatorMetricLabel(name, resolvedLocale)}: {value.toLocaleString()}
                               </span>
                             ))}
                         </div>
                         {Boolean(snapshot && (snapshot.period_start || snapshot.period_end)) && (
                           <p className="mt-2 text-[11px] text-muted-foreground">
-                            Period: {String(snapshot?.period_start ?? "—")} → {String(snapshot?.period_end ?? "—")}
+                            {L("Período", "Period")}: {String(snapshot?.period_start ?? "—")} → {String(snapshot?.period_end ?? "—")}
                           </p>
                         )}
                       </div>
@@ -1257,24 +1459,24 @@ function CreatorStudio() {
 
           <Card id="content">
             <CardHeader>
-              <CardTitle>Manual content log</CardTitle>
+              <CardTitle>{L("Registro manual de conteúdo", "Manual content log")}</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-3 md:grid-cols-2">
-              <Field label="Internal title / label" value={content.title} onChange={(value) => setContent({ ...content, title: value })} />
-              <Field label="Platform" value={content.platform} onChange={(value) => setContent({ ...content, platform: value })} />
-              <Field label="Content type" value={content.contentType} onChange={(value) => setContent({ ...content, contentType: value })} />
-              <Field label="Published at" value={content.publishedAt} onChange={(value) => setContent({ ...content, publishedAt: value })} />
-              <Field label="Timezone" value={content.timezone} onChange={(value) => setContent({ ...content, timezone: value })} />
-              <Field label="Optional URL / reference" value={content.referenceUrl ?? ""} onChange={(value) => setContent({ ...content, referenceUrl: value })} />
-              <Field label="Optional content pillar" value={content.contentPillar ?? ""} onChange={(value) => setContent({ ...content, contentPillar: value })} />
+              <Field label={L("Título interno / rótulo", "Internal title / label")} value={content.title} onChange={(value) => setContent({ ...content, title: value })} />
+              <Field label={L("Plataforma", "Platform")} value={content.platform} onChange={(value) => setContent({ ...content, platform: value })} />
+              <Field label={L("Tipo de conteúdo", "Content type")} value={content.contentType} onChange={(value) => setContent({ ...content, contentType: value })} />
+              <Field label={L("Publicado em", "Published at")} value={content.publishedAt} onChange={(value) => setContent({ ...content, publishedAt: value })} />
+              <Field label={L("Fuso horário", "Timezone")} value={content.timezone} onChange={(value) => setContent({ ...content, timezone: value })} />
+              <Field label={L("URL / referência opcional", "Optional URL / reference")} value={content.referenceUrl ?? ""} onChange={(value) => setContent({ ...content, referenceUrl: value })} />
+              <Field label={L("Pilar de conteúdo opcional", "Optional content pillar")} value={content.contentPillar ?? ""} onChange={(value) => setContent({ ...content, contentPillar: value })} />
               <Field
-                label="Optional duration (ms)"
+                label={L("Duração opcional (ms)", "Optional duration (ms)")}
                 type="number"
                 value={String(content.durationMs ?? "")}
                 onChange={(value) => setContent({ ...content, durationMs: value ? Number(value) : undefined })}
               />
               <div className="space-y-1.5 md:col-span-2">
-                <Label>Notes</Label>
+                <Label>{L("Observações", "Notes")}</Label>
                 <Textarea value={content.notes ?? ""} onChange={(event) => setContent({ ...content, notes: event.target.value })} />
               </div>
               <Button
@@ -1282,11 +1484,11 @@ function CreatorStudio() {
                 onClick={() =>
                   void mutate(
                     () => saveCreatorContent(userId, { ...content, publishedAt: new Date(content.publishedAt).toISOString() }),
-                    "Content saved",
+                    L("Conteúdo salvo", "Content saved"),
                   )
                 }
               >
-                Save content
+                {L("Salvar conteúdo", "Save content")}
               </Button>
             </CardContent>
           </Card>
@@ -1317,14 +1519,19 @@ function CreatorStudio() {
                       })
                     }
                   >
-                    Edit
+                    {L("Editar", "Edit")}
                   </Button>
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => void mutate(() => deleteCreatorContent(userId, String(row.id)), "Content entry deleted")}
+                    onClick={() =>
+                      void mutate(
+                        () => deleteCreatorContent(userId, String(row.id)),
+                        L("Entrada de conteúdo excluída", "Content entry deleted"),
+                      )
+                    }
                   >
-                    Delete
+                    {L("Excluir", "Delete")}
                   </Button>
                 </div>
               </div>
@@ -1334,16 +1541,16 @@ function CreatorStudio() {
           <div className="grid gap-5 lg:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle>Manual analytics</CardTitle>
+                <CardTitle>{L("Analytics manuais", "Manual analytics")}</CardTitle>
                 <p className="text-xs text-muted-foreground">
-                  Manual observations only in this section; provider-verified evidence stays separate above.
+                  {L("Somente observações manuais nesta seção; evidências verificadas pelo provedor permanecem separadas acima.", "Manual observations only in this section; provider-verified evidence stays separate above.")}
                 </p>
               </CardHeader>
               <CardContent className="grid gap-3 sm:grid-cols-2">
                 {CREATOR_METRICS.map((metric) => (
                   <Field
                     key={metric}
-                    label={metric.replaceAll("_", " ")}
+                    label={creatorMetricLabel(metric, resolvedLocale)}
                     value={metrics[metric] ?? ""}
                     onChange={(value) => setMetrics({ ...metrics, [metric]: value })}
                   />
@@ -1354,43 +1561,50 @@ function CreatorStudio() {
                   onClick={() =>
                     void mutate(
                       () => appendCreatorMetricSnapshot(userId, resources.creator_content_log[0], metrics),
-                      "New observation appended",
+                      L("Nova observação adicionada", "New observation appended"),
                     )
                   }
                 >
-                  Append snapshot
+                  {L("Adicionar snapshot", "Append snapshot")}
                 </Button>
                 <p className="text-xs leading-5 text-muted-foreground sm:col-span-2">
-                  Blank values remain unknown. Zero is stored only when you explicitly enter zero.
+                  {L("Valores em branco permanecem desconhecidos. Zero só é armazenado quando você informa zero explicitamente.", "Blank values remain unknown. Zero is stored only when you explicitly enter zero.")}
                 </p>
               </CardContent>
             </Card>
 
             <Card id="intelligence">
               <CardHeader>
-                <CardTitle>Country intelligence</CardTitle>
+                <CardTitle>{L("Inteligência por país", "Country intelligence")}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 {Object.entries(country).map(([key, value]) => (
                   <Field
                     key={key}
-                    label={key.replace(/([A-Z])/g, " $1")}
+                    label={creatorCountryFieldLabel(key, resolvedLocale)}
                     value={value}
                     onChange={(next) => setCountry({ ...country, [key]: next })}
                   />
                 ))}
-                <Button onClick={() => void mutate(() => saveCreatorCountry(userId, country), "Manual country observation saved")}>
-                  Save observation
+                <Button
+                  onClick={() =>
+                    void mutate(
+                      () => saveCreatorCountry(userId, country),
+                      L("Observação manual por país salva", "Manual country observation saved"),
+                    )
+                  }
+                >
+                  {L("Salvar observação", "Save observation")}
                 </Button>
                 <div className="space-y-2 pt-2">
                   {(resources.creator_manual_country_observations ?? []).map((row) => (
                     <p key={String(row.id)} className="rounded-xl border border-border p-3 text-sm">
                       {String(row.country_name)} · {String(row.value)}
-                      <span className="text-muted-foreground"> — manually entered</span>
+                      <span className="text-muted-foreground"> — {L("inserido manualmente", "manually entered")}</span>
                     </p>
                   ))}
                   <p className="text-xs text-muted-foreground">
-                    Provider snapshots above are provider-owned evidence. Country observations here remain explicitly manual until a provider returns that dimension.
+                    {L("Os snapshots acima são evidências do provedor. As observações por país aqui permanecem explicitamente manuais até que um provedor retorne essa dimensão.", "Provider snapshots above are provider-owned evidence. Country observations here remain explicitly manual until a provider returns that dimension.")}
                   </p>
                 </div>
               </CardContent>
@@ -1403,15 +1617,15 @@ function CreatorStudio() {
         <summary className="flex cursor-pointer list-none items-center gap-3 rounded-[1.3rem] px-4 py-4">
           <GraduationCap className="h-5 w-5 text-muted-foreground" />
           <span>
-            <strong className="block">Creator Academy</strong>
-            <span className="text-xs text-muted-foreground">Learning stays available without occupying the main creation flow</span>
+            <strong className="block">{L("Academia do Creator", "Creator Academy")}</strong>
+            <span className="text-xs text-muted-foreground">{L("O aprendizado continua disponível sem ocupar o fluxo principal de criação", "Learning stays available without occupying the main creation flow")}</span>
           </span>
         </summary>
         <div className="grid gap-4 border-t border-border p-4 md:grid-cols-3">
           {Object.entries(CREATOR_ACADEMY).map(([level, lessons]) => (
             <Card key={level}>
               <CardHeader>
-                <CardTitle>{level}</CardTitle>
+                <CardTitle>{creatorAcademyLabel(level, resolvedLocale)}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
                 {lessons.map((lesson) => {
@@ -1425,11 +1639,11 @@ function CreatorStudio() {
                         onChange={(event) =>
                           void mutate(
                             () => setLessonCompletion(userId, key, event.target.checked),
-                            "Academy progress saved",
+                            L("Progresso da Academia salvo", "Academy progress saved"),
                           )
                         }
                       />
-                      {lesson}
+                      {creatorAcademyLabel(lesson, resolvedLocale)}
                     </label>
                   );
                 })}
@@ -1452,7 +1666,7 @@ function StatusCard({ label, value, detail }: { label: string; value: number; de
   );
 }
 
-function StatusPill({ value }: { value: string }) {
+function StatusPill({ value, locale }: { value: string; locale: "pt-BR" | "en" }) {
   const complete = ["completed", "available", "ready"].includes(value);
   return (
     <span
@@ -1463,7 +1677,7 @@ function StatusPill({ value }: { value: string }) {
       }`}
     >
       {complete && <CheckCircle2 className="h-3 w-3" />}
-      {value.replaceAll("_", " ")}
+      {creatorStatusLabel(value, locale)}
     </span>
   );
 }
