@@ -293,6 +293,21 @@ export default function Settings() {
     setRefreshing(false);
   }
 
+  async function readWorkspace(provider: GoogleWorkspaceProvider) {
+    if (busy) return;
+    setBusy(true);
+    setWorkspaceMessage(undefined);
+    try {
+      const items = await readGoogleWorkspace(provider, 5);
+      setWorkspaceMessage(`${text.workspaceReadSuccess}: ${items.length}`);
+      await integrations.refetch();
+    } catch {
+      setWorkspaceMessage(text.workspaceReadError);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function saveName() {
     if (!session || busy) return;
     const error = validateProfileName(name, resolvedLocale);
