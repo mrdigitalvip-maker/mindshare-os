@@ -9,6 +9,8 @@ export interface KivrynActionAuditEvent {
   domain: KivrynActionDomain;
   status: KivrynActionAuditStatus;
   resourceId?: string;
+  provider?: "gmail" | "google_calendar" | "google_drive";
+  externalResourceRef?: string;
   idempotent?: boolean;
   errorCode?: string;
   occurredAt: string;
@@ -26,6 +28,10 @@ export function createKivrynActionAuditEvent(input: Omit<KivrynActionAuditEvent,
     domain: input.domain,
     status: input.status,
     ...(input.resourceId ? { resourceId: input.resourceId } : {}),
+    ...(input.provider ? { provider: input.provider } : {}),
+    ...(input.externalResourceRef
+      ? { externalResourceRef: input.externalResourceRef.slice(0, 500) }
+      : {}),
     ...(typeof input.idempotent === "boolean" ? { idempotent: input.idempotent } : {}),
     ...(input.errorCode ? { errorCode: input.errorCode.slice(0, 80) } : {}),
     occurredAt,
