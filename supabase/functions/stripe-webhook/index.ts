@@ -110,9 +110,18 @@ Deno.serve(async (req) => {
         await persist(admin, subscription, event);
         break;
       }
-      case "customer.subscription.deleted":
-        await persist(admin, event.data.object as Stripe.Subscription, event);
+      case "customer.subscription.deleted": {
+        const snapshot = event.data.object as Stripe.Subscription;
+        let subscription = snapshot;
+        try {
+          subscription = await stripe.subscriptions.retrieve(snapshot.id);
+        } catch (error) {
+          const stripeError = error as { statusCode?: number };
+          if (stripeError.statusCode !== 404) throw error;
+        }
+        await persist(admin, subscription, event);
         break;
+      }
       case "invoice.payment_succeeded":
       case "invoice.payment_failed": {
         const invoice = event.data.object as Stripe.Invoice;
