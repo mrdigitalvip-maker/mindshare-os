@@ -114,6 +114,11 @@ Deno.serve(async (request) => {
     .single();
   if (connection.error)
     return redirect(oauth.redirect_uri, "error", "connection_persistence_failed");
+  const { data: existingCredential } = await admin
+    .from("creator_provider_credentials")
+    .select("refresh_token_ciphertext")
+    .eq("connection_id", connection.data.id)
+    .maybeSingle();
   const credential = await admin
     .from("creator_provider_credentials")
     .upsert({
@@ -122,7 +127,7 @@ Deno.serve(async (request) => {
       access_token_ciphertext: await encryptServerSecret(accessToken),
       refresh_token_ciphertext: token.refresh_token
         ? await encryptServerSecret(String(token.refresh_token))
-        : null,
+        : existingCredential?.refresh_token_ciphertext ?? null,
       expires_at: token.expires_in
         ? new Date(Date.now() + Number(token.expires_in) * 1000).toISOString()
         : null,
