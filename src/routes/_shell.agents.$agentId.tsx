@@ -40,6 +40,9 @@ function AgentWorkspace() {
   const nav = useNavigate();
   const client = useQueryClient();
   const sub = useSubscription();
+  const premium = sub.data?.isPremium === true;
+  const entitlementLoading = sub.isPending && !sub.data;
+  const entitlementError = sub.isError;
   const agent = useQuery({
     queryKey: ["workspace", "agents", agentId],
     queryFn: async () => (await AgentService.listRows()).find((a) => a.id === agentId) ?? null,
@@ -197,14 +200,31 @@ function AgentWorkspace() {
               placeholder="Restrições, audiência ou material de origem…"
             />
             <Button
-              disabled={!input.trim() || run.isPending || !sub.data?.isPremium}
+              disabled={
+                !input.trim() ||
+                run.isPending ||
+                entitlementLoading ||
+                entitlementError ||
+                !premium
+              }
               onClick={() => run.mutate()}
             >
               <Play /> {run.isPending ? "Executando…" : "Executar"}
             </Button>
-            {!sub.data?.isPremium && (
+            {entitlementLoading ? (
+              <p className="text-sm text-muted-foreground">Verificando acesso Premium…</p>
+            ) : entitlementError ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-sm text-destructive">
+                  Não foi possível verificar seu acesso Premium.
+                </p>
+                <Button size="sm" variant="outline" onClick={() => void sub.refetch()}>
+                  Tentar novamente
+                </Button>
+              </div>
+            ) : !premium ? (
               <p className="text-sm text-destructive">Uma assinatura Premium ativa é necessária.</p>
-            )}
+            ) : null}
             {run.isError && (
               <p role="alert" className="text-sm text-destructive">
                 A execução falhou. Seu texto foi preservado para nova tentativa.
@@ -256,7 +276,10 @@ function AgentWorkspace() {
               agentId={agentId}
               agentGoal={a.goal || a.description || ""}
               schedule={schedule.data}
-              premium={!!sub.data?.isPremium}
+              premium={premium}
+              entitlementLoading={entitlementLoading}
+              entitlementError={entitlementError}
+              onRetryEntitlement={() => void sub.refetch()}
               onChanged={async () => {
                 await Promise.all([
                   client.invalidateQueries({ queryKey: ["workspace", "agent-schedule", agentId] }),
@@ -369,6 +392,10 @@ function AgentWorkspace() {
         <TabsContent value="settings">
           <Settings
             agent={a}
+            premium={premium}
+            entitlementLoading={entitlementLoading}
+            entitlementError={entitlementError}
+            onRetryEntitlement={() => void sub.refetch()}
             onSaved={async () => {
               await Promise.all([
                 client.invalidateQueries({ queryKey: ["workspace", "agents"] }),
@@ -481,12 +508,18 @@ function ScheduleEditor({
   agentGoal,
   schedule,
   premium,
+  entitlementLoading,
+  entitlementError,
+  onRetryEntitlement,
   onChanged,
 }: {
   agentId: string;
   agentGoal: string;
   schedule: AgentSchedule | null | undefined;
   premium: boolean;
+  entitlementLoading: boolean;
+  entitlementError: boolean;
+  onRetryEntitlement: () => void;
   onChanged: () => Promise<void>;
 }) {
   const [frequency, setFrequency] = useState<"daily" | "weekly">(schedule?.frequency ?? "daily");
@@ -539,11 +572,22 @@ function ScheduleEditor({
           </div>
         </div>
       </div>
-      {!premium && (
+      {entitlementLoading ? (
+        <p className="rounded-xl border p-3 text-sm text-muted-foreground">
+          Verificando acesso Premium…
+        </p>
+      ) : entitlementError ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive/30 p-3">
+          <p className="text-sm text-destructive">Não foi possível verificar seu acesso Premium.</p>
+          <Button size="sm" variant="outline" onClick={onRetryEntitlement}>
+            Tentar novamente
+          </Button>
+        </div>
+      ) : !premium ? (
         <p className="rounded-xl border border-destructive/30 p-3 text-sm text-destructive">
           Agendamentos de Agents exigem Premium ativo.
         </p>
-      )}
+      ) : null}
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="space-y-2">
           <Label>Frequência</Label>
@@ -650,10 +694,18 @@ function scheduleLabel(schedule: AgentSchedule) {
 
 function Settings({
   agent,
+  premium,
+  entitlementLoading,
+  entitlementError,
+  onRetryEntitlement,
   onSaved,
   onDelete,
 }: {
   agent: Awaited<ReturnType<typeof AgentService.listRows>>[number];
+  premium: boolean;
+  entitlementLoading: boolean;
+  entitlementError: boolean;
+  onRetryEntitlement: () => void;
   onSaved: () => Promise<void>;
   onDelete: () => void | Promise<void>;
 }) {
@@ -668,7 +720,12 @@ function Settings({
       await onSaved();
       toast.success("Agente atualizado");
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) =>
+      toast.error(
+        error.message.includes("premium_required")
+          ? "Premium ativo é necessário para ativar este Agent."
+          : error.message,
+      ),
   });
   return (
     <div className="mt-4 max-w-xl space-y-3">
@@ -682,8 +739,24 @@ function Settings({
       <Textarea value={instructions} onChange={(e) => setInstructions(e.target.value)} />
       <label className="flex items-center justify-between rounded-xl border p-3">
         Agente ativo
-        <Switch checked={active} onCheckedChange={setActive} />
+        <Switch
+          checked={active}
+          onCheckedChange={setActive}
+          disabled={!active && (entitlementLoading || entitlementError || !premium)}
+        />
       </label>
+      {!agent.active && entitlementLoading ? (
+        <p className="text-sm text-muted-foreground">Verificando acesso Premium…</p>
+      ) : !agent.active && entitlementError ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-sm text-destructive">Não foi possível verificar seu acesso Premium.</p>
+          <Button size="sm" variant="outline" onClick={onRetryEntitlement}>
+            Tentar novamente
+          </Button>
+        </div>
+      ) : !agent.active && !premium ? (
+        <p className="text-sm text-destructive">Premium ativo é necessário para reativar este Agent.</p>
+      ) : null}
       <div className="flex gap-2">
         <Button disabled={save.isPending || !name.trim()} onClick={() => save.mutate()}>
           {save.isPending ? "Salvando…" : "Salvar"}
