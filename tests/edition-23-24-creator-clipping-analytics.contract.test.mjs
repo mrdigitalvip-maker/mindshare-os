@@ -52,6 +52,13 @@ test("E24 persists only provider-returned analytics and removes the invalid YouT
   assert.match(sync, /refresh_token_ciphertext/);
 });
 
+test("E24 OAuth callback consumes each authorization state exactly once", async () => {
+  const callback = await read("supabase/functions/creator-oauth-callback/index.ts");
+  assert.match(callback, /\.is\("consumed_at", null\)/);
+  assert.match(callback, /\.select\("state_hash"\)/);
+  assert.match(callback, /if \(!consumed\) return new Response\("Expired or invalid OAuth state"/);
+});
+
 test("E24 web analytics are connection-aware, explicitly synced, and contain no sample chart series", async () => {
   const [route, service] = await Promise.all([
     read("src/routes/_shell.creator.tsx"),
