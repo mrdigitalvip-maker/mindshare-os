@@ -36,6 +36,8 @@ test("E39 preserves authenticated owner CRUD and makes auth initplan-safe", () =
   assert.doesNotMatch(passport, /to public/);
   assert.match(passport, /user_id = \(select auth\.uid\(\)\)/);
   assert.doesNotMatch(passport, /user_id = auth\.uid\(\)/);
+  assert.doesNotMatch(passport, /security definer/i);
+  assert.doesNotMatch(passport, /revoke execute/i);
 });
 
 test("E40 preserves canonical Creator profile and project tables on Web", () => {
@@ -54,4 +56,6 @@ test("E40 keeps Creator owner-only ALL policies and makes auth initplan-safe", (
   assert.match(creator, /using \(\(select auth\.uid\(\)\) = user_id\)/);
   assert.match(creator, /with check \(\(select auth\.uid\(\)\) = user_id\)/);
   assert.doesNotMatch(creator, /auth\.uid\(\) = user_id/);
+  assert.doesNotMatch(creator, /security definer/i);
+  assert.doesNotMatch(creator, /revoke execute/i);
 });
