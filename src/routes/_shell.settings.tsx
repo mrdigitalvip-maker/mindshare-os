@@ -393,16 +393,26 @@ function Settings() {
                     ) && provider.implemented && provider.canConnect ? (
                       <div className="flex items-center gap-2">
                         {connected ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={workspaceBusy === provider.provider}
-                            onClick={() => void readWorkspace(provider.provider as GoogleWorkspaceProvider)}
-                          >
-                            {workspaceBusy === provider.provider
-                              ? c("Lendo…", "Reading…")
-                              : c("Ler agora", "Read now")}
-                          </Button>
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={workspaceBusy === provider.provider}
+                              onClick={() => void readWorkspace(provider.provider as GoogleWorkspaceProvider)}
+                            >
+                              {workspaceBusy === provider.provider
+                                ? c("Lendo…", "Reading…")
+                                : c("Ler agora", "Read now")}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={workspaceBusy === provider.provider}
+                              onClick={() => void connectWorkspace(provider.provider as GoogleWorkspaceProvider)}
+                            >
+                              {c("Atualizar permissões", "Update permissions")}
+                            </Button>
+                          </>
                         ) : (
                           <Button
                             size="sm"
