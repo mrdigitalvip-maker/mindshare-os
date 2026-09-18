@@ -245,6 +245,25 @@ function ErrorState({ retry }: { retry: () => void }) {
   );
 }
 
+function projectCreationErrorMessage(error: unknown): string {
+  const candidate =
+    error && typeof error === "object"
+      ? (error as { code?: unknown; message?: unknown; details?: unknown })
+      : null;
+  const code = typeof candidate?.code === "string" ? candidate.code : "";
+  const message = typeof candidate?.message === "string" ? candidate.message : "";
+  const details = typeof candidate?.details === "string" ? candidate.details : "";
+
+  if (
+    message === "FREE_CREATION_LIMIT_REACHED" ||
+    (code === "P0001" && details.includes('"resource":"projects"'))
+  ) {
+    return "Você atingiu o limite de 3 projetos ativos do plano Free. Arquive um projeto ou faça upgrade para criar outro.";
+  }
+
+  return "Não foi possível criar o projeto. Tente novamente.";
+}
+
 function CreateProject({
   open,
   onOpenChange,
@@ -277,7 +296,7 @@ function CreateProject({
       setDescription("");
       navigate({ to: "/projects/$projectId", params: { projectId: project.id } });
     },
-    onError: () => toast.error("Não foi possível criar o projeto"),
+    onError: (error: unknown) => toast.error(projectCreationErrorMessage(error)),
   });
 
   return (
