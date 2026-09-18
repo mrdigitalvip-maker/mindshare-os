@@ -311,11 +311,6 @@ export default function CommunityHomeScreen() {
             onPress={() => setProfileDraft((value) => ({ ...value, showMomentum: !value.showMomentum }))}
           />
           <PrivacyToggle
-            label={c.streak}
-            value={draft.showStreak}
-            onPress={() => setProfileDraft((value) => ({ ...value, showStreak: !value.showStreak }))}
-          />
-          <PrivacyToggle
             label={c.activity}
             value={draft.showVerifiedActivity}
             onPress={() =>
@@ -352,6 +347,8 @@ export default function CommunityHomeScreen() {
         </View>
       )}
 
+      {profileReady && !editingProfile ? (
+        <>
       <View style={s.sectionHeader}>
         <Text style={s.eyebrow}>{c.spaces}</Text>
         <Pressable onPress={() => void refresh()}>
@@ -409,10 +406,11 @@ export default function CommunityHomeScreen() {
               onPress={() =>
                 void createCircle
                   .mutateAsync({ name: circleName, description: circleDescription })
-                  .then(() => {
+                  .then((squadId) => {
                     setCircleName("");
                     setCircleDescription("");
                     setCircleOpen(false);
+                    router.push(`/community/squads/${squadId}`);
                   })
                   .catch((error) => setActionError(communityErrorMessage(error)))
               }
@@ -438,9 +436,10 @@ export default function CommunityHomeScreen() {
               onPress={() =>
                 void acceptInvite
                   .mutateAsync(inviteCode)
-                  .then(() => {
+                  .then((squadId) => {
                     setInviteCode("");
                     setInviteOpen(false);
+                    router.push(`/community/squads/${squadId}`);
                   })
                   .catch((error) => setActionError(communityErrorMessage(error)))
               }
@@ -487,6 +486,8 @@ export default function CommunityHomeScreen() {
           <Text style={s.muted}>{c.activityEmpty}</Text>
         )}
       </View>
+        </>
+      ) : null}
     </AppScreen>
   );
 }

@@ -17,6 +17,7 @@ import {
   reportTarget,
   safeBackendError,
   saveCommunityProfile,
+  isCommunityProfileReady,
   setBlock,
   type CommunityProfile,
   type Reaction,
@@ -28,6 +29,7 @@ function Community() {
     nav = useNavigate(),
     q = useQuery({ queryKey: parityKeys.community, queryFn: communityHome });
   const [profile, setProfile] = useState<CommunityProfile | null>(null);
+  const profileReady = isCommunityProfileReady(profile);
   useEffect(() => {
     if (q.data?.profile) setProfile(q.data.profile);
   }, [q.data?.profile]);
@@ -42,10 +44,15 @@ function Community() {
       onError: (e) => toast.error(safeBackendError(e)),
     });
   const save = useCommunityMutation<CommunityProfile>(saveCommunityProfile, "Perfil atualizado.");
-  const create = useCommunityMutation<{ name: string; description: string }>(
-    (v) => createSquad(v.name, v.description),
-    "Squad criado.",
-  );
+  const create = useMutation({
+    mutationFn: (v: { name: string; description: string }) => createSquad(v.name, v.description),
+    onSuccess: async (id) => {
+      await refresh();
+      toast.success("Squad criado.");
+      await nav({ to: "/community/squads/$squadId", params: { squadId: id } });
+    },
+    onError: (e) => toast.error(safeBackendError(e)),
+  });
   const accept = useMutation({
     mutationFn: acceptInvite,
     onSuccess: async (id) => {
@@ -126,7 +133,6 @@ function Community() {
               </select>
               {[
                 ["show_momentum", "Mostrar Momentum"],
-                ["show_streak", "Mostrar sequência"],
                 ["show_verified_activity", "Mostrar atividade verificada"],
               ].map(([key, label]) => (
                 <label className="flex items-center gap-2" key={key}>
@@ -146,7 +152,7 @@ function Community() {
             <section className="v2-surface rounded-2xl p-5">
               <h2 className="text-xl font-semibold">Seu perfil</h2>
               <p className="my-3 text-sm text-muted-foreground">
-                Crie seu perfil privado para começar.
+                Crie seu perfil da Comunidade para começar.
               </p>
               <Button
                 onClick={() =>
@@ -154,7 +160,7 @@ function Community() {
                     display_name: null,
                     username: null,
                     bio: null,
-                    visibility: "private",
+                    visibility: "community",
                     show_momentum: false,
                     show_streak: false,
                     show_verified_activity: false,
@@ -166,6 +172,15 @@ function Community() {
             </section>
           )}
           <div className="space-y-5">
+            {!profileReady ? (
+              <section className="v2-surface rounded-2xl p-5">
+                <h2 className="text-xl font-semibold">Squads bloqueados até concluir seu perfil</h2>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Configure nome, @username e visibilidade Comunidade para criar ou aceitar convites.
+                </p>
+              </section>
+            ) : (
+              <>
             <form
               onSubmit={squadSubmit}
               className="v2-surface rounded-2xl p-5 grid gap-3"
@@ -198,11 +213,17 @@ function Community() {
                 Entrar no Squad
               </Button>
             </form>
+              </>
+            )}
           </div>
         </div>
         <section className="mt-8">
           <h2 className="text-xl font-semibold">Seus Squads</h2>
-          {!q.data?.squads.length ? (
+          {!profileReady ? (
+            <p className="mt-3 text-muted-foreground">
+              Conclua seu perfil da Comunidade para acessar Squads.
+            </p>
+          ) : !q.data?.squads.length ? (
             <p className="mt-3 text-muted-foreground">Você ainda não participa de um Squad.</p>
           ) : (
             <div className="mt-3 grid gap-3 md:grid-cols-2">
@@ -224,6 +245,7 @@ function Community() {
             </div>
           )}
         </section>
+        {profileReady ? (
         <section className="mt-8">
           <h2 className="text-xl font-semibold">Atividade verificada</h2>
           {!q.data?.activity.length ? (
@@ -272,6 +294,7 @@ function Community() {
             </div>
           )}
         </section>
+        ) : null}
       </RouteState>
     </PageShell>
   );

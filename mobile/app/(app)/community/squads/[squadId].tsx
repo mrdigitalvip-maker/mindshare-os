@@ -29,7 +29,7 @@ export default function Squad() {
       <StandardHeader title={s.name} />
       {s.description ? <Text style={styles.muted}>{s.description}</Text> : null}
       <Text style={styles.muted}>
-        {s.members.length} de {s.maxMembers} membros
+        {s.memberCount} de {s.maxMembers} membros
       </Text>
       <Text style={styles.heading}>
         <LocalizedCopy copyKey="legacy.5d2f8ebe79f9" />
@@ -41,7 +41,20 @@ export default function Squad() {
           {s.role === "owner" && m.role === "member" ? (
             <Pressable
               accessibilityLabel={`Remover ${m.displayName} do Squad`}
-              onPress={() => actions.remove.mutate(m.userId, { onError: fail })}
+              onPress={() =>
+                Alert.alert(
+                  "Remover membro",
+                  `Remover ${m.displayName} deste Squad?`,
+                  [
+                    { text: "Cancelar", style: "cancel" },
+                    {
+                      text: "Remover",
+                      style: "destructive",
+                      onPress: () => actions.remove.mutate(m.userId, { onError: fail }),
+                    },
+                  ],
+                )
+              }
             >
               <Text style={styles.danger}>
                 <LocalizedCopy copyKey="legacy.65d0ddab6dae" />
@@ -83,10 +96,10 @@ export default function Squad() {
             style={styles.button}
             onPress={() =>
               actions.invite.mutate(undefined, {
-                onSuccess: (code) =>
+                onSuccess: (invite) =>
                   Alert.alert(
                     "Convite criado",
-                    `Compartilhe este código com a pessoa: ${code}\nEle expira em 7 dias.`,
+                    `Compartilhe este código com a pessoa: ${invite.code}\nExpira em ${new Date(invite.expiresAt).toLocaleString("pt-BR")}.`,
                   ),
                 onError: fail,
               })
@@ -120,10 +133,18 @@ export default function Squad() {
       ) : (
         <Pressable
           onPress={() =>
-            actions.leave.mutate(undefined, {
-              onSuccess: () => router.replace("/community"),
-              onError: fail,
-            })
+            Alert.alert("Sair do Squad", "Você perderá o acesso até receber um novo convite.", [
+              { text: "Cancelar", style: "cancel" },
+              {
+                text: "Sair",
+                style: "destructive",
+                onPress: () =>
+                  actions.leave.mutate(undefined, {
+                    onSuccess: () => router.replace("/community"),
+                    onError: fail,
+                  }),
+              },
+            ])
           }
         >
           <Text style={styles.danger}>

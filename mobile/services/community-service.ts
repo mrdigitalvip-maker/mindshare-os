@@ -128,6 +128,7 @@ export async function getSquad(userId: string, squadId: string): Promise<SquadDe
     name: String(s.name),
     description: s.description as string | null,
     maxMembers: Number(s.max_members),
+    memberCount: Number(s.member_count ?? ((s.members ?? []) as unknown[]).length),
     role: s.role as "owner" | "member",
     members: ((s.members ?? []) as Record<string, unknown>[]).map((m) => ({
       userId: String(m.user_id),
@@ -141,7 +142,11 @@ export async function getSquad(userId: string, squadId: string): Promise<SquadDe
 }
 export async function createInvite(userId: string, squadId: string) {
   requireUser(userId);
-  return rpc<string>("create_squad_invite", { p_squad: squadId });
+  const result = await rpc<{ code: string; expires_at: string }>("create_squad_invite_v2", {
+    p_squad: squadId,
+  });
+  if (!result?.code || !result?.expires_at) throw new Error("invalid_rpc_response");
+  return { code: result.code, expiresAt: result.expires_at };
 }
 export async function leaveSquad(userId: string, squadId: string) {
   requireUser(userId);
