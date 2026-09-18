@@ -10,7 +10,7 @@ import {
   View,
 } from "react-native";
 import { router, useFocusEffect } from "expo-router";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AppScreen } from "@/components/app-screen";
 import { NativeFormModal } from "@/components/native-form-modal";
 import { ProfileAvatar } from "@/components/profile-avatar";
@@ -39,6 +39,7 @@ import {
   type NotificationDeviceState,
 } from "@/services/notification-service";
 import { updateProfileName } from "@/services/profile-service";
+import { listIntegrationReadiness } from "@/services/integration-status-service";
 import { useLanguage } from "@/providers/language-provider";
 import type { LanguagePreference } from "@/i18n";
 
@@ -106,6 +107,17 @@ const settingsCopy = {
     currentPlan: "Plano atual",
     premiumInfo: "A compra e o gerenciamento de novas assinaturas ficam para a próxima versão. Nesta versão, esta área é informativa.",
     premiumBenefits: "Ver benefícios do Premium",
+    connections: "CONEXÕES",
+    connectionsHelp: "Estado real das integrações externas. Credenciais permanecem somente no servidor.",
+    connectionsError: "Não foi possível verificar as integrações.",
+    connected: "Conectado",
+    comingSoon: "Em breve",
+    configRequired: "Configuração necessária",
+    reviewRequired: "Revisão do provider necessária",
+    creatorAvailable: "Disponível no Creator",
+    manageCreator: "Gerenciar no Creator",
+    openCreator: "Abrir Creator",
+    integrationApproval: "Leituras exigem escopos concedidos. Ações externas continuam exigindo aprovação explícita.",
     privacy: "PRIVACIDADE E SEGURANÇA",
     privacyPolicy: "Política de Privacidade",
     terms: "Termos de Serviço",
@@ -182,6 +194,17 @@ const settingsCopy = {
     currentPlan: "Current plan",
     premiumInfo: "Purchasing and managing new subscriptions will be enabled in the next Android version. In this version, this area is informational.",
     premiumBenefits: "View Premium benefits",
+    connections: "CONNECTIONS",
+    connectionsHelp: "Real external integration status. Credentials stay server-side only.",
+    connectionsError: "We couldn't check integrations.",
+    connected: "Connected",
+    comingSoon: "Coming Soon",
+    configRequired: "Configuration required",
+    reviewRequired: "Provider review required",
+    creatorAvailable: "Available in Creator",
+    manageCreator: "Manage in Creator",
+    openCreator: "Open Creator",
+    integrationApproval: "Reads require granted scopes. External mutations still require explicit approval.",
     privacy: "PRIVACY & SECURITY",
     privacyPolicy: "Privacy Policy",
     terms: "Terms of Service",
@@ -204,6 +227,11 @@ export default function Settings() {
   const { session } = useAuth();
   const profile = useProfile();
   const subscription = useSubscription();
+  const integrations = useQuery({
+    queryKey: ["integration-readiness"],
+    queryFn: listIntegrationReadiness,
+    staleTime: 60_000,
+  });
   const logout = useLogout();
   const client = useQueryClient();
   const [busy, setBusy] = useState(false),
@@ -240,17 +268,24 @@ export default function Settings() {
 
   const refetchProfile = profile.refetch;
   const refetchSubscription = subscription.refetch;
+  const refetchIntegrations = integrations.refetch;
   useFocusEffect(
     useCallback(() => {
       void refreshNotifications();
       void refetchProfile();
       void refetchSubscription();
-    }, [refreshNotifications, refetchProfile, refetchSubscription]),
+      void refetchIntegrations();
+    }, [refreshNotifications, refetchProfile, refetchSubscription, refetchIntegrations]),
   );
 
   async function refresh() {
     setRefreshing(true);
-    await Promise.allSettled([refreshNotifications(), profile.refetch(), subscription.refetch()]);
+    await Promise.allSettled([
+      refreshNotifications(),
+      profile.refetch(),
+      subscription.refetch(),
+      integrations.refetch(),
+    ]);
     setRefreshing(false);
   }
 
@@ -567,6 +602,66 @@ export default function Settings() {
           )}
         </Section>
 
+        <Section title={text.connections}>
+          <Text style={s.help}>{text.connectionsHelp}</Text>
+          {integrations.isPending ? (
+            <Text style={s.help}>{text.loading}</Text>
+          ) : integrations.isError ? (
+            <Retry
+              text={text.connectionsError}
+              action={() => void integrations.refetch()}
+              retryLabel={text.retry}
+            />
+          ) : (
+            <View style={s.diagnostics}>
+              {(integrations.data ?? []).map((provider) => {
+                const label =
+                  provider.provider === "google_calendar"
+                    ? "Google Calendar"
+                    : provider.provider === "google_drive"
+                      ? "Google Drive"
+                      : provider.provider === "youtube"
+                        ? "YouTube"
+                        : provider.provider === "tiktok"
+                          ? "TikTok"
+                          : provider.provider === "gmail"
+                            ? "Gmail"
+                            : provider.provider === "whatsapp"
+                              ? "WhatsApp"
+                              : provider.provider.charAt(0).toUpperCase() + provider.provider.slice(1);
+                const connected = provider.connectionStatus === "connected";
+                const state = connected
+                  ? text.connected
+                  : provider.readiness === "coming_soon"
+                    ? text.comingSoon
+                    : !provider.runtimeConfigured
+                      ? text.configRequired
+                      : provider.readiness === "app_review_required"
+                        ? text.reviewRequired
+                        : text.creatorAvailable;
+                return (
+                  <View key={provider.provider} style={s.integrationRow}>
+                    <View style={s.flex}>
+                      <Text style={s.value}>{label}</Text>
+                      <Text style={s.help}>{state}</Text>
+                      {provider.displayName ? <Text style={s.help}>{provider.displayName}</Text> : null}
+                    </View>
+                    <View style={[s.statusDot, connected ? s.statusReady : s.statusPending]} />
+                  </View>
+                );
+              })}
+            </View>
+          )}
+          <Text style={s.help}>{text.integrationApproval}</Text>
+          {(integrations.data ?? []).some((provider) => provider.implemented && provider.canConnect) ? (
+            <Action
+              secondary
+              label={text.openCreator}
+              action={() => router.push("/creator")}
+            />
+          ) : null}
+        </Section>
+
         <Section title={text.privacy}>
           <Action
             secondary
@@ -773,6 +868,13 @@ const s = StyleSheet.create({
   diagnosticLabel: { ...typography.caption, color: colors.textSecondary, flex: 1 },
   diagnosticValue: { ...typography.caption, color: colors.textMuted },
   diagnosticValueReady: { color: colors.success },
+  integrationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  flex: { flex: 1, gap: 2 },
   action: {
     minHeight: 48,
     justifyContent: "center",

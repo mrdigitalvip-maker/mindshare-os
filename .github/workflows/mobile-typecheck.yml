@@ -45,5 +45,8 @@ jobs:
       - name: Run E27/E28 Community and Arena source parity
         run: bun test tests/community-arena-e27-e28-source-parity.test.ts
 
+      - name: Run E29/E30 Premium and integration source parity
+        run: bun test tests/premium-integration-e29-e30-source-parity.test.ts
+
       - name: Run existing Creator engine and intelligence contracts
         run: bun test tests/creator-video-engine-revision-14.test.ts tests/creator-intelligence-revision-14.test.ts

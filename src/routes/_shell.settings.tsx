@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { LogOut, Crown, Camera, Database, ExternalLink } from "lucide-react";
 
@@ -17,6 +18,7 @@ import { NotificationSettings, UsageSettings } from "@/components/settings-engag
 import { LEGAL_URLS } from "@/lib/legal";
 import { useLanguage } from "@/providers/language-provider";
 import type { LanguagePreference } from "@/i18n";
+import { listIntegrationReadiness } from "@/services/integration-status-service";
 
 export const Route = createFileRoute("/_shell/settings")({
   head: () => ({ meta: [{ title: "Settings — KIVRYN" }] }),
@@ -37,6 +39,11 @@ function Settings() {
   const updateProfile = useUpdateProfile();
   const navigate = useNavigate();
   const subscription = useSubscription();
+  const integrations = useQuery({
+    queryKey: ["integration-readiness"],
+    queryFn: listIntegrationReadiness,
+    staleTime: 60_000,
+  });
 
   const [name, setName] = useState("");
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -252,6 +259,91 @@ function Settings() {
               </Link>
             )}
           </div>
+        </Section>
+
+        <Section
+          title={c("Conexões", "Connections")}
+          description={c(
+            "Estado real das integrações externas. Credenciais permanecem somente no servidor.",
+            "Real external integration status. Credentials stay server-side only.",
+          )}
+        >
+          {integrations.isLoading ? (
+            <p className="text-sm text-muted-foreground">
+              {c("Verificando integrações…", "Checking integrations…")}
+            </p>
+          ) : integrations.isError ? (
+            <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4">
+              <p className="text-sm text-destructive">
+                {c("Não foi possível verificar as integrações.", "Couldn't check integrations.")}
+              </p>
+              <Button
+                className="mt-3"
+                size="sm"
+                variant="outline"
+                onClick={() => void integrations.refetch()}
+              >
+                {c("Tentar novamente", "Try again")}
+              </Button>
+            </div>
+          ) : (
+            <div className="divide-y divide-border rounded-xl border border-border bg-surface">
+              {(integrations.data ?? []).map((provider) => {
+                const label =
+                  provider.provider === "google_calendar"
+                    ? "Google Calendar"
+                    : provider.provider === "google_drive"
+                      ? "Google Drive"
+                      : provider.provider === "youtube"
+                        ? "YouTube"
+                        : provider.provider === "tiktok"
+                          ? "TikTok"
+                          : provider.provider === "gmail"
+                            ? "Gmail"
+                            : provider.provider === "whatsapp"
+                              ? "WhatsApp"
+                              : provider.provider.charAt(0).toUpperCase() + provider.provider.slice(1);
+                const connected = provider.connectionStatus === "connected";
+                const state = connected
+                  ? c("Conectado", "Connected")
+                  : provider.readiness === "coming_soon"
+                    ? "Coming Soon"
+                    : !provider.runtimeConfigured
+                      ? c("Configuração necessária", "Configuration required")
+                      : provider.readiness === "app_review_required"
+                        ? c("Revisão do provider necessária", "Provider review required")
+                        : c("Disponível no Creator", "Available in Creator");
+                return (
+                  <div key={provider.provider} className="flex flex-wrap items-center justify-between gap-4 px-4 py-4">
+                    <div>
+                      <p className="text-sm font-medium">{label}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{state}</p>
+                      {provider.displayName ? (
+                        <p className="mt-1 text-xs text-muted-foreground">{provider.displayName}</p>
+                      ) : null}
+                    </div>
+                    {provider.implemented && provider.canConnect ? (
+                      <Link to="/creator">
+                        <Button size="sm" variant="outline">
+                          {connected ? c("Gerenciar no Creator", "Manage in Creator") : c("Abrir Creator", "Open Creator")}
+                        </Button>
+                      </Link>
+                    ) : (
+                      <span className="rounded-full border px-2.5 py-1 text-xs text-muted-foreground">
+                        {state}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <p className="text-xs leading-5 text-muted-foreground">
+            {c(
+              "Leituras exigem escopos concedidos. Ações externas continuam exigindo aprovação explícita antes da execução.",
+              "Reads require granted scopes. External mutations still require explicit approval before execution.",
+            )}
+          </p>
         </Section>
 
         <Section
