@@ -4,11 +4,14 @@ import { ArrowLeft, Trash2 } from "lucide-react";
 import { EmptyState, PageShell } from "@/components/page-shell";
 import { Button } from "@/components/ui/button";
 import { FinanceService } from "@/services";
-const money = new Intl.NumberFormat(undefined, { style: "currency", currency: "USD" });
+import { useLanguage } from "@/providers/language-provider";
 export const Route = createFileRoute("/_shell/finance/accounts/$accountId")({
   component: AccountWorkspace,
 });
 function AccountWorkspace() {
+  const { resolvedLocale } = useLanguage();
+  const L = (pt: string, en: string) => (resolvedLocale === "pt-BR" ? pt : en);
+  const money = new Intl.NumberFormat(resolvedLocale, { style: "currency", currency: "USD" });
   const { accountId } = Route.useParams();
   const nav = useNavigate();
   const account = useQuery({
@@ -22,7 +25,7 @@ function AccountWorkspace() {
   if (account.isLoading)
     return (
       <PageShell>
-        <p>Loading account…</p>
+        <p>{L("Carregando conta…", "Loading account…")}</p>
       </PageShell>
     );
   if (!account.data)
@@ -30,8 +33,8 @@ function AccountWorkspace() {
       <PageShell>
         <EmptyState
           icon={Trash2}
-          title="Account not found"
-          description="It does not exist or does not belong to you."
+          title={L("Conta não encontrada", "Account not found")}
+          description={L("Ela não existe ou não pertence a você.", "It does not exist or does not belong to you.")}
         />
       </PageShell>
     );
@@ -45,7 +48,7 @@ function AccountWorkspace() {
     <PageShell>
       <Button variant="ghost" onClick={() => nav({ to: "/finance" })}>
         <ArrowLeft />
-        Finance
+        {L("Finanças", "Finance")}
       </Button>
       <h1 className="mt-5 text-3xl font-semibold">{account.data.name}</h1>
       <p className="mt-1 text-muted-foreground">
@@ -53,9 +56,9 @@ function AccountWorkspace() {
       </p>
       <div className="mt-6 grid gap-4 sm:grid-cols-3">
         {[
-          ["Balance", account.data.balance ?? 0],
-          ["Income", income],
-          ["Expenses", expenses],
+          [L("Saldo", "Balance"), account.data.balance ?? 0],
+          [L("Receitas", "Income"), income],
+          [L("Despesas", "Expenses"), expenses],
         ].map(([l, v]) => (
           <div className="v2-surface rounded-2xl p-5" key={l}>
             <p className="text-sm text-muted-foreground">{l}</p>
@@ -63,11 +66,11 @@ function AccountWorkspace() {
           </div>
         ))}
       </div>
-      <h2 className="mt-8 text-xl font-semibold">Recent activity</h2>
+      <h2 className="mt-8 text-xl font-semibold">{L("Atividade recente", "Recent activity")}</h2>
       <div className="mt-3 space-y-2">
         {transactions.data?.map((t) => (
           <div className="v2-surface flex justify-between gap-3 rounded-2xl p-4" key={t.id}>
-            <span className="min-w-0 truncate">{t.title || t.category || "Transaction"}</span>
+            <span className="min-w-0 truncate">{t.title || t.category || L("Transação", "Transaction")}</span>
             <strong>
               {t.type === "expense" ? "−" : "+"}
               {money.format(t.amount ?? 0)}
@@ -76,7 +79,7 @@ function AccountWorkspace() {
         ))}
         {!transactions.isLoading && !transactions.data?.length && (
           <p className="text-muted-foreground">
-            No transactions in this account. Add one from Finance.
+            {L("Nenhuma transação nesta conta. Adicione uma pela tela de Finanças.", "No transactions in this account. Add one from Finance.")}
           </p>
         )}
       </div>
