@@ -99,5 +99,8 @@ jobs:
       - name: Run E57/E58 final database source parity
         run: bun test tests/final-db-e57-e58-source-parity.test.ts
 
+      - name: Run E59/E60 Google Workspace source parity
+        run: bun test tests/google-workspace-e59-e60-source-parity.test.ts
+
       - name: Run existing Creator engine and intelligence contracts
         run: bun test tests/creator-video-engine-revision-14.test.ts tests/creator-intelligence-revision-14.test.ts
