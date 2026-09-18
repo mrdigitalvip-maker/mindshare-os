@@ -194,8 +194,19 @@ async function markRun(
   return !error;
 }
 
+async function providerFetch(url: string, init: RequestInit) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20_000);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function sendEmail(accessToken: string, action: Record<string, unknown>) {
   const to = splitEmails(action.to);
+  if (!to.length) throw new KivrynIntegrationActionError("invalid_payload");
   const cc = splitEmails(action.cc);
   const bcc = splitEmails(action.bcc);
   const subject = cleanHeader(action.subject, 998);
@@ -210,7 +221,7 @@ async function sendEmail(accessToken: string, action: Record<string, unknown>) {
     "Content-Transfer-Encoding: 8bit",
   ];
   const raw = base64UrlUtf8(`${headers.join("\r\n")}\r\n\r\n${body.replace(/\r?\n/g, "\r\n")}`);
-  const response = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
+  const response = await providerFetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -243,7 +254,7 @@ async function createCalendarEvent(accessToken: string, action: Record<string, u
     ...(action.location ? { location: cleanHeader(action.location, 500) } : {}),
     ...(attendees.length ? { attendees: attendees.map((email) => ({ email })) } : {}),
   };
-  return await fetch("https://www.googleapis.com/calendar/v3/calendars/primary/events", {
+  return await providerFetch("https://www.googleapis.com/calendar/v3/calendars/primary/events", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -263,7 +274,7 @@ async function createDriveTextFile(accessToken: string, action: Record<string, u
     `--${boundary}\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n${content}\r\n`,
     `--${boundary}--`,
   ].join("");
-  return await fetch(
+  return await providerFetch(
     "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink",
     {
       method: "POST",
