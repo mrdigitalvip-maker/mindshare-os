@@ -819,8 +819,8 @@ function CreatorStudio() {
                     <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
                       {typeof clip.score === "number" && <span>Score: {String(clip.score)}</span>}
                       {clip.duration_ms != null && <span>{(Number(clip.duration_ms) / 1000).toFixed(1)}s</span>}
-                      {clip.aspect_ratio && <span>{String(clip.aspect_ratio)}</span>}
-                      {clip.render_version && <span>Render v{String(clip.render_version)}</span>}
+                      {Boolean(clip.aspect_ratio) && <span>{String(clip.aspect_ratio)}</span>}
+                      {Boolean(clip.render_version) && <span>Render v{String(clip.render_version)}</span>}
                     </div>
                     {Boolean(clip.score_reason) && (
                       <p className="text-sm leading-5 text-muted-foreground">{String(clip.score_reason)}</p>
@@ -1242,7 +1242,7 @@ function CreatorStudio() {
                               </span>
                             ))}
                         </div>
-                        {snapshot && (snapshot.period_start || snapshot.period_end) && (
+                        {Boolean(snapshot && (snapshot.period_start || snapshot.period_end)) && (
                           <p className="mt-2 text-[11px] text-muted-foreground">
                             Period: {String(snapshot.period_start ?? "—")} → {String(snapshot.period_end ?? "—")}
                           </p>
