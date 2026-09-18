@@ -9,6 +9,13 @@ alter table public.agent_action_audit_events
   check (domain in ('tasks','projects','studies','integrations'));
 
 alter table public.agent_action_audit_events
+  drop constraint if exists agent_action_audit_events_status_check;
+
+alter table public.agent_action_audit_events
+  add constraint agent_action_audit_events_status_check
+  check (status in ('approval_required','approved','applied','rejected','failed','uncertain'));
+
+alter table public.agent_action_audit_events
   add column if not exists provider text
   check (provider is null or provider in ('gmail','google_calendar','google_drive'));
 
