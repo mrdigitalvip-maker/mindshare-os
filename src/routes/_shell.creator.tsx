@@ -57,7 +57,12 @@ import {
   syncCreatorProviderAnalytics,
   disconnectCreatorProvider,
 } from "@/services/creator-service";
-import type { CreatorProvider, CreatorYouTubeMetadata } from "@/services/creator-service";
+import {
+  CreatorYouTubeMetadataError,
+  type CreatorProvider,
+  type CreatorYouTubeMetadata,
+  type CreatorYouTubeMetadataErrorCode,
+} from "@/services/creator-service";
 
 export const Route = createFileRoute("/_shell/creator")({
   head: () => ({ meta: [{ title: "Creator Studio — KIVRYN" }] }),
@@ -90,6 +95,63 @@ const Field = ({
     <Input type={type} value={value} onChange={(event) => onChange(event.target.value)} />
   </div>
 );
+
+const youtubeMetadataErrorCopy: Record<
+  "pt-BR" | "en",
+  Record<CreatorYouTubeMetadataErrorCode, string>
+> = {
+  "pt-BR": {
+    configuration_error:
+      "A integração de metadados do YouTube não está configurada no servidor.",
+    origin_not_allowed:
+      "Este domínio não está autorizado a usar a integração do YouTube.",
+    unauthorized: "Sua sessão expirou. Entre novamente e tente de novo.",
+    invalid_youtube_url: "Use um link válido do YouTube.",
+    quota_check_failed:
+      "Não foi possível verificar seu limite de análise do YouTube. Tente novamente.",
+    daily_limit_reached:
+      "Você atingiu o limite diário de análises do YouTube.",
+    youtube_provider_configuration:
+      "A configuração da YouTube Data API precisa ser revisada.",
+    youtube_provider_quota:
+      "A cota da YouTube Data API foi atingida. Tente novamente mais tarde.",
+    youtube_video_not_found:
+      "Este vídeo não foi encontrado ou não está disponível publicamente.",
+    youtube_metadata_unavailable:
+      "O YouTube não retornou os metadados agora. Tente novamente.",
+  },
+  en: {
+    configuration_error:
+      "YouTube metadata integration is not configured on the server.",
+    origin_not_allowed:
+      "This domain is not authorized to use the YouTube integration.",
+    unauthorized: "Your session expired. Sign in again and retry.",
+    invalid_youtube_url: "Use a valid YouTube link.",
+    quota_check_failed:
+      "KIVRYN could not verify your YouTube analysis limit. Please retry.",
+    daily_limit_reached:
+      "You reached today's YouTube analysis limit.",
+    youtube_provider_configuration:
+      "The YouTube Data API configuration needs to be reviewed.",
+    youtube_provider_quota:
+      "The YouTube Data API quota was reached. Please retry later.",
+    youtube_video_not_found:
+      "This video was not found or is not publicly available.",
+    youtube_metadata_unavailable:
+      "YouTube did not return metadata right now. Please retry.",
+  },
+};
+
+function creatorYouTubeMetadataErrorMessage(
+  error: unknown,
+  locale: "pt-BR" | "en",
+) {
+  const code =
+    error instanceof CreatorYouTubeMetadataError
+      ? error.code
+      : "youtube_metadata_unavailable";
+  return youtubeMetadataErrorCopy[locale][code];
+}
 
 function isYouTubeUrl(value: string) {
   try {
@@ -134,7 +196,7 @@ function creatorJobActive(status: unknown) {
 
 function CreatorStudio() {
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, resolvedLocale } = useLanguage();
   const userId = user?.id ?? "";
   const [profile, setProfile] = useState<CreatorProfile>(emptyCreatorProfile);
   const [strategy, setStrategy] = useState<CreatorStrategy>({
@@ -348,8 +410,10 @@ function CreatorStudio() {
       console.error("creator_source_url_failed", error);
       toast.error(
         isYouTubeUrl(sourceUrl)
-          ? "Could not inspect this YouTube link. Try again or upload the original video."
-          : "This URL could not be imported. Use a direct HTTPS video link or upload the file.",
+          ? creatorYouTubeMetadataErrorMessage(error, resolvedLocale)
+          : resolvedLocale === "pt-BR"
+            ? "Esta URL não pôde ser importada. Use um link HTTPS direto para o vídeo ou envie o arquivo."
+            : "This URL could not be imported. Use a direct HTTPS video link or upload the file.",
       );
     } finally {
       setSourceBusy(false);
