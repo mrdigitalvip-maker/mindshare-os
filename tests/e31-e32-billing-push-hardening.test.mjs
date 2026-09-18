@@ -50,6 +50,7 @@ test("E32 keeps Web Push and native device policies owner-scoped with initplan-s
   for (const table of ["push_subscriptions", "push_devices"]) {
     const blocks = push
       .split(/create policy /)
+      .slice(1)
       .filter((block) => block.includes(`public.${table}`));
     assert.ok(blocks.length >= 4, `${table} should preserve CRUD owner policies`);
     for (const block of blocks) {
