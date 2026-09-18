@@ -63,5 +63,11 @@ jobs:
       - name: Run E39/E40 Passport and Creator source parity
         run: bun test tests/passport-creator-e39-e40-source-parity.test.ts
 
+      - name: Run Agent Premium authority source parity
+        run: bun test tests/agent-premium-phase2-source-parity.test.ts
+
+      - name: Run Creator YouTube diagnostics source parity
+        run: bun test tests/creator-youtube-diagnostics-phase2.test.ts
+
       - name: Run existing Creator engine and intelligence contracts
         run: bun test tests/creator-video-engine-revision-14.test.ts tests/creator-intelligence-revision-14.test.ts
