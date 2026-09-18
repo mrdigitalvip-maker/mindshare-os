@@ -11,6 +11,7 @@ describe("E25 + E26 Community Profile and Squads", () => {
   const domain = read("mobile/lib/community.ts");
   const web = read("src/routes/_shell.community.tsx");
   const migration = read("supabase/migrations/202609180001_community_e25_e26_hardening.sql");
+  const indexes = read("supabase/migrations/202609180002_community_e26_indexes.sql");
 
   test("E25 profile is the gate on Android and Web", () => {
     expect(home).toContain("profileReady && !editingProfile");
@@ -47,6 +48,12 @@ describe("E25 + E26 Community Profile and Squads", () => {
     expect(squad).toContain('"Sair do Squad"');
     expect(squad).toContain('"Encerrar Squad"');
     expect(squad).toContain('style: "destructive"');
+  });
+
+  test("E26 indexes ownership and invite actor lookups", () => {
+    expect(indexes).toContain("squads_owner_id_idx");
+    expect(indexes).toContain("squad_invites_invited_by_idx");
+    expect(indexes).toContain("squad_invites_accepted_by_idx");
   });
 
   test("clients remain on RPCs rather than direct Squad table mutations", () => {
