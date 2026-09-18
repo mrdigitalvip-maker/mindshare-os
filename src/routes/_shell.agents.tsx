@@ -243,6 +243,8 @@ function AgentsIndex() {
   );
 }
 function Builder({ open, close }: { open: boolean; close: () => void }) {
+  const { resolvedLocale } = useLanguage();
+  const L = (pt: string, en: string) => (resolvedLocale === "pt-BR" ? pt : en);
   const client = useQueryClient();
   const [step, setStep] = useState(1);
   const [form, setForm] = useState(emptyAgentForm);
@@ -256,23 +258,23 @@ function Builder({ open, close }: { open: boolean; close: () => void }) {
     mutationFn: () => AgentService.create({ ...form, active: true }),
     onSuccess: async () => {
       await client.invalidateQueries({ queryKey: workspaceQueryKeys.agents });
-      toast.success("Agente criado");
+      toast.success(L("Agente criado", "Agent created"));
       resetAndClose();
     },
     onError: (e: Error) =>
-      toast.error(e.message.includes("premium_required") ? "Agentes exigem Premium ativo." : e.message),
+      toast.error(e.message.includes("premium_required") ? L("Agentes exigem Premium ativo.", "Agents require active Premium.") : e.message),
   });
   return (
     <Dialog open={open} onOpenChange={(o) => !o && resetAndClose()}>
       <DialogContent className="max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Novo agente · etapa {step} de 5</DialogTitle>
+          <DialogTitle>{L("Novo agente", "New agent")} · {L("etapa", "step")} {step} {L("de", "of")} 5</DialogTitle>
         </DialogHeader>
         {step === 1 && (
           <div className="space-y-3">
-            <Label>Nome</Label>
+            <Label>{L("Nome", "Name")}</Label>
             <Input value={form.name} onChange={(e) => field("name", e.target.value)} />
-            <Label>Descrição</Label>
+            <Label>{L("Descrição", "Description")}</Label>
             <Textarea
               value={form.description}
               onChange={(e) => field("description", e.target.value)}
@@ -281,9 +283,9 @@ function Builder({ open, close }: { open: boolean; close: () => void }) {
         )}
         {step === 2 && (
           <div className="space-y-3">
-            <Label>What should this agent do?</Label>
+            <Label>{L("O que este agente deve fazer?", "What should this agent do?")}</Label>
             <Textarea value={form.goal} onChange={(e) => field("goal", e.target.value)} />
-            <Label>What result should it produce?</Label>
+            <Label>{L("Qual resultado ele deve produzir?", "What result should it produce?")}</Label>
             <Textarea
               value={form.expected_output}
               onChange={(e) => field("expected_output", e.target.value)}
@@ -292,21 +294,21 @@ function Builder({ open, close }: { open: boolean; close: () => void }) {
         )}
         {step === 3 && (
           <div className="space-y-3">
-            <Label>Instruções</Label>
+            <Label>{L("Instruções", "Instructions")}</Label>
             <Textarea
               value={form.instructions}
               onChange={(e) => field("instructions", e.target.value)}
             />
-            <Label>Tom</Label>
+            <Label>{L("Tom", "Tone")}</Label>
             <Input value={form.tone} onChange={(e) => field("tone", e.target.value)} />
           </div>
         )}
         {step === 4 && (
           <div className="space-y-3">
             <div>
-              <Label>Skills especializadas</Label>
+              <Label>{L("Skills especializadas", "Specialized skills")}</Label>
               <p className="mt-1 text-xs text-muted-foreground">
-                Cada skill adiciona um método de trabalho versionado. Autoridade para alterar o workspace continua separada e exige aprovação KIVRYN.
+                {L("Cada skill adiciona um método de trabalho versionado. Autoridade para alterar o workspace continua separada e exige aprovação KIVRYN.", "Each skill adds a versioned way of working. Authority to mutate the workspace remains separate and requires KIVRYN approval.")}
               </p>
             </div>
             {capabilities.map(([value, label, description]) => (
@@ -344,13 +346,13 @@ function Builder({ open, close }: { open: boolean; close: () => void }) {
             variant="outline"
             onClick={() => (step === 1 ? resetAndClose() : setStep(step - 1))}
           >
-            {step === 1 ? "Cancelar" : "Voltar"}
+            {step === 1 ? L("Cancelar", "Cancel") : L("Voltar", "Back")}
           </Button>
           <Button
             disabled={(step === 1 && !form.name.trim()) || create.isPending}
             onClick={() => (step < 5 ? setStep(step + 1) : create.mutate())}
           >
-            {step < 5 ? "Continuar" : "Criar agente"}
+            {step < 5 ? L("Continuar", "Continue") : L("Criar agente", "Create agent")}
           </Button>
         </div>
       </DialogContent>
