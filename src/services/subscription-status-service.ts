@@ -20,8 +20,6 @@ export const FREE_SUBSCRIPTION: SubscriptionStatus = {
   source: "demo",
   provider: null,
 };
-const PREMIUM_STATUSES = new Set(["active", "trialing"]);
-
 export const SubscriptionStatusService = {
   async get(userId?: string): Promise<SubscriptionStatus> {
     return withDemoFallback<SubscriptionStatus>(
@@ -30,45 +28,21 @@ export const SubscriptionStatusService = {
         if (userId && userId !== authenticatedUserId) {
           throw new Error("Subscriptions can only be read for the authenticated user.");
         }
-        const { data: subscription, error } = await supabase
-          .from("subscriptions")
-          .select(
-            "status, entitlement, provider, current_period_end, cancel_at_period_end, updated_at",
-          )
-          .eq("user_id", authenticatedUserId)
-          .order("updated_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
+        const { data, error } = await supabase.rpc("get_subscription_runtime" as never);
         if (error) throw error;
-        if (subscription?.status) {
-          const status = String(subscription.status);
-          const periodEnd = subscription.current_period_end;
-          const hasExpired = periodEnd ? new Date(periodEnd).getTime() <= Date.now() : false;
-          const isPremium =
-            (subscription.entitlement === "premium" ||
-              PREMIUM_STATUSES.has(status) ||
-              status === "canceled") &&
-            !hasExpired;
-          return {
-            isPremium,
-            status,
-            plan: isPremium ? "pro" : "free",
-            currentPeriodEnd: periodEnd ?? null,
-            cancelAtPeriodEnd: subscription.cancel_at_period_end ?? false,
-            source: "subscriptions",
-            provider: ["stripe", "google_play", "manual"].includes(subscription.provider)
-              ? (subscription.provider as SubscriptionStatus["provider"])
-              : null,
-          };
-        }
+        const runtime = (data ?? {}) as Record<string, unknown>;
+        const provider = runtime.provider;
         return {
-          isPremium: false,
-          status: null,
-          plan: "free",
-          currentPeriodEnd: null,
-          cancelAtPeriodEnd: false,
+          isPremium: runtime.is_premium === true,
+          status: typeof runtime.status === "string" ? runtime.status : null,
+          plan: runtime.is_premium === true ? "pro" : "free",
+          currentPeriodEnd:
+            typeof runtime.current_period_end === "string" ? runtime.current_period_end : null,
+          cancelAtPeriodEnd: runtime.cancel_at_period_end === true,
           source: "subscriptions",
-          provider: null,
+          provider: ["stripe", "google_play", "manual"].includes(String(provider))
+            ? (provider as SubscriptionStatus["provider"])
+            : null,
         };
       },
       FREE_SUBSCRIPTION,
