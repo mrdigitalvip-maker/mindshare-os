@@ -92,6 +92,31 @@ export type CommunityHome = {
   squads: Squad[];
   activity: Activity[];
 };
+export type CommunityNotificationMode = "highlights" | "all" | "muted";
+export type OfficialCommunity = {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  premium: boolean;
+  eligible: boolean;
+  joined: boolean;
+  membership_status: string | null;
+  notification_mode: CommunityNotificationMode;
+  member_count: number;
+  unread_count: number;
+  recent_body: string | null;
+  recent_at: string | null;
+};
+export type OfficialCommunityMessage = {
+  id: string;
+  body: string;
+  created_at: string;
+  actor_type: "user" | "system";
+  display_name: string;
+  is_self: boolean;
+  removed: boolean;
+};
 export type Reaction = "support" | "celebrate" | "respect";
 const COMMUNITY_USERNAME = /^[a-z][a-z0-9_]{2,29}$/;
 const COMMUNITY_RESERVED = new Set([
@@ -145,6 +170,8 @@ export const parityKeys = {
   momentum: ["canonical-parity", "momentum"] as const,
   arena: ["canonical-parity", "arena"] as const,
   community: ["canonical-parity", "community"] as const,
+  communityChannels: ["canonical-parity", "community", "channels"] as const,
+  communityMessages: (id: string) => ["canonical-parity", "community", "messages", id] as const,
   squad: (id: string) => ["canonical-parity", "community", "squad", id] as const,
   packs: ["canonical-parity", "packs"] as const,
   pack: (slug: string) => ["canonical-parity", "packs", slug] as const,
@@ -286,6 +313,69 @@ export async function communityHome() {
     })),
   };
 }
+export async function listOfficialCommunities() {
+  const rows = await rpc<OfficialCommunity[]>("get_official_communities");
+  return (rows || []).map((row) => ({
+    ...row,
+    name: row.name.replace(/NEXORA/g, "KIVRYN"),
+    description: row.description?.replace(/NEXORA/g, "KIVRYN") ?? null,
+  }));
+}
+export async function joinOfficialCommunity(id: string) {
+  await rpc("join_official_community", { p_channel: id });
+}
+export async function leaveOfficialCommunity(id: string) {
+  await rpc("leave_official_community", { p_channel: id });
+}
+export async function setOfficialCommunityNotifications(
+  id: string,
+  mode: CommunityNotificationMode,
+) {
+  await rpc("set_community_notifications", { p_channel: id, p_mode: mode });
+}
+export async function markOfficialCommunityRead(id: string) {
+  await rpc("mark_community_read", { p_channel: id });
+}
+export async function listOfficialCommunityMessages(id: string) {
+  const rows = await rpc<OfficialCommunityMessage[]>("get_community_messages", {
+    p_channel: id,
+    p_before: null,
+    p_limit: 50,
+  });
+  return (rows || []).map((row) => ({
+    ...row,
+    display_name:
+      row.actor_type === "system"
+        ? "KIVRYN"
+        : row.display_name.replace(/NEXORA/g, "KIVRYN"),
+  }));
+}
+export async function sendOfficialCommunityMessage(id: string, body: string) {
+  const clean = body.trim();
+  if (!clean || clean.length > 1200) throw new Error("message_length");
+  const requestId = globalThis.crypto?.randomUUID?.();
+  if (!requestId) throw new Error("request_id_required");
+  return rpc<string>("send_community_message", {
+    p_channel: id,
+    p_body: clean,
+    p_client_request_id: requestId,
+    p_reply_to: null,
+  });
+}
+export function subscribeOfficialCommunity(id: string, onChange: () => void) {
+  const channel = client
+    .channel(`web-community:${id}`)
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "community_messages", filter: `channel_id=eq.${id}` },
+      onChange,
+    )
+    .subscribe();
+  return () => {
+    void client.removeChannel(channel);
+  };
+}
+
 export async function saveCommunityProfile(p: CommunityProfile) {
   const displayName = p.display_name?.trim() || null;
   const username = p.username?.trim().replace(/^@+/, "").toLowerCase() || null;
@@ -407,6 +497,13 @@ const safeErrors: Record<string, string> = {
   pack_retired: "Este Pack foi retirado.",
   pack_not_available: "Este Pack ainda não está disponível.",
   challenge_not_joinable: "Este desafio não pode mais ser iniciado.",
+  premium_required: "Esta comunidade é exclusiva do KIVRYN Premium.",
+  profile_required: "Conclua seu perfil da Comunidade para continuar.",
+  membership_required: "Entre na comunidade para participar.",
+  membership_restricted: "Sua participação nesta comunidade está restrita.",
+  membership_removed: "Sua participação nesta comunidade foi removida.",
+  message_length: "A mensagem deve ter entre 1 e 1200 caracteres.",
+  request_id_required: "Não foi possível preparar o envio. Tente novamente.",
   squad_full: "Este Squad atingiu o limite de membros.",
   squad_not_found: "Este Squad não existe mais.",
   invite_invalid: "O código de convite é inválido.",

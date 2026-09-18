@@ -12,6 +12,8 @@ import {
   acceptInvite,
   communityHome,
   createSquad,
+  joinOfficialCommunity,
+  listOfficialCommunities,
   parityKeys,
   react,
   reportTarget,
@@ -27,7 +29,11 @@ function Community() {
   const { t } = useLanguage();
   const qc = useQueryClient(),
     nav = useNavigate(),
-    q = useQuery({ queryKey: parityKeys.community, queryFn: communityHome });
+    q = useQuery({ queryKey: parityKeys.community, queryFn: communityHome }),
+    channels = useQuery({
+      queryKey: parityKeys.communityChannels,
+      queryFn: listOfficialCommunities,
+    });
   const [profile, setProfile] = useState<CommunityProfile | null>(null);
   const profileReady = isCommunityProfileReady(profile);
   useEffect(() => {
@@ -59,6 +65,15 @@ function Community() {
       await refresh();
       toast.success("Convite aceito.");
       await nav({ to: "/community/squads/$squadId", params: { squadId: id } });
+    },
+    onError: (e) => toast.error(safeBackendError(e)),
+  });
+  const joinChannel = useMutation({
+    mutationFn: joinOfficialCommunity,
+    onSuccess: async (_, id) => {
+      await qc.invalidateQueries({ queryKey: parityKeys.communityChannels });
+      toast.success("Comunidade aberta.");
+      await nav({ to: "/community/$channelId", params: { channelId: id } });
     },
     onError: (e) => toast.error(safeBackendError(e)),
   });
@@ -217,6 +232,90 @@ function Community() {
             )}
           </div>
         </div>
+        {profileReady ? (
+          <section className="mt-8">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                  KIVRYN COMMUNITY
+                </p>
+                <h2 className="mt-1 text-xl font-semibold">Comunidades oficiais</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Seu plano define quais espaços aparecem aqui. Usuários Free veem somente a comunidade Free.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void channels.refetch()}
+                disabled={channels.isFetching}
+              >
+                Atualizar
+              </Button>
+            </div>
+            {channels.isError ? (
+              <p className="mt-4 text-sm text-destructive">
+                Não foi possível sincronizar as comunidades oficiais.
+              </p>
+            ) : channels.isLoading ? (
+              <p className="mt-4 text-sm text-muted-foreground">Sincronizando comunidades…</p>
+            ) : !channels.data?.length ? (
+              <p className="mt-4 text-sm text-muted-foreground">Nenhuma comunidade disponível para seu plano.</p>
+            ) : (
+              <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                {channels.data.map((channel) => (
+                  <article
+                    key={channel.id}
+                    className={`v2-surface rounded-3xl border p-5 ${channel.premium ? "border-violet-500/40" : ""}`}
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <span className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                          {channel.premium ? "Premium" : "Free"}
+                        </span>
+                        <h3 className="mt-1 text-lg font-semibold">{channel.name}</h3>
+                      </div>
+                      <span className="rounded-full border px-2.5 py-1 text-xs text-muted-foreground">
+                        {channel.member_count} membros
+                      </span>
+                    </div>
+                    <p className="mt-3 text-sm text-muted-foreground">{channel.description}</p>
+                    {channel.joined && channel.recent_body ? (
+                      <div className="mt-4 rounded-2xl border bg-background/40 p-3">
+                        <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Última conversa</p>
+                        <p className="mt-1 line-clamp-2 text-sm">{channel.recent_body}</p>
+                      </div>
+                    ) : null}
+                    <div className="mt-4 flex items-center justify-between gap-3">
+                      {channel.unread_count > 0 ? (
+                        <span className="text-xs font-medium">{channel.unread_count} não lidas</span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">
+                          {channel.joined ? "Em dia" : "Entre para conversar"}
+                        </span>
+                      )}
+                      {channel.joined ? (
+                        <Button asChild>
+                          <Link to="/community/$channelId" params={{ channelId: channel.id }}>
+                            Abrir conversa
+                          </Link>
+                        </Button>
+                      ) : (
+                        <Button
+                          disabled={joinChannel.isPending}
+                          onClick={() => joinChannel.mutate(channel.id)}
+                        >
+                          Entrar
+                        </Button>
+                      )}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+        ) : null}
+
         <section className="mt-8">
           <h2 className="text-xl font-semibold">Seus Squads</h2>
           {!profileReady ? (
