@@ -29,6 +29,7 @@ describe("E39 + E40 Passport and Creator source parity", () => {
       expect(passportMigration).toContain(`create policy "${policy}"`);
     }
     expect(passportMigration).toContain("to authenticated");
+    expect(passportMigration).not.toContain("to public");
   });
 
   test("Android Creator continues through shared creator_profiles and creator_projects", () => {
@@ -42,6 +43,7 @@ describe("E39 + E40 Passport and Creator source parity", () => {
     expect(creatorMigration).toContain("creator_projects_owner_all");
     expect(creatorMigration).toContain("for all");
     expect(creatorMigration).toContain("to authenticated");
+    expect(creatorMigration).not.toContain("to public");
     expect(creatorMigration).toContain("(select auth.uid()) = user_id");
   });
 });
