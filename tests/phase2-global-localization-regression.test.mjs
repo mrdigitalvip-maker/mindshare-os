@@ -10,6 +10,11 @@ const finance = read("src/routes/_shell.finance.tsx");
 const financeDetail = read("src/routes/_shell.finance.accounts.$accountId.tsx");
 const studio = read("src/routes/_shell.studio.tsx");
 const studies = read("src/routes/_shell.studies.tsx");
+const agents = read("src/routes/_shell.agents.tsx");
+const journeys = read("src/routes/_shell.journeys.tsx");
+const packs = read("src/routes/_shell.packs.tsx");
+const premium = read("src/routes/_shell.premium.tsx");
+const authCallback = read("src/routes/auth.callback.tsx");
 
 test("Content list, creation flow and editor use resolved locale", () => {
   assert.match(content, /useLanguage/);
@@ -46,4 +51,36 @@ test("Studies overview no longer mixes English controls into pt-BR", () => {
   assert.match(studies, /resolvedLocale === "pt-BR" \? "Criar e abrir" : "Create and open"/);
   assert.doesNotMatch(studies, />New subject</);
   assert.doesNotMatch(studies, /\? "Creating…" : "Create and open"/);
+});
+
+
+test("Agents list and builder resolve pt-BR/en copy", () => {
+  assert.match(agents, /L\("Agentes ativos", "Active agents"\)/);
+  assert.match(agents, /L\("Buscar por nome ou objetivo", "Search by name or purpose"\)/);
+  assert.match(agents, /L\("O que este agente deve fazer\?", "What should this agent do\?"\)/);
+  assert.match(agents, /L\("Criar agente", "Create agent"\)/);
+  assert.doesNotMatch(agents, /label="Active agents"/);
+  assert.doesNotMatch(agents, /placeholder="Search by name or purpose"/);
+});
+
+test("Journeys and Packs expose bilingual navigation and creation copy", () => {
+  assert.match(journeys, /L\("Espaço de execução", "Execution workspace"\)/);
+  assert.match(journeys, /L\("Criar Jornada", "Create Journey"\)/);
+  assert.match(journeys, /L\("Todas as Jornadas", "All Journeys"\)/);
+  assert.match(packs, /L\("Packs de Jornadas", "Journey Packs"\)/);
+  assert.match(packs, /L\("Ver Pack", "View Pack"\)/);
+});
+
+test("Premium billing states and legal copy resolve pt-BR/en", () => {
+  assert.match(premium, /L\("Status atual", "Current status"\)/);
+  assert.match(premium, /L\("Verificando…", "Checking…"\)/);
+  assert.match(premium, /L\("Gerenciar cobrança, pagamento ou cancelamento", "Manage billing, payment or cancellation"\)/);
+  assert.match(premium, /L\("Termos de Serviço", "Terms of Service"\)/);
+  assert.match(premium, /L\("Política de Privacidade", "Privacy Policy"\)/);
+});
+
+test("OAuth callback is both routable and bilingual", () => {
+  assert.match(authCallback, /useLanguage/);
+  assert.match(authCallback, /L\("Concluindo login", "Completing sign in"\)/);
+  assert.match(authCallback, /L\("Voltar para o login", "Return to sign in"\)/);
 });
