@@ -39,7 +39,7 @@ function Premium() {
   const [openingPortal, setOpeningPortal] = useState(false);
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const { data: subscription, isLoading, isFetching, refetch } = useSubscription();
+  const { data: subscription, isLoading, isFetching, isError, refetch } = useSubscription();
   const checkoutResult =
     typeof window === "undefined"
       ? null
@@ -97,10 +97,26 @@ function Premium() {
       <div className="mt-4 text-sm text-muted-foreground">
         {L("Status atual", "Current status")}:{" "}
         <span className="font-medium text-foreground">
-          {isLoading ? L("Verificando…", "Checking…") : subscription?.isPremium ? "Premium" : "Free"}
+          {isLoading
+            ? L("Verificando…", "Checking…")
+            : isError
+              ? L("Não verificado", "Not verified")
+              : subscription?.isPremium
+                ? "Premium"
+                : "Free"}
         </span>
       </div>
-      {checkoutResult === "success" && !subscription?.isPremium && (
+      {isError && (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm">
+          <span className="text-destructive">
+            {L("Não foi possível verificar seu plano. Nenhum entitlement será presumido.", "Could not verify your plan. No entitlement will be assumed.")}
+          </span>
+          <Button size="sm" variant="outline" onClick={() => void refetch()} disabled={isFetching}>
+            {isFetching ? L("Verificando…", "Checking…") : L("Tentar novamente", "Try again")}
+          </Button>
+        </div>
+      )}
+      {checkoutResult === "success" && !isError && !subscription?.isPremium && (
         <div className="mt-4 rounded-xl border border-intelligence/30 bg-intelligence/5 p-4 text-sm">
           {L("Pagamento recebido. Sua assinatura ainda está sincronizando; o acesso só é liberado após a confirmação do Stripe.", "Payment received. Your subscription is still syncing; access is granted only after Stripe confirms it.")}
           <Button
@@ -146,14 +162,20 @@ function Premium() {
       )}
       <div className="mt-10 grid gap-6 md:grid-cols-2">
         <Card
-          badge={!subscription?.isPremium ? L("Atual", "Current") : undefined}
+          badge={!isLoading && !isError && !subscription?.isPremium ? L("Atual", "Current") : undefined}
           name="Free"
           price="$0"
           period={L("para sempre", "forever")}
           features={freeFeatures}
           cta={
             <Button variant="outline" className="rounded-full" disabled>
-              {subscription?.isPremium ? L("Base incluída", "Included foundation") : L("Plano atual", "Current plan")}
+              {isLoading
+                ? L("Verificando…", "Checking…")
+                : isError
+                  ? L("Plano não verificado", "Plan not verified")
+                  : subscription?.isPremium
+                    ? L("Base incluída", "Included foundation")
+                    : L("Plano atual", "Current plan")}
             </Button>
           }
         />
@@ -168,7 +190,7 @@ function Premium() {
             <Button
               className="rounded-full"
               onClick={startCheckout}
-              disabled={checkingOut || isLoading || subscription?.isPremium}
+              disabled={checkingOut || isLoading || isError || subscription?.isPremium}
               title={L("Iniciar checkout do Stripe", "Start a Stripe checkout session")}
             >
               <Crown className="mr-1 h-4 w-4" />
