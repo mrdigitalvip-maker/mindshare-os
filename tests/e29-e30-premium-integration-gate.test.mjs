@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
 const migration = read("supabase/migrations/202609180005_e29_premium_runtime_authority.sql");
+const rlsHardening = read("supabase/migrations/202609180006_e29_e30_rls_hardening.sql");
 const webSubscription = read("src/services/subscription-status-service.ts");
 const mobileSubscription = read("mobile/services/subscription-service.ts");
 const integrationStatus = read("supabase/functions/integration-status/index.ts");
@@ -65,4 +66,12 @@ test("E30 preserves approval-required external mutations in the integration regi
       new RegExp(`"${capability}": \\{ risk: "external_mutation", requiresApproval: true \\}`),
     );
   }
+});
+
+
+test("E29/E30 keeps subscription writes server-only and owner reads optimized", () => {
+  assert.match(rlsHardening, /drop policy if exists subscriptions_all/);
+  assert.match(rlsHardening, /for select\s+to authenticated\s+using \(user_id = \(select auth\.uid\(\)\)\)/s);
+  assert.match(rlsHardening, /creator_connections_owner_select/);
+  assert.doesNotMatch(rlsHardening, /for (?:insert|update|delete|all)\s+to authenticated/i);
 });
