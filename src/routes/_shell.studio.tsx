@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowRight,
@@ -18,7 +18,7 @@ import { StudioService, type StudioCategory } from "@/services/studio-service";
 
 export const Route = createFileRoute("/_shell/studio")({
   head: () => ({ meta: [{ title: "Studio — KIVRYN" }] }),
-  component: Studio,
+  component: StudioRoute,
 });
 
 const PATHS = [
@@ -48,7 +48,12 @@ const PATHS = [
   },
 ];
 
-function Studio() {
+function StudioRoute() {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  return pathname !== "/studio" && pathname !== "/studio/" ? <Outlet /> : <StudioIndex />;
+}
+
+function StudioIndex() {
   const query = useQuery({
     queryKey: ["studio", "overview"],
     queryFn: () => StudioService.overview(),
