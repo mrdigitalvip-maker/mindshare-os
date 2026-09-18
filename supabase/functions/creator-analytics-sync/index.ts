@@ -191,9 +191,9 @@ async function youtubeSync(access: string): Promise<NormalizedContent[]> {
     }
   } catch (error) {
     const status = Number((error as { providerStatus?: unknown }).providerStatus);
-    if (status === 401 || status === 403) throw error;
+    if (status === 401) throw error;
     // Data API statistics remain authoritative provider evidence if Analytics reporting
-    // is temporarily unavailable. Missing Analytics-only metrics stay missing.
+    // is disabled, unavailable, or restricted. Missing Analytics-only metrics stay missing.
   }
 
   return uploadRows.map((upload) => {
