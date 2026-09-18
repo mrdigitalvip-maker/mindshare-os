@@ -28,11 +28,14 @@ Deno.serve(async (request) => {
     .gt("expires_at", new Date().toISOString())
     .maybeSingle();
   if (!oauth) return new Response("Expired or invalid OAuth state", { status: 400 });
-  await admin
+  const { data: consumed } = await admin
     .from("creator_oauth_states")
     .update({ consumed_at: new Date().toISOString() })
     .eq("state_hash", stateHash)
-    .is("consumed_at", null);
+    .is("consumed_at", null)
+    .select("state_hash")
+    .maybeSingle();
+  if (!consumed) return new Response("Expired or invalid OAuth state", { status: 400 });
   const provider = oauth.provider as CreatorProvider,
     config = PROVIDERS[provider];
   if (provider === "instagram" || !("tokenUrl" in config))
