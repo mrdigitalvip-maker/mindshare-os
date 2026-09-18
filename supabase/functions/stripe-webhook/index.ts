@@ -21,35 +21,40 @@ async function findUser(admin: Admin, subscription: Stripe.Subscription, fallbac
   return data?.user_id ?? null;
 }
 
-async function persist(admin: Admin, subscription: Stripe.Subscription, fallback?: string | null) {
+async function persist(
+  admin: Admin,
+  subscription: Stripe.Subscription,
+  event: Stripe.Event,
+  fallback?: string | null,
+) {
   const userId = await findUser(admin, subscription, fallback);
   if (!userId) throw new Error("subscription_not_found");
   const customerId =
     typeof subscription.customer === "string" ? subscription.customer : subscription.customer.id;
-  const periodEnd = (subscription as unknown as { current_period_end?: number }).current_period_end;
-  const now = new Date().toISOString();
-  const { error } = await admin.from("subscriptions").upsert(
-    {
-      user_id: userId,
-      stripe_customer_id: customerId,
-      stripe_subscription_id: subscription.id,
-      provider: "stripe",
-      entitlement:
-        ["active", "trialing"].includes(subscription.status) &&
-        (!periodEnd || periodEnd * 1000 > Date.now())
-          ? "premium"
-          : "free",
-      provider_product_id: subscription.items.data[0]?.price?.id ?? null,
-      plan: ["active", "trialing"].includes(subscription.status) ? "pro" : "free",
-      status: subscription.status,
-      current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
-      cancel_at_period_end: subscription.cancel_at_period_end,
-      created_at: new Date(subscription.created * 1000).toISOString(),
-      updated_at: now,
-    },
-    { onConflict: "user_id" },
-  );
+  const fields = subscription as unknown as {
+    current_period_end?: number | null;
+    trial_start?: number | null;
+  };
+  const { data, error } = await admin.rpc("persist_stripe_subscription_state", {
+    p_user: userId,
+    p_customer_id: customerId,
+    p_subscription_id: subscription.id,
+    p_product_id: subscription.items.data[0]?.price?.id ?? null,
+    p_status: subscription.status,
+    p_period_end: fields.current_period_end
+      ? new Date(fields.current_period_end * 1000).toISOString()
+      : null,
+    p_cancel_at_period_end: subscription.cancel_at_period_end,
+    p_subscription_created_at: new Date(subscription.created * 1000).toISOString(),
+    p_event_id: event.id,
+    p_event_type: event.type,
+    p_event_created_at: new Date(event.created * 1000).toISOString(),
+    p_trial_started_at: fields.trial_start
+      ? new Date(fields.trial_start * 1000).toISOString()
+      : null,
+  });
   if (error) throw new Error("persistence_error");
+  return String(data ?? "applied");
 }
 
 Deno.serve(async (req) => {
@@ -72,6 +77,14 @@ Deno.serve(async (req) => {
 
   const admin = createClient(supabaseUrl, serviceKey);
   try {
+    const { data: processed, error: processedLookupError } = await admin
+      .from("stripe_webhook_events")
+      .select("event_id")
+      .eq("event_id", event.id)
+      .maybeSingle();
+    if (processedLookupError) throw new Error("persistence_error");
+    if (processed) return reply({ received: true, handled: true, duplicate: true });
+
     switch (event.type) {
       case "checkout.session.completed":
       case "checkout.session.async_payment_succeeded": {
@@ -85,14 +98,20 @@ Deno.serve(async (req) => {
         await persist(
           admin,
           subscription,
+          event,
           session.client_reference_id ?? session.metadata?.user_id ?? null,
         );
         break;
       }
       case "customer.subscription.created":
-      case "customer.subscription.updated":
+      case "customer.subscription.updated": {
+        const snapshot = event.data.object as Stripe.Subscription;
+        const subscription = await stripe.subscriptions.retrieve(snapshot.id);
+        await persist(admin, subscription, event);
+        break;
+      }
       case "customer.subscription.deleted":
-        await persist(admin, event.data.object as Stripe.Subscription);
+        await persist(admin, event.data.object as Stripe.Subscription, event);
         break;
       case "invoice.payment_succeeded":
       case "invoice.payment_failed": {
@@ -104,7 +123,7 @@ Deno.serve(async (req) => {
         ).parent;
         const value = parent?.subscription_details?.subscription;
         const id = typeof value === "string" ? value : value?.id;
-        if (id) await persist(admin, await stripe.subscriptions.retrieve(id));
+        if (id) await persist(admin, await stripe.subscriptions.retrieve(id), event);
         break;
       }
       default:
