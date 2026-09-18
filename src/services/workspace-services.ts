@@ -354,7 +354,7 @@ export const ProductivityService = {
         .maybeSingle();
       if (error) throw error;
       if (!data) throw new Error("Tarefa não encontrada ou sem permissão para atualizar.");
-      return this.listTasks();
+      return ProductivityService.listTasks();
     }
     await delay();
     return updateMockDatabase((db) => ({
