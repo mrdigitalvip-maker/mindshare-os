@@ -32,9 +32,9 @@ test("Web Push test auto-repairs the browser subscription before delivery", () =
   const sendTestStart = client.indexOf("async sendTest(): Promise<number>");
   const sendTestEnd = client.indexOf("return accepted;", sendTestStart);
   const sendTestBody = client.slice(sendTestStart, sendTestEnd);
-  assert.match(sendTestBody, /await this\.enable\(\)/);
+  assert.match(sendTestBody, /await PushService\.enable\(\)/);
   assert.ok(
-    sendTestBody.indexOf("await this.enable()") < sendTestBody.indexOf('supabase.functions.invoke("push-send"'),
+    sendTestBody.indexOf("await PushService.enable()") < sendTestBody.indexOf('supabase.functions.invoke("push-send"'),
     "sendTest must repair the subscription before invoking push-send",
   );
 });

@@ -25,7 +25,7 @@ export const SettingsService = {
     return data ?? [];
   },
   async getByKey<K extends PreferenceKey>(key: K): Promise<PreferenceRow[K] | null> {
-    const preference = (await this.list())[0];
+    const preference = (await SettingsService.list())[0];
     return preference?.[key] ?? null;
   },
   async create(input: Omit<PreferenceInsert, "id" | "user_id">): Promise<PreferenceRow> {
@@ -49,8 +49,8 @@ export const SettingsService = {
   },
   async upsert(input: Omit<PreferenceInsert, "id" | "user_id">): Promise<PreferenceRow> {
     const userId = await getRequiredUserId();
-    const current = (await this.list())[0];
-    if (!current) return this.create(input);
+    const current = (await SettingsService.list())[0];
+    if (!current) return SettingsService.create(input);
     const { data, error } = await supabase
       .from("user_preferences")
       .update({ ...input, updated_at: new Date().toISOString() })

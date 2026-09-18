@@ -96,7 +96,7 @@ export const PushService = {
   },
   async save(patch: Partial<NotificationPreferences>) {
     const userId = await getRequiredUserId();
-    const current = await this.preferences();
+    const current = await PushService.preferences();
     const { error } = await db
       .from("notification_preferences")
       .upsert({ user_id: userId, ...current, ...patch, updated_at: new Date().toISOString() });
@@ -143,14 +143,14 @@ export const PushService = {
     if (error) throw error;
     // Scheduled reminders iterate persisted preferences. Ensure a first-time
     // subscriber has an owner-scoped row even before changing a toggle.
-    await this.save({});
+    await PushService.save({});
     return subscription;
   },
   async sendTest(): Promise<number> {
     // Make the test path self-healing. If the backend VAPID key changed or the
     // browser holds a stale subscription, repair/persist it immediately before
     // asking the provider to deliver the test notification.
-    await this.enable();
+    await PushService.enable();
 
     const { data, error } = await supabase.functions.invoke("push-send", {
       body: {
