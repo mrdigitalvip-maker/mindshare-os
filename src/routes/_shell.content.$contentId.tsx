@@ -9,9 +9,20 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ContentService, workspaceQueryKeys } from "@/services";
 import { useAuth } from "@/lib/auth-context";
+import { useLanguage } from "@/providers/language-provider";
 export const Route = createFileRoute("/_shell/content/$contentId")({ component: Workspace });
 const operations = ["rewrite", "summarize", "expand", "tone", "title"] as const;
 function Workspace() {
+  const { resolvedLocale } = useLanguage();
+  const L = (pt: string, en: string) => (resolvedLocale === "pt-BR" ? pt : en);
+  const operationLabel = (value: (typeof operations)[number]) =>
+    ({
+      rewrite: L("reescrever", "rewrite"),
+      summarize: L("resumir", "summarize"),
+      expand: L("expandir", "expand"),
+      tone: L("ajustar tom", "tone"),
+      title: L("título", "title"),
+    })[value];
   const { contentId } = Route.useParams();
   const nav = useNavigate();
   const client = useQueryClient();
@@ -40,7 +51,7 @@ function Workspace() {
     onSuccess: async () => {
       await refresh();
       setDirty(false);
-      toast.success("Draft saved");
+      toast.success(L("Rascunho salvo", "Draft saved"));
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -50,7 +61,7 @@ function Workspace() {
     onSuccess: (r) => {
       if (
         confirm(
-          "Replace the editor with the AI result? Your current draft remains unchanged until you save.",
+          L("Substituir o editor pelo resultado da IA? Seu rascunho atual permanece inalterado até você salvar.", "Replace the editor with the AI result? Your current draft remains unchanged until you save."),
         )
       ) {
         setBody(r.content);
@@ -62,7 +73,7 @@ function Workspace() {
   if (q.isLoading)
     return (
       <PageShell>
-        <p>Loading draft…</p>
+        <p>{L("Carregando rascunho…", "Loading draft…")}</p>
       </PageShell>
     );
   if (q.isError)
@@ -72,12 +83,12 @@ function Workspace() {
           className="mx-auto mt-12 max-w-xl rounded-2xl border border-destructive/30 bg-destructive/5 p-6"
           role="alert"
         >
-          <h1 className="text-xl font-semibold">We couldn't open this draft.</h1>
+          <h1 className="text-xl font-semibold">{L("Não foi possível abrir este rascunho.", "We couldn't open this draft.")}</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Your content remains saved. Check your connection and try again.
+            {L("Seu conteúdo continua salvo. Verifique a conexão e tente novamente.", "Your content remains saved. Check your connection and try again.")}
           </p>
           <Button className="mt-4" onClick={() => q.refetch()}>
-            Try again
+            {L("Tentar novamente", "Try again")}
           </Button>
         </div>
       </PageShell>
@@ -87,8 +98,8 @@ function Workspace() {
       <PageShell>
         <EmptyState
           icon={Trash2}
-          title="Draft not found"
-          description="It does not exist or does not belong to you."
+          title={L("Rascunho não encontrado", "Draft not found")}
+          description={L("Ele não existe ou não pertence a você.", "It does not exist or does not belong to you.")}
         />
       </PageShell>
     );
@@ -98,27 +109,27 @@ function Workspace() {
         <div className="flex flex-wrap justify-between gap-2">
           <Button variant="ghost" onClick={() => nav({ to: "/content" })}>
             <ArrowLeft />
-            Content
+            {L("Conteúdo", "Content")}
           </Button>
           <div className="flex gap-2">
             <Button disabled={save.isPending || !title.trim()} onClick={() => save.mutate()}>
-              {save.isPending ? "Saving…" : "Save"}
+              {save.isPending ? L("Salvando…", "Saving…") : L("Salvar", "Save")}
             </Button>
             <Button
               variant="outline"
               onClick={async () => {
-                const d = await ContentService.createDraft({ title: `${title} copy`, body });
+                const d = await ContentService.createDraft({ title: `${title} ${L("cópia", "copy")}`, body });
                 await refresh();
                 nav({ to: "/content/$contentId", params: { contentId: d.id } });
               }}
             >
               <Copy />
-              Duplicate
+              {L("Duplicar", "Duplicate")}
             </Button>
             <Button
               variant="destructive"
               onClick={async () => {
-                if (confirm("Delete this draft?")) {
+                if (confirm(L("Excluir este rascunho?", "Delete this draft?"))) {
                   await ContentService.removeDraft(contentId);
                   nav({ to: "/content" });
                 }
@@ -138,20 +149,20 @@ function Workspace() {
         />
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
           <div className="flex gap-2">
-            <strong className="text-foreground">IDEA</strong>
+            <strong className="text-foreground">{L("IDEIA", "IDEA")}</strong>
             <span>→</span>
-            <strong className="text-foreground">DRAFT</strong>
+            <strong className="text-foreground">{L("RASCUNHO", "DRAFT")}</strong>
             <span>→</span>
-            <strong className="text-foreground">IMPROVE</strong>
+            <strong className="text-foreground">{L("MELHORAR", "IMPROVE")}</strong>
             <span>→</span>
-            <strong className="text-foreground">FINAL</strong>
+            <strong className="text-foreground">{L("FINAL", "FINAL")}</strong>
           </div>
           <span aria-live="polite">
             {save.isPending
-              ? "Saving…"
+              ? L("Salvando…", "Saving…")
               : dirty
-                ? "Unsaved changes"
-                : `Saved${q.data.updatedAt ? ` · ${new Date(q.data.updatedAt).toLocaleString()}` : ""}`}
+                ? L("Alterações não salvas", "Unsaved changes")
+                : `${L("Salvo", "Saved")}${q.data.updatedAt ? ` · ${new Date(q.data.updatedAt).toLocaleString(resolvedLocale)}` : ""}`}
           </span>
         </div>
         <div className="mt-4 flex max-w-full gap-2 overflow-x-auto pb-2">
@@ -164,7 +175,7 @@ function Workspace() {
               onClick={() => ai.mutate(op)}
             >
               <Sparkles />
-              {op}
+              {operationLabel(op)}
             </Button>
           ))}
         </div>
@@ -175,11 +186,10 @@ function Workspace() {
             setBody(e.target.value);
             setDirty(true);
           }}
-          placeholder="Write or generate content…"
+          placeholder={L("Escreva ou gere conteúdo…", "Write or generate content…")}
         />
         <p className="mt-2 text-xs text-muted-foreground">
-          AI limits and entitlement are enforced by the backend. AI output only replaces text after
-          confirmation.
+          {L("Limites e entitlement de IA são aplicados pelo backend. A saída da IA só substitui o texto após confirmação.", "AI limits and entitlement are enforced by the backend. AI output only replaces text after confirmation.")}
         </p>
       </div>
     </PageShell>
