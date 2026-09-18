@@ -76,6 +76,7 @@ describe("E23 + E24 Android source parity", () => {
     const pkg = read("mobile/package.json");
     expect(pkg).not.toMatch(/react-native-iap|nitro-modules/i);
     const appConfig = read("mobile/app.json");
-    expect(appConfig).toContain("app.vercel.nexora_os_eosin.twa");
+    expect(appConfig).toContain('"package": "kivryn.app"');
+    expect(appConfig).toContain('"scheme": "kivryn"');
   });
 });
