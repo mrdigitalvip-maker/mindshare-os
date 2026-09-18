@@ -33,6 +33,7 @@ test("E39 preserves authenticated owner CRUD and makes auth initplan-safe", () =
     assert.match(passport, new RegExp(`create policy "${policy}"`));
   }
   assert.match(passport, /to authenticated/);
+  assert.doesNotMatch(passport, /to public/);
   assert.match(passport, /user_id = \(select auth\.uid\(\)\)/);
   assert.doesNotMatch(passport, /user_id = auth\.uid\(\)/);
 });
@@ -49,6 +50,7 @@ test("E40 keeps Creator owner-only ALL policies and makes auth initplan-safe", (
   }
   const allPolicies = creator.match(/for all\s+to authenticated/g) ?? [];
   assert.equal(allPolicies.length, 2);
+  assert.doesNotMatch(creator, /to public/);
   assert.match(creator, /using \(\(select auth\.uid\(\)\) = user_id\)/);
   assert.match(creator, /with check \(\(select auth\.uid\(\)\) = user_id\)/);
   assert.doesNotMatch(creator, /auth\.uid\(\) = user_id/);
