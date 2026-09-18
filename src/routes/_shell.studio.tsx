@@ -15,6 +15,7 @@ import { PageShell } from "@/components/page-shell";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { StudioService, type StudioCategory } from "@/services/studio-service";
+import { useLanguage } from "@/providers/language-provider";
 
 export const Route = createFileRoute("/_shell/studio")({
   head: () => ({ meta: [{ title: "Studio — KIVRYN" }] }),
@@ -54,6 +55,38 @@ function StudioRoute() {
 }
 
 function StudioIndex() {
+  const { resolvedLocale } = useLanguage();
+  const L = (pt: string, en: string) => (resolvedLocale === "pt-BR" ? pt : en);
+  const localizePath = (path: (typeof PATHS)[number]) => ({
+    ...path,
+    title:
+      path.category === "language"
+        ? L("Laboratório de Idiomas", "Language Lab")
+        : path.category === "academy"
+          ? L("Academia de IA", "AI Academy")
+          : L("Crescimento do Creator", "Creator Growth"),
+    kicker:
+      path.category === "language"
+        ? L("Prática e fluência", "Practice & fluency")
+        : path.category === "academy"
+          ? L("Sistemas e capacidade", "Systems & capability")
+          : L("Criação e consistência", "Craft & momentum"),
+    text:
+      path.category === "language"
+        ? L(
+            "Um caminho focado em vocabulário, escrita, gramática e conversação.",
+            "A focused path through vocabulary, writing, grammar and conversation.",
+          )
+        : path.category === "academy"
+          ? L(
+              "Desenvolva julgamento prático sobre IA por meio de aprendizado modular e responsável.",
+              "Build practical AI judgment through modular, responsible learning.",
+            )
+          : L(
+              "Transforme uma prática criativa sustentável em um ritmo de publicação repetível.",
+              "Turn sustainable creative practice into a repeatable publishing rhythm.",
+            ),
+  });
   const query = useQuery({
     queryKey: ["studio", "overview"],
     queryFn: () => StudioService.overview(),
@@ -66,7 +99,7 @@ function StudioIndex() {
           className="studio-shell mt-2 min-h-[70dvh] animate-pulse rounded-[2rem] motion-reduce:animate-none"
           aria-live="polite"
         >
-          <span className="sr-only">Loading Studio</span>
+          <span className="sr-only">{L("Carregando Studio", "Loading Studio")}</span>
         </div>
       </PageShell>
     );
@@ -79,13 +112,13 @@ function StudioIndex() {
         >
           <div>
             <Sparkles className="mx-auto h-8 w-8 text-cyan-300" />
-            <h1 className="mt-4 text-2xl font-semibold">Studio is temporarily unavailable.</h1>
+            <h1 className="mt-4 text-2xl font-semibold">{L("O Studio está temporariamente indisponível.", "Studio is temporarily unavailable.")}</h1>
             <p className="mt-2 text-sm text-white/60">
-              Your learning progress is safe. Try loading it again.
+              {L("Seu progresso de aprendizagem está seguro. Tente carregar novamente.", "Your learning progress is safe. Try loading it again.")}
             </p>
             <Button className="mt-5" variant="outline" onClick={() => query.refetch()}>
               <RefreshCw />
-              Try again
+              {L("Tentar novamente", "Try again")}
             </Button>
           </div>
         </div>
@@ -106,7 +139,7 @@ function StudioIndex() {
   const nextLesson = data.lessons.find(
     (lesson) => lesson.track_id === activeTrack?.id && !completeIds.has(lesson.id),
   );
-  const activePath = PATHS.find((path) => path.category === activeTrack?.category) ?? PATHS[0];
+  const activePath = localizePath(PATHS.find((path) => path.category === activeTrack?.category) ?? PATHS[0]);
   return (
     <PageShell>
       <div className="studio-shell mt-2 overflow-hidden rounded-[2rem] border border-white/10 p-4 sm:p-7 lg:p-10">
@@ -117,7 +150,7 @@ function StudioIndex() {
             </span>
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-[.3em] text-cyan-200/70">
-                KIVRYN learning system
+                {L("Sistema de aprendizagem KIVRYN", "KIVRYN learning system")}
               </p>
               <h1 className="text-xl font-semibold tracking-tight">
                 Studio <span className="font-normal text-white/40">/ 2.0</span>
@@ -125,28 +158,28 @@ function StudioIndex() {
             </div>
           </div>
           <div className="flex gap-2">
-            <Metric icon={Flame} value={`${data.streak?.current_streak ?? 0}`} label="day streak" />
+            <Metric icon={Flame} value={`${data.streak?.current_streak ?? 0}`} label={L("dias de sequência", "day streak")} />
             <Metric icon={Zap} value={`${data.streak?.total_xp ?? 0}`} label="XP" />
           </div>
         </header>
         <section className="studio-hero mt-7 grid gap-7 rounded-[1.75rem] border border-white/10 p-5 sm:p-8 lg:grid-cols-[1.4fr_.8fr] lg:p-10">
           <div className="min-w-0">
             <p className="text-xs uppercase tracking-[.24em] text-cyan-200">
-              {activeTrack ? "Your active trajectory" : "Your next trajectory"}
+              {activeTrack ? L("Sua trajetória ativa", "Your active trajectory") : L("Sua próxima trajetória", "Your next trajectory")}
             </p>
             <h2 className="mt-4 max-w-2xl text-3xl font-semibold leading-tight tracking-[-.04em] sm:text-5xl">
-              {activeTrack?.title ?? "Build momentum, one useful lesson at a time."}
+              {activeTrack?.title ?? L("Construa ritmo, uma lição útil por vez.", "Build momentum, one useful lesson at a time.")}
             </h2>
             <p className="mt-4 max-w-xl text-sm leading-6 text-white/60">
               {nextLesson
-                ? `Next: ${nextLesson.title} · ${nextLesson.estimated_minutes} minutes`
+                ? `${L("Próxima", "Next")}: ${nextLesson.title} · ${nextLesson.estimated_minutes} ${L("minutos", "minutes")}`
                 : activeTrack
-                  ? "This track is complete. Choose your next learning path."
-                  : "Select a path and Studio will preserve your goals, progress and achievements."}
+                  ? L("Esta trilha foi concluída. Escolha seu próximo caminho de aprendizagem.", "This track is complete. Choose your next learning path.")
+                  : L("Escolha um caminho e o Studio preservará suas metas, progresso e conquistas.", "Select a path and Studio will preserve your goals, progress and achievements.")}
             </p>
             <Link to={activePath.to}>
               <Button className="mt-7 min-h-12 rounded-full bg-cyan-200 px-6 text-slate-950 hover:bg-cyan-100">
-                {activeTrack ? "Continue learning" : "Choose a path"}
+                {activeTrack ? L("Continuar aprendendo", "Continue learning") : L("Escolher um caminho", "Choose a path")}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </Link>
@@ -156,7 +189,7 @@ function StudioIndex() {
               className="studio-progress-ring"
               style={{ "--studio-progress": `${progress * 3.6}deg` } as React.CSSProperties}
               role="progressbar"
-              aria-label="Overall Studio progress"
+              aria-label={L("Progresso geral do Studio", "Overall Studio progress")}
               aria-valuenow={progress}
               aria-valuemin={0}
               aria-valuemax={100}
@@ -164,9 +197,9 @@ function StudioIndex() {
               <div>
                 <strong>{progress}%</strong>
                 <span>
-                  {completed} of {total}
+                  {completed} {L("de", "of")} {total}
                   <br />
-                  lessons
+                  {L("lições", "lessons")}
                 </span>
               </div>
             </div>
@@ -174,46 +207,47 @@ function StudioIndex() {
         </section>
         <section
           className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
-          aria-label="Studio progress summary"
+          aria-label={L("Resumo de progresso do Studio", "Studio progress summary")}
         >
           <Stat
             icon={Flame}
-            label="Current streak"
-            value={`${data.streak?.current_streak ?? 0} days`}
-            detail={`Best: ${data.streak?.longest_streak ?? 0} days`}
+            label={L("Sequência atual", "Current streak")}
+            value={`${data.streak?.current_streak ?? 0} ${L("dias", "days")}`}
+            detail={`${L("Melhor", "Best")}: ${data.streak?.longest_streak ?? 0} ${L("dias", "days")}`}
           />
           <Stat
             icon={Trophy}
-            label="Achievements"
+            label={L("Conquistas", "Achievements")}
             value={String(data.achievements.length)}
-            detail="Persisted milestones"
+            detail={L("Marcos persistidos", "Persisted milestones")}
           />
           <Stat
             icon={Zap}
-            label="Total XP"
+            label={L("XP total", "Total XP")}
             value={String(data.streak?.total_xp ?? 0)}
-            detail="From completed work"
+            detail={L("De atividades concluídas", "From completed work")}
           />
           <Stat
             icon={Sparkles}
-            label="Daily goal"
+            label={L("Meta diária", "Daily goal")}
             value={`${today?.completed_minutes ?? 0}/${today?.target_minutes ?? 15} min`}
-            detail={today?.completed ? "Goal complete" : "Keep your rhythm"}
+            detail={today?.completed ? L("Meta concluída", "Goal complete") : L("Mantenha seu ritmo", "Keep your rhythm")}
           />
         </section>
         <section className="mt-8 grid gap-6 xl:grid-cols-[1.35fr_.65fr]">
           <div>
             <div className="flex items-end justify-between gap-3">
               <div>
-                <p className="studio-kicker">Learning environments</p>
-                <h2 className="mt-1 text-2xl font-semibold">Choose your mode</h2>
+                <p className="studio-kicker">{L("Ambientes de aprendizagem", "Learning environments")}</p>
+                <h2 className="mt-1 text-2xl font-semibold">{L("Escolha seu modo", "Choose your mode")}</h2>
               </div>
               <span className="hidden text-xs text-white/40 sm:block">
-                Progress stays connected
+                {L("O progresso permanece conectado", "Progress stays connected")}
               </span>
             </div>
             <div className="mt-4 grid gap-4 lg:grid-cols-3">
               {PATHS.map((path) => {
+                const localizedPath = localizePath(path);
                 const pathLessons = data.lessons.filter(
                   (l) => data.tracks.find((t) => t.id === l.track_id)?.category === path.category,
                 );
@@ -221,7 +255,7 @@ function StudioIndex() {
                 return (
                   <Path
                     key={path.category}
-                    {...path}
+                    {...localizedPath}
                     complete={pathDone}
                     total={pathLessons.length}
                   />
@@ -234,13 +268,13 @@ function StudioIndex() {
         <section className="mt-8 rounded-2xl border border-white/10 bg-white/[.025] p-5">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <p className="studio-kicker">Recommended next action</p>
+              <p className="studio-kicker">{L("Próxima ação recomendada", "Recommended next action")}</p>
               <h2 className="mt-1 text-lg font-semibold">
-                {nextLesson?.title ?? "Open a learning environment"}
+                {nextLesson?.title ?? L("Abra um ambiente de aprendizagem", "Open a learning environment")}
               </h2>
               <p className="mt-1 text-sm text-white/50">
                 {nextLesson?.description ??
-                  "Enroll in a track to begin collecting real progress data."}
+                  L("Inscreva-se em uma trilha para começar a registrar dados reais de progresso.", "Enroll in a track to begin collecting real progress data.")}
               </p>
             </div>
             <Link to={activePath.to}>
@@ -248,7 +282,7 @@ function StudioIndex() {
                 variant="outline"
                 className="min-h-11 rounded-full border-white/15 bg-white/5"
               >
-                Open {activePath.title}
+                {L("Abrir", "Open")} {activePath.title}
                 <ArrowRight />
               </Button>
             </Link>
@@ -316,6 +350,8 @@ function Path({
   complete: number;
   total: number;
 }) {
+  const { resolvedLocale } = useLanguage();
+  const L = (pt: string, en: string) => (resolvedLocale === "pt-BR" ? pt : en);
   const pct = total ? Math.round((complete / total) * 100) : 0;
   return (
     <Link to={to} className={`studio-path studio-path-${category} group rounded-2xl border p-5`}>
@@ -329,7 +365,7 @@ function Path({
       <h3 className="mt-1 text-xl font-semibold">{title}</h3>
       <p className="mt-3 text-sm leading-6 text-white/55">{text}</p>
       <div className="mt-5 flex items-center gap-3">
-        <Progress value={pct} className="h-1.5" aria-label={`${title}: ${pct}% complete`} />
+        <Progress value={pct} className="h-1.5" aria-label={`${title}: ${pct}% ${L("concluído", "complete")}`} />
         <span className="text-xs text-white/45">{pct}%</span>
       </div>
     </Link>
@@ -340,16 +376,18 @@ function Weekly({
 }: {
   goals: Array<{ goal_date: string; completed_minutes: number; target_minutes: number }>;
 }) {
+  const { resolvedLocale } = useLanguage();
+  const L = (pt: string, en: string) => (resolvedLocale === "pt-BR" ? pt : en);
   const chronological = [...goals].reverse();
   return (
     <aside className="studio-panel rounded-2xl p-5">
-      <p className="studio-kicker">Real activity</p>
-      <h2 className="mt-1 text-xl font-semibold">Last 7 days</h2>
+      <p className="studio-kicker">{L("Atividade real", "Real activity")}</p>
+      <h2 className="mt-1 text-xl font-semibold">{L("Últimos 7 dias", "Last 7 days")}</h2>
       {chronological.length ? (
         <div
           className="mt-6 flex h-36 items-end justify-between gap-2"
           role="img"
-          aria-label="Minutes studied per day"
+          aria-label={L("Minutos estudados por dia", "Minutes studied per day")}
         >
           {chronological.map((g) => {
             const pct = Math.min(
@@ -369,7 +407,7 @@ function Weekly({
                   />
                 </div>
                 <span className="text-[9px] uppercase text-white/35">
-                  {new Date(`${g.goal_date}T12:00:00`).toLocaleDateString(undefined, {
+                  {new Date(`${g.goal_date}T12:00:00`).toLocaleDateString(resolvedLocale, {
                     weekday: "narrow",
                   })}
                 </span>
@@ -379,8 +417,7 @@ function Weekly({
         </div>
       ) : (
         <p className="mt-6 text-sm leading-6 text-white/50">
-          Your weekly chart appears after the first recorded learning activity. No sample data is
-          shown.
+          {L("Seu gráfico semanal aparece após a primeira atividade de aprendizagem registrada. Nenhum dado de exemplo é exibido.", "Your weekly chart appears after the first recorded learning activity. No sample data is shown.")}
         </p>
       )}
     </aside>
