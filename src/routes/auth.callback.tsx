@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 
 import { supabase } from "@/lib/supabase";
+import { useLanguage } from "@/providers/language-provider";
 
 type CallbackState = { status: "loading" } | { status: "error"; message: string };
 
@@ -31,6 +32,8 @@ export const Route = createFileRoute("/auth/callback")({
 });
 
 function AuthCallbackPage() {
+  const { resolvedLocale } = useLanguage();
+  const L = (pt: string, en: string) => (resolvedLocale === "pt-BR" ? pt : en);
   const navigate = useNavigate();
   const [state, setState] = useState<CallbackState>({ status: "loading" });
 
@@ -49,8 +52,8 @@ function AuthCallbackPage() {
           setState({
             status: "error",
             message: cancelled
-              ? "Google sign-in was cancelled. You can safely try again."
-              : errorDescription || "Google could not complete sign-in.",
+              ? L("O login com Google foi cancelado. Você pode tentar novamente com segurança.", "Google sign-in was cancelled. You can safely try again.")
+              : L("O Google não conseguiu concluir o login.", "Google could not complete sign-in."),
           });
         }
         return;
@@ -82,14 +85,14 @@ function AuthCallbackPage() {
         }
 
         if (!session?.user)
-          throw new Error("No active session was returned. Please sign in again.");
+          throw new Error(L("Nenhuma sessão ativa foi retornada. Entre novamente.", "No active session was returned. Please sign in again."));
         clearOAuthParams(url);
         if (active) await navigate({ to: "/dashboard", replace: true });
       } catch (error) {
         if (active) {
           setState({
             status: "error",
-            message: error instanceof Error ? error.message : "Sign-in could not be completed.",
+            message: error instanceof Error ? error.message : L("Não foi possível concluir o login.", "Sign-in could not be completed."),
           });
         }
       }
@@ -114,12 +117,12 @@ function AuthCallbackPage() {
               className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-muted border-t-primary"
               aria-hidden="true"
             />
-            <h1 className="mt-6 font-display text-3xl">Completing sign in</h1>
-            <p className="mt-2 text-sm text-muted-foreground">Restoring your secure session…</p>
+            <h1 className="mt-6 font-display text-3xl">{L("Concluindo login", "Completing sign in")}</h1>
+            <p className="mt-2 text-sm text-muted-foreground">{L("Restaurando sua sessão segura…", "Restoring your secure session…")}</p>
           </>
         ) : (
           <>
-            <h1 className="font-display text-3xl">Sign-in wasn't completed</h1>
+            <h1 className="font-display text-3xl">{L("O login não foi concluído", "Sign-in wasn't completed")}</h1>
             <p role="alert" className="mt-3 text-sm text-muted-foreground">
               {state.message}
             </p>
@@ -128,7 +131,7 @@ function AuthCallbackPage() {
               search={{ mode: "signin" }}
               className="mt-8 inline-flex rounded-full bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground"
             >
-              Return to sign in
+              {L("Voltar para o login", "Return to sign in")}
             </Link>
           </>
         )}
