@@ -97,13 +97,17 @@ Deno.serve(async (req) => {
   } = await supabase.auth.getUser();
   if (authError || !user) return fail("unauthorized", 401);
 
-  const { data: existing, error: lookupError } = await supabase
-    .from("subscriptions")
-    .select("status, stripe_customer_id, stripe_subscription_id")
-    .eq("user_id", user.id)
-    .maybeSingle();
-  if (lookupError) return fail("persistence_error", 500);
-  if (existing && ["active", "trialing"].includes(existing.status ?? "")) {
+  const [{ data: existing, error: lookupError }, { data: runtime, error: runtimeError }] =
+    await Promise.all([
+      supabase
+        .from("subscriptions")
+        .select("stripe_customer_id, stripe_subscription_id")
+        .eq("user_id", user.id)
+        .maybeSingle(),
+      supabase.rpc("get_subscription_runtime"),
+    ]);
+  if (lookupError || runtimeError) return fail("persistence_error", 500);
+  if ((runtime as { is_premium?: boolean } | null)?.is_premium === true) {
     return fail("subscription_exists", 409);
   }
 
