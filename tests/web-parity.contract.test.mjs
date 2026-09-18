@@ -191,8 +191,8 @@ test("Creator analytics and map never manufacture observations or best-time clai
   assert.match(route, /Manual observations only/);
   assert.match(route, /Blank values remain unknown/);
   assert.match(route, /manually entered/i);
-  assert.match(route, /Provider-verified charts are intentionally deferred/);
-  assert.match(route, /no fabricated chart data is shown/);
+  assert.match(route, /Provider-verified analytics/);
+  assert.match(route, /Missing fields stay unknown/);
   assert.doesNotMatch(route, /fake\s+(?:chart|metric|analytics)|sample chart|mock metric/i);
 });
 
