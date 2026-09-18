@@ -671,6 +671,32 @@ export default function Settings() {
               })}
             </View>
           )}
+          {(integrations.data ?? [])
+            .filter(
+              (provider) =>
+                provider.connectionStatus === "connected" &&
+                (provider.provider === "gmail" ||
+                  provider.provider === "google_calendar" ||
+                  provider.provider === "google_drive"),
+            )
+            .map((provider) => (
+              <Action
+                key={`workspace-read-${provider.provider}`}
+                secondary
+                disabled={busy}
+                label={`${text.workspaceRead} · ${
+                  provider.provider === "google_calendar"
+                    ? "Google Calendar"
+                    : provider.provider === "google_drive"
+                      ? "Google Drive"
+                      : "Gmail"
+                }`}
+                action={() => void readWorkspace(provider.provider as GoogleWorkspaceProvider)}
+              />
+            ))}
+          {workspaceMessage ? (
+            <Feedback text={workspaceMessage} error={workspaceMessage === text.workspaceReadError} />
+          ) : null}
           <Text style={s.help}>{text.integrationApproval}</Text>
           {(integrations.data ?? []).some((provider) => provider.implemented && provider.canConnect) ? (
             <Action
