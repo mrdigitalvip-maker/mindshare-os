@@ -8,6 +8,7 @@ const route = read("src/routes/_shell.community.tsx");
 const squadRoute = read("src/routes/_shell.community.squads.$squadId.tsx");
 const service = read("src/services/parity-service.ts");
 const migration = read("supabase/migrations/202609180001_community_e25_e26_hardening.sql");
+const indexes = read("supabase/migrations/202609180002_community_e26_indexes.sql");
 
 test("E25 gates Web Community actions behind a complete canonical profile", () => {
   assert.match(route, /isCommunityProfileReady/);
@@ -49,4 +50,11 @@ test("E26 destructive Squad actions require explicit confirmation in Web UI", ()
   assert.match(squadRoute, /Confirmar encerramento/);
   assert.match(squadRoute, /Confirmar saída/);
   assert.match(squadRoute, /Confirmar remoção/);
+});
+
+
+test("E26 indexes canonical ownership and invite actors", () => {
+  assert.match(indexes, /squads_owner_id_idx/);
+  assert.match(indexes, /squad_invites_invited_by_idx/);
+  assert.match(indexes, /squad_invites_accepted_by_idx/);
 });
