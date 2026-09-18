@@ -104,7 +104,7 @@ export type SquadMember = {
   avatarUrl: string | null;
   isSelf: boolean;
 };
-export type SquadDetail = Omit<SquadSummary, "memberCount"> & { members: SquadMember[] };
+export type SquadDetail = SquadSummary & { members: SquadMember[] };
 
 export const communityErrorMessage = (error: unknown) => {
   const record = error && typeof error === "object" ? (error as Record<string, unknown>) : {};
@@ -127,6 +127,8 @@ export const communityErrorMessage = (error: unknown) => {
     rate_limited: "Muitas tentativas. Aguarde um pouco.",
     squad_full: "Este Círculo já está completo.",
     squad_name_invalid: "Use de 2 a 60 caracteres no nome do Círculo.",
+    squad_description_invalid: "A descrição do Círculo deve ter até 240 caracteres.",
+    squad_capacity_invalid: "A capacidade deste Círculo é inválida.",
     already_member: "Você já participa deste Círculo.",
     invite_expired: "Este convite expirou ou foi revogado.",
     invite_invalid: "Código de convite inválido.",
