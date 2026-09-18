@@ -430,6 +430,8 @@ function actionAuditStatusLabel(status: AgentActionAuditStatus) {
       return "Rejeitada";
     case "failed":
       return "Falhou";
+    case "uncertain":
+      return "Resultado incerto — não repetir automaticamente";
   }
 }
 
@@ -477,6 +479,11 @@ function PlanApprovalCard({
                   .map(([key, value]) => `${key}: ${String(value)}`)
                   .join(" · ") || "Sem parâmetros adicionais"}
               </p>
+              {step.domain === "integrations" ? (
+                <p className="mt-2 text-xs font-medium text-amber-600">
+                  Ação externa: ao aprovar, o KIVRYN poderá enviar/criar este item no serviço conectado.
+                </p>
+              ) : null}
             </div>
           );
         })}

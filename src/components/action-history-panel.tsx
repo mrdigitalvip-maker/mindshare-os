@@ -17,9 +17,18 @@ const actionLabel: Record<string, string> = {
   create_study_goal: "Study goal created",
   update_study_goal: "Study goal updated",
   set_subject_next_action: "Study next action updated",
+  send_email: "Email sent",
+  create_calendar_event: "Calendar event created",
+  create_drive_text_file: "Drive text file created",
 };
 
-const domainLabel = { tasks: "Tasks", projects: "Projects", studies: "Studies", other: "Workspace" } as const;
+const domainLabel = {
+  tasks: "Tasks",
+  projects: "Projects",
+  studies: "Studies",
+  integrations: "Integrations",
+  other: "Workspace",
+} as const;
 
 export function ActionHistoryPanel() {
   const history = useQuery({
@@ -76,9 +85,11 @@ export function ActionHistoryPanel() {
                 className={`shrink-0 rounded-full border px-2 py-1 text-[10px] uppercase tracking-wide ${
                   item.status === "failed"
                     ? "border-destructive/40 text-destructive"
-                    : item.status === "applying"
-                      ? "text-muted-foreground"
-                      : "border-gold/30 text-gold"
+                    : item.status === "uncertain"
+                      ? "border-amber-500/40 text-amber-600"
+                      : item.status === "applying"
+                        ? "text-muted-foreground"
+                        : "border-gold/30 text-gold"
                 }`}
               >
                 {item.status}

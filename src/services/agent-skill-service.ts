@@ -36,6 +36,12 @@ export const WEB_AGENT_SKILLS: readonly WebAgentSkill[] = [
     name: "Productivity Operator",
     description: "Prioriza Tasks e Projects e destaca bloqueios e próximos passos.",
   },
+  {
+    id: "integrations.v1",
+    capability: "integrations",
+    name: "Integration Operator",
+    description: "Prepara ações externas para aprovação em Gmail, Calendar e Drive conectados.",
+  },
 ] as const;
 
 export function resolveWebAgentSkills(capabilities: readonly string[] | null | undefined) {

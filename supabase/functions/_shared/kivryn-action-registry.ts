@@ -1,4 +1,4 @@
-export type KivrynActionDomain = "tasks" | "projects" | "studies";
+export type KivrynActionDomain = "tasks" | "projects" | "studies" | "integrations";
 export type KivrynActionRisk = "read" | "mutation";
 
 export interface KivrynActionDefinition {
@@ -27,6 +27,30 @@ export const KIVRYN_ACTION_REGISTRY = {
   create_study_goal: define({ name: "create_study_goal", domain: "studies", risk: "mutation", requiresApproval: true, requiredFields: ["title", "subject_id"], optionalFields: ["due_date", "objective"] }),
   update_study_goal: define({ name: "update_study_goal", domain: "studies", risk: "mutation", requiresApproval: true, requiredFields: ["resource_id"], optionalFields: ["title", "due_date", "objective", "expected_updated_at"] }),
   set_subject_next_action: define({ name: "set_subject_next_action", domain: "studies", risk: "mutation", requiresApproval: true, requiredFields: ["resource_id", "value"], optionalFields: ["expected_updated_at"] }),
+  send_email: define({
+    name: "send_email",
+    domain: "integrations",
+    risk: "mutation",
+    requiresApproval: true,
+    requiredFields: ["to", "subject", "body"],
+    optionalFields: ["cc", "bcc"],
+  }),
+  create_calendar_event: define({
+    name: "create_calendar_event",
+    domain: "integrations",
+    risk: "mutation",
+    requiresApproval: true,
+    requiredFields: ["summary", "start", "end"],
+    optionalFields: ["description", "location", "attendees"],
+  }),
+  create_drive_text_file: define({
+    name: "create_drive_text_file",
+    domain: "integrations",
+    risk: "mutation",
+    requiresApproval: true,
+    requiredFields: ["name", "content"],
+    optionalFields: [],
+  }),
 } as const;
 
 export type KivrynActionName = keyof typeof KIVRYN_ACTION_REGISTRY;

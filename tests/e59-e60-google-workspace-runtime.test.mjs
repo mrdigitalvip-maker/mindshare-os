@@ -11,6 +11,7 @@ const oauthStart=read("supabase/functions/creator-oauth-start/index.ts");
 const oauthCallback=read("supabase/functions/creator-oauth-callback/index.ts");
 const status=read("supabase/functions/integration-status/index.ts");
 const workspaceRead=read("supabase/functions/google-workspace-read/index.ts");
+const workspaceAccess=read("supabase/functions/_shared/google-workspace-access.ts");
 const settings=read("src/routes/_shell.settings.tsx");
 const service=read("src/services/integration-status-service.ts");
 
@@ -23,7 +24,7 @@ test("E59 extends the existing encrypted connection vault to Google Workspace",(
   assert.doesNotMatch(migration,/create table/i);
 });
 
-test("E59 registers real OAuth scopes but only authorizes read scopes in this edition",()=>{
+test("E59 guarantees real OAuth read scopes; later editions may add approval-gated writes",()=>{
   for(const provider of ["gmail","google_calendar","google_drive"]){
     assert.match(registry,new RegExp(provider+"[\\s\\S]*implemented: true"));
     assert.match(registry,new RegExp(provider+"[\\s\\S]*authMode: \"oauth\""));
@@ -36,11 +37,8 @@ test("E59 registers real OAuth scopes but only authorizes read scopes in this ed
   assert.match(registry,/drive\.file/);
 
   assert.match(intelligence,/gmail:[\s\S]*mail\.read/);
-  assert.doesNotMatch(intelligence,/gmail:[\s\S]{0,500}mail\.send/);
   assert.match(intelligence,/google_calendar:[\s\S]*calendar\.read/);
-  assert.doesNotMatch(intelligence,/google_calendar:[\s\S]{0,500}calendar\.write/);
   assert.match(intelligence,/google_drive:[\s\S]*files\.read/);
-  assert.doesNotMatch(intelligence,/google_drive:[\s\S]{0,500}files\.write/);
 });
 
 test("E59 reuses PKCE/state and encrypted credentials for Google Workspace",()=>{
@@ -61,16 +59,16 @@ test("E59 status is fail-closed when Google runtime credentials are absent",()=>
   assert.match(status,/canConnect: definition\.implemented && definition\.authMode === "oauth" && configured/);
 });
 
-test("E60 performs owner-authenticated read-only Workspace access",()=>{
+test("E60 performs owner-authenticated Workspace reads through the shared server-side credential boundary",()=>{
   assert.match(workspaceRead,/auth\.getUser\(\)/);
-  assert.match(workspaceRead,/canUseKivrynIntegrationCapability/);
+  assert.match(workspaceRead,/resolveGoogleWorkspaceAccess/);
   assert.match(workspaceRead,/gmail\.googleapis\.com\/gmail\/v1\/users\/me\/messages/);
   assert.match(workspaceRead,/googleapis\.com\/calendar\/v3\/calendars\/primary\/events/);
   assert.match(workspaceRead,/googleapis\.com\/drive\/v3\/files/);
-  assert.match(workspaceRead,/oauth2\.googleapis\.com\/token/);
+  assert.match(workspaceAccess,/creator_provider_credentials/);
+  assert.match(workspaceAccess,/canUseKivrynIntegrationCapability/);
+  assert.match(workspaceAccess,/oauth2\.googleapis\.com\/token/);
   assert.doesNotMatch(workspaceRead,/\/messages\/send/);
-  assert.doesNotMatch(workspaceRead,/calendar\.events/);
-  assert.doesNotMatch(workspaceRead,/drive\.file/);
 });
 
 test("E59/E60 Web Settings connects and reads Workspace without routing it through Creator",()=>{

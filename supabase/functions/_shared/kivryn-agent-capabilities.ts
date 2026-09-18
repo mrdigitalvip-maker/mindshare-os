@@ -4,6 +4,7 @@ const CAPABILITY_DOMAINS: Record<string, readonly KivrynActionDomain[]> = {
   productivity: ["tasks", "projects"],
   planning: ["tasks", "projects"],
   study: ["studies"],
+  integrations: ["integrations"],
 };
 
 /** Existing Agent capability labels are converted into explicit workspace authority. */

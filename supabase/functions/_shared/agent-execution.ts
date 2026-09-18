@@ -20,7 +20,7 @@ import {
   runKivrynOpenAIAgentic,
 } from "./kivryn-openai-agentic.ts";
 
-const CAPABILITIES = new Set(["writing", "planning", "summarization", "study", "productivity"]);
+const CAPABILITIES = new Set(["writing", "planning", "summarization", "study", "productivity", "integrations"]);
 const RETRYABLE_BACKGROUND_ERRORS = new Set([
   "provider_rate_limited",
   "provider_unavailable",

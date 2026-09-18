@@ -5,6 +5,10 @@ import {
   type KivrynActionAuditEvent,
 } from "../_shared/kivryn-action-audit.ts";
 import { prepareAgenticCoreRun } from "../_shared/kivryn-agentic-core.ts";
+import {
+  executeKivrynIntegrationAction,
+  KivrynIntegrationActionError,
+} from "../_shared/kivryn-integration-action-execution.ts";
 import { jsonResponse, preflightResponse, rejectDisallowedOrigin } from "../_shared/http.ts";
 
 type ReviewBody = {
@@ -34,6 +38,8 @@ async function persistAuditEvents(
     domain: event.domain,
     status: event.status,
     resource_id: event.resourceId ?? null,
+    provider: event.provider ?? null,
+    external_resource_ref: event.externalResourceRef ?? null,
     idempotent: typeof event.idempotent === "boolean" ? event.idempotent : null,
     error_code: event.errorCode ?? null,
     occurred_at: event.occurredAt,
@@ -50,9 +56,15 @@ async function persistAuditEvents(
 function auditForSteps(
   runId: string,
   steps: Array<{ id: string; action: any; domain: any }>,
-  status: "approved" | "rejected" | "failed",
+  status: "approved" | "rejected" | "failed" | "uncertain",
   stepIds: ReadonlySet<string>,
-  extra?: { resourceId?: string; idempotent?: boolean; errorCode?: string },
+  extra?: {
+    resourceId?: string;
+    provider?: "gmail" | "google_calendar" | "google_drive";
+    externalResourceRef?: string;
+    idempotent?: boolean;
+    errorCode?: string;
+  },
 ) {
   return steps
     .filter((step) => stepIds.has(step.id))
@@ -219,41 +231,87 @@ Deno.serve(async (request) => {
     const step = prepared.plan.steps.find((candidate) => candidate.id === command.stepId);
     if (!step) return fail(request, "invalid_or_unauthorized_plan", 409);
 
-    const { data, error } = await scoped.rpc("apply_nexora_action", {
-      p_action_id: command.actionId,
-      p_request_id: command.requestId,
-      p_conversation_id: null,
-      p_confirmed: true,
-      p_action: command.action,
-    });
-    if (error) {
-      const failed = createKivrynActionAuditEvent({
-        runId: run.id,
-        stepId: step.id,
-        action: step.action,
-        domain: step.domain,
-        status: "failed",
-        errorCode: "action_apply_failed",
-      });
-      if (failed) await persistAuditEvents(admin, user.id, agent.id, [failed]);
-
-      const applied = [...new Set([...alreadyApplied, ...appliedThisReview])];
-      await admin
-        .from("agent_runs")
-        .update({
-          applied_step_ids: applied,
-          action_plan_status: applied.length ? "partially_applied" : "pending_approval",
-        })
-        .eq("id", run.id)
-        .eq("user_id", user.id);
-      return fail(request, "action_apply_failed", 409);
-    }
-
-    const result = data as {
+    let result: {
       status?: unknown;
       resourceId?: unknown;
+      provider?: unknown;
+      externalResourceRef?: unknown;
       idempotent?: unknown;
-    } | null;
+    } | null = null;
+
+    if (step.domain === "integrations") {
+      try {
+        result = await executeKivrynIntegrationAction({
+          admin,
+          userId: user.id,
+          actionId: command.actionId,
+          requestId: command.requestId,
+          action: command.action,
+        });
+      } catch (error) {
+        const code =
+          error instanceof KivrynIntegrationActionError
+            ? error.code
+            : "integration_action_failed";
+        const uncertain = code === "integration_action_uncertain";
+        const event = createKivrynActionAuditEvent({
+          runId: run.id,
+          stepId: step.id,
+          action: step.action,
+          domain: step.domain,
+          status: uncertain ? "uncertain" : "failed",
+          errorCode: code,
+        });
+        if (event) await persistAuditEvents(admin, user.id, agent.id, [event]);
+
+        const applied = [...new Set([...alreadyApplied, ...appliedThisReview])];
+        await admin
+          .from("agent_runs")
+          .update({
+            applied_step_ids: applied,
+            action_plan_status: applied.length ? "partially_applied" : "pending_approval",
+          })
+          .eq("id", run.id)
+          .eq("user_id", user.id);
+        return fail(request, code, 409);
+      }
+    } else {
+      const { data, error } = await scoped.rpc("apply_nexora_action", {
+        p_action_id: command.actionId,
+        p_request_id: command.requestId,
+        p_conversation_id: null,
+        p_confirmed: true,
+        p_action: command.action,
+      });
+      if (error) {
+        const failed = createKivrynActionAuditEvent({
+          runId: run.id,
+          stepId: step.id,
+          action: step.action,
+          domain: step.domain,
+          status: "failed",
+          errorCode: "action_apply_failed",
+        });
+        if (failed) await persistAuditEvents(admin, user.id, agent.id, [failed]);
+
+        const applied = [...new Set([...alreadyApplied, ...appliedThisReview])];
+        await admin
+          .from("agent_runs")
+          .update({
+            applied_step_ids: applied,
+            action_plan_status: applied.length ? "partially_applied" : "pending_approval",
+          })
+          .eq("id", run.id)
+          .eq("user_id", user.id);
+        return fail(request, "action_apply_failed", 409);
+      }
+      result = data as {
+        status?: unknown;
+        resourceId?: unknown;
+        idempotent?: unknown;
+      } | null;
+    }
+
     if (result?.status !== "applied") {
       const failed = createKivrynActionAuditEvent({
         runId: run.id,
@@ -274,11 +332,19 @@ Deno.serve(async (request) => {
       domain: step.domain,
       status: "applied",
       ...(typeof result.resourceId === "string" ? { resourceId: result.resourceId } : {}),
+      ...(result.provider === "gmail" ||
+      result.provider === "google_calendar" ||
+      result.provider === "google_drive"
+        ? { provider: result.provider }
+        : {}),
+      ...(typeof result.externalResourceRef === "string"
+        ? { externalResourceRef: result.externalResourceRef }
+        : {}),
       ...(typeof result.idempotent === "boolean" ? { idempotent: result.idempotent } : {}),
     });
     if (!appliedEvent || !(await persistAuditEvents(admin, user.id, agent.id, [appliedEvent]))) {
-      // The workspace RPC is idempotent. Leaving this step pending lets a safe retry
-      // recover the missing receipt without duplicating the workspace mutation.
+      // Internal actions are idempotent; external actions keep a server-side execution receipt.
+      // Retrying review cannot duplicate an already-applied external action.
       return fail(request, "audit_persistence_error", 500);
     }
     appliedThisReview.push(command.stepId);

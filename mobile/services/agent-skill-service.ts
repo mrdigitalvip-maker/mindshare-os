@@ -36,6 +36,12 @@ export const MOBILE_AGENT_SKILLS: readonly MobileAgentSkill[] = [
     name: "Productivity Operator",
     description: "Prioriza Tasks e Projects sem executar mudanças silenciosas.",
   },
+  {
+    id: "integrations.v1",
+    capability: "integrations",
+    name: "Integration Operator",
+    description: "Prepara ações externas para aprovação em Gmail, Calendar e Drive conectados.",
+  },
 ] as const;
 
 export function resolveMobileAgentSkills(capabilities: readonly string[] | null | undefined) {

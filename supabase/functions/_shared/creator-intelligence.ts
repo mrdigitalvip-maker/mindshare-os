@@ -67,6 +67,7 @@ export const PROVIDERS = {
     scopes: [
       ...GOOGLE_IDENTITY_SCOPES,
       ...(KIVRYN_INTEGRATION_PROVIDERS.gmail.capabilityScopes["mail.read"] ?? []),
+      ...(KIVRYN_INTEGRATION_PROVIDERS.gmail.capabilityScopes["mail.send"] ?? []),
     ],
     readiness: "CONFIG_REQUIRED",
   },
@@ -77,6 +78,7 @@ export const PROVIDERS = {
     scopes: [
       ...GOOGLE_IDENTITY_SCOPES,
       ...(KIVRYN_INTEGRATION_PROVIDERS.google_calendar.capabilityScopes["calendar.read"] ?? []),
+      ...(KIVRYN_INTEGRATION_PROVIDERS.google_calendar.capabilityScopes["calendar.write"] ?? []),
     ],
     readiness: "CONFIG_REQUIRED",
   },
@@ -87,6 +89,7 @@ export const PROVIDERS = {
     scopes: [
       ...GOOGLE_IDENTITY_SCOPES,
       ...(KIVRYN_INTEGRATION_PROVIDERS.google_drive.capabilityScopes["files.read"] ?? []),
+      ...(KIVRYN_INTEGRATION_PROVIDERS.google_drive.capabilityScopes["files.write"] ?? []),
     ],
     readiness: "CONFIG_REQUIRED",
   },

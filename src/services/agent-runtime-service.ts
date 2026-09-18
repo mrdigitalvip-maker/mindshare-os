@@ -3,7 +3,7 @@ import { supabase } from "@/lib/supabase";
 export type AgentPlanStep = {
   id: string;
   action: string;
-  domain: "tasks" | "projects" | "studies";
+  domain: "tasks" | "projects" | "studies" | "integrations";
   input: Record<string, unknown>;
   requiresApproval: true;
 };
@@ -42,7 +42,8 @@ export type AgentActionAuditStatus =
   | "approved"
   | "applied"
   | "rejected"
-  | "failed";
+  | "failed"
+  | "uncertain";
 
 export type AgentActionAuditEvent = {
   id: string;
@@ -50,9 +51,11 @@ export type AgentActionAuditEvent = {
   runId: string;
   stepId: string;
   actionType: string;
-  domain: "tasks" | "projects" | "studies";
+  domain: "tasks" | "projects" | "studies" | "integrations";
   status: AgentActionAuditStatus;
   resourceId: string | null;
+  provider: "gmail" | "google_calendar" | "google_drive" | null;
+  externalResourceRef: string | null;
   idempotent: boolean | null;
   errorCode: string | null;
   occurredAt: string;
@@ -133,7 +136,7 @@ export const AgentRuntimeService = {
     const { data, error } = await (supabase as any)
       .from("agent_action_audit_events")
       .select(
-        "id,agent_id,run_id,step_id,action_type,domain,status,resource_id,idempotent,error_code,occurred_at",
+        "id,agent_id,run_id,step_id,action_type,domain,status,resource_id,provider,external_resource_ref,idempotent,error_code,occurred_at",
       )
       .eq("user_id", userId)
       .eq("agent_id", agentId)
@@ -149,6 +152,8 @@ export const AgentRuntimeService = {
       domain: row.domain,
       status: row.status,
       resourceId: row.resource_id ?? null,
+      provider: row.provider ?? null,
+      externalResourceRef: row.external_resource_ref ?? null,
       idempotent: typeof row.idempotent === "boolean" ? row.idempotent : null,
       errorCode: row.error_code ?? null,
       occurredAt: row.occurred_at,

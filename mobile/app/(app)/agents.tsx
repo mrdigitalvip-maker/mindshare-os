@@ -53,12 +53,16 @@ const ACTION_LABELS: Record<string, string> = {
   create_study_goal: "Meta de estudo criada",
   update_study_goal: "Meta de estudo atualizada",
   set_subject_next_action: "Próxima ação de estudo atualizada",
+  send_email: "Email enviado",
+  create_calendar_event: "Evento criado",
+  create_drive_text_file: "Arquivo criado no Drive",
 };
 
 const DOMAIN_LABELS = {
   tasks: "Tasks",
   projects: "Projects",
   studies: "Studies",
+  integrations: "Integrations",
   other: "Workspace",
 } as const;
 
@@ -336,6 +340,11 @@ function PendingApprovals({
                     .map(([key, value]) => `${key}: ${String(value)}`)
                     .join(" · ") || "Sem parâmetros adicionais"}
                 </Text>
+                {step.domain === "integrations" ? (
+                  <Text style={styles.externalWarning}>
+                    Ação externa: ao aprovar, o KIVRYN poderá enviar/criar este item no serviço conectado.
+                  </Text>
+                ) : null}
               </View>
             ))}
             <View style={styles.buttonRow}>
@@ -414,6 +423,7 @@ function ActionHistory({
             style={[
               styles.historyStatus,
               item.status === "failed" && styles.historyStatusFailed,
+              item.status === "uncertain" && styles.historyStatusUncertain,
             ]}
           >
             {item.status.toUpperCase()}
@@ -674,6 +684,12 @@ const styles = StyleSheet.create({
   historyTitle: { ...typography.label, color: colors.text },
   historyStatus: { ...typography.eyebrow, color: colors.primaryBright, fontSize: 9 },
   historyStatusFailed: { color: colors.danger },
+  historyStatusUncertain: { color: colors.warning },
+  externalWarning: {
+    ...typography.caption,
+    color: colors.warning,
+    marginTop: spacing.xs,
+  },
   auditBadge: {
     paddingHorizontal: 8,
     paddingVertical: 5,
