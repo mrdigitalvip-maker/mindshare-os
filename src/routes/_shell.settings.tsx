@@ -18,7 +18,12 @@ import { NotificationSettings, UsageSettings } from "@/components/settings-engag
 import { LEGAL_URLS } from "@/lib/legal";
 import { useLanguage } from "@/providers/language-provider";
 import type { LanguagePreference } from "@/i18n";
-import {\n  listIntegrationReadiness,\n  readGoogleWorkspace,\n  startIntegrationConnection,\n  type GoogleWorkspaceProvider,\n} from "@/services/integration-status-service";
+import {
+  listIntegrationReadiness,
+  readGoogleWorkspace,
+  startIntegrationConnection,
+  type GoogleWorkspaceProvider,
+} from "@/services/integration-status-service";
 
 export const Route = createFileRoute("/_shell/settings")({
   head: () => ({ meta: [{ title: "Settings — KIVRYN" }] }),
