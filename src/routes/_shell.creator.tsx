@@ -197,6 +197,7 @@ function creatorJobActive(status: unknown) {
 function CreatorStudio() {
   const { user } = useAuth();
   const { t, resolvedLocale } = useLanguage();
+  const L = (pt: string, en: string) => (resolvedLocale === "pt-BR" ? pt : en);
   const userId = user?.id ?? "";
   const [profile, setProfile] = useState<CreatorProfile>(emptyCreatorProfile);
   const [strategy, setStrategy] = useState<CreatorStrategy>({
@@ -257,7 +258,7 @@ function CreatorStudio() {
   useEffect(() => {
     void reload().catch(() => {
       setLoading(false);
-      toast.error("Creator data is temporarily unavailable. Retry when ready.");
+      toast.error(L("Os dados do Creator estão temporariamente indisponíveis. Tente novamente.", "Creator data is temporarily unavailable. Retry when ready."));
     });
   }, [reload]);
 
@@ -268,9 +269,9 @@ function CreatorStudio() {
     const connectionError = current.searchParams.get("error");
     if (!connectionStatus && !connectionError) return;
     if (connectionStatus === "connected") {
-      toast.success("Creator provider connected. Sync analytics when ready.");
+      toast.success(L("Provedor do Creator conectado. Sincronize os analytics quando quiser.", "Creator provider connected. Sync analytics when ready."));
     } else if (connectionError) {
-      toast.error(`Provider connection failed: ${connectionError.replaceAll("_", " ")}.`);
+      toast.error(`${L("Falha ao conectar provedor", "Provider connection failed")}: ${connectionError.replaceAll("_", " ")}.`);
     }
     current.searchParams.delete("creator_connection");
     current.searchParams.delete("error");
@@ -345,7 +346,7 @@ function CreatorStudio() {
       toast.success(message);
     } catch (error) {
       console.error("creator_mutation_failed", error);
-      toast.error("Could not save. Your existing data is unchanged.");
+      toast.error(L("Não foi possível salvar. Seus dados existentes não foram alterados.", "Could not save. Your existing data is unchanged."));
     }
   };
 
@@ -376,7 +377,7 @@ function CreatorStudio() {
 
   const handleUrlSource = async () => {
     if (!sourceUrl.trim()) {
-      toast.error("Paste a source URL first.");
+      toast.error(L("Cole primeiro uma URL de origem.", "Paste a source URL first."));
       return;
     }
     setSourceBusy(true);
@@ -386,11 +387,11 @@ function CreatorStudio() {
         const metadata = await inspectCreatorYouTubeUrl(sourceUrl);
         setYoutubeMetadata(metadata);
         setSourceTitle((current) => current || metadata.title);
-        toast.success("YouTube source recognized. Upload the original video to create clips.");
+        toast.success(L("Fonte do YouTube reconhecida. Envie o vídeo original para criar cortes.", "YouTube source recognized. Upload the original video to create clips."));
         return;
       }
       if (!sourceAuthorized) {
-        toast.error("Confirm that you own or are authorized to process this video.");
+        toast.error(L("Confirme que você possui ou tem autorização para processar este vídeo.", "Confirm that you own or are authorized to process this video."));
         return;
       }
       await importCreatorVideoFromUrl({
@@ -405,7 +406,7 @@ function CreatorStudio() {
       setSourceTitle("");
       setSourceAuthorized(false);
       await reload();
-      toast.success("Source imported. KIVRYN queued the real clipping job.");
+      toast.success(L("Fonte importada. A KIVRYN colocou o processamento real de cortes na fila.", "Source imported. KIVRYN queued the real clipping job."));
     } catch (error) {
       console.error("creator_source_url_failed", error);
       toast.error(
@@ -425,10 +426,10 @@ function CreatorStudio() {
     try {
       await createCreatorVideoProject({ userId, title: file.name, file });
       await reload();
-      toast.success("Video uploaded. KIVRYN queued the real clipping job.");
+      toast.success(L("Vídeo enviado. A KIVRYN colocou o processamento real de cortes na fila.", "Video uploaded. KIVRYN queued the real clipping job."));
     } catch (error) {
       console.error("creator_local_upload_failed", error);
-      toast.error("The video could not be uploaded. No fake processing state was created.");
+      toast.error(L("Não foi possível enviar o vídeo. Nenhum estado fictício de processamento foi criado.", "The video could not be uploaded. No fake processing state was created."));
     } finally {
       setSourceBusy(false);
     }
@@ -443,10 +444,10 @@ function CreatorStudio() {
       await cancelCreatorJob(jobId);
       setCancelConfirmJobId(null);
       await reload();
-      toast.success("Creator processing cancelled.");
+      toast.success(L("Processamento do Creator cancelado.", "Creator processing cancelled."));
     } catch (error) {
       console.error("creator_job_cancel_failed", error);
-      toast.error("This Creator job could not be cancelled.");
+      toast.error(L("Não foi possível cancelar este processamento do Creator.", "This Creator job could not be cancelled."));
     }
   };
 
@@ -482,10 +483,10 @@ function CreatorStudio() {
         captionsEnabled: draft.captionsEnabled,
       });
       await reload();
-      toast.success("Rerender queued in the canonical Creator worker.");
+      toast.success(L("Nova renderização colocada na fila do worker canônico do Creator.", "Rerender queued in the canonical Creator worker."));
     } catch (error) {
       console.error("creator_rerender_failed", error);
-      toast.error("Could not queue this rerender. Check the clip range and retry.");
+      toast.error(L("Não foi possível colocar a nova renderização na fila. Revise o intervalo do corte e tente novamente.", "Could not queue this rerender. Check the clip range and retry."));
     }
   };
 
@@ -519,7 +520,7 @@ function CreatorStudio() {
       );
     } catch (error) {
       console.error("creator_analytics_sync_failed", error);
-      toast.error("Provider analytics could not be synced.");
+      toast.error(L("Não foi possível sincronizar os analytics do provedor.", "Provider analytics could not be synced."));
     } finally {
       setProviderBusy(null);
     }
@@ -535,10 +536,10 @@ function CreatorStudio() {
       await disconnectCreatorProvider(connectionId);
       setDisconnectConfirmId(null);
       await reload();
-      toast.success("Provider disconnected. Existing analytics history was retained.");
+      toast.success(L("Provedor desconectado. O histórico de analytics existente foi preservado.", "Provider disconnected. Existing analytics history was retained."));
     } catch (error) {
       console.error("creator_provider_disconnect_failed", error);
-      toast.error("Provider could not be disconnected.");
+      toast.error(L("Não foi possível desconectar o provedor.", "Provider could not be disconnected."));
     } finally {
       setProviderBusy(null);
     }
@@ -557,38 +558,42 @@ function CreatorStudio() {
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-muted-foreground">
             KIVRYN · CREATOR STUDIO
           </p>
-          <h1 className="mt-2 font-display text-4xl md:text-5xl">Create from the source, not the clutter.</h1>
+          <h1 className="mt-2 font-display text-4xl md:text-5xl">{L("Crie a partir da fonte, sem ruído.", "Create from the source, not the clutter.")}</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground md:text-base">
-            Bring the video first. KIVRYN keeps the source private, sends it through the canonical
-            clipping pipeline and shows only real projects, jobs and outputs.
+            {L(
+              "Comece pelo vídeo. A KIVRYN mantém a fonte privada, envia pelo pipeline canônico de cortes e mostra apenas projetos, processamentos e resultados reais.",
+              "Bring the video first. KIVRYN keeps the source private, sends it through the canonical clipping pipeline and shows only real projects, jobs and outputs.",
+            )}
           </p>
         </div>
         <div className="grid gap-3 sm:grid-cols-3">
-          <StatusCard label="Sources" value={projectCount} detail="real creator projects" />
-          <StatusCard label="Processing" value={activeJobs} detail="active backend jobs" />
-          <StatusCard label="Clips" value={clipCount} detail="rendered outputs" />
+          <StatusCard label={L("Fontes", "Sources")} value={projectCount} detail={L("projetos reais do Creator", "real creator projects")} />
+          <StatusCard label={L("Processando", "Processing")} value={activeJobs} detail={L("processamentos ativos no backend", "active backend jobs")} />
+          <StatusCard label={L("Cortes", "Clips")} value={clipCount} detail={L("resultados renderizados", "rendered outputs")} />
         </div>
         <p className="text-xs leading-5 text-muted-foreground">
-          Standalone Creator works without social credentials. Social publishing integrations are not connected
-          unless a verified provider connection is configured.
+          {L(
+            "O Creator funciona sem credenciais sociais. Integrações de publicação só ficam conectadas quando existe uma conexão de provedor verificada.",
+            "Standalone Creator works without social credentials. Social publishing integrations are not connected unless a verified provider connection is configured.",
+          )}
         </p>
       </header>
 
       <section id="media" className="scroll-mt-24 space-y-4">
         <div className="flex items-center gap-2">
           <Film className="h-5 w-5 text-intelligence" />
-          <h2 className="font-display text-3xl">Source workspace</h2>
+          <h2 className="font-display text-3xl">{L("Espaço de fontes", "Source workspace")}</h2>
         </div>
         <div className="grid gap-4 lg:grid-cols-[1.35fr_.65fr]">
           <Card className="overflow-hidden border-intelligence/20">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Link2 className="h-5 w-5" /> Paste a video source
+                <Link2 className="h-5 w-5" /> {L("Cole uma fonte de vídeo", "Paste a video source")}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-1.5">
-                <Label htmlFor="creator-source-url">Video URL</Label>
+                <Label htmlFor="creator-source-url">{L("URL do vídeo", "Video URL")}</Label>
                 <Input
                   id="creator-source-url"
                   type="url"
@@ -601,7 +606,7 @@ function CreatorStudio() {
                   placeholder="https://…"
                 />
               </div>
-              <Field label="Optional project title" value={sourceTitle} onChange={setSourceTitle} />
+              <Field label={L("Título do projeto (opcional)", "Optional project title")} value={sourceTitle} onChange={setSourceTitle} />
               {!isYouTubeUrl(sourceUrl) && (
                 <label className="flex items-start gap-3 rounded-xl border border-border bg-surface/60 p-3 text-sm">
                   <input
@@ -611,8 +616,10 @@ function CreatorStudio() {
                     onChange={(event) => setSourceAuthorized(event.target.checked)}
                   />
                   <span>
-                    I own this video or have permission to process it. KIVRYN imports only a direct
-                    HTTPS video source into my private Creator storage.
+                    {L(
+                      "Eu possuo este vídeo ou tenho permissão para processá-lo. A KIVRYN importa apenas uma fonte HTTPS direta para meu armazenamento privado do Creator.",
+                      "I own this video or have permission to process it. KIVRYN imports only a direct HTTPS video source into my private Creator storage.",
+                    )}
                   </span>
                 </label>
               )}
@@ -628,12 +635,13 @@ function CreatorStudio() {
                 ) : (
                   <Film className="h-4 w-4" />
                 )}
-                {isYouTubeUrl(sourceUrl) ? "Analyze YouTube link" : "Import & create clips"}
+                {isYouTubeUrl(sourceUrl) ? L("Analisar link do YouTube", "Analyze YouTube link") : L("Importar e criar cortes", "Import & create clips")}
               </Button>
               <p className="text-xs leading-5 text-muted-foreground">
-                Direct HTTPS video files can enter the real clipping pipeline. YouTube links are
-                inspected with the official metadata integration; downloading the platform video is
-                not presented as available, so the original file is required.
+                {L(
+                  "Arquivos de vídeo HTTPS diretos podem entrar no pipeline real de cortes. Links do YouTube são inspecionados pela integração oficial de metadados; o download do vídeo da plataforma não é oferecido, portanto o arquivo original é necessário.",
+                  "Direct HTTPS video files can enter the real clipping pipeline. YouTube links are inspected with the official metadata integration; downloading the platform video is not presented as available, so the original file is required.",
+                )}
               </p>
               {youtubeMetadata && (
                 <div className="grid gap-3 rounded-2xl border border-border bg-surface/60 p-3 sm:grid-cols-[120px_1fr]">
@@ -657,7 +665,7 @@ function CreatorStudio() {
                         : ""}
                     </p>
                     <p className="mt-2 text-xs font-medium text-amber-300">
-                      Original upload required before clipping.
+                      {L("Envio do arquivo original necessário antes dos cortes.", "Original upload required before clipping.")}
                     </p>
                   </div>
                 </div>
@@ -668,22 +676,24 @@ function CreatorStudio() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Upload className="h-5 w-5" /> Upload original
+                <Upload className="h-5 w-5" /> {L("Enviar original", "Upload original")}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm leading-6 text-muted-foreground">
-                Best for YouTube/TikTok exports, large originals or any source that is not a direct
-                video URL.
+                {L(
+                  "Ideal para exportações do YouTube/TikTok, arquivos originais grandes ou qualquer fonte que não seja uma URL direta de vídeo.",
+                  "Best for YouTube/TikTok exports, large originals or any source that is not a direct video URL.",
+                )}
               </p>
               <Label
                 htmlFor="creator-video"
                 className="flex min-h-36 cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-surface/50 px-5 text-center transition hover:border-foreground/30"
               >
                 <Upload className="mb-3 h-7 w-7 text-muted-foreground" />
-                <span className="font-medium">Choose a video file</span>
+                <span className="font-medium">{L("Escolher arquivo de vídeo", "Choose a video file")}</span>
                 <span className="mt-1 text-xs text-muted-foreground">
-                  The browser uploads it to your private Creator source bucket.
+                  {L("O navegador envia o arquivo para seu bucket privado de fontes do Creator.", "The browser uploads it to your private Creator source bucket.")}
                 </span>
               </Label>
               <Input
@@ -706,11 +716,11 @@ function CreatorStudio() {
       <section className="grid gap-4 lg:grid-cols-[1fr_.72fr]">
         <Card>
           <CardHeader>
-            <CardTitle>Creator pipeline</CardTitle>
+            <CardTitle>{L("Pipeline do Creator", "Creator pipeline")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {(resources.creator_projects ?? []).length === 0 && (
-              <EmptyState text="No source project yet. Paste a direct video URL or upload an original above." />
+              <EmptyState text={L("Ainda não há projeto de origem. Cole uma URL direta de vídeo ou envie um original acima.", "No source project yet. Paste a direct video URL or upload an original above.")} />
             )}
             {(resources.creator_projects ?? []).map((project) => {
               const relatedJobs = (resources.creator_jobs ?? []).filter(
@@ -740,7 +750,7 @@ function CreatorStudio() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <WandSparkles className="h-5 w-5" /> Next best action
+              <WandSparkles className="h-5 w-5" /> {L("Próxima melhor ação", "Next best action")}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -751,7 +761,7 @@ function CreatorStudio() {
                   document.getElementById(action.section)?.scrollIntoView({ behavior: "smooth" })
                 }
               >
-                Continue
+                {L("Continuar", "Continue")}
               </Button>
               <Button
                 variant="outline"
@@ -759,7 +769,7 @@ function CreatorStudio() {
                   void mutate(() => createCreatorTask(action.label), "Added to canonical Tasks")
                 }
               >
-                Add to Tasks
+                {L("Adicionar às Tarefas", "Add to Tasks")}
               </Button>
             </div>
           </CardContent>
@@ -774,23 +784,23 @@ function CreatorStudio() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Label htmlFor="creator-ai">Topic, audience, goal and tone</Label>
+            <Label htmlFor="creator-ai">{L("Tema, público, objetivo e tom", "Topic, audience, goal and tone")}</Label>
             <Textarea
               id="creator-ai"
               value={assistantInput}
               onChange={(event) => setAssistantInput(event.target.value)}
-              placeholder="Describe what you want to create…"
+              placeholder={L("Descreva o que você quer criar…", "Describe what you want to create…")}
             />
             <div className="flex flex-wrap gap-2">
               <Button disabled={!assistantInput.trim()} onClick={() => void askAssistant("ideas")}>
-                Content Ideas
+                {L("Ideias de conteúdo", "Content Ideas")}
               </Button>
               <Button
                 disabled={!assistantInput.trim()}
                 variant="outline"
                 onClick={() => void askAssistant("hooks")}
               >
-                Hook Lab
+                {L("Laboratório de hooks", "Hook Lab")}
               </Button>
               <Button
                 disabled={!assistantInput.trim()}
@@ -813,14 +823,14 @@ function CreatorStudio() {
         <div className="flex items-center gap-2">
           <Scissors className="h-5 w-5 text-intelligence" />
           <div>
-            <h2 className="font-display text-3xl">Clipping workflow</h2>
+            <h2 className="font-display text-3xl">{L("Fluxo de cortes", "Clipping workflow")}</h2>
             <p className="text-sm text-muted-foreground">
-              Real worker stages only: analyze → transcribe → select clips → render.
+              {L("Apenas etapas reais do worker: analisar → transcrever → selecionar cortes → renderizar.", "Real worker stages only: analyze → transcribe → select clips → render.")}
             </p>
           </div>
         </div>
         {creatorJobs.length === 0 ? (
-          <EmptyState text="No clipping jobs yet. Import or upload a source to start the canonical worker." />
+          <EmptyState text={L("Ainda não há processamentos de cortes. Importe ou envie uma fonte para iniciar o worker canônico.", "No clipping jobs yet. Import or upload a source to start the canonical worker.")} />
         ) : (
           <div className="grid gap-3 md:grid-cols-2">
             {creatorJobs.slice(0, 8).map((job) => {
@@ -831,7 +841,7 @@ function CreatorStudio() {
                   <CardContent className="space-y-3 pt-6">
                     <div className="flex items-center justify-between gap-3">
                       <div>
-                        <strong className="text-sm">Job {jobId.slice(0, 8)}</strong>
+                        <strong className="text-sm">{L("Processamento", "Job")} {jobId.slice(0, 8)}</strong>
                         <p className="mt-1 text-xs text-muted-foreground">
                           Stage: {String(job.progress_stage ?? job.status ?? "unknown").replaceAll("_", " ")}
                         </p>
@@ -839,9 +849,9 @@ function CreatorStudio() {
                       <StatusPill value={String(job.status ?? "unknown")} />
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                      <span>Attempts: {String(job.attempt_count ?? 0)}</span>
+                      <span>{L("Tentativas", "Attempts")}: {String(job.attempt_count ?? 0)}</span>
                       <span>
-                        {job.error_code ? `Error: ${String(job.error_code)}` : "No worker error"}
+                        {job.error_code ? `${L("Erro", "Error")}: ${String(job.error_code)}` : L("Sem erro do worker", "No worker error")}
                       </span>
                     </div>
                     {active && (
@@ -850,7 +860,7 @@ function CreatorStudio() {
                         className="w-full"
                         onClick={() => void handleCancelJob(jobId)}
                       >
-                        {cancelConfirmJobId === jobId ? "Confirm cancel" : "Cancel processing"}
+                        {cancelConfirmJobId === jobId ? L("Confirmar cancelamento", "Confirm cancel") : L("Cancelar processamento", "Cancel processing")}
                       </Button>
                     )}
                   </CardContent>
@@ -864,10 +874,10 @@ function CreatorStudio() {
       <section className="space-y-3">
         <div className="flex items-center gap-2">
           <Film className="h-5 w-5 text-muted-foreground" />
-          <h2 className="font-display text-3xl">Real clip library</h2>
+          <h2 className="font-display text-3xl">{L("Biblioteca real de cortes", "Real clip library")}</h2>
         </div>
         {(resources.creator_clips ?? []).length === 0 ? (
-          <EmptyState text="Rendered clips will appear here only after the canonical worker creates real outputs." />
+          <EmptyState text={L("Os cortes renderizados aparecerão aqui somente depois que o worker canônico criar resultados reais.", "Rendered clips will appear here only after the canonical worker creates real outputs.")} />
         ) : (
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {(resources.creator_clips ?? []).map((clip) => {
@@ -881,10 +891,10 @@ function CreatorStudio() {
                       <StatusPill value={String(clip.render_status)} />
                     </div>
                     <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                      {typeof clip.score === "number" && <span>Score: {String(clip.score)}</span>}
+                      {typeof clip.score === "number" && <span>{L("Pontuação", "Score")}: {String(clip.score)}</span>}
                       {clip.duration_ms != null && <span>{(Number(clip.duration_ms) / 1000).toFixed(1)}s</span>}
                       {Boolean(clip.aspect_ratio) && <span>{String(clip.aspect_ratio)}</span>}
-                      {Boolean(clip.render_version) && <span>Render v{String(clip.render_version)}</span>}
+                      {Boolean(clip.render_version) && <span>{L("Renderização", "Render")} v{String(clip.render_version)}</span>}
                     </div>
                     {Boolean(clip.score_reason) && (
                       <p className="text-sm leading-5 text-muted-foreground">{String(clip.score_reason)}</p>
@@ -901,32 +911,32 @@ function CreatorStudio() {
                         onClick={() =>
                           void signedCreatorOutput(String(clip.output_path))
                             .then((url) => window.open(url, "_blank", "noopener,noreferrer"))
-                            .catch(() => toast.error("Authorized clip URL could not be created."))
+                            .catch(() => toast.error(L("Não foi possível criar a URL autorizada do corte.", "Authorized clip URL could not be created.")))
                         }
                       >
-                        <ExternalLink className="h-4 w-4" /> Authorized download
+                        <ExternalLink className="h-4 w-4" /> {L("Download autorizado", "Authorized download")}
                       </Button>
                     )}
                     {available && (
                       <details className="rounded-xl border border-border p-3">
-                        <summary className="cursor-pointer text-sm font-medium">Rerender this clip</summary>
+                        <summary className="cursor-pointer text-sm font-medium">{L("Renderizar este corte novamente", "Rerender this clip")}</summary>
                         <div className="mt-3 grid gap-3">
                           <div className="grid grid-cols-2 gap-2">
                             <Field
-                              label="Start (seconds)"
+                              label={L("Início (segundos)", "Start (seconds)")}
                               type="number"
                               value={draft.startSeconds}
                               onChange={(value) => updateClipDraft(clip, { startSeconds: value })}
                             />
                             <Field
-                              label="End (seconds)"
+                              label={L("Fim (segundos)", "End (seconds)")}
                               type="number"
                               value={draft.endSeconds}
                               onChange={(value) => updateClipDraft(clip, { endSeconds: value })}
                             />
                           </div>
                           <div className="space-y-1.5">
-                            <Label>Aspect ratio</Label>
+                            <Label>{L("Proporção", "Aspect ratio")}</Label>
                             <select
                               className="h-10 w-full rounded-md border bg-background px-3"
                               value={draft.aspectRatio}
@@ -949,10 +959,10 @@ function CreatorStudio() {
                                 updateClipDraft(clip, { captionsEnabled: event.target.checked })
                               }
                             />
-                            Render captions
+                            {L("Renderizar legendas", "Render captions")}
                           </label>
                           <Button onClick={() => void handleRerenderClip(clip)}>
-                            <RefreshCw className="h-4 w-4" /> Queue rerender
+                            <RefreshCw className="h-4 w-4" /> {L("Colocar nova renderização na fila", "Queue rerender")}
                           </Button>
                         </div>
                       </details>
