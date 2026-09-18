@@ -33,7 +33,7 @@ test("Journey Pack cards use explicit router navigation for the Ver Pack action"
   assert.match(source, /const navigate = useNavigate\(\)/);
   assert.match(source, /to:\s*"\/packs\/\$slug"/);
   assert.match(source, /params:\s*\{ slug: p\.slug \}/);
-  assert.match(source, />\s*Ver Pack\s*<\/Button>/);
+  assert.match(source, /L\("Ver Pack", "View Pack"\)/);
 });
 
 test("Agent observability constraints accept E17 Documents context and internal helpers are not client RPCs", async () => {
