@@ -45,3 +45,15 @@ YouTube remains truthful:
 No new public database tables or enums are required for E21/E22. Existing Phase 1 Creator schema already supports `authorized_direct`, `url_metadata`, private source storage, canonical jobs and real clips.
 
 No Android AAB/build work is part of this pair.
+
+
+## E22 → E23 integration-readiness hardening
+
+This is a transversal hardening gate, not a new Edition.
+
+- Provider capabilities and required scopes now have a provider-agnostic server contract in `kivryn-integration-registry.ts`.
+- Existing YouTube/TikTok OAuth scope declarations are sourced from that contract so the Creator provider flow and the future integration layer cannot silently drift.
+- Credential ownership remains server-only; OAuth access and refresh tokens stay encrypted in `creator_provider_credentials` and are never part of the public connected-account contract.
+- Capability access fails closed unless the adapter exists, runtime configuration is present, the account is connected, the capability is declared, and every required scope was granted.
+- External mutations such as send/write/import capabilities are marked approval-required. The existing Action Registry remains authoritative and does not pretend unsupported external actions such as email sending are executable.
+- Gmail, Google Calendar, Google Drive, Slack and WhatsApp are declared as future providers with `coming_soon`, `implemented: false`, no invented scopes and no fake connection state.
