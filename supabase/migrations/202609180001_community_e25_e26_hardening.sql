@@ -23,7 +23,12 @@ declare
   last_update timestamptz;
 begin
   if uid is null then raise exception 'unauthenticated'; end if;
-  if p_visibility not in ('private', 'community') then raise exception 'profile_invalid'; end if;
+  if p_visibility is null or p_visibility not in ('private', 'community')
+    then raise exception 'profile_invalid';
+  end if;
+  if p_show_momentum is null or p_show_streak is null or p_show_activity is null
+    then raise exception 'profile_invalid';
+  end if;
   if clean_name is not null and char_length(clean_name) > 60 then raise exception 'profile_invalid'; end if;
   if clean_bio is not null and char_length(clean_bio) > 240 then raise exception 'profile_invalid'; end if;
   if normalized is not null and normalized !~ '^[a-z][a-z0-9_]{2,29}$' then raise exception 'profile_invalid'; end if;
@@ -99,7 +104,9 @@ begin
   if clean_description is not null and char_length(clean_description) > 240
     then raise exception 'squad_description_invalid';
   end if;
-  if p_max_members not between 2 and 20 then raise exception 'squad_capacity_invalid'; end if;
+  if p_max_members is null or p_max_members not between 2 and 20
+    then raise exception 'squad_capacity_invalid';
+  end if;
   if (
     select count(*)
     from public.squads
