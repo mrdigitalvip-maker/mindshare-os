@@ -81,5 +81,8 @@ jobs:
       - name: Run E45/E46 Notes and Notifications source parity
         run: bun test tests/notes-notifications-e45-e46-source-parity.test.ts
 
+      - name: Run E47/E48 Files and Translations source parity
+        run: bun test tests/files-translations-e47-e48-source-parity.test.ts
+
       - name: Run existing Creator engine and intelligence contracts
         run: bun test tests/creator-video-engine-revision-14.test.ts tests/creator-intelligence-revision-14.test.ts
