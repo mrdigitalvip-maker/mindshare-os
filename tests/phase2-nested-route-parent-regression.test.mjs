@@ -27,6 +27,11 @@ const parents = [
     base: "/studio",
     childParent: "getParentRoute: () => ShellStudioRoute",
   },
+  {
+    path: "src/routes/auth.tsx",
+    base: "/auth",
+    childParent: "getParentRoute: () => AuthRoute",
+  },
 ];
 
 for (const parent of parents) {
