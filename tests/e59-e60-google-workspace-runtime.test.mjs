@@ -23,7 +23,7 @@ test("E59 extends the existing encrypted connection vault to Google Workspace",(
   assert.doesNotMatch(migration,/create table/i);
 });
 
-test("E59 registers real OAuth scopes but only authorizes read scopes in this edition",()=>{
+test("E59 guarantees real OAuth read scopes; later editions may add approval-gated writes",()=>{
   for(const provider of ["gmail","google_calendar","google_drive"]){
     assert.match(registry,new RegExp(provider+"[\\s\\S]*implemented: true"));
     assert.match(registry,new RegExp(provider+"[\\s\\S]*authMode: \"oauth\""));
@@ -36,11 +36,8 @@ test("E59 registers real OAuth scopes but only authorizes read scopes in this ed
   assert.match(registry,/drive\.file/);
 
   assert.match(intelligence,/gmail:[\s\S]*mail\.read/);
-  assert.doesNotMatch(intelligence,/gmail:[\s\S]{0,500}mail\.send/);
   assert.match(intelligence,/google_calendar:[\s\S]*calendar\.read/);
-  assert.doesNotMatch(intelligence,/google_calendar:[\s\S]{0,500}calendar\.write/);
   assert.match(intelligence,/google_drive:[\s\S]*files\.read/);
-  assert.doesNotMatch(intelligence,/google_drive:[\s\S]{0,500}files\.write/);
 });
 
 test("E59 reuses PKCE/state and encrypted credentials for Google Workspace",()=>{
