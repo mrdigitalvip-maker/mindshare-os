@@ -1195,7 +1195,7 @@ function CreatorStudio() {
               </div>
 
               {providerAnalytics.length === 0 ? (
-                <EmptyState text="No provider-verified analytics yet. Connect an approved provider and sync; KIVRYN will not draw sample charts." />
+                <EmptyState text="No provider-verified analytics yet. Connect an approved provider and sync; KIVRYN renders nothing until verified evidence exists." />
               ) : (
                 <div className="space-y-3">
                   {providerAnalytics.slice(0, 20).map(({ content: item, snapshot, metrics: verified }) => {
