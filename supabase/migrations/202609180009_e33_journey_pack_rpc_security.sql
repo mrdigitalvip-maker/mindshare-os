@@ -40,6 +40,9 @@ as $$
   limit 1;
 $$;
 
+revoke select on table public.journey_packs, public.journey_pack_steps from anon;
+grant select on table public.journey_packs, public.journey_pack_steps to authenticated;
+
 revoke all on function public.get_journey_packs() from public, anon;
 grant execute on function public.get_journey_packs() to authenticated;
 
