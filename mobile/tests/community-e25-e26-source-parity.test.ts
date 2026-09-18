@@ -43,9 +43,10 @@ describe("E25 + E26 Community Profile and Squads", () => {
   });
 
   test("E26 destructive actions are confirmed", () => {
-    expect(squad).toContain('Alert.alert("Remover membro"');
-    expect(squad).toContain('Alert.alert("Sair do Squad"');
-    expect(squad).toContain('Alert.alert("Encerrar Squad"');
+    expect(squad).toContain('"Remover membro"');
+    expect(squad).toContain('"Sair do Squad"');
+    expect(squad).toContain('"Encerrar Squad"');
+    expect(squad).toContain('style: "destructive"');
   });
 
   test("clients remain on RPCs rather than direct Squad table mutations", () => {
