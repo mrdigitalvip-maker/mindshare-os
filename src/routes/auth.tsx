@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { BrainCircuit, Route as RouteIcon, Sparkles } from "lucide-react";
@@ -21,8 +21,13 @@ export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [{ title: "KIVRYN" }, { name: "robots", content: "noindex" }],
   }),
-  component: AuthPage,
+  component: AuthRoute,
 });
+
+function AuthRoute() {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  return pathname !== "/auth" && pathname !== "/auth/" ? <Outlet /> : <AuthPage />;
+}
 
 function AuthPage() {
   const { t, resolvedLocale } = useLanguage();
