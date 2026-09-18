@@ -745,6 +745,58 @@ function CreatorStudio() {
         </Card>
       </section>
 
+      <section id="clipping" className="scroll-mt-24 space-y-4">
+        <div className="flex items-center gap-2">
+          <Scissors className="h-5 w-5 text-intelligence" />
+          <div>
+            <h2 className="font-display text-3xl">Clipping workflow</h2>
+            <p className="text-sm text-muted-foreground">
+              Real worker stages only: analyze → transcribe → select clips → render.
+            </p>
+          </div>
+        </div>
+        {creatorJobs.length === 0 ? (
+          <EmptyState text="No clipping jobs yet. Import or upload a source to start the canonical worker." />
+        ) : (
+          <div className="grid gap-3 md:grid-cols-2">
+            {creatorJobs.slice(0, 8).map((job) => {
+              const active = creatorJobActive(job.status);
+              const jobId = String(job.id);
+              return (
+                <Card key={jobId}>
+                  <CardContent className="space-y-3 pt-6">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <strong className="text-sm">Job {jobId.slice(0, 8)}</strong>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Stage: {String(job.progress_stage ?? job.status ?? "unknown").replaceAll("_", " ")}
+                        </p>
+                      </div>
+                      <StatusPill value={String(job.status ?? "unknown")} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                      <span>Attempts: {String(job.attempt_count ?? 0)}</span>
+                      <span>
+                        {job.error_code ? `Error: ${String(job.error_code)}` : "No worker error"}
+                      </span>
+                    </div>
+                    {active && (
+                      <Button
+                        variant={cancelConfirmJobId === jobId ? "destructive" : "outline"}
+                        className="w-full"
+                        onClick={() => void handleCancelJob(jobId)}
+                      >
+                        {cancelConfirmJobId === jobId ? "Confirm cancel" : "Cancel processing"}
+                      </Button>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
       <section className="space-y-3">
         <div className="flex items-center gap-2">
           <Film className="h-5 w-5 text-muted-foreground" />
@@ -754,32 +806,97 @@ function CreatorStudio() {
           <EmptyState text="Rendered clips will appear here only after the canonical worker creates real outputs." />
         ) : (
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {(resources.creator_clips ?? []).map((clip) => (
-              <Card key={String(clip.id)}>
-                <CardContent className="space-y-3 pt-6">
-                  <div className="flex items-center justify-between gap-2">
-                    <strong>Clip #{String(clip.rank ?? "—")}</strong>
-                    <StatusPill value={String(clip.render_status)} />
-                  </div>
-                  {typeof clip.score === "number" && (
-                    <p className="text-sm text-muted-foreground">Score: {String(clip.score)}</p>
-                  )}
-                  {Boolean(clip.output_path) && (
-                    <Button
-                      variant="outline"
-                      className="w-full"
-                      onClick={() =>
-                        void signedCreatorOutput(String(clip.output_path)).then((url) =>
-                          window.open(url, "_blank", "noopener,noreferrer"),
-                        )
-                      }
-                    >
-                      <ExternalLink className="h-4 w-4" /> Authorized download
-                    </Button>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
+            {(resources.creator_clips ?? []).map((clip) => {
+              const draft = draftForClip(clip);
+              const available = String(clip.render_status) === "available";
+              return (
+                <Card key={String(clip.id)}>
+                  <CardContent className="space-y-3 pt-6">
+                    <div className="flex items-center justify-between gap-2">
+                      <strong>Clip #{String(clip.rank ?? "—")}</strong>
+                      <StatusPill value={String(clip.render_status)} />
+                    </div>
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                      {typeof clip.score === "number" && <span>Score: {String(clip.score)}</span>}
+                      {clip.duration_ms != null && <span>{(Number(clip.duration_ms) / 1000).toFixed(1)}s</span>}
+                      {clip.aspect_ratio && <span>{String(clip.aspect_ratio)}</span>}
+                      {clip.render_version && <span>Render v{String(clip.render_version)}</span>}
+                    </div>
+                    {Boolean(clip.score_reason) && (
+                      <p className="text-sm leading-5 text-muted-foreground">{String(clip.score_reason)}</p>
+                    )}
+                    {Boolean(clip.transcript_excerpt) && (
+                      <p className="line-clamp-3 rounded-xl border border-border bg-background/40 p-3 text-xs leading-5 text-muted-foreground">
+                        {String(clip.transcript_excerpt)}
+                      </p>
+                    )}
+                    {Boolean(clip.output_path) && (
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={() =>
+                          void signedCreatorOutput(String(clip.output_path))
+                            .then((url) => window.open(url, "_blank", "noopener,noreferrer"))
+                            .catch(() => toast.error("Authorized clip URL could not be created."))
+                        }
+                      >
+                        <ExternalLink className="h-4 w-4" /> Authorized download
+                      </Button>
+                    )}
+                    {available && (
+                      <details className="rounded-xl border border-border p-3">
+                        <summary className="cursor-pointer text-sm font-medium">Rerender this clip</summary>
+                        <div className="mt-3 grid gap-3">
+                          <div className="grid grid-cols-2 gap-2">
+                            <Field
+                              label="Start (seconds)"
+                              type="number"
+                              value={draft.startSeconds}
+                              onChange={(value) => updateClipDraft(clip, { startSeconds: value })}
+                            />
+                            <Field
+                              label="End (seconds)"
+                              type="number"
+                              value={draft.endSeconds}
+                              onChange={(value) => updateClipDraft(clip, { endSeconds: value })}
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label>Aspect ratio</Label>
+                            <select
+                              className="h-10 w-full rounded-md border bg-background px-3"
+                              value={draft.aspectRatio}
+                              onChange={(event) =>
+                                updateClipDraft(clip, {
+                                  aspectRatio: event.target.value as ClipRerenderDraft["aspectRatio"],
+                                })
+                              }
+                            >
+                              <option value="9:16">9:16</option>
+                              <option value="1:1">1:1</option>
+                              <option value="16:9">16:9</option>
+                            </select>
+                          </div>
+                          <label className="flex items-center gap-2 text-sm">
+                            <input
+                              type="checkbox"
+                              checked={draft.captionsEnabled}
+                              onChange={(event) =>
+                                updateClipDraft(clip, { captionsEnabled: event.target.checked })
+                              }
+                            />
+                            Render captions
+                          </label>
+                          <Button onClick={() => void handleRerenderClip(clip)}>
+                            <RefreshCw className="h-4 w-4" /> Queue rerender
+                          </Button>
+                        </div>
+                      </details>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         )}
       </section>
