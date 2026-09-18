@@ -39,7 +39,11 @@ import {
   type NotificationDeviceState,
 } from "@/services/notification-service";
 import { updateProfileName } from "@/services/profile-service";
-import {\n  listIntegrationReadiness,\n  readGoogleWorkspace,\n  type GoogleWorkspaceProvider,\n} from "@/services/integration-status-service";
+import {
+  listIntegrationReadiness,
+  readGoogleWorkspace,
+  type GoogleWorkspaceProvider,
+} from "@/services/integration-status-service";
 import { useLanguage } from "@/providers/language-provider";
 import type { LanguagePreference } from "@/i18n";
 
@@ -109,7 +113,11 @@ const settingsCopy = {
     premiumBenefits: "Ver benefícios do Premium",
     connections: "CONEXÕES",
     connectionsHelp: "Estado real das integrações externas. Credenciais permanecem somente no servidor.",
-    connectionsError: "Não foi possível verificar as integrações.",\n    workspaceRead: "Ler agora",\n    workspaceReadSuccess: "Leitura concluída",\n    workspaceReadError: "Não foi possível ler esta conexão.",\n    readyToConnect: "Disponível para conectar",
+    connectionsError: "Não foi possível verificar as integrações.",
+    workspaceRead: "Ler agora",
+    workspaceReadSuccess: "Leitura concluída",
+    workspaceReadError: "Não foi possível ler esta conexão.",
+    readyToConnect: "Disponível para conectar",
     connected: "Conectado",
     comingSoon: "Em breve",
     configRequired: "Configuração necessária",
