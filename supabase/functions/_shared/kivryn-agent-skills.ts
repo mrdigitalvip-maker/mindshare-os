@@ -91,6 +91,19 @@ const DEFINITIONS: Record<string, Omit<KivrynAgentSkill, "actionDomains">> = {
     ],
     contextScopes: [...BASE_CONTEXT, "tasks", "projects"],
   },
+  integrations: {
+    id: "integrations.v1",
+    capability: "integrations",
+    name: "Integration Operator",
+    version: 1,
+    purpose: "Prepare bounded external actions for connected services without executing them silently.",
+    method: [
+      "Use only KIVRYN-registered integration actions and never invent an external provider or scope.",
+      "Treat send/create operations as proposals that require explicit user approval before execution.",
+      "Never claim an email, event or file was created until KIVRYN returns an applied execution receipt.",
+    ],
+    contextScopes: [...BASE_CONTEXT],
+  },
 };
 
 export const KIVRYN_AGENT_SKILL_IDS = Object.freeze(
@@ -109,7 +122,13 @@ export function resolveKivrynAgentSkills(capabilities: unknown): KivrynAgentSkil
     if (!definition) continue;
     seen.add(raw);
     const domains = actionDomains.filter((domain) =>
-      raw === "study" ? domain === "studies" : raw === "planning" || raw === "productivity" ? domain !== "studies" : false,
+      raw === "study"
+        ? domain === "studies"
+        : raw === "planning" || raw === "productivity"
+          ? domain === "tasks" || domain === "projects"
+          : raw === "integrations"
+            ? domain === "integrations"
+            : false,
     );
     resolved.push({ ...definition, actionDomains: domains });
   }
