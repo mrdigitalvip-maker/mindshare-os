@@ -96,5 +96,8 @@ jobs:
       - name: Run E55/E56 Creator and runtime source parity
         run: bun test tests/creator-runtime-e55-e56-source-parity.test.ts
 
+      - name: Run E57/E58 final database source parity
+        run: bun test tests/final-db-e57-e58-source-parity.test.ts
+
       - name: Run existing Creator engine and intelligence contracts
         run: bun test tests/creator-video-engine-revision-14.test.ts tests/creator-intelligence-revision-14.test.ts
