@@ -45,6 +45,11 @@ test("E24 persists only provider-returned analytics and removes the invalid YouT
   assert.match(sync, /comment_count/);
   assert.match(sync, /share_count/);
   assert.doesNotMatch(sync, /(?:view_count|like_count|comment_count|share_count|viewCount|likeCount|commentCount)\s*\?\?\s*0/);
+  assert.match(sync, /grant_type:\s*"refresh_token"/);
+  assert.match(sync, /https:\/\/oauth2\.googleapis\.com\/token/);
+  assert.match(sync, /https:\/\/open\.tiktokapis\.com\/v2\/oauth\/token\//);
+  assert.match(sync, /encryptServerSecret\(accessToken\)/);
+  assert.match(sync, /refresh_token_ciphertext/);
 });
 
 test("E24 web analytics are connection-aware, explicitly synced, and contain no sample chart series", async () => {
