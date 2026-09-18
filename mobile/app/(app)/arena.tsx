@@ -5,7 +5,7 @@ import { router } from "expo-router";
 import { AppScreen } from "@/components/app-screen";
 import { StandardHeader } from "@/components/product-ui";
 import { ErrorState, LoadingState } from "@/components/screen-state";
-import { useArena, useJoinArenaChallenge } from "@/hooks/use-arena";
+import { useArena, useChallengeRanking, useJoinArenaChallenge } from "@/hooks/use-arena";
 import { useJourneys, useMomentum } from "@/hooks/use-journeys";
 import { useProfile } from "@/hooks/use-profile";
 import { useUsageAnalytics } from "@/hooks/use-usage-analytics";
@@ -56,6 +56,13 @@ const copy = {
     challenges: "DESAFIOS DA ARENA",
     challengeCopy: "Metas verificadas transformam execução real em Momentum. Nada de ranking ou progresso inventado.",
     noChallenges: "Nenhum desafio ativo agora.",
+    ranking: "RANKING SEMANAL",
+    rankingCopy: "Somente Momentum verificado e membros com opt-in aparecem aqui.",
+    rankingOff: "Seu ranking está desativado. Ative em Challenges para aparecer.",
+    rankingOpen: "Abrir Challenges",
+    yourRank: "sua posição",
+    yourScore: "seu Momentum",
+    noRanking: "Ainda não há Momentum público elegível nesta semana.",
     history: "HISTÓRICO DE DESAFIOS",
     partial: "Parte dos seus dados não pôde ser atualizada. A Arena está mostrando apenas informações confirmadas.",
     refresh: "Atualizar",
@@ -94,6 +101,13 @@ const copy = {
     challenges: "ARENA CHALLENGES",
     challengeCopy: "Verified goals turn real execution into Momentum. No invented rankings or progress.",
     noChallenges: "No active challenge right now.",
+    ranking: "WEEKLY RANKING",
+    rankingCopy: "Only verified Momentum and opt-in members appear here.",
+    rankingOff: "Your ranking is disabled. Enable it in Challenges to appear.",
+    rankingOpen: "Open Challenges",
+    yourRank: "your rank",
+    yourScore: "your Momentum",
+    noRanking: "There is no eligible public Momentum this week yet.",
     history: "CHALLENGE HISTORY",
     partial: "Some of your data could not be refreshed. Arena is showing confirmed information only.",
     refresh: "Refresh",
@@ -228,6 +242,7 @@ export default function Arena() {
   const locale = resolvedLocale === "en" ? "en-US" : "pt-BR";
   const profile = useProfile();
   const arena = useArena();
+  const ranking = useChallengeRanking("weekly");
   const join = useJoinArenaChallenge();
   const tasksQuery = useTasks();
   const projectsQuery = useProjects();
@@ -250,7 +265,8 @@ export default function Arena() {
     studiesQuery.isError ||
     journeysQuery.isError ||
     momentumQuery.isError ||
-    arena.isError;
+    arena.isError ||
+    ranking.isError;
 
   const tasks = tasksQuery.data ?? [];
   const projects = projectsQuery.data ?? [];
@@ -293,6 +309,7 @@ export default function Arena() {
       journeysQuery.refetch(),
       momentumQuery.refetch(),
       arena.refetch(),
+      ranking.refetch(),
       profile.refetch(),
       usage.refresh(),
     ]);
@@ -397,6 +414,51 @@ export default function Arena() {
           <View style={styles.metricDivider} />
           <Metric value={`${momentum?.streak ?? 0} ${text.days}`} label={text.streak} />
         </View>
+      </View>
+
+      <View style={styles.rankingCard}>
+        <View style={styles.sectionTop}>
+          <View style={styles.flex}>
+            <Text style={styles.sectionEyebrow}>{text.ranking}</Text>
+            <Text style={styles.copy}>{text.rankingCopy}</Text>
+          </View>
+          <Text style={styles.livePill}>LIVE</Text>
+        </View>
+        {ranking.data ? (
+          <>
+            <View style={styles.metricsRow}>
+              <Metric value={ranking.data.myRank ? `#${ranking.data.myRank}` : "—"} label={text.yourRank} />
+              <View style={styles.metricDivider} />
+              <Metric value={ranking.data.myScore} label={text.yourScore} />
+            </View>
+            {!ranking.data.optedIn ? (
+              <View style={styles.rankingNotice}>
+                <Text style={styles.note}>{text.rankingOff}</Text>
+                <Pressable accessibilityRole="button" onPress={() => router.push("/challenges")}>
+                  <Text style={styles.link}>{text.rankingOpen}</Text>
+                </Pressable>
+              </View>
+            ) : null}
+            {ranking.data.entries.length ? (
+              <View style={styles.rankingList}>
+                {ranking.data.entries.slice(0, 6).map((entry) => (
+                  <View key={entry.memberId} style={[styles.rankingRow, entry.isSelf && styles.rankingRowSelf]}>
+                    <Text style={styles.rankingPosition}>#{entry.rank}</Text>
+                    <View style={styles.flex}>
+                      <Text numberOfLines={1} style={styles.rankingName}>{entry.displayName}</Text>
+                      {entry.username ? <Text numberOfLines={1} style={styles.meta}>@{entry.username}</Text> : null}
+                    </View>
+                    <Text style={styles.rankingScore}>{entry.score}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <Text style={styles.note}>{text.noRanking}</Text>
+            )}
+          </>
+        ) : (
+          <Text style={styles.note}>{text.noRanking}</Text>
+        )}
       </View>
 
       <View style={styles.systemCard}>
@@ -590,6 +652,42 @@ const styles = StyleSheet.create({
   momentumValue: { ...typography.title, color: colors.text, fontSize: 34, lineHeight: 40, marginTop: spacing.xs },
   momentumOrb: { width: 54, height: 54, alignItems: "center", justifyContent: "center", borderRadius: 27, borderWidth: 1, borderColor: colors.accentMuted, backgroundColor: colors.surfaceRaised },
   momentumSpark: { color: colors.primaryBright, fontSize: 24 },
+  rankingCard: {
+    gap: spacing.md,
+    padding: spacing.lg,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.borderActive,
+    backgroundColor: colors.surface,
+  },
+  rankingNotice: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.canvasElevated,
+  },
+  rankingList: { gap: spacing.sm },
+  rankingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.canvasElevated,
+  },
+  rankingRowSelf: { borderColor: colors.primaryBright, backgroundColor: colors.accentMuted },
+  rankingPosition: { ...typography.heading, width: 42, color: colors.text },
+  rankingName: { ...typography.label, color: colors.text },
+  rankingScore: { ...typography.heading, color: colors.primaryBright },
+  flex: { flex: 1, gap: spacing.xs },
   systemCard: { gap: spacing.md },
   systemGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   systemTile: {
