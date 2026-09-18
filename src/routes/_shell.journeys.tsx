@@ -26,7 +26,8 @@ function Journeys() {
 }
 
 function JourneysIndex() {
-  const { t } = useLanguage();
+  const { t, resolvedLocale } = useLanguage();
+  const L = (pt: string, en: string) => (resolvedLocale === "pt-BR" ? pt : en);
   const qc = useQueryClient();
   const nav = useNavigate();
   const [open, setOpen] = useState(false);
@@ -42,7 +43,7 @@ function JourneysIndex() {
     }) => createJourney(input),
     onSuccess: async (id) => {
       await qc.invalidateQueries({ queryKey: parityKeys.journeys });
-      toast.success("Jornada criada.");
+      toast.success(L("Jornada criada.", "Journey created."));
       await nav({ to: "/journeys/$journeyId", params: { journeyId: id } });
     },
     onError: (e) => toast.error(safeBackendError(e)),
@@ -57,7 +58,7 @@ function JourneysIndex() {
         qc.invalidateQueries({ queryKey: parityKeys.arena }),
         qc.invalidateQueries({ queryKey: parityKeys.community }),
       ]);
-      toast.success("Missão confirmada pelo servidor.");
+      toast.success(L("Missão confirmada pelo servidor.", "Mission confirmed by the server."));
     },
     onError: (e) => toast.error(safeBackendError(e)),
   });
@@ -77,43 +78,43 @@ function JourneysIndex() {
     <PageShell>
       <WorkspaceShell>
         <PageHeader
-          eyebrow="Execution workspace"
+          eyebrow={L("Espaço de execução", "Execution workspace")}
           title={t("page.journeys.title")}
           description={t("page.journeys.description")}
         />
         <div className="mb-6 flex flex-wrap gap-2">
           <Button onClick={() => setOpen((v) => !v)} aria-expanded={open}>
-            Nova Jornada
+            {L("Nova Jornada", "New Journey")}
           </Button>
           <Link to="/packs">
-            <Button variant="outline">Explorar Packs</Button>
+            <Button variant="outline">{L("Explorar Packs", "Explore Packs")}</Button>
           </Link>
         </div>
         {open && (
           <form
             onSubmit={submit}
             className="v2-surface mb-8 grid max-w-2xl gap-3 rounded-2xl p-5"
-            aria-label="Criar Jornada"
+            aria-label={L("Criar Jornada", "Create Journey")}
           >
-            <label htmlFor="journey-title">Título</label>
+            <label htmlFor="journey-title">{L("Título", "Title")}</label>
             <Input id="journey-title" name="title" required minLength={1} maxLength={160} />
-            <label htmlFor="journey-objective">Objetivo</label>
+            <label htmlFor="journey-objective">{L("Objetivo", "Objective")}</label>
             <Input id="journey-objective" name="objective" required maxLength={1000} />
-            <label htmlFor="journey-category">Categoria</label>
+            <label htmlFor="journey-category">{L("Categoria", "Category")}</label>
             <select
               id="journey-category"
               name="category"
               className="h-10 rounded-md border bg-background px-3"
             >
-              <option value="personal">Pessoal</option>
-              <option value="study">Estudos</option>
-              <option value="fitness">Fitness</option>
-              <option value="business">Negócios</option>
-              <option value="creator">Criador</option>
-              <option value="travel">Viagem</option>
-              <option value="custom">Outra</option>
+              <option value="personal">{L("Pessoal", "Personal")}</option>
+              <option value="study">{L("Estudos", "Study")}</option>
+              <option value="fitness">{L("Fitness", "Fitness")}</option>
+              <option value="business">{L("Negócios", "Business")}</option>
+              <option value="creator">{L("Criador", "Creator")}</option>
+              <option value="travel">{L("Viagem", "Travel")}</option>
+              <option value="custom">{L("Outra", "Other")}</option>
             </select>
-            <label htmlFor="journey-date">Data-alvo (opcional)</label>
+            <label htmlFor="journey-date">{L("Data-alvo (opcional)", "Target date (optional)")}</label>
             <Input
               id="journey-date"
               name="targetDate"
@@ -121,7 +122,7 @@ function JourneysIndex() {
               min={new Date().toLocaleDateString("en-CA")}
             />
             <Button type="submit" disabled={create.isPending}>
-              {create.isPending ? "Criando…" : "Criar Jornada"}
+              {create.isPending ? L("Criando…", "Creating…") : L("Criar Jornada", "Create Journey")}
             </Button>
           </form>
         )}
@@ -137,7 +138,7 @@ function JourneysIndex() {
         >
           <section className="v2-surface rounded-2xl p-5" aria-labelledby="daily">
             <h2 id="daily" className="text-xl font-semibold">
-              Missão diária
+              {L("Missão diária", "Daily mission")}
             </h2>
             {mission.data ? (
               <article className="mt-3 rounded-xl border border-intelligence/25 bg-intelligence/5 p-5">
@@ -148,7 +149,7 @@ function JourneysIndex() {
                 <p className="mt-1 text-sm text-muted-foreground">{mission.data.description}</p>
                 {mission.data.status === "completed" ? (
                   <p className="mt-3 text-sm" role="status">
-                    Concluída e verificada
+                    {L("Concluída e verificada", "Completed and verified")}
                   </p>
                 ) : mission.data.source_type === "journey_action" ? (
                   <Button
@@ -156,14 +157,14 @@ function JourneysIndex() {
                     disabled={complete.isPending}
                     onClick={() => complete.mutate(mission.data!.id)}
                   >
-                    Confirmar conclusão
+                    {L("Confirmar conclusão", "Confirm completion")}
                   </Button>
                 ) : (
-                  <p className="mt-3 text-sm">Conclua no módulo de origem para verificação.</p>
+                  <p className="mt-3 text-sm">{L("Conclua no módulo de origem para verificação.", "Complete it in the source module for verification.")}</p>
                 )}
               </article>
             ) : (
-              <p className="mt-3 text-muted-foreground">Nenhuma ação elegível hoje.</p>
+              <p className="mt-3 text-muted-foreground">{L("Nenhuma ação elegível hoje.", "No eligible action today.")}</p>
             )}
           </section>
           {momentum.data && (
@@ -173,20 +174,20 @@ function JourneysIndex() {
               </h2>
               <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 {[
-                  ["Total", momentum.data.total],
-                  ["Semana local", momentum.data.week],
-                  ["Missões verificadas", momentum.data.verifiedCount],
-                  ["Sequência", `${momentum.data.streak} dias`],
+                  [L("Total", "Total"), momentum.data.total],
+                  [L("Semana local", "Local week"), momentum.data.week],
+                  [L("Missões verificadas", "Verified missions"), momentum.data.verifiedCount],
+                  [L("Sequência", "Streak"), `${momentum.data.streak} ${L("dias", "days")}`],
                 ].map(([label, value]) => (
                   <MetricCard key={label} label={String(label)} value={value} />
                 ))}
               </div>
               {momentum.data.events.length > 0 && (
-                <ul className="mt-3 space-y-2" aria-label="Execuções verificadas recentes">
+                <ul className="mt-3 space-y-2" aria-label={L("Execuções verificadas recentes", "Recent verified executions")}>
                   {momentum.data.events.map((event) => (
                     <li key={event.id} className="rounded-lg border px-4 py-2 text-sm">
                       {event.event_type.replaceAll("_", " ")} · +{event.points} ·{" "}
-                      {new Date(event.created_at).toLocaleDateString("pt-BR")}
+                      {new Date(event.created_at).toLocaleDateString(resolvedLocale)}
                     </li>
                   ))}
                 </ul>
@@ -194,7 +195,7 @@ function JourneysIndex() {
             </section>
           )}
           <section className="mt-8">
-            <h2 className="text-xl font-semibold">Todas as Jornadas</h2>
+            <h2 className="text-xl font-semibold">{L("Todas as Jornadas", "All Journeys")}</h2>
             <div className="mt-3 grid gap-3 md:grid-cols-2">
               {journeys.data?.map((j) => (
                 <article key={j.id} className="v2-surface min-w-0 rounded-2xl p-5">
@@ -206,7 +207,7 @@ function JourneysIndex() {
                     to="/journeys/$journeyId"
                     params={{ journeyId: j.id }}
                   >
-                    Abrir detalhes
+                    {L("Abrir detalhes", "Open details")}
                   </Link>
                 </article>
               ))}
