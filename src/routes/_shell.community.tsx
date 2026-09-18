@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, type FormEvent } from "react";
 import { toast } from "sonner";
@@ -25,7 +25,13 @@ import {
   type Reaction,
 } from "@/services/parity-service";
 export const Route = createFileRoute("/_shell/community")({ component: Community });
+
 function Community() {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  return pathname !== "/community" && pathname !== "/community/" ? <Outlet /> : <CommunityIndex />;
+}
+
+function CommunityIndex() {
   const { t } = useLanguage();
   const qc = useQueryClient(),
     nav = useNavigate(),
