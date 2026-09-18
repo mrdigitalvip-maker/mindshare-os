@@ -48,5 +48,8 @@ jobs:
       - name: Run E29/E30 Premium and integration source parity
         run: bun test tests/premium-integration-e29-e30-source-parity.test.ts
 
+      - name: Run E31/E32 Billing and push source parity
+        run: bun test tests/billing-push-e31-e32-source-parity.test.ts
+
       - name: Run existing Creator engine and intelligence contracts
         run: bun test tests/creator-video-engine-revision-14.test.ts tests/creator-intelligence-revision-14.test.ts

@@ -83,8 +83,10 @@ Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
   const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const configuredPriceId = Deno.env.get("STRIPE_PRICE_MONTHLY") ?? undefined;
-  if (!supabaseUrl || !anonKey || !stripeKey) return fail("configuration_error", 500);
+  if (!supabaseUrl || !anonKey || !stripeKey || !serviceKey)
+    return fail("configuration_error", 500);
 
   const supabase = createClient(supabaseUrl, anonKey, {
     global: { headers: { Authorization: authorization } },
@@ -95,20 +97,32 @@ Deno.serve(async (req) => {
   } = await supabase.auth.getUser();
   if (authError || !user) return fail("unauthorized", 401);
 
-  const { data: existing, error: lookupError } = await supabase
-    .from("subscriptions")
-    .select("status, stripe_customer_id, stripe_subscription_id")
-    .eq("user_id", user.id)
-    .maybeSingle();
-  if (lookupError) return fail("persistence_error", 500);
-  if (existing && ["active", "trialing"].includes(existing.status ?? "")) {
+  const [{ data: existing, error: lookupError }, { data: runtime, error: runtimeError }] =
+    await Promise.all([
+      supabase
+        .from("subscriptions")
+        .select("stripe_customer_id, stripe_subscription_id")
+        .eq("user_id", user.id)
+        .maybeSingle(),
+      supabase.rpc("get_subscription_runtime"),
+    ]);
+  if (lookupError || runtimeError) return fail("persistence_error", 500);
+  if ((runtime as { is_premium?: boolean } | null)?.is_premium === true) {
     return fail("subscription_exists", 409);
   }
+
+  const admin = createClient(supabaseUrl, serviceKey);
+  const { data: trialLedger, error: trialLookupError } = await admin
+    .from("subscription_trial_ledger")
+    .select("user_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (trialLookupError) return fail("persistence_error", 500);
 
   const stripe = new Stripe(stripeKey);
   try {
     const priceId = await resolveMonthlyPriceId(stripe, configuredPriceId);
-    const trialEligible = !existing?.stripe_subscription_id;
+    const trialEligible = !existing?.stripe_subscription_id && !trialLedger;
     const idempotencyBucket = Math.floor(Date.now() / (10 * 60_000));
     const session = await stripe.checkout.sessions.create(
       {
