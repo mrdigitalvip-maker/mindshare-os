@@ -13,6 +13,16 @@ const runtimeConfigured = (provider: KivrynIntegrationProvider) => {
   if (provider === "tiktok") {
     return Boolean(Deno.env.get("TIKTOK_CLIENT_KEY") && Deno.env.get("TIKTOK_CLIENT_SECRET"));
   }
+  if (
+    provider === "gmail" ||
+    provider === "google_calendar" ||
+    provider === "google_drive"
+  ) {
+    const clientId = Deno.env.get("GOOGLE_WORKSPACE_CLIENT_ID") ?? Deno.env.get("YOUTUBE_CLIENT_ID");
+    const clientSecret =
+      Deno.env.get("GOOGLE_WORKSPACE_CLIENT_SECRET") ?? Deno.env.get("YOUTUBE_CLIENT_SECRET");
+    return Boolean(clientId && clientSecret);
+  }
   return false;
 };
 
