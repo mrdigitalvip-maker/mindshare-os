@@ -5,6 +5,7 @@ import { fileURLToPath, URL } from "node:url";
 const source = (path: string) => readFileSync(fileURLToPath(new URL(path, import.meta.url)), "utf8");
 
 const migration = source("../../supabase/migrations/202609180005_e29_premium_runtime_authority.sql");
+const rlsHardening = source("../../supabase/migrations/202609180006_e29_e30_rls_hardening.sql");
 const subscription = source("../services/subscription-service.ts");
 const settings = source("../app/(app)/settings.tsx");
 const integrationService = source("../services/integration-status-service.ts");
@@ -42,6 +43,12 @@ describe("E29 + E30 Premium runtime and integration gate", () => {
       expect(block).toContain('authMode: "unconfigured"');
     }
     expect(settings).not.toMatch(/connectGmail|connectSlack|connectWhatsApp/);
+  });
+
+  test("E29/E30 keeps billing writes server-only and owner reads canonical", () => {
+    expect(rlsHardening).toContain("drop policy if exists subscriptions_all");
+    expect(rlsHardening).toContain("using (user_id = (select auth.uid()))");
+    expect(rlsHardening).toContain("creator_connections_owner_select");
   });
 
   test("E30 does not silently turn on unfinished Android billing", () => {
