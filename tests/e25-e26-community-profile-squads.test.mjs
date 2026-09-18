@@ -22,22 +22,22 @@ test("E25 gates Web Community actions behind a complete canonical profile", () =
 
 test("E26 create and accept enter the canonical Squad route", () => {
   assert.match(route, /Squad criado/);
-  assert.match(route, /to: "\\/community\\/squads\\/\\$squadId"/);
+  assert.ok(route.includes('to: "/community/squads/$squadId"'));
   assert.match(route, /Convite aceito/);
-  assert.match(squadRoute, /q\\.data\\.member_count/);
+  assert.ok(squadRoute.includes("q.data.member_count"));
 });
 
 test("E26 invitation expiry and member totals come from the backend", () => {
   assert.match(service, /create_squad_invite_v2/);
-  assert.match(service, /result\\.expires_at/);
-  assert.doesNotMatch(service, /Date\\.now\\(\\) \\+ 7 \\* 864e5/);
+  assert.ok(service.includes("result.expires_at"));
+  assert.ok(!service.includes("Date.now() + 7 * 864e5"));
   assert.match(service, /member_count: Number/);
   assert.match(migration, /'member_count'/);
   assert.match(migration, /'expires_at'/);
 });
 
 test("E26 backend enforces profile, capacity and membership truth", () => {
-  assert.match(migration, /not public\\.community_profile_ready\\(uid\\)/);
+  assert.ok(migration.includes("not public.community_profile_ready(uid)"));
   assert.match(migration, /raise exception 'already_member'/);
   assert.match(migration, /raise exception 'squad_full'/);
   assert.match(migration, /for update/);
