@@ -16,22 +16,25 @@ export const Route = createFileRoute("/_shell/premium")({
   component: Premium,
 });
 
-const FREE = [
-  "Core Assistant access",
-  "Projects, tasks and personal workspaces",
-  "Standard learning content",
-  "Backend-metered AI requests",
-];
-const PRO = [
-  "Higher backend-enforced AI usage",
-  "Reusable AI Agents",
-  "Advanced AI workflows",
-  "Premium Studio lessons",
-  "Deeper content, study and document capabilities",
-];
+const FREE_FEATURES = [
+  ["Acesso ao Assistente principal", "Core Assistant access"],
+  ["Projetos, tarefas e espaços pessoais", "Projects, tasks and personal workspaces"],
+  ["Conteúdo padrão de aprendizagem", "Standard learning content"],
+  ["Requisições de IA medidas pelo backend", "Backend-metered AI requests"],
+] as const;
+const PRO_FEATURES = [
+  ["Uso de IA ampliado e controlado pelo backend", "Higher backend-enforced AI usage"],
+  ["Agents de IA reutilizáveis", "Reusable AI Agents"],
+  ["Fluxos avançados de IA", "Advanced AI workflows"],
+  ["Lições Premium do Studio", "Premium Studio lessons"],
+  ["Recursos mais profundos para conteúdo, estudos e documentos", "Deeper content, study and document capabilities"],
+] as const;
 
 function Premium() {
-  const { t } = useLanguage();
+  const { t, resolvedLocale } = useLanguage();
+  const L = (pt: string, en: string) => (resolvedLocale === "pt-BR" ? pt : en);
+  const freeFeatures = FREE_FEATURES.map(([pt, en]) => L(pt, en));
+  const proFeatures = PRO_FEATURES.map(([pt, en]) => L(pt, en));
   const [checkingOut, setCheckingOut] = useState(false);
   const [openingPortal, setOpeningPortal] = useState(false);
   const { user } = useAuth();
@@ -53,12 +56,12 @@ function Premium() {
     try {
       const checkoutUrl = await BillingService.createCheckoutUrl();
       if (!checkoutUrl) {
-        toast.success("Demo mode: checkout simulated. Stripe opens once billing is enabled.");
+        toast.success(L("Modo demonstração: checkout simulado. O Stripe abre quando a cobrança estiver habilitada.", "Demo mode: checkout simulated. Stripe opens once billing is enabled."));
         return;
       }
       window.location.assign(checkoutUrl);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unable to start checkout.";
+      const message = error instanceof Error ? error.message : L("Não foi possível iniciar o checkout.", "Unable to start checkout.");
       toast.error(message);
     } finally {
       setCheckingOut(false);
@@ -69,17 +72,17 @@ function Premium() {
     setOpeningPortal(true);
     try {
       const portalUrl = await BillingService.createPortalUrl();
-      if (!portalUrl) toast.info("The billing portal is unavailable in demo mode.");
+      if (!portalUrl) toast.info(L("O portal de cobrança não está disponível no modo demonstração.", "The billing portal is unavailable in demo mode."));
       else window.location.assign(portalUrl);
     } catch {
-      toast.error("Unable to open billing management. Please try again.");
+      toast.error(L("Não foi possível abrir o gerenciamento de cobrança. Tente novamente.", "Unable to open billing management. Please try again."));
     } finally {
       setOpeningPortal(false);
     }
   }
 
   const endDate = subscription?.currentPeriodEnd
-    ? new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(
+    ? new Intl.DateTimeFormat(resolvedLocale, { dateStyle: "medium" }).format(
         new Date(subscription.currentPeriodEnd),
       )
     : null;
@@ -87,20 +90,19 @@ function Premium() {
   return (
     <PageShell>
       <PageHeader
-        eyebrow="Plans"
+        eyebrow={L("Planos", "Plans")}
         title={t("page.premium.title")}
         description={t("page.premium.description")}
       />
       <div className="mt-4 text-sm text-muted-foreground">
-        Current status:{" "}
+        {L("Status atual", "Current status")}:{" "}
         <span className="font-medium text-foreground">
-          {isLoading ? "Checking…" : subscription?.isPremium ? "Premium" : "Free"}
+          {isLoading ? L("Verificando…", "Checking…") : subscription?.isPremium ? "Premium" : "Free"}
         </span>
       </div>
       {checkoutResult === "success" && !subscription?.isPremium && (
         <div className="mt-4 rounded-xl border border-intelligence/30 bg-intelligence/5 p-4 text-sm">
-          Payment received. Your subscription is still syncing; access is granted only after Stripe
-          confirms it.
+          {L("Pagamento recebido. Sua assinatura ainda está sincronizando; o acesso só é liberado após a confirmação do Stripe.", "Payment received. Your subscription is still syncing; access is granted only after Stripe confirms it.")}
           <Button
             className="ml-3"
             size="sm"
@@ -108,29 +110,28 @@ function Premium() {
             onClick={() => void refetch()}
             disabled={isFetching}
           >
-            {isFetching ? "Checking…" : "Check again"}
+            {isFetching ? L("Verificando…", "Checking…") : L("Verificar novamente", "Check again")}
           </Button>
         </div>
       )}
       {checkoutResult === "cancelled" && (
         <p className="mt-4 text-sm text-muted-foreground">
-          Checkout was cancelled. No plan change was made.
+          {L("O checkout foi cancelado. Nenhuma alteração de plano foi feita.", "Checkout was cancelled. No plan change was made.")}
         </p>
       )}
       {subscription?.status === "trialing" && (
         <p className="mt-3 text-sm text-intelligence">
-          Your Stripe trial is active{endDate ? ` until ${endDate}` : ""}.
+          {L("Seu teste do Stripe está ativo", "Your Stripe trial is active")}{endDate ? ` ${L("até", "until")} ${endDate}` : ""}.
         </p>
       )}
       {subscription?.cancelAtPeriodEnd && subscription.isPremium && (
         <p className="mt-3 text-sm text-muted-foreground">
-          Cancellation is scheduled. Premium remains available
-          {endDate ? ` through ${endDate}` : " until the period ends"}.
+          {L("O cancelamento está agendado. O Premium permanece disponível", "Cancellation is scheduled. Premium remains available")}{" "}{endDate ? `${L("até", "through")} ${endDate}` : L("até o fim do período", "until the period ends")}.
         </p>
       )}
       {["past_due", "unpaid"].includes(subscription?.status ?? "") && (
         <p className="mt-3 text-sm text-destructive">
-          Payment failed. Update your payment method to restore Premium.
+          {L("O pagamento falhou. Atualize sua forma de pagamento para restaurar o Premium.", "Payment failed. Update your payment method to restore Premium.")}
         </p>
       )}
       {subscription?.isPremium && (
@@ -140,59 +141,58 @@ function Premium() {
           onClick={openPortal}
           disabled={openingPortal}
         >
-          {openingPortal ? "Opening…" : "Manage billing, payment or cancellation"}
+          {openingPortal ? L("Abrindo…", "Opening…") : L("Gerenciar cobrança, pagamento ou cancelamento", "Manage billing, payment or cancellation")}
         </Button>
       )}
       <div className="mt-10 grid gap-6 md:grid-cols-2">
         <Card
-          badge={!subscription?.isPremium ? "Current" : undefined}
+          badge={!subscription?.isPremium ? L("Atual", "Current") : undefined}
           name="Free"
           price="$0"
-          period="forever"
-          features={FREE}
+          period={L("para sempre", "forever")}
+          features={freeFeatures}
           cta={
             <Button variant="outline" className="rounded-full" disabled>
-              {subscription?.isPremium ? "Included foundation" : "Current plan"}
+              {subscription?.isPremium ? L("Base incluída", "Included foundation") : L("Plano atual", "Current plan")}
             </Button>
           }
         />
         <Card
           highlight
-          badge="Most popular"
+          badge={L("Mais popular", "Most popular")}
           name="Premium"
           price="$12"
-          period="per month"
-          features={PRO}
+          period={L("por mês", "per month")}
+          features={proFeatures}
           cta={
             <Button
               className="rounded-full"
               onClick={startCheckout}
               disabled={checkingOut || isLoading || subscription?.isPremium}
-              title="Start a Stripe checkout session"
+              title={L("Iniciar checkout do Stripe", "Start a Stripe checkout session")}
             >
               <Crown className="mr-1 h-4 w-4" />
               {checkingOut
-                ? "Starting checkout..."
+                ? L("Iniciando checkout...", "Starting checkout...")
                 : subscription?.isPremium
-                  ? "Premium active"
-                  : "Upgrade to Premium"}
+                  ? L("Premium ativo", "Premium active")
+                  : L("Fazer upgrade para Premium", "Upgrade to Premium")}
             </Button>
           }
         />
       </div>
       <p className="mt-6 text-center text-xs text-muted-foreground">
-        Stripe checkout is wired through the public edge function and will redirect back to the
-        Premium route.
+        {L("O checkout do Stripe usa a Edge Function pública e retorna para a rota Premium.", "Stripe checkout is wired through the public edge function and will redirect back to the Premium route.")}
       </p>
       <p className="mt-2 flex flex-wrap items-center justify-center gap-x-4 text-center text-xs text-muted-foreground">
-        <span>By upgrading, you agree to KIVRYN's policies:</span>
+        <span>{L("Ao fazer upgrade, você concorda com as políticas da KIVRYN:", "By upgrading, you agree to KIVRYN's policies:")}</span>
         <a
           href={LEGAL_URLS.termsOfService}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex min-h-11 items-center underline underline-offset-4 hover:text-foreground focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          Terms of Service
+          {L("Termos de Serviço", "Terms of Service")}
         </a>
         <a
           href={LEGAL_URLS.privacyPolicy}
@@ -200,7 +200,7 @@ function Premium() {
           rel="noopener noreferrer"
           className="inline-flex min-h-11 items-center underline underline-offset-4 hover:text-foreground focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          Privacy Policy
+          {L("Política de Privacidade", "Privacy Policy")}
         </a>
       </p>
     </PageShell>
