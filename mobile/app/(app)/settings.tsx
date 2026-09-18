@@ -109,7 +109,7 @@ const settingsCopy = {
     premiumBenefits: "Ver benefícios do Premium",
     connections: "CONEXÕES",
     connectionsHelp: "Estado real das integrações externas. Credenciais permanecem somente no servidor.",
-    connectionsError: "Não foi possível verificar as integrações.",\n    workspaceRead: "Ler agora",\n    workspaceReadSuccess: "Leitura concluída",\n    workspaceReadError: "Não foi possível ler esta conexão.",
+    connectionsError: "Não foi possível verificar as integrações.",\n    workspaceRead: "Ler agora",\n    workspaceReadSuccess: "Leitura concluída",\n    workspaceReadError: "Não foi possível ler esta conexão.",\n    readyToConnect: "Disponível para conectar",
     connected: "Conectado",
     comingSoon: "Em breve",
     configRequired: "Configuração necessária",
@@ -200,6 +200,7 @@ const settingsCopy = {
     workspaceRead: "Read now",
     workspaceReadSuccess: "Read completed",
     workspaceReadError: "Couldn't read this connection.",
+    readyToConnect: "Ready to connect",
     connected: "Connected",
     comingSoon: "Coming Soon",
     configRequired: "Configuration required",
@@ -660,7 +661,7 @@ export default function Settings() {
                         : provider.provider === "gmail" ||
                             provider.provider === "google_calendar" ||
                             provider.provider === "google_drive"
-                          ? text.connected.replace(text.connected, resolvedLocale === "en" ? "Ready to connect" : "Disponível para conectar")
+                          ? text.readyToConnect
                           : text.creatorAvailable;
                 return (
                   <View key={provider.provider} style={s.integrationRow}>
