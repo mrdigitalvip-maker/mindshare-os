@@ -95,7 +95,11 @@ test("E22→E23 keeps OAuth scopes and credentials server-side without weakening
   assert.match(migration, /alter table public\.creator_provider_credentials enable row level security/);
   assert.match(migration, /No client policy is permitted/);
 
-  assert.doesNotMatch(actionRegistry, /send_email|send_message|publish_content|delete_external_resource/);
+  for (const action of ["send_email", "create_calendar_event", "create_drive_text_file"]) {
+    const block = actionRegistry.match(new RegExp(`${action}:[\\s\\S]*?requiresApproval: true`))?.[0] ?? "";
+    assert.ok(block, `${action} must remain registry-backed and approval-required`);
+  }
+  assert.doesNotMatch(actionRegistry, /send_message|publish_content|delete_external_resource/);
   assert.match(actionService, /confirmed:\s*true/);
   assert.match(actionService, /if \(!input\.confirmed\) throw new Error\("confirmation_required"\)/);
 });
