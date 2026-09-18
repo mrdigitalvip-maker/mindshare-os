@@ -39,7 +39,7 @@ import {
   type NotificationDeviceState,
 } from "@/services/notification-service";
 import { updateProfileName } from "@/services/profile-service";
-import { listIntegrationReadiness } from "@/services/integration-status-service";
+import {\n  listIntegrationReadiness,\n  readGoogleWorkspace,\n  type GoogleWorkspaceProvider,\n} from "@/services/integration-status-service";
 import { useLanguage } from "@/providers/language-provider";
 import type { LanguagePreference } from "@/i18n";
 
@@ -109,7 +109,7 @@ const settingsCopy = {
     premiumBenefits: "Ver benefícios do Premium",
     connections: "CONEXÕES",
     connectionsHelp: "Estado real das integrações externas. Credenciais permanecem somente no servidor.",
-    connectionsError: "Não foi possível verificar as integrações.",
+    connectionsError: "Não foi possível verificar as integrações.",\n    workspaceRead: "Ler agora",\n    workspaceReadSuccess: "Leitura concluída",\n    workspaceReadError: "Não foi possível ler esta conexão.",
     connected: "Conectado",
     comingSoon: "Em breve",
     configRequired: "Configuração necessária",
@@ -197,6 +197,9 @@ const settingsCopy = {
     connections: "CONNECTIONS",
     connectionsHelp: "Real external integration status. Credentials stay server-side only.",
     connectionsError: "We couldn't check integrations.",
+    workspaceRead: "Read now",
+    workspaceReadSuccess: "Read completed",
+    workspaceReadError: "Couldn't read this connection.",
     connected: "Connected",
     comingSoon: "Coming Soon",
     configRequired: "Configuration required",
@@ -244,7 +247,8 @@ export default function Settings() {
     [noticeDetails, setNoticeDetails] = useState<NotificationDeviceState>(),
     [noticeMessage, setNoticeMessage] = useState<string>(),
     [noticeError, setNoticeError] = useState(false),
-    [sessionError, setSessionError] = useState<string>();
+    [sessionError, setSessionError] = useState<string>(),
+    [workspaceMessage, setWorkspaceMessage] = useState<string>();
 
   const refreshNotifications = useCallback(async () => {
     if (!session?.user.id) return;
