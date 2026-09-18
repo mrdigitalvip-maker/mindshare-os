@@ -99,12 +99,10 @@ Deno.serve(async (request) => {
   endpoint.searchParams.set("key", apiKey);
 
   const response = await fetch(endpoint, { headers: { Accept: "application/json" } });
-  if (!response.ok) {
-    console.error("creator_youtube_metadata_provider_error", response.status);
-    return jsonResponse(request, { error: { code: "youtube_metadata_unavailable" } }, 502);
-  }
-
   const payload = (await response.json().catch(() => null)) as {
+    error?: {
+      errors?: Array<{ reason?: string }>;
+    };
     items?: Array<{
       id?: string;
       snippet?: {
@@ -116,6 +114,35 @@ Deno.serve(async (request) => {
       contentDetails?: { duration?: string };
     }>;
   } | null;
+
+  if (!response.ok) {
+    const reasons = payload?.error?.errors
+      ?.map((item) => item.reason ?? "")
+      .filter(Boolean) ?? [];
+    const quotaFailure =
+      response.status === 429 ||
+      reasons.some((reason) =>
+        ["quotaExceeded", "dailyLimitExceeded", "rateLimitExceeded"].includes(reason),
+      );
+    const configurationFailure =
+      response.status === 403 &&
+      reasons.some((reason) =>
+        ["keyInvalid", "accessNotConfigured", "ipRefererBlocked", "keyExpired", "forbidden"].includes(
+          reason,
+        ),
+      );
+    const code = quotaFailure
+      ? "youtube_provider_quota"
+      : configurationFailure
+        ? "youtube_provider_configuration"
+        : "youtube_metadata_unavailable";
+    console.error("creator_youtube_metadata_provider_error", response.status, code);
+    return jsonResponse(
+      request,
+      { error: { code } },
+      quotaFailure ? 429 : configurationFailure ? 503 : 502,
+    );
+  }
   const item = payload?.items?.[0];
   if (!item?.id || !item.snippet?.title) {
     return jsonResponse(request, { error: { code: "youtube_video_not_found" } }, 404);
