@@ -98,19 +98,9 @@ Deno.serve(async (request) => {
           provider === "youtube" ? account?.snippet?.title : account?.display_name,
         status: "connected",
         granted_scopes: scopes,
-        granted_metrics:
-          provider === "youtube"
-            ? [
-                "views",
-                "watch_time_ms",
-                "average_view_duration_ms",
-                "likes",
-                "comments",
-                "followers_gained",
-                "country",
-                "day",
-              ]
-            : ["views", "likes", "comments", "shares"],
+        // A connection grants scopes, not evidence. Metrics become granted only
+        // after creator-analytics-sync actually observes them from the provider.
+        granted_metrics: [],
         safe_error_code: null,
         disconnected_at: null,
         updated_at: now,
