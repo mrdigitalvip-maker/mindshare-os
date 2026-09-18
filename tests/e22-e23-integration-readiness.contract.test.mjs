@@ -25,7 +25,7 @@ test("E22→E23 integration foundation is provider-agnostic and future providers
     assert.match(block, /implemented: false/, `${provider} must not pretend to be implemented`);
     assert.match(block, /readiness: "coming_soon"/, `${provider} must be truthfully unavailable`);
     assert.match(block, /authMode: "unconfigured"/, `${provider} auth must remain unconfigured`);
-    assert.match(block, /capabilityScopes: \\{\\}/, `${provider} must not invent provider scopes`);
+    assert.match(block, /capabilityScopes: \{\}/, `${provider} must not invent provider scopes`);
   }
 
   for (const provider of ["gmail", "google_calendar", "google_drive"]) {
