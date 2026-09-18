@@ -83,8 +83,10 @@ Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
   const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const configuredPriceId = Deno.env.get("STRIPE_PRICE_MONTHLY") ?? undefined;
-  if (!supabaseUrl || !anonKey || !stripeKey) return fail("configuration_error", 500);
+  if (!supabaseUrl || !anonKey || !stripeKey || !serviceKey)
+    return fail("configuration_error", 500);
 
   const supabase = createClient(supabaseUrl, anonKey, {
     global: { headers: { Authorization: authorization } },
@@ -105,10 +107,18 @@ Deno.serve(async (req) => {
     return fail("subscription_exists", 409);
   }
 
+  const admin = createClient(supabaseUrl, serviceKey);
+  const { data: trialLedger, error: trialLookupError } = await admin
+    .from("subscription_trial_ledger")
+    .select("user_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (trialLookupError) return fail("persistence_error", 500);
+
   const stripe = new Stripe(stripeKey);
   try {
     const priceId = await resolveMonthlyPriceId(stripe, configuredPriceId);
-    const trialEligible = !existing?.stripe_subscription_id;
+    const trialEligible = !existing?.stripe_subscription_id && !trialLedger;
     const idempotencyBucket = Math.floor(Date.now() / (10 * 60_000));
     const session = await stripe.checkout.sessions.create(
       {
