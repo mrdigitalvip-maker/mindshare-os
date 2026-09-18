@@ -1,5 +1,39 @@
 import { KIVRYN_INTEGRATION_PROVIDERS } from "./kivryn-integration-registry.ts";
-export type CreatorProvider = "youtube" | "tiktok" | "instagram";
+
+export type CreatorProvider =
+  | "youtube"
+  | "tiktok"
+  | "instagram"
+  | "gmail"
+  | "google_calendar"
+  | "google_drive";
+
+const GOOGLE_IDENTITY_SCOPES = ["openid", "email", "profile"] as const;
+
+export const isGoogleOAuthProvider = (provider: CreatorProvider) =>
+  provider === "youtube" ||
+  provider === "gmail" ||
+  provider === "google_calendar" ||
+  provider === "google_drive";
+
+export function providerClientId(provider: CreatorProvider) {
+  if (provider === "tiktok") return Deno.env.get("TIKTOK_CLIENT_KEY");
+  if (provider === "youtube") return Deno.env.get("YOUTUBE_CLIENT_ID");
+  if (isGoogleOAuthProvider(provider)) {
+    return Deno.env.get("GOOGLE_WORKSPACE_CLIENT_ID") ?? Deno.env.get("YOUTUBE_CLIENT_ID");
+  }
+  return undefined;
+}
+
+export function providerClientSecret(provider: CreatorProvider) {
+  if (provider === "tiktok") return Deno.env.get("TIKTOK_CLIENT_SECRET");
+  if (provider === "youtube") return Deno.env.get("YOUTUBE_CLIENT_SECRET");
+  if (isGoogleOAuthProvider(provider)) {
+    return Deno.env.get("GOOGLE_WORKSPACE_CLIENT_SECRET") ?? Deno.env.get("YOUTUBE_CLIENT_SECRET");
+  }
+  return undefined;
+}
+
 export const PROVIDERS = {
   youtube: {
     authorizationUrl: "https://accounts.google.com/o/oauth2/v2/auth",
@@ -26,6 +60,36 @@ export const PROVIDERS = {
     readiness: "APP_REVIEW_REQUIRED",
     reason: "Professional account and verified Meta app contract required",
   },
+  gmail: {
+    authorizationUrl: "https://accounts.google.com/o/oauth2/v2/auth",
+    tokenUrl: "https://oauth2.googleapis.com/token",
+    identityUrl: "https://openidconnect.googleapis.com/v1/userinfo",
+    scopes: [
+      ...GOOGLE_IDENTITY_SCOPES,
+      ...(KIVRYN_INTEGRATION_PROVIDERS.gmail.capabilityScopes["mail.read"] ?? []),
+    ],
+    readiness: "CONFIG_REQUIRED",
+  },
+  google_calendar: {
+    authorizationUrl: "https://accounts.google.com/o/oauth2/v2/auth",
+    tokenUrl: "https://oauth2.googleapis.com/token",
+    identityUrl: "https://openidconnect.googleapis.com/v1/userinfo",
+    scopes: [
+      ...GOOGLE_IDENTITY_SCOPES,
+      ...(KIVRYN_INTEGRATION_PROVIDERS.google_calendar.capabilityScopes["calendar.read"] ?? []),
+    ],
+    readiness: "CONFIG_REQUIRED",
+  },
+  google_drive: {
+    authorizationUrl: "https://accounts.google.com/o/oauth2/v2/auth",
+    tokenUrl: "https://oauth2.googleapis.com/token",
+    identityUrl: "https://openidconnect.googleapis.com/v1/userinfo",
+    scopes: [
+      ...GOOGLE_IDENTITY_SCOPES,
+      ...(KIVRYN_INTEGRATION_PROVIDERS.google_drive.capabilityScopes["files.read"] ?? []),
+    ],
+    readiness: "CONFIG_REQUIRED",
+  },
 } as const;
 
 export const allowedRedirect = (value: string) => {
@@ -33,7 +97,20 @@ export const allowedRedirect = (value: string) => {
     .split(",")
     .map((x) => x.trim())
     .filter(Boolean);
-  return allowlist.includes(value);
+  if (allowlist.includes(value)) return true;
+
+  try {
+    const target = new URL(value);
+    const appUrl = Deno.env.get("APP_URL");
+    if (!appUrl) return false;
+    const app = new URL(appUrl);
+    return (
+      target.origin === app.origin &&
+      (target.pathname === "/creator" || target.pathname === "/settings")
+    );
+  } catch {
+    return false;
+  }
 };
 export async function sha256(value: string) {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
