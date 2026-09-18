@@ -37,7 +37,7 @@ function Studies() {
 }
 
 function StudiesIndex() {
-  const { t } = useLanguage();
+  const { t, resolvedLocale } = useLanguage();
   const nav = useNavigate();
   const client = useQueryClient();
   const { user, isAuthenticated } = useAuth();
