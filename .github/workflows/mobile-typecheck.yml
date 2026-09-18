@@ -75,5 +75,8 @@ jobs:
       - name: Run E41/E42 Documents and Finance source parity
         run: bun test tests/documents-finance-e41-e42-source-parity.test.ts
 
+      - name: Run E43/E44 Studies and Journeys source parity
+        run: bun test tests/studies-journeys-e43-e44-source-parity.test.ts
+
       - name: Run existing Creator engine and intelligence contracts
         run: bun test tests/creator-video-engine-revision-14.test.ts tests/creator-intelligence-revision-14.test.ts
