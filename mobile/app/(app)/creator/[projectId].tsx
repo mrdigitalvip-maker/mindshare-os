@@ -9,6 +9,7 @@ import {
   getCreatorProject,
   getLatestCreatorJob,
   listCreatorClips,
+  requestClipRerender,
   type CreatorClip,
   type CreatorJob,
   type CreatorProject,
@@ -33,6 +34,8 @@ const copy = {
     downloading: "Preparando download…",
     share: "Compartilhar",
     sharing: "Preparando compartilhamento…",
+    rerender: "Renderizar novamente",
+    rerendering: "Enfileirando render…",
     package: "Criar descrição e pacote de postagem",
     projectAI: "Analisar projeto com KIVRYN",
     aiCopy: "Compare os cortes reais deste projeto e decida qual merece ser trabalhado primeiro.",
@@ -61,6 +64,8 @@ const copy = {
     downloading: "Preparing download…",
     share: "Share",
     sharing: "Preparing share…",
+    rerender: "Rerender clip",
+    rerendering: "Queueing render…",
     package: "Create caption and posting package",
     projectAI: "Analyze project with KIVRYN",
     aiCopy: "Compare the real clips in this project and decide which one deserves work first.",
@@ -90,6 +95,7 @@ export default function CreatorProjectScreen() {
   const [clips, setClips] = useState<CreatorClip[]>([]);
   const [exportingClip, setExportingClip] = useState<string | null>(null);
   const [sharingClip, setSharingClip] = useState<string | null>(null);
+  const [rerenderingClip, setRerenderingClip] = useState<string | null>(null);
 
   useEffect(() => {
     if (!session?.user.id || !id) {
@@ -145,6 +151,25 @@ export default function CreatorProjectScreen() {
       await shareCreatorExport(clip.id, message);
     } finally {
       setSharingClip(null);
+    }
+  };
+
+  const rerenderClip = async (clip: CreatorClip) => {
+    if (rerenderingClip) return;
+    setRerenderingClip(clip.id);
+    try {
+      await requestClipRerender(clip.id, {
+        startMs: clip.startMs,
+        endMs: clip.endMs,
+        aspectRatio: clip.aspectRatio,
+        captionsEnabled: clip.captionsEnabled,
+      });
+      if (session?.user.id) {
+        const current = await getLatestCreatorJob(session.user.id, id);
+        setJob(current);
+      }
+    } finally {
+      setRerenderingClip(null);
     }
   };
 
@@ -261,6 +286,15 @@ export default function CreatorProjectScreen() {
                       </Pressable>
                     </>
                   ) : null}
+                  <Pressable
+                    style={s.outlineButton}
+                    disabled={rerenderingClip !== null}
+                    onPress={() => void rerenderClip(clip)}
+                  >
+                    <Text style={s.outlineText}>
+                      {rerenderingClip === clip.id ? c.rerendering : c.rerender}
+                    </Text>
+                  </Pressable>
                   <Pressable style={s.outlineButton} onPress={() => openClipAI(clip)}>
                     <Text style={s.outlineText}>{c.package}</Text>
                   </Pressable>
