@@ -93,11 +93,32 @@ export type CommunityHome = {
   activity: Activity[];
 };
 export type Reaction = "support" | "celebrate" | "respect";
+const COMMUNITY_USERNAME = /^[a-z][a-z0-9_]{2,29}$/;
+const COMMUNITY_RESERVED = new Set([
+  "admin",
+  "administrator",
+  "kivryn",
+  "nexora",
+  "official",
+  "moderator",
+  "support",
+  "system",
+]);
+export const isCommunityProfileReady = (profile: CommunityProfile | null | undefined) =>
+  Boolean(
+    profile &&
+      profile.visibility === "community" &&
+      profile.display_name?.trim() &&
+      profile.username?.trim() &&
+      COMMUNITY_USERNAME.test(profile.username.trim().toLowerCase()),
+  );
+
 export type SquadDetail = {
   id: string;
   name: string;
   description: string | null;
   max_members: number;
+  member_count: number;
   role: "owner" | "member";
   members: Array<{
     user_id: string;
@@ -266,10 +287,19 @@ export async function communityHome() {
   };
 }
 export async function saveCommunityProfile(p: CommunityProfile) {
+  const displayName = p.display_name?.trim() || null;
+  const username = p.username?.trim().replace(/^@+/, "").toLowerCase() || null;
+  const bio = p.bio?.trim() || null;
+  if ((displayName?.length ?? 0) > 60 || (bio?.length ?? 0) > 240)
+    throw new Error("profile_invalid");
+  if (username && (!COMMUNITY_USERNAME.test(username) || COMMUNITY_RESERVED.has(username)))
+    throw new Error("profile_invalid");
+  if (p.visibility === "community" && (!displayName || !username))
+    throw new Error("profile_invalid");
   await rpc("upsert_community_profile", {
-    p_display_name: p.display_name,
-    p_username: p.username,
-    p_bio: p.bio,
+    p_display_name: displayName,
+    p_username: username,
+    p_bio: bio,
     p_visibility: p.visibility,
     p_show_momentum: p.show_momentum,
     p_show_streak: p.show_streak,
@@ -277,9 +307,13 @@ export async function saveCommunityProfile(p: CommunityProfile) {
   });
 }
 export async function createSquad(name: string, description: string) {
+  const cleanName = name.trim();
+  const cleanDescription = description.trim();
+  if (cleanName.length < 2 || cleanName.length > 60) throw new Error("squad_name_invalid");
+  if (cleanDescription.length > 240) throw new Error("squad_description_invalid");
   return rpc<string>("create_squad", {
-    p_name: name,
-    p_description: description || null,
+    p_name: cleanName,
+    p_description: cleanDescription || null,
     p_max_members: 8,
   });
 }
@@ -291,6 +325,7 @@ export async function getSquad(id: string) {
   if (!squad) return null;
   return {
     ...squad,
+    member_count: Number(squad.member_count ?? squad.members.length),
     members: squad.members.map((member) => ({
       ...member,
       display_name: member.display_name.replace(/NEXORA/g, "KIVRYN"),
@@ -298,8 +333,11 @@ export async function getSquad(id: string) {
   };
 }
 export async function createInvite(id: string) {
-  const code = await rpc<string>("create_squad_invite", { p_squad: id });
-  return { code, expiresAt: new Date(Date.now() + 7 * 864e5) };
+  const result = await rpc<{ code: string; expires_at: string }>("create_squad_invite_v2", {
+    p_squad: id,
+  });
+  if (!result?.code || !result?.expires_at) throw new Error("invalid_rpc_response");
+  return { code: result.code, expiresAt: new Date(result.expires_at) };
 }
 export async function leaveSquad(id: string) {
   await rpc("leave_squad", { p_squad: id });
