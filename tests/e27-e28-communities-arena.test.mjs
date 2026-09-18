@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
 const migration = read("supabase/migrations/202609180003_community_e27_entitlement_visibility.sql");
+const hardening = read("supabase/migrations/202609180004_e27_e28_runtime_hardening.sql");
 const community = read("src/routes/_shell.community.tsx");
 const chat = read("src/routes/_shell.community.$channelId.tsx");
 const service = read("src/services/parity-service.ts");
@@ -50,4 +51,20 @@ test("E28 Web Arena surfaces the existing privacy-safe ranking without inventing
   assert.match(arena, /to="\/challenges"/);
   assert.doesNotMatch(arena, /setWebChallengeRankingOptIn/);
   assert.match(challengesService, /"get_challenge_ranking"/);
+});
+
+
+test("E27 hardens Community realtime and message actions with the same Premium gate", () => {
+  assert.match(hardening, /member realtime messages/);
+  assert.match(hardening, /member realtime reactions/);
+  assert.match(hardening, /not c\.requires_premium or public\.has_premium/);
+  assert.match(hardening, /create or replace function public\.set_message_reaction/);
+  assert.match(hardening, /create or replace function public\.report_community_message/);
+  assert.match(hardening, /create or replace function public\.block_community_message_sender/);
+});
+
+test("E28 adds only performance indexes to existing Arena participation", () => {
+  assert.match(hardening, /user_challenges_challenge_id_idx/);
+  assert.match(hardening, /owners read participation/);
+  assert.match(hardening, /user_id = \(select auth\.uid\(\)\)/);
 });
