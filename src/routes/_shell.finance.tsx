@@ -258,6 +258,8 @@ function FinanceDialog({
   close: () => void;
   saved: () => void;
 }) {
+  const { resolvedLocale } = useLanguage();
+  const L = (pt: string, en: string) => (resolvedLocale === "pt-BR" ? pt : en);
   const account = editor?.kind === "account" ? editor.value : undefined;
   const transaction = editor?.kind === "transaction" ? editor.value : undefined;
   const [name, setName] = useState(account?.name ?? "");
@@ -273,13 +275,13 @@ function FinanceDialog({
   const save = useMutation({
     mutationFn: async () => {
       if (editor?.kind === "account") {
-        if (!name.trim()) throw new Error("Account name is required");
+        if (!name.trim()) throw new Error(L("O nome da conta é obrigatório", "Account name is required"));
         const patch = { name: name.trim(), type: accountType, balance: Number(balance) };
         if (account) await FinanceService.updateAccount(account.id, patch);
         else await FinanceService.createAccount(patch);
       } else {
         if (!accountId || !amount || Number(amount) <= 0)
-          throw new Error("Choose an account and enter a positive amount");
+          throw new Error(L("Escolha uma conta e informe um valor positivo", "Choose an account and enter a positive amount"));
         const patch = {
           account_id: accountId,
           title: description.trim() || null,
@@ -292,7 +294,7 @@ function FinanceDialog({
       }
     },
     onSuccess: () => {
-      toast.success(editor?.kind === "account" ? "Account saved" : "Transaction saved");
+      toast.success(editor?.kind === "account" ? L("Conta salva", "Account saved") : L("Transação salva", "Transaction saved"));
       saved();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -303,28 +305,28 @@ function FinanceDialog({
         <DialogHeader>
           <DialogTitle>
             {editor?.kind === "account"
-              ? `${account ? "Edit" : "New"} account`
-              : `${transaction ? "Edit" : "New"} transaction`}
+              ? `${account ? L("Editar", "Edit") : L("Nova", "New")} ${L("conta", "account")}`
+              : `${transaction ? L("Editar", "Edit") : L("Nova", "New")} ${L("transação", "transaction")}`}
           </DialogTitle>
         </DialogHeader>
         {editor?.kind === "account" ? (
           <div className="space-y-4">
-            <Field label="Name">
+            <Field label={L("Nome", "Name")}>
               <Input value={name} onChange={(e) => setName(e.target.value)} />
             </Field>
-            <Field label="Type">
+            <Field label={L("Tipo", "Type")}>
               <select
                 className="h-11 w-full rounded-md border bg-background px-3"
                 value={accountType}
                 onChange={(e) => setAccountType(e.target.value)}
               >
-                <option value="checking">Checking</option>
-                <option value="savings">Savings</option>
-                <option value="cash">Cash</option>
-                <option value="credit">Credit</option>
+                <option value="checking">{L("Conta corrente", "Checking")}</option>
+                <option value="savings">{L("Poupança", "Savings")}</option>
+                <option value="cash">{L("Dinheiro", "Cash")}</option>
+                <option value="credit">{L("Crédito", "Credit")}</option>
               </select>
             </Field>
-            <Field label="Opening balance">
+            <Field label={L("Saldo inicial", "Opening balance")}>
               <Input
                 type="number"
                 step="0.01"
@@ -335,11 +337,11 @@ function FinanceDialog({
           </div>
         ) : (
           <div className="space-y-4">
-            <Field label="Description">
+            <Field label={L("Descrição", "Description")}>
               <Input value={description} onChange={(e) => setDescription(e.target.value)} />
             </Field>
             <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Amount">
+              <Field label={L("Valor", "Amount")}>
                 <Input
                   type="number"
                   min="0.01"
@@ -348,24 +350,24 @@ function FinanceDialog({
                   onChange={(e) => setAmount(e.target.value)}
                 />
               </Field>
-              <Field label="Type">
+              <Field label={L("Tipo", "Type")}>
                 <select
                   className="h-11 w-full rounded-md border bg-background px-3"
                   value={type}
                   onChange={(e) => setType(e.target.value)}
                 >
-                  <option value="expense">Expense</option>
-                  <option value="income">Income</option>
+                  <option value="expense">{L("Despesa", "Expense")}</option>
+                  <option value="income">{L("Receita", "Income")}</option>
                 </select>
               </Field>
             </div>
-            <Field label="Account">
+            <Field label={L("Conta", "Account")}>
               <select
                 className="h-11 w-full rounded-md border bg-background px-3"
                 value={accountId}
                 onChange={(e) => setAccountId(e.target.value)}
               >
-                <option value="">Choose account</option>
+                <option value="">{L("Escolha uma conta", "Choose account")}</option>
                 {accounts.map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.name}
@@ -373,17 +375,17 @@ function FinanceDialog({
                 ))}
               </select>
             </Field>
-            <Field label="Date">
+            <Field label={L("Data", "Date")}>
               <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
             </Field>
           </div>
         )}
         <div className="mt-5 flex justify-end gap-2">
           <Button variant="outline" onClick={close}>
-            Cancel
+            {L("Cancelar", "Cancel")}
           </Button>
           <Button disabled={save.isPending} onClick={() => save.mutate()}>
-            {save.isPending ? "Saving…" : "Save"}
+            {save.isPending ? L("Salvando…", "Saving…") : L("Salvar", "Save")}
           </Button>
         </div>
       </DialogContent>
