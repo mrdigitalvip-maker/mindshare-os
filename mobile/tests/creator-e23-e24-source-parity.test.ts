@@ -63,6 +63,7 @@ describe("E23 + E24 Android source parity", () => {
     expect(analyticsSync).toContain("encryptServerSecret(accessToken)");
     expect(oauthCallback).toContain('.is("consumed_at", null)');
     expect(oauthCallback).toContain('.select("state_hash")');
+    expect(oauthCallback).toContain('existingCredential?.refresh_token_ciphertext ?? null');
     expect(mobileService).not.toMatch(/access_token|refresh_token|provider_credentials/);
     expect(mobileAnalytics).not.toMatch(/access_token|refresh_token|client_secret/i);
   });
