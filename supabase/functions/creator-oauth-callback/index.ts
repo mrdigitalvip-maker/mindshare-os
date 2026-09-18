@@ -3,6 +3,9 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 import {
   decryptServerSecret,
   encryptServerSecret,
+  isGoogleOAuthProvider,
+  providerClientId,
+  providerClientSecret,
   PROVIDERS,
   safeProviderError,
   sha256,
@@ -40,16 +43,14 @@ Deno.serve(async (request) => {
     config = PROVIDERS[provider];
   if (provider === "instagram" || !("tokenUrl" in config))
     return redirect(oauth.redirect_uri, "error", "provider_pending_approval");
-  const clientId = Deno.env.get(provider === "youtube" ? "YOUTUBE_CLIENT_ID" : "TIKTOK_CLIENT_KEY"),
-    clientSecret = Deno.env.get(
-      provider === "youtube" ? "YOUTUBE_CLIENT_SECRET" : "TIKTOK_CLIENT_SECRET",
-    );
+  const clientId = providerClientId(provider),
+    clientSecret = providerClientSecret(provider);
   if (!clientId || !clientSecret)
     return redirect(oauth.redirect_uri, "error", "provider_not_configured");
   const verifier = await decryptServerSecret(oauth.pkce_verifier_ciphertext),
     callback = `${url}/functions/v1/creator-oauth-callback`;
   const body = new URLSearchParams(
-    provider === "youtube"
+    isGoogleOAuthProvider(provider)
       ? {
           client_id: clientId,
           client_secret: clientSecret,
@@ -83,9 +84,25 @@ Deno.serve(async (request) => {
   if (!identityResponse.ok)
     return redirect(oauth.redirect_uri, "error", safeProviderError(identityResponse.status));
   const identity = (await identityResponse.json()) as Record<string, any>;
-  const account = provider === "youtube" ? identity.items?.[0] : identity.data?.user;
-  const accountId = String(provider === "youtube" ? (account?.id ?? "") : (account?.open_id ?? ""));
+  const account = provider === "youtube"
+    ? identity.items?.[0]
+    : provider === "tiktok"
+      ? identity.data?.user
+      : identity;
+  const accountId = String(
+    provider === "youtube"
+      ? (account?.id ?? "")
+      : provider === "tiktok"
+        ? (account?.open_id ?? "")
+        : (account?.sub ?? ""),
+  );
   if (!accountId) return redirect(oauth.redirect_uri, "error", "identity_failed");
+  const displayName =
+    provider === "youtube"
+      ? account?.snippet?.title
+      : provider === "tiktok"
+        ? account?.display_name
+        : account?.email ?? account?.name ?? "Google Account";
   const scopes = String(token.scope ?? "")
       .split(/[ ,]+/)
       .filter(Boolean),
@@ -97,8 +114,7 @@ Deno.serve(async (request) => {
         user_id: oauth.user_id,
         platform: provider,
         external_account_id: accountId,
-        provider_display_name:
-          provider === "youtube" ? account?.snippet?.title : account?.display_name,
+        provider_display_name: displayName,
         status: "connected",
         granted_scopes: scopes,
         // A connection grants scopes, not evidence. Metrics become granted only

@@ -39,8 +39,8 @@ test("E30 integration status is authenticated, registry-driven and owner scoped"
   assert.doesNotMatch(integrationStatus, /access_token|refresh_token|provider_credentials/);
 });
 
-test("E30 keeps future providers fail-closed", () => {
-  for (const provider of ["gmail", "google_calendar", "google_drive", "slack", "whatsapp"]) {
+test("E30 keeps still-unimplemented future providers fail-closed", () => {
+  for (const provider of ["slack", "whatsapp"]) {
     const block = registry.match(new RegExp(`${provider}: \\{([\\s\\S]*?)\\n  \\},`))?.[1] ?? "";
     assert.match(block, /implemented: false/, provider);
     assert.match(block, /readiness: "coming_soon"/, provider);

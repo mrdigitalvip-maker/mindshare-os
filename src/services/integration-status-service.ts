@@ -31,3 +31,40 @@ export async function listIntegrationReadiness(): Promise<IntegrationProviderSta
   if (error) throw error;
   return data?.providers ?? [];
 }
+
+
+export type GoogleWorkspaceProvider = "gmail" | "google_calendar" | "google_drive";
+
+export type GoogleWorkspaceItem = Record<string, unknown> & { id: string };
+
+export async function startIntegrationConnection(input: {
+  provider: GoogleWorkspaceProvider;
+  redirectUri: string;
+}) {
+  const { data, error } = await supabase.functions.invoke<{
+    authorizationUrl?: string;
+    status?: string;
+  }>("creator-oauth-start", {
+    body: { provider: input.provider, redirectUri: input.redirectUri },
+  });
+  if (error || !data?.authorizationUrl) {
+    throw error ?? new Error("Integration connection is unavailable.");
+  }
+  return data.authorizationUrl;
+}
+
+export async function readGoogleWorkspace(
+  provider: GoogleWorkspaceProvider,
+  limit = 5,
+): Promise<GoogleWorkspaceItem[]> {
+  const { data, error } = await supabase.functions.invoke<{
+    provider?: GoogleWorkspaceProvider;
+    items?: GoogleWorkspaceItem[];
+    error?: { code?: string };
+  }>("google-workspace-read", {
+    body: { provider, limit },
+  });
+  if (error) throw error;
+  if (data?.error?.code) throw new Error(data.error.code);
+  return data?.items ?? [];
+}

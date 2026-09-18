@@ -18,7 +18,12 @@ import { NotificationSettings, UsageSettings } from "@/components/settings-engag
 import { LEGAL_URLS } from "@/lib/legal";
 import { useLanguage } from "@/providers/language-provider";
 import type { LanguagePreference } from "@/i18n";
-import { listIntegrationReadiness } from "@/services/integration-status-service";
+import {
+  listIntegrationReadiness,
+  readGoogleWorkspace,
+  startIntegrationConnection,
+  type GoogleWorkspaceProvider,
+} from "@/services/integration-status-service";
 
 export const Route = createFileRoute("/_shell/settings")({
   head: () => ({ meta: [{ title: "Settings — KIVRYN" }] }),
@@ -50,6 +55,8 @@ function Settings() {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [proactiveReminders, setProactiveReminders] = useState(false);
+  const [workspaceBusy, setWorkspaceBusy] = useState<GoogleWorkspaceProvider | null>(null);
+  const [workspacePreview, setWorkspacePreview] = useState<Partial<Record<GoogleWorkspaceProvider, number>>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -98,6 +105,47 @@ function Settings() {
       );
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function connectWorkspace(provider: GoogleWorkspaceProvider) {
+    setWorkspaceBusy(provider);
+    try {
+      const authorizationUrl = await startIntegrationConnection({
+        provider,
+        redirectUri: `${window.location.origin}/settings`,
+      });
+      window.location.assign(authorizationUrl);
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : c("Não foi possível iniciar a conexão.", "Couldn't start the connection."),
+      );
+      setWorkspaceBusy(null);
+    }
+  }
+
+  async function readWorkspace(provider: GoogleWorkspaceProvider) {
+    setWorkspaceBusy(provider);
+    try {
+      const items = await readGoogleWorkspace(provider, 5);
+      setWorkspacePreview((current) => ({ ...current, [provider]: items.length }));
+      toast.success(
+        c(
+          `Leitura concluída: ${items.length} item(ns).`,
+          `Read completed: ${items.length} item(s).`,
+        ),
+      );
+      void integrations.refetch();
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : c("Não foi possível ler esta conexão.", "Couldn't read this connection."),
+      );
+    } finally {
+      setWorkspaceBusy(null);
     }
   }
 
@@ -312,7 +360,11 @@ function Settings() {
                       ? c("Configuração necessária", "Configuration required")
                       : provider.readiness === "app_review_required"
                         ? c("Revisão do provider necessária", "Provider review required")
-                        : c("Disponível no Creator", "Available in Creator");
+                        : provider.provider === "gmail" ||
+                            provider.provider === "google_calendar" ||
+                            provider.provider === "google_drive"
+                          ? c("Disponível para conectar", "Ready to connect")
+                          : c("Disponível no Creator", "Available in Creator");
                 return (
                   <div key={provider.provider} className="flex flex-wrap items-center justify-between gap-4 px-4 py-4">
                     <div>
@@ -321,8 +373,50 @@ function Settings() {
                       {provider.displayName ? (
                         <p className="mt-1 text-xs text-muted-foreground">{provider.displayName}</p>
                       ) : null}
+                      {(
+                        provider.provider === "gmail" ||
+                        provider.provider === "google_calendar" ||
+                        provider.provider === "google_drive"
+                      ) && workspacePreview[provider.provider as GoogleWorkspaceProvider] !== undefined ? (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {c(
+                            `Última leitura: ${workspacePreview[provider.provider as GoogleWorkspaceProvider]} item(ns)`,
+                            `Last read: ${workspacePreview[provider.provider as GoogleWorkspaceProvider]} item(s)`,
+                          )}
+                        </p>
+                      ) : null}
                     </div>
-                    {provider.implemented && provider.canConnect ? (
+                    {(
+                      provider.provider === "gmail" ||
+                      provider.provider === "google_calendar" ||
+                      provider.provider === "google_drive"
+                    ) && provider.implemented && provider.canConnect ? (
+                      <div className="flex items-center gap-2">
+                        {connected ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={workspaceBusy === provider.provider}
+                            onClick={() => void readWorkspace(provider.provider as GoogleWorkspaceProvider)}
+                          >
+                            {workspaceBusy === provider.provider
+                              ? c("Lendo…", "Reading…")
+                              : c("Ler agora", "Read now")}
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={workspaceBusy === provider.provider}
+                            onClick={() => void connectWorkspace(provider.provider as GoogleWorkspaceProvider)}
+                          >
+                            {workspaceBusy === provider.provider
+                              ? c("Conectando…", "Connecting…")
+                              : c("Conectar", "Connect")}
+                          </Button>
+                        )}
+                      </div>
+                    ) : provider.implemented && provider.canConnect ? (
                       <Link to="/creator">
                         <Button size="sm" variant="outline">
                           {connected ? c("Gerenciar no Creator", "Manage in Creator") : c("Abrir Creator", "Open Creator")}

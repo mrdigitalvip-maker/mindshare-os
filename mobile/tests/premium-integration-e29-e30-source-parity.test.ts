@@ -35,14 +35,14 @@ describe("E29 + E30 Premium runtime and integration gate", () => {
     expect(integrationEdge).not.toMatch(/access_token|refresh_token|provider_credentials/);
   });
 
-  test("E30 future providers remain visibly unavailable rather than fake-connected", () => {
-    for (const provider of ["gmail", "google_calendar", "google_drive", "slack", "whatsapp"]) {
+  test("E30 still-unimplemented future providers remain visibly unavailable", () => {
+    for (const provider of ["slack", "whatsapp"]) {
       const block = registry.match(new RegExp(`${provider}: \\{([\\s\\S]*?)\\n  \\},`))?.[1] ?? "";
       expect(block).toContain("implemented: false");
       expect(block).toContain('readiness: "coming_soon"');
       expect(block).toContain('authMode: "unconfigured"');
     }
-    expect(settings).not.toMatch(/connectGmail|connectSlack|connectWhatsApp/);
+    expect(settings).not.toMatch(/connectSlack|connectWhatsApp/);
   });
 
   test("E29/E30 keeps billing writes server-only and owner reads canonical", () => {

@@ -20,12 +20,19 @@ test("E22→E23 integration foundation is provider-agnostic and future providers
     assert.match(registry, new RegExp(`\\b${provider}: \\{`), provider);
   }
 
-  for (const provider of ["gmail", "google_calendar", "google_drive", "slack", "whatsapp"]) {
+  for (const provider of ["slack", "whatsapp"]) {
     const block = registry.match(new RegExp(`${provider}: \\{([\\s\\S]*?)\\n  \\},`))?.[1] ?? "";
     assert.match(block, /implemented: false/, `${provider} must not pretend to be implemented`);
     assert.match(block, /readiness: "coming_soon"/, `${provider} must be truthfully unavailable`);
     assert.match(block, /authMode: "unconfigured"/, `${provider} auth must remain unconfigured`);
     assert.match(block, /capabilityScopes: \{\}/, `${provider} must not invent provider scopes`);
+  }
+
+  for (const provider of ["gmail", "google_calendar", "google_drive"]) {
+    const block = registry.match(new RegExp(`${provider}: \\{([\\s\\S]*?)\\n  \\},`))?.[1] ?? "";
+    assert.match(block, /implemented: true/, `${provider} is activated by E59`);
+    assert.match(block, /readiness: "configuration_required"/, `${provider} remains runtime-gated`);
+    assert.match(block, /authMode: "oauth"/, `${provider} uses real OAuth`);
   }
 
   assert.match(registry, /credentialBoundary: "server_only"/);
@@ -78,10 +85,8 @@ test("E22→E23 keeps OAuth scopes and credentials server-side without weakening
   assert.match(creatorIntelligence, /KIVRYN_INTEGRATION_PROVIDERS/);
   assert.doesNotMatch(creatorIntelligence, /https:\/\/www\.googleapis\.com\/auth\/youtube\.readonly/);
   assert.match(registry, /https:\/\/www\.googleapis\.com\/auth\/youtube\.readonly/);
-  assert.match(
-    oauthStart,
-    /Deno\.env\.get\(provider === "youtube" \? "YOUTUBE_CLIENT_ID" : "TIKTOK_CLIENT_KEY"\)/,
-  );
+  assert.match(oauthStart, /providerClientId\(provider\)/);
+  assert.match(oauthStart, /isGoogleOAuthProvider\(provider\)/);
   assert.match(oauthCallback, /encryptServerSecret\(accessToken\)/);
   assert.match(oauthCallback, /encryptServerSecret\(String\(token\.refresh_token\)\)/);
   assert.doesNotMatch(env, /^VITE_.*(?:SECRET|PRIVATE|SERVICE_ROLE|TOKEN)/m);

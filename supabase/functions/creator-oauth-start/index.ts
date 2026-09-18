@@ -5,6 +5,8 @@ import {
   PROVIDERS,
   allowedRedirect,
   encryptServerSecret,
+  isGoogleOAuthProvider,
+  providerClientId,
   randomUrlSafe,
   sha256,
   type CreatorProvider,
@@ -51,7 +53,7 @@ Deno.serve(async (request) => {
     return jsonResponse(request, { error: { code: "redirect_not_allowed" } }, 400);
   }
 
-  const clientId = Deno.env.get(provider === "youtube" ? "YOUTUBE_CLIENT_ID" : "TIKTOK_CLIENT_KEY");
+  const clientId = providerClientId(provider);
   if (!clientId) {
     return jsonResponse(request, { error: { code: "provider_not_configured" } }, 503);
   }
@@ -78,7 +80,7 @@ Deno.serve(async (request) => {
 
   const callback = `${url}/functions/v1/creator-oauth-callback`;
   const params = new URLSearchParams(
-    provider === "youtube"
+    isGoogleOAuthProvider(provider)
       ? {
           client_id: clientId,
           redirect_uri: callback,

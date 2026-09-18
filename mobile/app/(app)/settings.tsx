@@ -39,7 +39,11 @@ import {
   type NotificationDeviceState,
 } from "@/services/notification-service";
 import { updateProfileName } from "@/services/profile-service";
-import { listIntegrationReadiness } from "@/services/integration-status-service";
+import {
+  listIntegrationReadiness,
+  readGoogleWorkspace,
+  type GoogleWorkspaceProvider,
+} from "@/services/integration-status-service";
 import { useLanguage } from "@/providers/language-provider";
 import type { LanguagePreference } from "@/i18n";
 
@@ -110,6 +114,10 @@ const settingsCopy = {
     connections: "CONEXÕES",
     connectionsHelp: "Estado real das integrações externas. Credenciais permanecem somente no servidor.",
     connectionsError: "Não foi possível verificar as integrações.",
+    workspaceRead: "Ler agora",
+    workspaceReadSuccess: "Leitura concluída",
+    workspaceReadError: "Não foi possível ler esta conexão.",
+    readyToConnect: "Disponível para conectar",
     connected: "Conectado",
     comingSoon: "Em breve",
     configRequired: "Configuração necessária",
@@ -197,6 +205,10 @@ const settingsCopy = {
     connections: "CONNECTIONS",
     connectionsHelp: "Real external integration status. Credentials stay server-side only.",
     connectionsError: "We couldn't check integrations.",
+    workspaceRead: "Read now",
+    workspaceReadSuccess: "Read completed",
+    workspaceReadError: "Couldn't read this connection.",
+    readyToConnect: "Ready to connect",
     connected: "Connected",
     comingSoon: "Coming Soon",
     configRequired: "Configuration required",
@@ -244,7 +256,8 @@ export default function Settings() {
     [noticeDetails, setNoticeDetails] = useState<NotificationDeviceState>(),
     [noticeMessage, setNoticeMessage] = useState<string>(),
     [noticeError, setNoticeError] = useState(false),
-    [sessionError, setSessionError] = useState<string>();
+    [sessionError, setSessionError] = useState<string>(),
+    [workspaceMessage, setWorkspaceMessage] = useState<string>();
 
   const refreshNotifications = useCallback(async () => {
     if (!session?.user.id) return;
@@ -287,6 +300,21 @@ export default function Settings() {
       integrations.refetch(),
     ]);
     setRefreshing(false);
+  }
+
+  async function readWorkspace(provider: GoogleWorkspaceProvider) {
+    if (busy) return;
+    setBusy(true);
+    setWorkspaceMessage(undefined);
+    try {
+      const items = await readGoogleWorkspace(provider, 5);
+      setWorkspaceMessage(`${text.workspaceReadSuccess}: ${items.length}`);
+      await integrations.refetch();
+    } catch {
+      setWorkspaceMessage(text.workspaceReadError);
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function saveName() {
@@ -638,7 +666,11 @@ export default function Settings() {
                       ? text.configRequired
                       : provider.readiness === "app_review_required"
                         ? text.reviewRequired
-                        : text.creatorAvailable;
+                        : provider.provider === "gmail" ||
+                            provider.provider === "google_calendar" ||
+                            provider.provider === "google_drive"
+                          ? text.readyToConnect
+                          : text.creatorAvailable;
                 return (
                   <View key={provider.provider} style={s.integrationRow}>
                     <View style={s.flex}>
@@ -652,8 +684,39 @@ export default function Settings() {
               })}
             </View>
           )}
+          {(integrations.data ?? [])
+            .filter(
+              (provider) =>
+                provider.connectionStatus === "connected" &&
+                (provider.provider === "gmail" ||
+                  provider.provider === "google_calendar" ||
+                  provider.provider === "google_drive"),
+            )
+            .map((provider) => (
+              <Action
+                key={`workspace-read-${provider.provider}`}
+                secondary
+                disabled={busy}
+                label={`${text.workspaceRead} · ${
+                  provider.provider === "google_calendar"
+                    ? "Google Calendar"
+                    : provider.provider === "google_drive"
+                      ? "Google Drive"
+                      : "Gmail"
+                }`}
+                action={() => void readWorkspace(provider.provider as GoogleWorkspaceProvider)}
+              />
+            ))}
+          {workspaceMessage ? (
+            <Feedback text={workspaceMessage} error={workspaceMessage === text.workspaceReadError} />
+          ) : null}
           <Text style={s.help}>{text.integrationApproval}</Text>
-          {(integrations.data ?? []).some((provider) => provider.implemented && provider.canConnect) ? (
+          {(integrations.data ?? []).some(
+            (provider) =>
+              provider.implemented &&
+              provider.canConnect &&
+              (provider.provider === "youtube" || provider.provider === "tiktok"),
+          ) ? (
             <Action
               secondary
               label={text.openCreator}
