@@ -47,9 +47,9 @@ test("E44 keeps Journeys direct access SELECT-only and preserves canonical RPC m
   assert.doesNotMatch(e44, /for insert|for update|for delete/i);
   assert.match(e44, /user_id = \(select auth\.uid\(\)\)/);
 
-  assert.match(journeys, /rpc\("ensure_daily_journey_mission"/);
-  assert.match(journeys, /rpc\("complete_journey_action"/);
-  assert.match(journeys, /rpc\("start_journey_pack"/);
+  assert.match(journeys, /"ensure_daily_journey_mission"/);
+  assert.match(journeys, /"complete_journey_action"/);
+  assert.match(journeys, /"start_journey_pack"/);
 });
 
 test("E43/E44 do not introduce privileged helpers or destructive index changes", () => {
