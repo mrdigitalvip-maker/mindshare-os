@@ -1164,7 +1164,7 @@ function CreatorStudio() {
                           onClick={() => void handleConnectProvider(provider)}
                         >
                           {providerBusy === provider && <Loader2 className="h-4 w-4 animate-spin" />}
-                          Connect {label}
+                          {provider === "youtube" ? "Connect YouTube" : "Connect TikTok"}
                         </Button>
                       )}
                     </div>
@@ -1335,6 +1335,9 @@ function CreatorStudio() {
             <Card>
               <CardHeader>
                 <CardTitle>Manual analytics</CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  Manual observations only in this section; provider-verified evidence stays separate above.
+                </p>
               </CardHeader>
               <CardContent className="grid gap-3 sm:grid-cols-2">
                 {CREATOR_METRICS.map((metric) => (
