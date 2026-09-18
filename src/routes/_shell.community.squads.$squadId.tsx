@@ -21,7 +21,8 @@ function SquadPage() {
   const { squadId } = Route.useParams(),
     qc = useQueryClient(),
     nav = useNavigate(),
-    [invite, setInvite] = useState<{ code: string; expiresAt: Date } | null>(null);
+    [invite, setInvite] = useState<{ code: string; expiresAt: Date } | null>(null),
+    [confirmAction, setConfirmAction] = useState<string | null>(null);
   const q = useQuery({ queryKey: parityKeys.squad(squadId), queryFn: () => getSquad(squadId) });
   const mutation = useMutation({
     mutationFn: async (v: { kind: string; member?: string }) => {
@@ -74,12 +75,26 @@ function SquadPage() {
                 Criar convite
               </Button>
               {q.data.role === "owner" ? (
-                <Button variant="destructive" onClick={() => mutation.mutate({ kind: "delete" })}>
-                  Encerrar Squad
+                <Button
+                  variant={confirmAction === "delete" ? "destructive" : "outline"}
+                  onClick={() => {
+                    if (confirmAction !== "delete") return setConfirmAction("delete");
+                    setConfirmAction(null);
+                    mutation.mutate({ kind: "delete" });
+                  }}
+                >
+                  {confirmAction === "delete" ? "Confirmar encerramento" : "Encerrar Squad"}
                 </Button>
               ) : (
-                <Button variant="outline" onClick={() => mutation.mutate({ kind: "leave" })}>
-                  Sair do Squad
+                <Button
+                  variant={confirmAction === "leave" ? "destructive" : "outline"}
+                  onClick={() => {
+                    if (confirmAction !== "leave") return setConfirmAction("leave");
+                    setConfirmAction(null);
+                    mutation.mutate({ kind: "leave" });
+                  }}
+                >
+                  {confirmAction === "leave" ? "Confirmar saída" : "Sair do Squad"}
                 </Button>
               )}
             </div>
@@ -98,7 +113,7 @@ function SquadPage() {
             )}
             <section className="mt-8">
               <h2 className="text-xl font-semibold">
-                Membros ({q.data.members.length}/{q.data.max_members})
+                Membros ({q.data.member_count}/{q.data.max_members})
               </h2>
               <ul className="mt-3 space-y-2">
                 {q.data.members.map((m) => (
@@ -121,10 +136,15 @@ function SquadPage() {
                         {q.data!.role === "owner" && m.role === "member" && (
                           <Button
                             size="sm"
-                            variant="destructive"
-                            onClick={() => mutation.mutate({ kind: "remove", member: m.user_id })}
+                            variant={confirmAction === `remove:${m.user_id}` ? "destructive" : "outline"}
+                            onClick={() => {
+                              const key = `remove:${m.user_id}`;
+                              if (confirmAction !== key) return setConfirmAction(key);
+                              setConfirmAction(null);
+                              mutation.mutate({ kind: "remove", member: m.user_id });
+                            }}
                           >
-                            Remover
+                            {confirmAction === `remove:${m.user_id}` ? "Confirmar remoção" : "Remover"}
                           </Button>
                         )}
                       </div>
