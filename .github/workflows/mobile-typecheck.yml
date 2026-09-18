@@ -87,5 +87,8 @@ jobs:
       - name: Run E49/E50 Assistant and API keys source parity
         run: bun test tests/assistant-apikeys-e49-e50-source-parity.test.ts
 
+      - name: Run E51/E52 Activity and Journeys source parity
+        run: bun test tests/activity-journeys-e51-e52-source-parity.test.ts
+
       - name: Run existing Creator engine and intelligence contracts
         run: bun test tests/creator-video-engine-revision-14.test.ts tests/creator-intelligence-revision-14.test.ts
