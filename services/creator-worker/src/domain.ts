@@ -158,6 +158,29 @@ export function candidates(
       if (text) out.push({ startMs: start, endMs: end, text });
     }
   }
+  if (out.length) return out;
+
+  // Real-transcript fallback for short or irregular speech where no boundary
+  // lands inside the ideal target tolerance. We still use only observed
+  // transcript/scene boundaries, keep clips <= 60s, and require spoken text.
+  const maxWindow = Math.min(60_000, Math.max(target + 10_000, target));
+  const minWindow = Math.min(5_000, durationMs);
+  for (const start of b.filter((value) => value < durationMs)) {
+    const choices = b.filter((end) => {
+      const length = end - start;
+      return length >= minWindow && length <= maxWindow;
+    });
+    const end = choices.sort(
+      (a, z) => Math.abs(a - start - target) - Math.abs(z - start - target),
+    )[0];
+    if (!end) continue;
+    const text = segments
+      .filter((segment) => segment.endMs > start && segment.startMs < end)
+      .map((segment) => segment.text)
+      .join(" ")
+      .trim();
+    if (text) out.push({ startMs: start, endMs: end, text });
+  }
   return out;
 }
 export function overlap(a: Candidate, b: Candidate) {

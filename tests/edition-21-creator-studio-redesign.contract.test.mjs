@@ -25,8 +25,9 @@ test("E21 moves secondary Creator surfaces behind progressive disclosure", async
   assert.match(source, /<details id="strategy"/);
   assert.match(source, /<details id="analytics"/);
   assert.match(source, /Creator Academy/);
-  assert.match(source, /Provider-verified charts are intentionally deferred to E24/);
-  assert.doesNotMatch(source, /fake chart|fixture chart/i);
+  assert.match(source, /Provider-verified analytics/);
+  assert.match(source, /Manual observations only/);
+  assert.doesNotMatch(source, /fake chart|fixture chart|sample chart|mock metric/i);
 });
 
 test("E21 removes the obstructive interactive Creator atmosphere overlay", async () => {

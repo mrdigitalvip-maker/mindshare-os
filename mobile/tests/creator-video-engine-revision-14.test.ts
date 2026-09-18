@@ -19,7 +19,7 @@ describe("NXR-037C real Creator video engine", () => {
     expect(migration).toContain("ACTIVE_JOB_EXISTS");
   });
   test("backend stage drives UI without fake timer progress", () => {
-    expect(screen).toContain("job.progressStage ?? job.status");
+    expect(screen).toContain("job?.progressStage ?? job?.status");
     expect(screen).not.toMatch(/progress\s*\+|Math\.random/);
   });
   test("completed results only query real creator_clips", () => {

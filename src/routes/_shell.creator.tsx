@@ -8,7 +8,10 @@ import {
   GraduationCap,
   Link2,
   Loader2,
+  RefreshCw,
+  Scissors,
   Settings2,
+  Unplug,
   Upload,
   WandSparkles,
 } from "lucide-react";
@@ -31,6 +34,7 @@ import {
 import type { CreatorContent, CreatorProfile, CreatorStrategy } from "@/lib/creator";
 import {
   appendCreatorMetricSnapshot,
+  cancelCreatorJob,
   createCreatorTask,
   createCreatorVideoProject,
   deleteCreatorContent,
@@ -48,8 +52,12 @@ import {
   saveCreatorStrategy,
   setLessonCompletion,
   signedCreatorOutput,
+  rerenderCreatorClip,
+  startCreatorProviderConnection,
+  syncCreatorProviderAnalytics,
+  disconnectCreatorProvider,
 } from "@/services/creator-service";
-import type { CreatorYouTubeMetadata } from "@/services/creator-service";
+import type { CreatorProvider, CreatorYouTubeMetadata } from "@/services/creator-service";
 
 export const Route = createFileRoute("/_shell/creator")({
   head: () => ({ meta: [{ title: "Creator Studio — KIVRYN" }] }),
@@ -101,6 +109,29 @@ function formatBytes(value: unknown) {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
+type ClipRerenderDraft = {
+  startSeconds: string;
+  endSeconds: string;
+  aspectRatio: "9:16" | "1:1" | "16:9";
+  captionsEnabled: boolean;
+};
+
+function metricRecord(value: unknown): Record<string, number> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).filter(
+      (entry): entry is [string, number] =>
+        typeof entry[1] === "number" && Number.isFinite(entry[1]),
+    ),
+  );
+}
+
+function creatorJobActive(status: unknown) {
+  return ["queued", "analyzing", "transcribing", "selecting_clips", "rendering"].includes(
+    String(status),
+  );
+}
+
 function CreatorStudio() {
   const { user } = useAuth();
   const { t } = useLanguage();
@@ -143,6 +174,10 @@ function CreatorStudio() {
   const [sourceAuthorized, setSourceAuthorized] = useState(false);
   const [sourceBusy, setSourceBusy] = useState(false);
   const [youtubeMetadata, setYoutubeMetadata] = useState<CreatorYouTubeMetadata | null>(null);
+  const [cancelConfirmJobId, setCancelConfirmJobId] = useState<string | null>(null);
+  const [rerenderDrafts, setRerenderDrafts] = useState<Record<string, ClipRerenderDraft>>({});
+  const [providerBusy, setProviderBusy] = useState<string | null>(null);
+  const [disconnectConfirmId, setDisconnectConfirmId] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
     if (!userId) return;
@@ -164,6 +199,23 @@ function CreatorStudio() {
     });
   }, [reload]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const current = new URL(window.location.href);
+    const connectionStatus = current.searchParams.get("creator_connection");
+    const connectionError = current.searchParams.get("error");
+    if (!connectionStatus && !connectionError) return;
+    if (connectionStatus === "connected") {
+      toast.success("Creator provider connected. Sync analytics when ready.");
+    } else if (connectionError) {
+      toast.error(`Provider connection failed: ${connectionError.replaceAll("_", " ")}.`);
+    }
+    current.searchParams.delete("creator_connection");
+    current.searchParams.delete("error");
+    window.history.replaceState({}, "", `${current.pathname}${current.search}${current.hash}`);
+    void reload();
+  }, [reload]);
+
   const action = useMemo(
     () =>
       creatorNextAction({
@@ -177,11 +229,52 @@ function CreatorStudio() {
 
   const projectCount = resources.creator_projects?.length ?? 0;
   const clipCount = resources.creator_clips?.length ?? 0;
-  const activeJobs = (resources.creator_jobs ?? []).filter((job) =>
-    ["queued", "analyzing", "transcribing", "selecting_clips", "rendering"].includes(
-      String(job.status),
-    ),
-  ).length;
+  const creatorJobs = useMemo(
+    () =>
+      [...(resources.creator_jobs ?? [])].sort(
+        (a, b) =>
+          Date.parse(String(b.created_at ?? 0)) - Date.parse(String(a.created_at ?? 0)),
+      ),
+    [resources.creator_jobs],
+  );
+  const activeJobs = creatorJobs.filter((job) => creatorJobActive(job.status)).length;
+  const providerConnections = resources.creator_platform_connections ?? [];
+  const providerAnalytics = useMemo(() => {
+    const snapshots = resources.creator_analytics_snapshots ?? [];
+    const latest = new Map<string, Record<string, unknown>>();
+    for (const snapshot of snapshots) {
+      const contentId = String(snapshot.provider_content_id ?? "");
+      if (!contentId) continue;
+      const current = latest.get(contentId);
+      if (
+        !current ||
+        Date.parse(String(snapshot.captured_at ?? 0)) >
+          Date.parse(String(current.captured_at ?? 0))
+      ) {
+        latest.set(contentId, snapshot);
+      }
+    }
+    return (resources.creator_analytics_content ?? [])
+      .map((item) => {
+        const snapshot = latest.get(String(item.provider_content_id ?? ""));
+        return {
+          content: item,
+          snapshot,
+          metrics: metricRecord(snapshot?.metrics),
+        };
+      })
+      .sort(
+        (a, b) =>
+          Date.parse(String(b.content.published_at ?? 0)) -
+          Date.parse(String(a.content.published_at ?? 0)),
+      );
+  }, [resources.creator_analytics_content, resources.creator_analytics_snapshots]);
+  const maxProviderViews = Math.max(
+    0,
+    ...providerAnalytics
+      .map((row) => row.metrics.views)
+      .filter((value): value is number => typeof value === "number"),
+  );
 
   const mutate = async (work: () => Promise<unknown>, message: string) => {
     try {
@@ -274,6 +367,116 @@ function CreatorStudio() {
       toast.error("The video could not be uploaded. No fake processing state was created.");
     } finally {
       setSourceBusy(false);
+    }
+  };
+
+  const handleCancelJob = async (jobId: string) => {
+    if (cancelConfirmJobId !== jobId) {
+      setCancelConfirmJobId(jobId);
+      return;
+    }
+    try {
+      await cancelCreatorJob(jobId);
+      setCancelConfirmJobId(null);
+      await reload();
+      toast.success("Creator processing cancelled.");
+    } catch (error) {
+      console.error("creator_job_cancel_failed", error);
+      toast.error("This Creator job could not be cancelled.");
+    }
+  };
+
+  const draftForClip = (clip: Record<string, unknown>): ClipRerenderDraft =>
+    rerenderDrafts[String(clip.id)] ?? {
+      startSeconds: String(Number(clip.start_ms ?? 0) / 1000),
+      endSeconds: String(Number(clip.end_ms ?? 0) / 1000),
+      aspectRatio:
+        clip.aspect_ratio === "1:1" || clip.aspect_ratio === "16:9" ? clip.aspect_ratio : "9:16",
+      captionsEnabled: clip.captions_enabled !== false,
+    };
+
+  const updateClipDraft = (
+    clip: Record<string, unknown>,
+    patch: Partial<ClipRerenderDraft>,
+  ) => {
+    const id = String(clip.id);
+    setRerenderDrafts((current) => ({
+      ...current,
+      [id]: { ...(current[id] ?? draftForClip(clip)), ...patch },
+    }));
+  };
+
+  const handleRerenderClip = async (clip: Record<string, unknown>) => {
+    const id = String(clip.id);
+    const draft = draftForClip(clip);
+    try {
+      await rerenderCreatorClip({
+        clipId: id,
+        startMs: Math.round(Number(draft.startSeconds) * 1000),
+        endMs: Math.round(Number(draft.endSeconds) * 1000),
+        aspectRatio: draft.aspectRatio,
+        captionsEnabled: draft.captionsEnabled,
+      });
+      await reload();
+      toast.success("Rerender queued in the canonical Creator worker.");
+    } catch (error) {
+      console.error("creator_rerender_failed", error);
+      toast.error("Could not queue this rerender. Check the clip range and retry.");
+    }
+  };
+
+  const handleConnectProvider = async (provider: CreatorProvider) => {
+    if (typeof window === "undefined") return;
+    setProviderBusy(provider);
+    try {
+      const authorizationUrl = await startCreatorProviderConnection({
+        provider,
+        redirectUri: `${window.location.origin}/creator`,
+      });
+      window.location.assign(authorizationUrl);
+    } catch (error) {
+      console.error("creator_provider_connect_failed", error);
+      toast.error(
+        provider === "youtube"
+          ? "YouTube connection is not configured or available."
+          : "TikTok connection requires an approved provider app.",
+      );
+      setProviderBusy(null);
+    }
+  };
+
+  const handleSyncProvider = async (connectionId?: string) => {
+    setProviderBusy(connectionId ?? "all");
+    try {
+      const result = await syncCreatorProviderAnalytics(connectionId);
+      await reload();
+      toast.success(
+        `Provider analytics synced: ${result.content ?? 0} content records, ${result.snapshots ?? 0} new snapshots.`,
+      );
+    } catch (error) {
+      console.error("creator_analytics_sync_failed", error);
+      toast.error("Provider analytics could not be synced.");
+    } finally {
+      setProviderBusy(null);
+    }
+  };
+
+  const handleDisconnectProvider = async (connectionId: string) => {
+    if (disconnectConfirmId !== connectionId) {
+      setDisconnectConfirmId(connectionId);
+      return;
+    }
+    setProviderBusy(connectionId);
+    try {
+      await disconnectCreatorProvider(connectionId);
+      setDisconnectConfirmId(null);
+      await reload();
+      toast.success("Provider disconnected. Existing analytics history was retained.");
+    } catch (error) {
+      console.error("creator_provider_disconnect_failed", error);
+      toast.error("Provider could not be disconnected.");
+    } finally {
+      setProviderBusy(null);
     }
   };
 
@@ -542,6 +745,58 @@ function CreatorStudio() {
         </Card>
       </section>
 
+      <section id="clipping" className="scroll-mt-24 space-y-4">
+        <div className="flex items-center gap-2">
+          <Scissors className="h-5 w-5 text-intelligence" />
+          <div>
+            <h2 className="font-display text-3xl">Clipping workflow</h2>
+            <p className="text-sm text-muted-foreground">
+              Real worker stages only: analyze → transcribe → select clips → render.
+            </p>
+          </div>
+        </div>
+        {creatorJobs.length === 0 ? (
+          <EmptyState text="No clipping jobs yet. Import or upload a source to start the canonical worker." />
+        ) : (
+          <div className="grid gap-3 md:grid-cols-2">
+            {creatorJobs.slice(0, 8).map((job) => {
+              const active = creatorJobActive(job.status);
+              const jobId = String(job.id);
+              return (
+                <Card key={jobId}>
+                  <CardContent className="space-y-3 pt-6">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <strong className="text-sm">Job {jobId.slice(0, 8)}</strong>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Stage: {String(job.progress_stage ?? job.status ?? "unknown").replaceAll("_", " ")}
+                        </p>
+                      </div>
+                      <StatusPill value={String(job.status ?? "unknown")} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                      <span>Attempts: {String(job.attempt_count ?? 0)}</span>
+                      <span>
+                        {job.error_code ? `Error: ${String(job.error_code)}` : "No worker error"}
+                      </span>
+                    </div>
+                    {active && (
+                      <Button
+                        variant={cancelConfirmJobId === jobId ? "destructive" : "outline"}
+                        className="w-full"
+                        onClick={() => void handleCancelJob(jobId)}
+                      >
+                        {cancelConfirmJobId === jobId ? "Confirm cancel" : "Cancel processing"}
+                      </Button>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
       <section className="space-y-3">
         <div className="flex items-center gap-2">
           <Film className="h-5 w-5 text-muted-foreground" />
@@ -551,32 +806,97 @@ function CreatorStudio() {
           <EmptyState text="Rendered clips will appear here only after the canonical worker creates real outputs." />
         ) : (
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {(resources.creator_clips ?? []).map((clip) => (
-              <Card key={String(clip.id)}>
-                <CardContent className="space-y-3 pt-6">
-                  <div className="flex items-center justify-between gap-2">
-                    <strong>Clip #{String(clip.rank ?? "—")}</strong>
-                    <StatusPill value={String(clip.render_status)} />
-                  </div>
-                  {typeof clip.score === "number" && (
-                    <p className="text-sm text-muted-foreground">Score: {String(clip.score)}</p>
-                  )}
-                  {Boolean(clip.output_path) && (
-                    <Button
-                      variant="outline"
-                      className="w-full"
-                      onClick={() =>
-                        void signedCreatorOutput(String(clip.output_path)).then((url) =>
-                          window.open(url, "_blank", "noopener,noreferrer"),
-                        )
-                      }
-                    >
-                      <ExternalLink className="h-4 w-4" /> Authorized download
-                    </Button>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
+            {(resources.creator_clips ?? []).map((clip) => {
+              const draft = draftForClip(clip);
+              const available = String(clip.render_status) === "available";
+              return (
+                <Card key={String(clip.id)}>
+                  <CardContent className="space-y-3 pt-6">
+                    <div className="flex items-center justify-between gap-2">
+                      <strong>Clip #{String(clip.rank ?? "—")}</strong>
+                      <StatusPill value={String(clip.render_status)} />
+                    </div>
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                      {typeof clip.score === "number" && <span>Score: {String(clip.score)}</span>}
+                      {clip.duration_ms != null && <span>{(Number(clip.duration_ms) / 1000).toFixed(1)}s</span>}
+                      {Boolean(clip.aspect_ratio) && <span>{String(clip.aspect_ratio)}</span>}
+                      {Boolean(clip.render_version) && <span>Render v{String(clip.render_version)}</span>}
+                    </div>
+                    {Boolean(clip.score_reason) && (
+                      <p className="text-sm leading-5 text-muted-foreground">{String(clip.score_reason)}</p>
+                    )}
+                    {Boolean(clip.transcript_excerpt) && (
+                      <p className="line-clamp-3 rounded-xl border border-border bg-background/40 p-3 text-xs leading-5 text-muted-foreground">
+                        {String(clip.transcript_excerpt)}
+                      </p>
+                    )}
+                    {Boolean(clip.output_path) && (
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={() =>
+                          void signedCreatorOutput(String(clip.output_path))
+                            .then((url) => window.open(url, "_blank", "noopener,noreferrer"))
+                            .catch(() => toast.error("Authorized clip URL could not be created."))
+                        }
+                      >
+                        <ExternalLink className="h-4 w-4" /> Authorized download
+                      </Button>
+                    )}
+                    {available && (
+                      <details className="rounded-xl border border-border p-3">
+                        <summary className="cursor-pointer text-sm font-medium">Rerender this clip</summary>
+                        <div className="mt-3 grid gap-3">
+                          <div className="grid grid-cols-2 gap-2">
+                            <Field
+                              label="Start (seconds)"
+                              type="number"
+                              value={draft.startSeconds}
+                              onChange={(value) => updateClipDraft(clip, { startSeconds: value })}
+                            />
+                            <Field
+                              label="End (seconds)"
+                              type="number"
+                              value={draft.endSeconds}
+                              onChange={(value) => updateClipDraft(clip, { endSeconds: value })}
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label>Aspect ratio</Label>
+                            <select
+                              className="h-10 w-full rounded-md border bg-background px-3"
+                              value={draft.aspectRatio}
+                              onChange={(event) =>
+                                updateClipDraft(clip, {
+                                  aspectRatio: event.target.value as ClipRerenderDraft["aspectRatio"],
+                                })
+                              }
+                            >
+                              <option value="9:16">9:16</option>
+                              <option value="1:1">1:1</option>
+                              <option value="16:9">16:9</option>
+                            </select>
+                          </div>
+                          <label className="flex items-center gap-2 text-sm">
+                            <input
+                              type="checkbox"
+                              checked={draft.captionsEnabled}
+                              onChange={(event) =>
+                                updateClipDraft(clip, { captionsEnabled: event.target.checked })
+                              }
+                            />
+                            Render captions
+                          </label>
+                          <Button onClick={() => void handleRerenderClip(clip)}>
+                            <RefreshCw className="h-4 w-4" /> Queue rerender
+                          </Button>
+                        </div>
+                      </details>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         )}
       </section>
@@ -767,10 +1087,174 @@ function CreatorStudio() {
           <BarChart3 className="h-5 w-5 text-muted-foreground" />
           <span>
             <strong className="block">Content log & real analytics</strong>
-            <span className="text-xs text-muted-foreground">Manual observations only until E24 connects chart-ready evidence</span>
+            <span className="text-xs text-muted-foreground">Provider evidence and manual observations stay visibly separated</span>
           </span>
         </summary>
         <div className="space-y-5 border-t border-border p-4">
+          <Card className="border-intelligence/20">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5" /> Provider-verified analytics
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <p className="text-sm leading-6 text-muted-foreground">
+                KIVRYN stores only metrics actually returned by an authorized provider. Missing fields stay unknown;
+                provider zeroes remain zero.
+              </p>
+              <div className="grid gap-3 md:grid-cols-2">
+                {(["youtube", "tiktok"] as const).map((provider) => {
+                  const connected = providerConnections.find(
+                    (row) => row.platform === provider && row.status === "connected",
+                  );
+                  const latestConnection = providerConnections.find((row) => row.platform === provider);
+                  const label = provider === "youtube" ? "YouTube" : "TikTok";
+                  return (
+                    <div key={provider} className="rounded-2xl border border-border bg-background/35 p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <strong>{label}</strong>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {connected
+                              ? `Connected as ${String(connected.provider_display_name ?? connected.external_account_id ?? label)}`
+                              : latestConnection
+                                ? `Status: ${String(latestConnection.status).replaceAll("_", " ")}`
+                                : "Not connected"}
+                          </p>
+                        </div>
+                        <StatusPill value={connected ? "connected" : String(latestConnection?.status ?? "not_connected")} />
+                      </div>
+                      {connected ? (
+                        <div className="mt-4 space-y-2">
+                          <p className="text-xs text-muted-foreground">
+                            Granted evidence:{" "}
+                            {Array.isArray(connected.granted_metrics) && connected.granted_metrics.length
+                              ? connected.granted_metrics.map(String).join(", ")
+                              : "No metrics observed yet"}
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              size="sm"
+                              disabled={providerBusy !== null}
+                              onClick={() => void handleSyncProvider(String(connected.id))}
+                            >
+                              {providerBusy === String(connected.id) ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <RefreshCw className="h-4 w-4" />
+                              )}
+                              Sync analytics
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant={disconnectConfirmId === String(connected.id) ? "destructive" : "outline"}
+                              disabled={providerBusy !== null}
+                              onClick={() => void handleDisconnectProvider(String(connected.id))}
+                            >
+                              <Unplug className="h-4 w-4" />
+                              {disconnectConfirmId === String(connected.id) ? "Confirm disconnect" : "Disconnect"}
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <Button
+                          className="mt-4 w-full"
+                          variant="outline"
+                          disabled={providerBusy !== null}
+                          onClick={() => void handleConnectProvider(provider)}
+                        >
+                          {providerBusy === provider && <Loader2 className="h-4 w-4 animate-spin" />}
+                          {provider === "youtube" ? "Connect YouTube" : "Connect TikTok"}
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+                <div>
+                  <strong className="text-sm">Verified content performance</strong>
+                  <p className="text-xs text-muted-foreground">
+                    Latest persisted provider snapshot per content item.
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={providerBusy !== null || !providerConnections.some((row) => row.status === "connected")}
+                  onClick={() => void handleSyncProvider()}
+                >
+                  {providerBusy === "all" ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" />
+                  )}
+                  Sync analytics
+                </Button>
+              </div>
+
+              {providerAnalytics.length === 0 ? (
+                <EmptyState text="No provider-verified analytics yet. Connect an approved provider and sync; KIVRYN renders nothing until verified evidence exists." />
+              ) : (
+                <div className="space-y-3">
+                  {providerAnalytics.slice(0, 20).map(({ content: item, snapshot, metrics: verified }) => {
+                    const views = verified.views;
+                    const width =
+                      typeof views === "number" && maxProviderViews > 0
+                        ? Math.max(2, Math.round((views / maxProviderViews) * 100))
+                        : 0;
+                    return (
+                      <div
+                        key={`${String(item.connection_id)}:${String(item.provider_content_id)}`}
+                        className="rounded-2xl border border-border p-4"
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <strong className="block truncate text-sm">
+                              {String(item.title ?? item.provider_content_id)}
+                            </strong>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {String(item.platform)} · {new Date(String(item.published_at)).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-300">
+                            provider verified
+                          </span>
+                        </div>
+                        {typeof views === "number" && (
+                          <div className="mt-3">
+                            <div className="mb-1 flex justify-between text-xs text-muted-foreground">
+                              <span>views</span>
+                              <span>{views.toLocaleString()}</span>
+                            </div>
+                            <div className="h-1.5 overflow-hidden rounded-full bg-border">
+                              <div className="h-full rounded-full bg-intelligence/70" style={{ width: `${width}%` }} />
+                            </div>
+                          </div>
+                        )}
+                        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                          {Object.entries(verified)
+                            .filter(([name]) => name !== "views")
+                            .map(([name, value]) => (
+                              <span key={name}>
+                                {name.replaceAll("_", " ")}: {value.toLocaleString()}
+                              </span>
+                            ))}
+                        </div>
+                        {Boolean(snapshot && (snapshot.period_start || snapshot.period_end)) && (
+                          <p className="mt-2 text-[11px] text-muted-foreground">
+                            Period: {String(snapshot?.period_start ?? "—")} → {String(snapshot?.period_end ?? "—")}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           <Card id="content">
             <CardHeader>
               <CardTitle>Manual content log</CardTitle>
@@ -851,6 +1335,9 @@ function CreatorStudio() {
             <Card>
               <CardHeader>
                 <CardTitle>Manual analytics</CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  Manual observations only in this section; provider-verified evidence stays separate above.
+                </p>
               </CardHeader>
               <CardContent className="grid gap-3 sm:grid-cols-2">
                 {CREATOR_METRICS.map((metric) => (
@@ -903,7 +1390,7 @@ function CreatorStudio() {
                     </p>
                   ))}
                   <p className="text-xs text-muted-foreground">
-                    Provider-verified charts are intentionally deferred to E24; no fabricated chart data is shown.
+                    Provider snapshots above are provider-owned evidence. Country observations here remain explicitly manual until a provider returns that dimension.
                   </p>
                 </div>
               </CardContent>

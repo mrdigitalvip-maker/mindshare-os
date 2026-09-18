@@ -28,11 +28,14 @@ Deno.serve(async (request) => {
     .gt("expires_at", new Date().toISOString())
     .maybeSingle();
   if (!oauth) return new Response("Expired or invalid OAuth state", { status: 400 });
-  await admin
+  const { data: consumed } = await admin
     .from("creator_oauth_states")
     .update({ consumed_at: new Date().toISOString() })
     .eq("state_hash", stateHash)
-    .is("consumed_at", null);
+    .is("consumed_at", null)
+    .select("state_hash")
+    .maybeSingle();
+  if (!consumed) return new Response("Expired or invalid OAuth state", { status: 400 });
   const provider = oauth.provider as CreatorProvider,
     config = PROVIDERS[provider];
   if (provider === "instagram" || !("tokenUrl" in config))
@@ -98,19 +101,9 @@ Deno.serve(async (request) => {
           provider === "youtube" ? account?.snippet?.title : account?.display_name,
         status: "connected",
         granted_scopes: scopes,
-        granted_metrics:
-          provider === "youtube"
-            ? [
-                "views",
-                "watch_time_ms",
-                "average_view_duration_ms",
-                "likes",
-                "comments",
-                "followers_gained",
-                "country",
-                "day",
-              ]
-            : ["views", "likes", "comments", "shares"],
+        // A connection grants scopes, not evidence. Metrics become granted only
+        // after creator-analytics-sync actually observes them from the provider.
+        granted_metrics: [],
         safe_error_code: null,
         disconnected_at: null,
         updated_at: now,
@@ -121,6 +114,11 @@ Deno.serve(async (request) => {
     .single();
   if (connection.error)
     return redirect(oauth.redirect_uri, "error", "connection_persistence_failed");
+  const { data: existingCredential } = await admin
+    .from("creator_provider_credentials")
+    .select("refresh_token_ciphertext")
+    .eq("connection_id", connection.data.id)
+    .maybeSingle();
   const credential = await admin
     .from("creator_provider_credentials")
     .upsert({
@@ -129,7 +127,7 @@ Deno.serve(async (request) => {
       access_token_ciphertext: await encryptServerSecret(accessToken),
       refresh_token_ciphertext: token.refresh_token
         ? await encryptServerSecret(String(token.refresh_token))
-        : null,
+        : existingCredential?.refresh_token_ciphertext ?? null,
       expires_at: token.expires_in
         ? new Date(Date.now() + Number(token.expires_in) * 1000).toISOString()
         : null,

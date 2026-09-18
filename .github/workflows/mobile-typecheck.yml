@@ -25,8 +25,19 @@ jobs:
         with:
           node-version: 20
 
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
       - name: Install mobile dependencies
         run: npm install --legacy-peer-deps --ignore-scripts
 
       - name: Typecheck mobile
         run: npm run typecheck
+
+      - name: Run E23/E24 Creator source parity
+        run: bun test tests/creator-e23-e24-source-parity.test.ts
+
+      - name: Run existing Creator engine and intelligence contracts
+        run: bun test tests/creator-video-engine-revision-14.test.ts tests/creator-intelligence-revision-14.test.ts

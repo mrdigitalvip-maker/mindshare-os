@@ -23,6 +23,7 @@ export function boundWorkspaceContext(value: WorkspaceContext, maxChars = 6000) 
     tasks: value.tasks.slice(0, 30) as Array<Record<string, unknown>>,
     projects: value.projects.slice(0, 15) as Array<Record<string, unknown>>,
     studies: value.studies.slice(0, 15) as Array<Record<string, unknown>>,
+    documents: [],
     passport: [],
     omittedScopes: [],
   };

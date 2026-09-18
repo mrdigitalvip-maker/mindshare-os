@@ -45,6 +45,12 @@ describe("creator domain", () => {
     expect(normalizeScenes([2, 1, 2, -1, 99], 5000)).toEqual([1000, 2000]));
   test("uses sentence boundaries for candidates", () =>
     expect(candidates(seg, [16000], 45000, 15).length).toBeGreaterThan(0));
+  test("falls back to real transcript boundaries when a short source misses target tolerance", () => {
+    const short = [{ startMs: 0, endMs: 8000, text: "A complete short spoken idea." }];
+    expect(candidates(short, [], 8000, 30)).toEqual([
+      { startMs: 0, endMs: 8000, text: "A complete short spoken idea." },
+    ]);
+  });
   test("removes excessive overlap", () =>
     expect(
       diversify(
