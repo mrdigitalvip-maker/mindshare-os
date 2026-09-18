@@ -1,6 +1,6 @@
 import type { KivrynActionDomain, KivrynActionName } from "./kivryn-action-registry.ts";
 
-export type KivrynActionAuditStatus = "planned" | "approval_required" | "approved" | "applied" | "rejected" | "failed";
+export type KivrynActionAuditStatus = "planned" | "approval_required" | "approved" | "applied" | "rejected" | "failed" | "uncertain";
 
 export interface KivrynActionAuditEvent {
   runId: string;
