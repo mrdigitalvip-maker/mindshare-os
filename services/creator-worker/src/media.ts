@@ -1,7 +1,12 @@
 import { spawn } from "node:child_process";
 import { writeFile } from "node:fs/promises";
 import type { Segment } from "./domain";
-export async function run(bin: string, args: string[], signal?: AbortSignal) {
+export async function run(
+  bin: string,
+  args: string[],
+  signal?: AbortSignal,
+  failureCode = "MEDIA_COMMAND_FAILED",
+) {
   return await new Promise<{ stdout: string; stderr: string }>((resolve, reject) => {
     const p = spawn(bin, args, { stdio: ["ignore", "pipe", "pipe"] });
     let stdout = "",
@@ -21,14 +26,20 @@ export async function run(bin: string, args: string[], signal?: AbortSignal) {
       else
         reject(
           Object.assign(new Error(`${bin} exited ${c}`), {
-            code: signal?.aborted ? "CANCELLED" : "MEDIA_COMMAND_FAILED",
+            code: signal?.aborted ? "CANCELLED" : failureCode,
+            stderr: stderr.slice(-4000),
           }),
         );
     });
   });
 }
 export const probe = async (path: string) =>
-  run("ffprobe", ["-v", "error", "-print_format", "json", "-show_format", "-show_streams", path]);
+  run(
+    "ffprobe",
+    ["-v", "error", "-print_format", "json", "-show_format", "-show_streams", path],
+    undefined,
+    "MEDIA_PROBE_FAILED",
+  );
 export const extractAudio = (input: string, output: string, signal?: AbortSignal) =>
   run(
     "ffmpeg",
@@ -49,14 +60,30 @@ export const extractAudio = (input: string, output: string, signal?: AbortSignal
       output,
     ],
     signal,
+    "MEDIA_AUDIO_EXTRACTION_FAILED",
   );
 export async function scenes(input: string, signal?: AbortSignal) {
-  const r = await run(
-    "ffmpeg",
-    ["-nostdin", "-i", input, "-vf", "select='gt(scene,0.32)',showinfo", "-an", "-f", "null", "-"],
-    signal,
-  );
-  return [...r.stderr.matchAll(/pts_time:([0-9.]+)/g)].map((m) => Number(m[1]));
+  try {
+    const r = await run(
+      "ffmpeg",
+      ["-nostdin", "-i", input, "-vf", "select='gt(scene,0.32)',showinfo", "-an", "-f", "null", "-"],
+      signal,
+      "MEDIA_SCENE_SCAN_FAILED",
+    );
+    return [...r.stderr.matchAll(/pts_time:([0-9.]+)/g)].map((m) => Number(m[1]));
+  } catch (error: unknown) {
+    if (
+      typeof error === "object" &&
+      error &&
+      "code" in error &&
+      String(error.code) === "CANCELLED"
+    ) {
+      throw error;
+    }
+    // Scene boundaries improve candidate quality but are not source-of-truth.
+    // Speech transcript boundaries remain sufficient for real clipping.
+    return [];
+  }
 }
 const escapeAss = (s: string) =>
   s.replaceAll("\\", "\\\\").replaceAll(":", "\\:").replaceAll("'", "\\'");
@@ -99,7 +126,8 @@ export function renderArgs(
     output,
   ];
 }
-export const render = (...x: Parameters<typeof renderArgs>) => run("ffmpeg", renderArgs(...x));
+export const render = (...x: Parameters<typeof renderArgs>) =>
+  run("ffmpeg", renderArgs(...x), undefined, "MEDIA_RENDER_FAILED");
 const stamp = (ms: number) => {
   const h = Math.floor(ms / 3600000),
     m = Math.floor((ms % 3600000) / 60000),
