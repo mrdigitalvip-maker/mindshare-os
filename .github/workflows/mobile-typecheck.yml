@@ -60,5 +60,8 @@ jobs:
       - name: Run E37/E38 Identity and Project Check-in source parity
         run: bun test tests/identity-checkins-e37-e38-source-parity.test.ts
 
+      - name: Run E39/E40 Passport and Creator source parity
+        run: bun test tests/passport-creator-e39-e40-source-parity.test.ts
+
       - name: Run existing Creator engine and intelligence contracts
         run: bun test tests/creator-video-engine-revision-14.test.ts tests/creator-intelligence-revision-14.test.ts
