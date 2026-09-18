@@ -3,7 +3,7 @@ import { supabase } from "@/lib/supabase";
 export type AgentPlanStep = {
   id: string;
   action: string;
-  domain: "tasks" | "projects" | "studies";
+  domain: "tasks" | "projects" | "studies" | "integrations";
   input: Record<string, unknown>;
   requiresApproval: true;
 };
