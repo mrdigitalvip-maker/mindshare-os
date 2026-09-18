@@ -17,7 +17,7 @@ test("E53 hardens Studio owner policies without changing authenticated CRUD surf
   assert.equal((studio.match(/for insert\s+to authenticated/g)??[]).length,6);
   assert.equal((studio.match(/for update\s+to authenticated/g)??[]).length,6);
   assert.equal((studio.match(/for delete\s+to authenticated/g)??[]).length,6);
-  assert.doesNotMatch(studio.replaceAll("(select auth.uid())",""),/auth\.uid\(\)/);
+  const executableStudio = studio.replace(/^--.*$/gm, "").replaceAll("(select auth.uid())","");\n  assert.doesNotMatch(executableStudio,/auth\\.uid\\(\\)/);
 });
 
 test("E53 adds only the missing Studio leading FK indexes",()=>{
@@ -41,7 +41,7 @@ test("E54 preserves exact Passport companion operation surface and authenticated
     "passport vocabulary owner update","passport vocabulary owner delete",
     "passport vocabulary reviews owner select",
   ]) assert.match(passport,new RegExp(`create policy "${name}"`));
-  assert.doesNotMatch(passport.replaceAll("(select auth.uid())",""),/auth\.uid\(\)/);
+  const executablePassport = passport.replace(/^--.*$/gm, "").replaceAll("(select auth.uid())","");\n  assert.doesNotMatch(executablePassport,/auth\\.uid\\(\\)/);
   assert.doesNotMatch(passport,/to public/);
 });
 
