@@ -6,6 +6,7 @@ const source=(path:string)=>readFileSync(fileURLToPath(new URL(path,import.meta.
 const registry=source("../../supabase/functions/_shared/kivryn-integration-registry.ts");
 const intelligence=source("../../supabase/functions/_shared/creator-intelligence.ts");
 const workspaceRead=source("../../supabase/functions/google-workspace-read/index.ts");
+const workspaceAccess=source("../../supabase/functions/_shared/google-workspace-access.ts");
 const service=source("../services/integration-status-service.ts");
 const settings=source("../app/(app)/settings.tsx");
 
@@ -19,7 +20,7 @@ describe("E59/E60 Google Workspace source parity",()=>{
     expect(registry).toContain('"files.read"');
   });
 
-  test("OAuth provider request remains read-only in this edition",()=>{
+  test("E59 read scopes remain present after approval-gated write scopes are added",()=>{
     expect(intelligence).toContain('KIVRYN_INTEGRATION_PROVIDERS.gmail.capabilityScopes["mail.read"]');
     expect(intelligence).toContain('KIVRYN_INTEGRATION_PROVIDERS.google_calendar.capabilityScopes["calendar.read"]');
     expect(intelligence).toContain('KIVRYN_INTEGRATION_PROVIDERS.google_drive.capabilityScopes["files.read"]');
@@ -36,7 +37,8 @@ describe("E59/E60 Google Workspace source parity",()=>{
   test("Workspace runtime remains authenticated and server-side",()=>{
     expect(workspaceRead).toContain("auth.getUser()");
     expect(workspaceRead).toContain("SUPABASE_SERVICE_ROLE_KEY");
-    expect(workspaceRead).toContain("creator_provider_credentials");
-    expect(workspaceRead).toContain("canUseKivrynIntegrationCapability");
+    expect(workspaceRead).toContain("resolveGoogleWorkspaceAccess");
+    expect(workspaceAccess).toContain("creator_provider_credentials");
+    expect(workspaceAccess).toContain("canUseKivrynIntegrationCapability");
   });
 });
