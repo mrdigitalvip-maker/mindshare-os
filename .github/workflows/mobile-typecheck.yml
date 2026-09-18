@@ -57,5 +57,8 @@ jobs:
       - name: Run E35/E36 Agent Core and workspace source parity
         run: bun test tests/agent-projects-tasks-e35-e36-source-parity.test.ts
 
+      - name: Run E37/E38 Identity and Project Check-in source parity
+        run: bun test tests/identity-checkins-e37-e38-source-parity.test.ts
+
       - name: Run existing Creator engine and intelligence contracts
         run: bun test tests/creator-video-engine-revision-14.test.ts tests/creator-intelligence-revision-14.test.ts
