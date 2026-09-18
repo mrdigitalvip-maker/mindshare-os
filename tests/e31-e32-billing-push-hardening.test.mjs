@@ -15,6 +15,8 @@ test("E31 keeps trial consumption in a service-only immutable ledger", () => {
   assert.match(billing, /revoke all on table public\.subscription_trial_ledger from public, anon, authenticated/);
   assert.match(billing, /Existing Stripe users must never become first-trial eligible/);
   assert.match(checkout, /\.from\("subscription_trial_ledger"\)/);
+  assert.match(checkout, /supabase\.rpc\("get_subscription_runtime"\)/);
+  assert.match(checkout, /is_premium\?: boolean/);
   assert.match(checkout, /const trialEligible = !existing\?\.stripe_subscription_id && !trialLedger/);
 });
 
@@ -36,6 +38,7 @@ test("E31 refreshes authoritative Stripe state for mutable subscription events",
   assert.match(webhook, /case "customer\.subscription\.updated"/);
   assert.match(webhook, /stripe\.subscriptions\.retrieve\(snapshot\.id\)/);
   assert.match(webhook, /case "customer\.subscription\.deleted"/);
+  assert.match(webhook, /stripeError\.statusCode !== 404/);
 });
 
 test("E31 persistence RPC is service-role only", () => {
