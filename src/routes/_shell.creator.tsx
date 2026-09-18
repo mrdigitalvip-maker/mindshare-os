@@ -188,6 +188,72 @@ function metricRecord(value: unknown): Record<string, number> {
   );
 }
 
+const creatorStatusPt: Record<string, string> = {
+  draft: "rascunho",
+  ready: "pronto",
+  uploading: "enviando",
+  available: "disponível",
+  failed: "falhou",
+  queued: "na fila",
+  analyzing: "analisando",
+  transcribing: "transcrevendo",
+  selecting_clips: "selecionando cortes",
+  rendering: "renderizando",
+  completed: "concluído",
+  cancelled: "cancelado",
+  cancel_requested: "cancelamento solicitado",
+  retry_wait: "aguardando nova tentativa",
+  connected: "conectado",
+  not_connected: "não conectado",
+  revoked: "revogado",
+  expired: "expirado",
+  unknown: "desconhecido",
+  authorized_direct: "fonte direta autorizada",
+  local_video: "vídeo local",
+};
+
+function creatorStatusLabel(value: unknown, locale: "pt-BR" | "en") {
+  const normalized = String(value ?? "unknown");
+  if (locale === "pt-BR") return creatorStatusPt[normalized] ?? normalized.replaceAll("_", " ");
+  return normalized.replaceAll("_", " ");
+}
+
+const creatorMetricPt: Record<string, string> = {
+  views: "visualizações",
+  reach: "alcance",
+  watch_time_ms: "tempo de exibição",
+  average_view_duration_ms: "duração média de visualização",
+  retention_ratio: "retenção",
+  likes: "curtidas",
+  comments: "comentários",
+  shares: "compartilhamentos",
+  saves: "salvamentos",
+  followers_gained: "seguidores conquistados",
+};
+
+function creatorMetricLabel(value: string, locale: "pt-BR" | "en") {
+  return locale === "pt-BR" ? creatorMetricPt[value] ?? value.replaceAll("_", " ") : value.replaceAll("_", " ");
+}
+
+const creatorAcademyPt: Record<string, string> = {
+  START: "INÍCIO",
+  GROWTH: "CRESCIMENTO",
+  PRO: "PRO",
+  "Choose your niche": "Escolha seu nicho",
+  "Build your profile": "Construa seu perfil",
+  "Content pillar basics": "Fundamentos de pilares de conteúdo",
+  Retention: "Retenção",
+  Storytelling: "Narrativa",
+  "Calls to action": "Chamadas para ação",
+  "Content systems": "Sistemas de conteúdo",
+  Experiments: "Experimentos",
+  "Audience analysis": "Análise de público",
+};
+
+function creatorAcademyLabel(value: string, locale: "pt-BR" | "en") {
+  return locale === "pt-BR" ? creatorAcademyPt[value] ?? value : value;
+}
+
 function creatorJobActive(status: unknown) {
   return ["queued", "analyzing", "transcribing", "selecting_clips", "rendering"].includes(
     String(status),
@@ -733,13 +799,13 @@ function CreatorStudio() {
                     <div className="min-w-0">
                       <p className="truncate font-semibold">{String(project.title)}</p>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        {String(project.source_type).replaceAll("_", " ")} · {String(project.status)}
+                        {creatorStatusLabel(project.source_type, resolvedLocale)} · {creatorStatusLabel(project.status, resolvedLocale)}
                         {formatBytes(project.source_size_bytes)
                           ? ` · ${formatBytes(project.source_size_bytes)}`
                           : ""}
                       </p>
                     </div>
-                    <StatusPill value={String(latestJob?.progress_stage ?? project.status)} />
+                    <StatusPill value={String(latestJob?.progress_stage ?? project.status)} locale={resolvedLocale} />
                   </div>
                 </div>
               );
@@ -843,10 +909,10 @@ function CreatorStudio() {
                       <div>
                         <strong className="text-sm">{L("Processamento", "Job")} {jobId.slice(0, 8)}</strong>
                         <p className="mt-1 text-xs text-muted-foreground">
-                          Stage: {String(job.progress_stage ?? job.status ?? "unknown").replaceAll("_", " ")}
+                          {L("Etapa", "Stage")}: {creatorStatusLabel(job.progress_stage ?? job.status ?? "unknown", resolvedLocale)}
                         </p>
                       </div>
-                      <StatusPill value={String(job.status ?? "unknown")} />
+                      <StatusPill value={String(job.status ?? "unknown")} locale={resolvedLocale} />
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
                       <span>{L("Tentativas", "Attempts")}: {String(job.attempt_count ?? 0)}</span>
@@ -888,7 +954,7 @@ function CreatorStudio() {
                   <CardContent className="space-y-3 pt-6">
                     <div className="flex items-center justify-between gap-2">
                       <strong>Clip #{String(clip.rank ?? "—")}</strong>
-                      <StatusPill value={String(clip.render_status)} />
+                      <StatusPill value={String(clip.render_status)} locale={resolvedLocale} />
                     </div>
                     <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
                       {typeof clip.score === "number" && <span>{L("Pontuação", "Score")}: {String(clip.score)}</span>}
@@ -1196,7 +1262,7 @@ function CreatorStudio() {
                                 : "Not connected"}
                           </p>
                         </div>
-                        <StatusPill value={connected ? "connected" : String(latestConnection?.status ?? "not_connected")} />
+                        <StatusPill value={connected ? "connected" : String(latestConnection?.status ?? "not_connected")} locale={resolvedLocale} />
                       </div>
                       {connected ? (
                         <div className="mt-4 space-y-2">
@@ -1299,7 +1365,7 @@ function CreatorStudio() {
                         {typeof views === "number" && (
                           <div className="mt-3">
                             <div className="mb-1 flex justify-between text-xs text-muted-foreground">
-                              <span>views</span>
+                              <span>{creatorMetricLabel("views", resolvedLocale)}</span>
                               <span>{views.toLocaleString()}</span>
                             </div>
                             <div className="h-1.5 overflow-hidden rounded-full bg-border">
@@ -1312,7 +1378,7 @@ function CreatorStudio() {
                             .filter(([name]) => name !== "views")
                             .map(([name, value]) => (
                               <span key={name}>
-                                {name.replaceAll("_", " ")}: {value.toLocaleString()}
+                                {creatorMetricLabel(name, resolvedLocale)}: {value.toLocaleString()}
                               </span>
                             ))}
                         </div>
@@ -1417,7 +1483,7 @@ function CreatorStudio() {
                 {CREATOR_METRICS.map((metric) => (
                   <Field
                     key={metric}
-                    label={metric.replaceAll("_", " ")}
+                    label={creatorMetricLabel(metric, resolvedLocale)}
                     value={metrics[metric] ?? ""}
                     onChange={(value) => setMetrics({ ...metrics, [metric]: value })}
                   />
@@ -1485,7 +1551,7 @@ function CreatorStudio() {
           {Object.entries(CREATOR_ACADEMY).map(([level, lessons]) => (
             <Card key={level}>
               <CardHeader>
-                <CardTitle>{level}</CardTitle>
+                <CardTitle>{creatorAcademyLabel(level, resolvedLocale)}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
                 {lessons.map((lesson) => {
@@ -1503,7 +1569,7 @@ function CreatorStudio() {
                           )
                         }
                       />
-                      {lesson}
+                      {creatorAcademyLabel(lesson, resolvedLocale)}
                     </label>
                   );
                 })}
@@ -1526,7 +1592,7 @@ function StatusCard({ label, value, detail }: { label: string; value: number; de
   );
 }
 
-function StatusPill({ value }: { value: string }) {
+function StatusPill({ value, locale }: { value: string; locale: "pt-BR" | "en" }) {
   const complete = ["completed", "available", "ready"].includes(value);
   return (
     <span
@@ -1537,7 +1603,7 @@ function StatusPill({ value }: { value: string }) {
       }`}
     >
       {complete && <CheckCircle2 className="h-3 w-3" />}
-      {value.replaceAll("_", " ")}
+      {creatorStatusLabel(value, locale)}
     </span>
   );
 }
