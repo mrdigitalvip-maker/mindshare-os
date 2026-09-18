@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Pencil, Plus, Search, Trash2, Wallet } from "lucide-react";
@@ -13,12 +13,17 @@ import { FinanceService, workspaceQueryKeys } from "@/services";
 
 export const Route = createFileRoute("/_shell/finance")({
   head: () => ({ meta: [{ title: "Finance — KIVRYN" }] }),
-  component: Finance,
+  component: FinanceRoute,
 });
 type Account = Awaited<ReturnType<typeof FinanceService.listAccounts>>[number];
 type Transaction = Awaited<ReturnType<typeof FinanceService.listTransactions>>[number];
 type Editor = { kind: "account"; value?: Account } | { kind: "transaction"; value?: Transaction };
-function Finance() {
+function FinanceRoute() {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  return pathname !== "/finance" && pathname !== "/finance/" ? <Outlet /> : <FinanceIndex />;
+}
+
+function FinanceIndex() {
   const { t, resolvedLocale } = useLanguage();
   const money = useMemo(
     () => new Intl.NumberFormat(resolvedLocale, { style: "currency", currency: "USD" }),
