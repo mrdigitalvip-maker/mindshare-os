@@ -74,6 +74,21 @@ function AgentsIndex() {
   const retryingBackground = (backgroundRuns.data ?? []).filter(
     (run) => run.status === "retry_wait",
   ).length;
+  const premium = subscription.data?.isPremium === true;
+  const entitlementLoading = subscription.isPending && !subscription.data;
+  const entitlementError = subscription.isError;
+  const openBuilder = () => {
+    if (entitlementLoading) return;
+    if (entitlementError) {
+      toast.error("Não foi possível verificar seu acesso Premium. Tente novamente.");
+      return;
+    }
+    if (premium) {
+      setBuilder(true);
+      return;
+    }
+    toast.error("Faça upgrade para criar e executar agentes.");
+  };
   return (
     <PageShell>
       <WorkspaceShell>
@@ -82,19 +97,28 @@ function AgentsIndex() {
           title="Agentes"
           description="Crie especialistas reutilizáveis com skills KIVRYN versionadas e execução segura."
           actions={
-            <Button
-              onClick={() =>
-                subscription.data?.isPremium
-                  ? setBuilder(true)
-                  : toast.error("Faça upgrade para criar e executar agentes.")
-              }
-            >
+            <Button disabled={entitlementLoading} onClick={openBuilder}>
               <Plus />
               Novo agente
             </Button>
           }
         />
-        {!subscription.data?.isPremium && (
+        {entitlementLoading ? (
+          <PremiumGate>
+            <p className="text-sm text-muted-foreground">Verificando acesso Premium…</p>
+          </PremiumGate>
+        ) : entitlementError ? (
+          <PremiumGate>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm text-destructive">
+                Não foi possível verificar seu acesso Premium.
+              </p>
+              <Button size="sm" variant="outline" onClick={() => void subscription.refetch()}>
+                Tentar novamente
+              </Button>
+            </div>
+          </PremiumGate>
+        ) : !premium ? (
           <PremiumGate>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="text-sm">
@@ -106,7 +130,7 @@ function AgentsIndex() {
               </Link>
             </div>
           </PremiumGate>
-        )}
+        ) : null}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <MetricCard
             label="Active agents"
@@ -149,13 +173,7 @@ function AgentsIndex() {
             }
             action={
               !search && (
-                <Button
-                  onClick={() =>
-                    subscription.data?.isPremium
-                      ? setBuilder(true)
-                      : toast.error("Premium is required.")
-                  }
-                >
+                <Button disabled={entitlementLoading} onClick={openBuilder}>
                   <Plus />
                   Create your first agent
                 </Button>
@@ -238,7 +256,8 @@ function Builder({ open, close }: { open: boolean; close: () => void }) {
       toast.success("Agente criado");
       resetAndClose();
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) =>
+      toast.error(e.message.includes("premium_required") ? "Agentes exigem Premium ativo." : e.message),
   });
   return (
     <Dialog open={open} onOpenChange={(o) => !o && resetAndClose()}>
