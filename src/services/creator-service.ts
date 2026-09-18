@@ -151,6 +151,7 @@ export async function listCreatorResources(userId: string) {
     "creator_manual_metric_snapshots",
     "creator_manual_country_observations",
     "creator_analytics_snapshots",
+    "creator_analytics_content",
     "creator_country_observations",
     "creator_platform_connections",
     "creator_projects",
@@ -357,6 +358,82 @@ export async function importCreatorVideoFromUrl(input: {
     },
   );
   if (error || !data) throw error ?? new Error("Creator source import failed.");
+  return data;
+}
+
+export type CreatorProvider = "youtube" | "tiktok";
+
+export async function cancelCreatorJob(jobId: string) {
+  const { data, error } = await db.rpc("cancel_creator_job", { p_job_id: jobId });
+  if (error) throw error;
+  if (data !== true) throw new Error("Creator job is no longer cancellable.");
+  return true;
+}
+
+export async function rerenderCreatorClip(input: {
+  clipId: string;
+  startMs: number;
+  endMs: number;
+  aspectRatio: "9:16" | "1:1" | "16:9";
+  captionsEnabled: boolean;
+}) {
+  if (
+    !Number.isInteger(input.startMs) ||
+    !Number.isInteger(input.endMs) ||
+    input.startMs < 0 ||
+    input.endMs <= input.startMs ||
+    input.endMs - input.startMs > 60_000
+  ) {
+    throw new Error("Invalid clip range.");
+  }
+  const { data, error } = await db.rpc("enqueue_creator_rerender", {
+    p_clip_id: input.clipId,
+    p_start_ms: input.startMs,
+    p_end_ms: input.endMs,
+    p_aspect_ratio: input.aspectRatio,
+    p_captions: input.captionsEnabled,
+    p_caption_style: "clean",
+  });
+  if (error) throw error;
+  return String(data);
+}
+
+export async function startCreatorProviderConnection(input: {
+  provider: CreatorProvider;
+  redirectUri: string;
+}) {
+  const { data, error } = await supabase.functions.invoke<{
+    authorizationUrl?: string;
+    status?: string;
+  }>("creator-oauth-start", {
+    body: { provider: input.provider, redirectUri: input.redirectUri },
+  });
+  if (error || !data?.authorizationUrl) {
+    throw error ?? new Error("Provider connection is unavailable.");
+  }
+  return data.authorizationUrl;
+}
+
+export async function syncCreatorProviderAnalytics(connectionId?: string) {
+  const { data, error } = await supabase.functions.invoke<{
+    synced?: number;
+    snapshots?: number;
+    content?: number;
+  }>("creator-analytics-sync", {
+    body: { action: "sync", ...(connectionId ? { connectionId } : {}) },
+  });
+  if (error || !data) throw error ?? new Error("Creator analytics sync failed.");
+  return data;
+}
+
+export async function disconnectCreatorProvider(connectionId: string) {
+  const { data, error } = await supabase.functions.invoke<{ status?: string }>(
+    "creator-analytics-sync",
+    { body: { action: "disconnect", connectionId } },
+  );
+  if (error || data?.status !== "revoked") {
+    throw error ?? new Error("Provider disconnect failed.");
+  }
   return data;
 }
 
