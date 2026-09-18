@@ -20,6 +20,7 @@ import {
 } from "@/services";
 import { useSubscription } from "@/hooks/use-subscription";
 import { MetricCard, PremiumGate, WorkspaceShell } from "@/components/workspace-ui";
+import { useLanguage } from "@/providers/language-provider";
 export const Route = createFileRoute("/_shell/agents")({
   head: () => ({ meta: [{ title: "Agentes — KIVRYN" }] }),
   component: Agents,
@@ -42,6 +43,8 @@ function Agents() {
 }
 
 function AgentsIndex() {
+  const { resolvedLocale } = useLanguage();
+  const L = (pt: string, en: string) => (resolvedLocale === "pt-BR" ? pt : en);
   const [builder, setBuilder] = useState(false);
   const [search, setSearch] = useState("");
   const subscription = useSubscription();
@@ -80,41 +83,41 @@ function AgentsIndex() {
   const openBuilder = () => {
     if (entitlementLoading) return;
     if (entitlementError) {
-      toast.error("Não foi possível verificar seu acesso Premium. Tente novamente.");
+      toast.error(L("Não foi possível verificar seu acesso Premium. Tente novamente.", "Could not verify your Premium access. Try again."));
       return;
     }
     if (premium) {
       setBuilder(true);
       return;
     }
-    toast.error("Faça upgrade para criar e executar agentes.");
+    toast.error(L("Faça upgrade para criar e executar agentes.", "Upgrade to create and run agents."));
   };
   return (
     <PageShell>
       <WorkspaceShell>
         <PageHeader
-          eyebrow="Recurso Premium"
-          title="Agentes"
-          description="Crie especialistas reutilizáveis com skills KIVRYN versionadas e execução segura."
+          eyebrow={L("Recurso Premium", "Premium feature")}
+          title={L("Agentes", "Agents")}
+          description={L("Crie especialistas reutilizáveis com skills KIVRYN versionadas e execução segura.", "Create reusable specialists with versioned KIVRYN skills and safe execution.")}
           actions={
             <Button disabled={entitlementLoading} onClick={openBuilder}>
               <Plus />
-              Novo agente
+              {L("Novo agente", "New agent")}
             </Button>
           }
         />
         {entitlementLoading ? (
           <PremiumGate>
-            <p className="text-sm text-muted-foreground">Verificando acesso Premium…</p>
+            <p className="text-sm text-muted-foreground">{L("Verificando acesso Premium…", "Checking Premium access…")}</p>
           </PremiumGate>
         ) : entitlementError ? (
           <PremiumGate>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="text-sm text-destructive">
-                Não foi possível verificar seu acesso Premium.
+                {L("Não foi possível verificar seu acesso Premium.", "Could not verify your Premium access.")}
               </p>
               <Button size="sm" variant="outline" onClick={() => void subscription.refetch()}>
-                Tentar novamente
+                {L("Tentar novamente", "Try again")}
               </Button>
             </div>
           </PremiumGate>
@@ -123,30 +126,30 @@ function AgentsIndex() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="text-sm">
                 <Crown className="mr-2 inline h-4 w-4 text-gold" />
-                Agentes são exclusivos do Premium.
+                {L("Agentes são exclusivos do Premium.", "Agents are a Premium feature.")}
               </p>
               <Link to="/premium">
-                <Button size="sm">Ver Premium</Button>
+                <Button size="sm">{L("Ver Premium", "View Premium")}</Button>
               </Link>
             </div>
           </PremiumGate>
         ) : null}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <MetricCard
-            label="Active agents"
+            label={L("Agentes ativos", "Active agents")}
             value={(query.data ?? []).filter((a) => a.active).length}
           />
-          <MetricCard label="Recent runs" value={(runs.data ?? []).length} hint="Persisted runs" />
+          <MetricCard label={L("Execuções recentes", "Recent runs")} value={(runs.data ?? []).length} hint={L("Execuções persistidas", "Persisted runs")} />
           <MetricCard
-            label="Background"
+            label={L("Segundo plano", "Background")}
             value={activeBackground}
-            hint={retryingBackground ? `${retryingBackground} aguardando retry` : "Fila saudável"}
+            hint={retryingBackground ? `${retryingBackground} ${L("aguardando nova tentativa", "waiting for retry")}` : L("Fila saudável", "Healthy queue")}
           />
           <MetricCard
-            label="Last execution"
+            label={L("Última execução", "Last execution")}
             value={
               runs.data?.[0]
-                ? new Date(runs.data[0].started_at || runs.data[0].created_at).toLocaleDateString()
+                ? new Date(runs.data[0].started_at || runs.data[0].created_at).toLocaleDateString(resolvedLocale)
                 : "—"
             }
           />
@@ -156,8 +159,8 @@ function AgentsIndex() {
           <Search className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
           <Input
             className="pl-9"
-            aria-label="Search agents"
-            placeholder="Search by name or purpose"
+            aria-label={L("Buscar agentes", "Search agents")}
+            placeholder={L("Buscar por nome ou objetivo", "Search by name or purpose")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -165,17 +168,17 @@ function AgentsIndex() {
         {!visible.length ? (
           <EmptyState
             icon={Bot}
-            title={search ? "No agents match your search" : "Build a reusable AI specialist"}
+            title={search ? L("Nenhum agente corresponde à busca", "No agents match your search") : L("Crie um especialista de IA reutilizável", "Build a reusable AI specialist")}
             description={
               search
-                ? "Try a different name or purpose."
-                : "Define a purpose and select KIVRYN skills. Skills shape how the Agent works without granting silent workspace mutations."
+                ? L("Tente outro nome ou objetivo.", "Try a different name or purpose.")
+                : L("Defina um objetivo e selecione skills KIVRYN. As skills moldam como o Agent trabalha sem conceder alterações silenciosas no workspace.", "Define a purpose and select KIVRYN skills. Skills shape how the Agent works without granting silent workspace mutations.")
             }
             action={
               !search && (
                 <Button disabled={entitlementLoading} onClick={openBuilder}>
                   <Plus />
-                  Create your first agent
+                  {L("Criar primeiro agente", "Create your first agent")}
                 </Button>
               )
             }
@@ -202,13 +205,13 @@ function AgentsIndex() {
                     </div>
                   )}
                   <span className="mt-4 inline-flex rounded-full border px-2 py-1 text-xs">
-                    {a.active ? "Ativo" : "Inativo"}
+                    {a.active ? L("Ativo", "Active") : L("Inativo", "Inactive")}
                   </span>
                   <p className="mt-3 text-xs text-muted-foreground">
-                    Last run:{" "}
+                    {L("Última execução", "Last run")}:{" "}
                     {recent
-                      ? new Date(recent.started_at || recent.created_at).toLocaleString()
-                      : "Never"}
+                      ? new Date(recent.started_at || recent.created_at).toLocaleString(resolvedLocale)
+                      : L("Nunca", "Never")}
                   </p>
                   <div className="mt-4 flex gap-2">
                     <Link
@@ -216,7 +219,7 @@ function AgentsIndex() {
                       params={{ agentId: a.id }}
                       search={{ tab: undefined }}
                     >
-                      <Button variant="outline">Open</Button>
+                      <Button variant="outline">{L("Abrir", "Open")}</Button>
                     </Link>
                     <Link
                       to="/agents/$agentId"
@@ -225,7 +228,7 @@ function AgentsIndex() {
                     >
                       <Button disabled={!a.active}>
                         <Play />
-                        Run
+                        {L("Executar", "Run")}
                       </Button>
                     </Link>
                   </div>
