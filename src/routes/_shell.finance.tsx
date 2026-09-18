@@ -25,6 +25,7 @@ function FinanceRoute() {
 
 function FinanceIndex() {
   const { t, resolvedLocale } = useLanguage();
+  const L = (pt: string, en: string) => (resolvedLocale === "pt-BR" ? pt : en);
   const money = useMemo(
     () => new Intl.NumberFormat(resolvedLocale, { style: "currency", currency: "USD" }),
     [resolvedLocale],
@@ -68,30 +69,30 @@ function FinanceIndex() {
     [transactions.data, search, kind],
   );
   const accountName = (id: string | null) =>
-    accounts.data?.find((account) => account.id === id)?.name ?? "No account";
+    accounts.data?.find((account) => account.id === id)?.name ?? L("Sem conta", "No account");
 
   return (
     <PageShell>
       <PageHeader
-        eyebrow="Personal"
+        eyebrow={L("Pessoal", "Personal")}
         title={t("page.finance.title")}
         description={t("page.finance.description")}
         actions={
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setEditor({ kind: "account" })}>
-              <Plus /> Account
+              <Plus /> {L("Conta", "Account")}
             </Button>
             <Button onClick={() => setEditor({ kind: "transaction" })}>
-              <Plus /> Transaction
+              <Plus /> {L("Transação", "Transaction")}
             </Button>
           </div>
         }
       />
-      <section className="mt-8 grid gap-4 sm:grid-cols-3" aria-label="Financial summary">
+      <section className="mt-8 grid gap-4 sm:grid-cols-3" aria-label={L("Resumo financeiro", "Financial summary")}>
         {[
-          { label: "Balance", value: summary.data?.balance },
-          { label: "Income", value: summary.data?.income },
-          { label: "Expenses", value: summary.data?.expenses },
+          { label: L("Saldo", "Balance"), value: summary.data?.balance },
+          { label: L("Receitas", "Income"), value: summary.data?.income },
+          { label: L("Despesas", "Expenses"), value: summary.data?.expenses },
         ].map((item) => (
           <div className="v2-surface rounded-2xl p-5" key={item.label}>
             <p className="text-sm text-muted-foreground">{item.label}</p>
@@ -104,7 +105,7 @@ function FinanceIndex() {
       <section className="mt-10" aria-labelledby="finance-accounts">
         <div className="flex items-center justify-between">
           <h2 id="finance-accounts" className="font-display text-2xl">
-            Accounts
+            {L("Contas", "Accounts")}
           </h2>
         </div>
         <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -120,13 +121,13 @@ function FinanceIndex() {
                 <div>
                   <Wallet className="h-5 w-5 text-intelligence" />
                   <h3 className="mt-3 text-lg font-medium">{account.name}</h3>
-                  <p className="text-sm text-muted-foreground">{account.type} · Open account</p>
+                  <p className="text-sm text-muted-foreground">{account.type} · {L("Abrir conta", "Open account")}</p>
                 </div>
                 <div>
                   <Button
                     size="icon"
                     variant="ghost"
-                    aria-label={`Edit ${account.name}`}
+                    aria-label={`${L("Editar", "Edit")} ${account.name}`}
                     onClick={(event) => {
                       event.stopPropagation();
                       setEditor({ kind: "account", value: account });
@@ -137,10 +138,10 @@ function FinanceIndex() {
                   <Button
                     size="icon"
                     variant="ghost"
-                    aria-label={`Delete ${account.name}`}
+                    aria-label={`${L("Excluir", "Delete")} ${account.name}`}
                     onClick={(event) => {
                       event.stopPropagation();
-                      if (confirm(`Delete ${account.name}?`)) removeAccount.mutate(account.id);
+                      if (confirm(`${L("Excluir", "Delete")} ${account.name}?`)) removeAccount.mutate(account.id);
                     }}
                   >
                     <Trash2 />
@@ -153,25 +154,24 @@ function FinanceIndex() {
         {!accounts.isLoading && !accounts.data?.length && (
           <div className="mt-4 rounded-2xl border border-dashed p-8 text-center">
             <Wallet className="mx-auto h-8 w-8 text-muted-foreground" />
-            <h3 className="mt-4 text-lg font-semibold">Build your money command center</h3>
+            <h3 className="mt-4 text-lg font-semibold">{L("Construa sua central financeira", "Build your money command center")}</h3>
             <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-              Create your first account. Balances and every metric shown here come only from your
-              saved finance data.
+              {L("Crie sua primeira conta. Saldos e todas as métricas exibidas aqui vêm apenas dos seus dados financeiros salvos.", "Create your first account. Balances and every metric shown here come only from your saved finance data.")}
             </p>
             <Button className="mt-5" onClick={() => setEditor({ kind: "account" })}>
-              <Plus /> Create first account
+              <Plus /> {L("Criar primeira conta", "Create first account")}
             </Button>
           </div>
         )}
       </section>
       <section className="mt-10">
-        <h2 className="font-display text-2xl">Transaction history</h2>
+        <h2 className="font-display text-2xl">{L("Histórico de transações", "Transaction history")}</h2>
         <div className="mt-4 flex flex-col gap-3 sm:flex-row">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input
               className="pl-9"
-              placeholder="Search description or category"
+              placeholder={L("Buscar descrição ou categoria", "Search description or category")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -181,9 +181,9 @@ function FinanceIndex() {
             value={kind}
             onChange={(e) => setKind(e.target.value)}
           >
-            <option value="all">All types</option>
-            <option value="income">Income</option>
-            <option value="expense">Expense</option>
+            <option value="all">{L("Todos os tipos", "All types")}</option>
+            <option value="income">{L("Receita", "Income")}</option>
+            <option value="expense">{L("Despesa", "Expense")}</option>
           </select>
         </div>
         {!transactions.isLoading && !visible.length ? (
@@ -198,13 +198,13 @@ function FinanceIndex() {
               <article className="v2-surface flex items-center gap-3 rounded-2xl p-4" key={item.id}>
                 <div className="min-w-0 flex-1">
                   <h3 className="truncate font-medium">
-                    {item.title || item.category || "Transaction"}
+                    {item.title || item.category || L("Transação", "Transaction")}
                   </h3>
                   <p className="text-xs text-muted-foreground">
                     {accountName(item.account_id)} ·{" "}
                     {item.transaction_date
-                      ? new Date(item.transaction_date).toLocaleDateString()
-                      : "No date"}
+                      ? new Date(item.transaction_date).toLocaleDateString(resolvedLocale)
+                      : L("Sem data", "No date")}
                   </p>
                 </div>
                 <strong className={item.type === "income" ? "text-emerald-500" : "text-foreground"}>
@@ -215,7 +215,7 @@ function FinanceIndex() {
                   size="icon"
                   variant="ghost"
                   onClick={() => setEditor({ kind: "transaction", value: item })}
-                  aria-label="Edit transaction"
+                  aria-label={L("Editar transação", "Edit transaction")}
                 >
                   <Pencil />
                 </Button>
@@ -223,9 +223,9 @@ function FinanceIndex() {
                   size="icon"
                   variant="ghost"
                   onClick={() =>
-                    confirm("Delete this transaction?") && removeTransaction.mutate(item.id)
+                    confirm(L("Excluir esta transação?", "Delete this transaction?")) && removeTransaction.mutate(item.id)
                   }
-                  aria-label="Delete transaction"
+                  aria-label={L("Excluir transação", "Delete transaction")}
                 >
                   <Trash2 />
                 </Button>
