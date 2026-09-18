@@ -1277,21 +1277,23 @@ function CreatorStudio() {
         <summary className="flex cursor-pointer list-none items-center gap-3 rounded-[1.3rem] px-4 py-4">
           <BarChart3 className="h-5 w-5 text-muted-foreground" />
           <span>
-            <strong className="block">Content log & real analytics</strong>
-            <span className="text-xs text-muted-foreground">Provider evidence and manual observations stay visibly separated</span>
+            <strong className="block">{L("Registro de conteúdo e analytics reais", "Content log & real analytics")}</strong>
+            <span className="text-xs text-muted-foreground">{L("Evidências do provedor e observações manuais permanecem claramente separadas", "Provider evidence and manual observations stay visibly separated")}</span>
           </span>
         </summary>
         <div className="space-y-5 border-t border-border p-4">
           <Card className="border-intelligence/20">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <BarChart3 className="h-5 w-5" /> Provider-verified analytics
+                <BarChart3 className="h-5 w-5" /> {L("Analytics verificados pelo provedor", "Provider-verified analytics")}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-5">
               <p className="text-sm leading-6 text-muted-foreground">
-                KIVRYN stores only metrics actually returned by an authorized provider. Missing fields stay unknown;
-                provider zeroes remain zero.
+                {L(
+                  "A KIVRYN armazena apenas métricas realmente retornadas por um provedor autorizado. Campos ausentes permanecem desconhecidos; zeros do provedor continuam sendo zero.",
+                  "KIVRYN stores only metrics actually returned by an authorized provider. Missing fields stay unknown; provider zeroes remain zero.",
+                )}
               </p>
               <div className="grid gap-3 md:grid-cols-2">
                 {(["youtube", "tiktok"] as const).map((provider) => {
@@ -1307,10 +1309,10 @@ function CreatorStudio() {
                           <strong>{label}</strong>
                           <p className="mt-1 text-xs text-muted-foreground">
                             {connected
-                              ? `Connected as ${String(connected.provider_display_name ?? connected.external_account_id ?? label)}`
+                              ? `${L("Conectado como", "Connected as")} ${String(connected.provider_display_name ?? connected.external_account_id ?? label)}`
                               : latestConnection
-                                ? `Status: ${String(latestConnection.status).replaceAll("_", " ")}`
-                                : "Not connected"}
+                                ? `${L("Status", "Status")}: ${creatorStatusLabel(latestConnection.status, resolvedLocale)}`
+                                : L("Não conectado", "Not connected")}
                           </p>
                         </div>
                         <StatusPill value={connected ? "connected" : String(latestConnection?.status ?? "not_connected")} locale={resolvedLocale} />
@@ -1318,10 +1320,10 @@ function CreatorStudio() {
                       {connected ? (
                         <div className="mt-4 space-y-2">
                           <p className="text-xs text-muted-foreground">
-                            Granted evidence:{" "}
+                            {L("Evidências concedidas", "Granted evidence")}:{" "}
                             {Array.isArray(connected.granted_metrics) && connected.granted_metrics.length
-                              ? connected.granted_metrics.map(String).join(", ")
-                              : "No metrics observed yet"}
+                              ? connected.granted_metrics.map((metric) => creatorMetricLabel(String(metric), resolvedLocale)).join(", ")
+                              : L("Nenhuma métrica observada ainda", "No metrics observed yet")}
                           </p>
                           <div className="flex flex-wrap gap-2">
                             <Button
@@ -1334,7 +1336,7 @@ function CreatorStudio() {
                               ) : (
                                 <RefreshCw className="h-4 w-4" />
                               )}
-                              Sync analytics
+                              {L("Sincronizar analytics", "Sync analytics")}
                             </Button>
                             <Button
                               size="sm"
@@ -1343,7 +1345,9 @@ function CreatorStudio() {
                               onClick={() => void handleDisconnectProvider(String(connected.id))}
                             >
                               <Unplug className="h-4 w-4" />
-                              {disconnectConfirmId === String(connected.id) ? "Confirm disconnect" : "Disconnect"}
+                              {disconnectConfirmId === String(connected.id)
+                                ? L("Confirmar desconexão", "Confirm disconnect")
+                                : L("Desconectar", "Disconnect")}
                             </Button>
                           </div>
                         </div>
@@ -1355,7 +1359,9 @@ function CreatorStudio() {
                           onClick={() => void handleConnectProvider(provider)}
                         >
                           {providerBusy === provider && <Loader2 className="h-4 w-4 animate-spin" />}
-                          {provider === "youtube" ? "Connect YouTube" : "Connect TikTok"}
+                          {provider === "youtube"
+                            ? L("Conectar YouTube", "Connect YouTube")
+                            : L("Conectar TikTok", "Connect TikTok")}
                         </Button>
                       )}
                     </div>
@@ -1365,9 +1371,9 @@ function CreatorStudio() {
 
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
                 <div>
-                  <strong className="text-sm">Verified content performance</strong>
+                  <strong className="text-sm">{L("Desempenho de conteúdo verificado", "Verified content performance")}</strong>
                   <p className="text-xs text-muted-foreground">
-                    Latest persisted provider snapshot per content item.
+                    {L("Snapshot persistido mais recente do provedor para cada conteúdo.", "Latest persisted provider snapshot per content item.")}
                   </p>
                 </div>
                 <Button
@@ -1381,12 +1387,17 @@ function CreatorStudio() {
                   ) : (
                     <RefreshCw className="h-4 w-4" />
                   )}
-                  Sync analytics
+                  {L("Sincronizar analytics", "Sync analytics")}
                 </Button>
               </div>
 
               {providerAnalytics.length === 0 ? (
-                <EmptyState text="No provider-verified analytics yet. Connect an approved provider and sync; KIVRYN renders nothing until verified evidence exists." />
+                <EmptyState
+                  text={L(
+                    "Ainda não há analytics verificados pelo provedor. Conecte um provedor aprovado e sincronize; a KIVRYN não exibe dados até existir evidência verificada.",
+                    "No provider-verified analytics yet. Connect an approved provider and sync; KIVRYN renders nothing until verified evidence exists.",
+                  )}
+                />
               ) : (
                 <div className="space-y-3">
                   {providerAnalytics.slice(0, 20).map(({ content: item, snapshot, metrics: verified }) => {
@@ -1410,7 +1421,7 @@ function CreatorStudio() {
                             </p>
                           </div>
                           <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-300">
-                            provider verified
+                            {L("verificado pelo provedor", "provider verified")}
                           </span>
                         </div>
                         {typeof views === "number" && (
@@ -1435,7 +1446,7 @@ function CreatorStudio() {
                         </div>
                         {Boolean(snapshot && (snapshot.period_start || snapshot.period_end)) && (
                           <p className="mt-2 text-[11px] text-muted-foreground">
-                            Period: {String(snapshot?.period_start ?? "—")} → {String(snapshot?.period_end ?? "—")}
+                            {L("Período", "Period")}: {String(snapshot?.period_start ?? "—")} → {String(snapshot?.period_end ?? "—")}
                           </p>
                         )}
                       </div>
@@ -1448,24 +1459,24 @@ function CreatorStudio() {
 
           <Card id="content">
             <CardHeader>
-              <CardTitle>Manual content log</CardTitle>
+              <CardTitle>{L("Registro manual de conteúdo", "Manual content log")}</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-3 md:grid-cols-2">
-              <Field label="Internal title / label" value={content.title} onChange={(value) => setContent({ ...content, title: value })} />
-              <Field label="Platform" value={content.platform} onChange={(value) => setContent({ ...content, platform: value })} />
-              <Field label="Content type" value={content.contentType} onChange={(value) => setContent({ ...content, contentType: value })} />
-              <Field label="Published at" value={content.publishedAt} onChange={(value) => setContent({ ...content, publishedAt: value })} />
-              <Field label="Timezone" value={content.timezone} onChange={(value) => setContent({ ...content, timezone: value })} />
-              <Field label="Optional URL / reference" value={content.referenceUrl ?? ""} onChange={(value) => setContent({ ...content, referenceUrl: value })} />
-              <Field label="Optional content pillar" value={content.contentPillar ?? ""} onChange={(value) => setContent({ ...content, contentPillar: value })} />
+              <Field label={L("Título interno / rótulo", "Internal title / label")} value={content.title} onChange={(value) => setContent({ ...content, title: value })} />
+              <Field label={L("Plataforma", "Platform")} value={content.platform} onChange={(value) => setContent({ ...content, platform: value })} />
+              <Field label={L("Tipo de conteúdo", "Content type")} value={content.contentType} onChange={(value) => setContent({ ...content, contentType: value })} />
+              <Field label={L("Publicado em", "Published at")} value={content.publishedAt} onChange={(value) => setContent({ ...content, publishedAt: value })} />
+              <Field label={L("Fuso horário", "Timezone")} value={content.timezone} onChange={(value) => setContent({ ...content, timezone: value })} />
+              <Field label={L("URL / referência opcional", "Optional URL / reference")} value={content.referenceUrl ?? ""} onChange={(value) => setContent({ ...content, referenceUrl: value })} />
+              <Field label={L("Pilar de conteúdo opcional", "Optional content pillar")} value={content.contentPillar ?? ""} onChange={(value) => setContent({ ...content, contentPillar: value })} />
               <Field
-                label="Optional duration (ms)"
+                label={L("Duração opcional (ms)", "Optional duration (ms)")}
                 type="number"
                 value={String(content.durationMs ?? "")}
                 onChange={(value) => setContent({ ...content, durationMs: value ? Number(value) : undefined })}
               />
               <div className="space-y-1.5 md:col-span-2">
-                <Label>Notes</Label>
+                <Label>{L("Observações", "Notes")}</Label>
                 <Textarea value={content.notes ?? ""} onChange={(event) => setContent({ ...content, notes: event.target.value })} />
               </div>
               <Button
@@ -1473,11 +1484,11 @@ function CreatorStudio() {
                 onClick={() =>
                   void mutate(
                     () => saveCreatorContent(userId, { ...content, publishedAt: new Date(content.publishedAt).toISOString() }),
-                    "Content saved",
+                    L("Conteúdo salvo", "Content saved"),
                   )
                 }
               >
-                Save content
+                {L("Salvar conteúdo", "Save content")}
               </Button>
             </CardContent>
           </Card>
@@ -1508,14 +1519,19 @@ function CreatorStudio() {
                       })
                     }
                   >
-                    Edit
+                    {L("Editar", "Edit")}
                   </Button>
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => void mutate(() => deleteCreatorContent(userId, String(row.id)), "Content entry deleted")}
+                    onClick={() =>
+                      void mutate(
+                        () => deleteCreatorContent(userId, String(row.id)),
+                        L("Entrada de conteúdo excluída", "Content entry deleted"),
+                      )
+                    }
                   >
-                    Delete
+                    {L("Excluir", "Delete")}
                   </Button>
                 </div>
               </div>
@@ -1525,9 +1541,9 @@ function CreatorStudio() {
           <div className="grid gap-5 lg:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle>Manual analytics</CardTitle>
+                <CardTitle>{L("Analytics manuais", "Manual analytics")}</CardTitle>
                 <p className="text-xs text-muted-foreground">
-                  Manual observations only in this section; provider-verified evidence stays separate above.
+                  {L("Somente observações manuais nesta seção; evidências verificadas pelo provedor permanecem separadas acima.", "Manual observations only in this section; provider-verified evidence stays separate above.")}
                 </p>
               </CardHeader>
               <CardContent className="grid gap-3 sm:grid-cols-2">
@@ -1545,43 +1561,50 @@ function CreatorStudio() {
                   onClick={() =>
                     void mutate(
                       () => appendCreatorMetricSnapshot(userId, resources.creator_content_log[0], metrics),
-                      "New observation appended",
+                      L("Nova observação adicionada", "New observation appended"),
                     )
                   }
                 >
-                  Append snapshot
+                  {L("Adicionar snapshot", "Append snapshot")}
                 </Button>
                 <p className="text-xs leading-5 text-muted-foreground sm:col-span-2">
-                  Blank values remain unknown. Zero is stored only when you explicitly enter zero.
+                  {L("Valores em branco permanecem desconhecidos. Zero só é armazenado quando você informa zero explicitamente.", "Blank values remain unknown. Zero is stored only when you explicitly enter zero.")}
                 </p>
               </CardContent>
             </Card>
 
             <Card id="intelligence">
               <CardHeader>
-                <CardTitle>Country intelligence</CardTitle>
+                <CardTitle>{L("Inteligência por país", "Country intelligence")}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 {Object.entries(country).map(([key, value]) => (
                   <Field
                     key={key}
-                    label={key.replace(/([A-Z])/g, " $1")}
+                    label={creatorCountryFieldLabel(key, resolvedLocale)}
                     value={value}
                     onChange={(next) => setCountry({ ...country, [key]: next })}
                   />
                 ))}
-                <Button onClick={() => void mutate(() => saveCreatorCountry(userId, country), "Manual country observation saved")}>
-                  Save observation
+                <Button
+                  onClick={() =>
+                    void mutate(
+                      () => saveCreatorCountry(userId, country),
+                      L("Observação manual por país salva", "Manual country observation saved"),
+                    )
+                  }
+                >
+                  {L("Salvar observação", "Save observation")}
                 </Button>
                 <div className="space-y-2 pt-2">
                   {(resources.creator_manual_country_observations ?? []).map((row) => (
                     <p key={String(row.id)} className="rounded-xl border border-border p-3 text-sm">
                       {String(row.country_name)} · {String(row.value)}
-                      <span className="text-muted-foreground"> — manually entered</span>
+                      <span className="text-muted-foreground"> — {L("inserido manualmente", "manually entered")}</span>
                     </p>
                   ))}
                   <p className="text-xs text-muted-foreground">
-                    Provider snapshots above are provider-owned evidence. Country observations here remain explicitly manual until a provider returns that dimension.
+                    {L("Os snapshots acima são evidências do provedor. As observações por país aqui permanecem explicitamente manuais até que um provedor retorne essa dimensão.", "Provider snapshots above are provider-owned evidence. Country observations here remain explicitly manual until a provider returns that dimension.")}
                   </p>
                 </div>
               </CardContent>
@@ -1594,8 +1617,8 @@ function CreatorStudio() {
         <summary className="flex cursor-pointer list-none items-center gap-3 rounded-[1.3rem] px-4 py-4">
           <GraduationCap className="h-5 w-5 text-muted-foreground" />
           <span>
-            <strong className="block">Creator Academy</strong>
-            <span className="text-xs text-muted-foreground">Learning stays available without occupying the main creation flow</span>
+            <strong className="block">{L("Academia do Creator", "Creator Academy")}</strong>
+            <span className="text-xs text-muted-foreground">{L("O aprendizado continua disponível sem ocupar o fluxo principal de criação", "Learning stays available without occupying the main creation flow")}</span>
           </span>
         </summary>
         <div className="grid gap-4 border-t border-border p-4 md:grid-cols-3">
@@ -1616,7 +1639,7 @@ function CreatorStudio() {
                         onChange={(event) =>
                           void mutate(
                             () => setLessonCompletion(userId, key, event.target.checked),
-                            "Academy progress saved",
+                            L("Progresso da Academia salvo", "Academy progress saved"),
                           )
                         }
                       />
