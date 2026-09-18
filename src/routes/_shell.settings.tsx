@@ -355,7 +355,11 @@ function Settings() {
                       ? c("Configuração necessária", "Configuration required")
                       : provider.readiness === "app_review_required"
                         ? c("Revisão do provider necessária", "Provider review required")
-                        : c("Disponível no Creator", "Available in Creator");
+                        : provider.provider === "gmail" ||
+                            provider.provider === "google_calendar" ||
+                            provider.provider === "google_drive"
+                          ? c("Disponível para conectar", "Ready to connect")
+                          : c("Disponível no Creator", "Available in Creator");
                 return (
                   <div key={provider.provider} className="flex flex-wrap items-center justify-between gap-4 px-4 py-4">
                     <div>
