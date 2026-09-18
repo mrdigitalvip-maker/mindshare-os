@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Copy, FileText, Pencil, Plus, Search, Trash2 } from "lucide-react";
@@ -13,10 +13,15 @@ import { DocumentService, workspaceQueryKeys } from "@/services";
 
 export const Route = createFileRoute("/_shell/documents")({
   head: () => ({ meta: [{ title: "Documents — KIVRYN" }] }),
-  component: Documents,
+  component: DocumentsRoute,
 });
 type Document = Awaited<ReturnType<typeof DocumentService.list>>[number];
-function Documents() {
+function DocumentsRoute() {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  return pathname !== "/documents" && pathname !== "/documents/" ? <Outlet /> : <DocumentsIndex />;
+}
+
+function DocumentsIndex() {
   const { t, resolvedLocale } = useLanguage();
   const client = useQueryClient();
   const navigate = useNavigate();
