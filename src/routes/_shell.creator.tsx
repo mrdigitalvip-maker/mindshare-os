@@ -254,6 +254,21 @@ function creatorAcademyLabel(value: string, locale: "pt-BR" | "en") {
   return locale === "pt-BR" ? creatorAcademyPt[value] ?? value : value;
 }
 
+const creatorCountryFieldPt: Record<string, string> = {
+  platform: "Plataforma",
+  countryIso: "Código do país",
+  countryName: "País",
+  metricContext: "Contexto da métrica",
+  value: "Valor",
+  period: "Período",
+  notes: "Observações",
+};
+
+function creatorCountryFieldLabel(value: string, locale: "pt-BR" | "en") {
+  if (locale === "pt-BR") return creatorCountryFieldPt[value] ?? value;
+  return value.replace(/([A-Z])/g, " $1").replace(/^./, (letter) => letter.toUpperCase());
+}
+
 function creatorJobActive(status: unknown) {
   return ["queued", "analyzing", "transcribing", "selecting_clips", "rendering"].includes(
     String(status),
@@ -569,8 +584,14 @@ function CreatorStudio() {
       console.error("creator_provider_connect_failed", error);
       toast.error(
         provider === "youtube"
-          ? "YouTube connection is not configured or available."
-          : "TikTok connection requires an approved provider app.",
+          ? L(
+              "A conexão com o YouTube não está configurada ou disponível.",
+              "YouTube connection is not configured or available.",
+            )
+          : L(
+              "A conexão com o TikTok exige um aplicativo de provedor aprovado.",
+              "TikTok connection requires an approved provider app.",
+            ),
       );
       setProviderBusy(null);
     }
@@ -582,7 +603,10 @@ function CreatorStudio() {
       const result = await syncCreatorProviderAnalytics(connectionId);
       await reload();
       toast.success(
-        `Provider analytics synced: ${result.content ?? 0} content records, ${result.snapshots ?? 0} new snapshots.`,
+        L(
+          `Analytics do provedor sincronizados: ${result.content ?? 0} registros de conteúdo e ${result.snapshots ?? 0} novos snapshots.`,
+          `Provider analytics synced: ${result.content ?? 0} content records, ${result.snapshots ?? 0} new snapshots.`,
+        ),
       );
     } catch (error) {
       console.error("creator_analytics_sync_failed", error);
@@ -832,7 +856,10 @@ function CreatorStudio() {
               <Button
                 variant="outline"
                 onClick={() =>
-                  void mutate(() => createCreatorTask(action.label), "Added to canonical Tasks")
+                  void mutate(
+                    () => createCreatorTask(action.label),
+                    L("Adicionado às Tarefas canônicas", "Added to canonical Tasks"),
+                  )
                 }
               >
                 {L("Adicionar às Tarefas", "Add to Tasks")}
@@ -1046,9 +1073,11 @@ function CreatorStudio() {
           <span className="flex items-center gap-3">
             <Settings2 className="h-5 w-5 text-muted-foreground" />
             <span>
-              <strong className="block">Creator profile</strong>
+              <strong className="block">{L("Perfil do Creator", "Creator profile")}</strong>
               <span className="text-xs text-muted-foreground">
-                {profile.niche ? `${profile.niche} · ${profile.displayName || "profile configured"}` : "Complete once, refine when needed"}
+                {profile.niche
+                  ? `${profile.niche} · ${profile.displayName || L("perfil configurado", "profile configured")}`
+                  : L("Configure uma vez e refine quando precisar", "Complete once, refine when needed")}
               </span>
             </span>
           </span>
@@ -1056,82 +1085,87 @@ function CreatorStudio() {
         </summary>
         <div className="grid gap-4 border-t border-border p-4 md:grid-cols-2">
           <div className="space-y-1.5">
-            <Label>Experience level</Label>
+            <Label>{L("Nível de experiência", "Experience level")}</Label>
             <select
               className="h-10 w-full rounded-md border bg-background px-3"
               value={profile.experience}
               onChange={(event) => updateProfile("experience", event.target.value)}
             >
-              <option value="beginner">Beginner</option>
-              <option value="creator">Creator</option>
-              <option value="professional">Professional</option>
+              <option value="beginner">{L("Iniciante", "Beginner")}</option>
+              <option value="creator">{L("Criador", "Creator")}</option>
+              <option value="professional">{L("Profissional", "Professional")}</option>
             </select>
           </div>
           <Field
-            label="Platform targets (comma separated)"
+            label={L("Plataformas-alvo (separadas por vírgula)", "Platform targets (comma separated)")}
             value={profile.platforms.join(", ")}
             onChange={(value) => updateProfile("platforms", split(value))}
           />
-          <Field label="Niche" value={profile.niche} onChange={(value) => updateProfile("niche", value)} />
-          <Field label="Goal" value={profile.goal} onChange={(value) => updateProfile("goal", value)} />
+          <Field label={L("Nicho", "Niche")} value={profile.niche} onChange={(value) => updateProfile("niche", value)} />
+          <Field label={L("Objetivo", "Goal")} value={profile.goal} onChange={(value) => updateProfile("goal", value)} />
           <Field
-            label="Primary audience region"
+            label={L("Região principal do público", "Primary audience region")}
             value={profile.primaryAudienceRegion}
             onChange={(value) => updateProfile("primaryAudienceRegion", value)}
           />
           <Field
-            label="Weekly posting capacity"
+            label={L("Capacidade semanal de publicações", "Weekly posting capacity")}
             type="number"
             value={String(profile.weeklyPostingCapacity)}
             onChange={(value) => updateProfile("weeklyPostingCapacity", Number(value))}
           />
           <Field
-            label="Display name"
+            label={L("Nome de exibição", "Display name")}
             value={profile.displayName}
             onChange={(value) => updateProfile("displayName", value)}
           />
           <Field
-            label="Username ideas workspace"
+            label={L("Espaço de ideias de nome de usuário", "Username ideas workspace")}
             value={profile.usernameIdeas.join(", ")}
             onChange={(value) => updateProfile("usernameIdeas", split(value))}
           />
-          <Field label="Bio" value={profile.bio} onChange={(value) => updateProfile("bio", value)} />
+          <Field label={L("Bio", "Bio")} value={profile.bio} onChange={(value) => updateProfile("bio", value)} />
           <Field
-            label="Positioning"
+            label={L("Posicionamento", "Positioning")}
             value={profile.positioning}
             onChange={(value) => updateProfile("positioning", value)}
           />
-          <Field label="Category" value={profile.category} onChange={(value) => updateProfile("category", value)} />
+          <Field label={L("Categoria", "Category")} value={profile.category} onChange={(value) => updateProfile("category", value)} />
           <Field
-            label="Call to action"
+            label={L("Chamada para ação", "Call to action")}
             value={profile.callToAction}
             onChange={(value) => updateProfile("callToAction", value)}
           />
           <Field
-            label="Content pillars"
+            label={L("Pilares de conteúdo", "Content pillars")}
             value={profile.contentPillars.join(", ")}
             onChange={(value) => updateProfile("contentPillars", split(value))}
           />
           <Field
-            label="Keywords"
+            label={L("Palavras-chave", "Keywords")}
             value={profile.keywords.join(", ")}
             onChange={(value) => updateProfile("keywords", split(value))}
           />
           <Field
-            label="Brand tone"
+            label={L("Tom da marca", "Brand tone")}
             value={profile.brandTone}
             onChange={(value) => updateProfile("brandTone", value)}
           />
           <Field
-            label="Visual direction"
+            label={L("Direção visual", "Visual direction")}
             value={profile.visualDirection}
             onChange={(value) => updateProfile("visualDirection", value)}
           />
           <Button
             className="md:col-span-2"
-            onClick={() => void mutate(() => saveCreatorProfile(userId, profile), "Creator profile saved")}
+            onClick={() =>
+              void mutate(
+                () => saveCreatorProfile(userId, profile),
+                L("Perfil do Creator salvo", "Creator profile saved"),
+              )
+            }
           >
-            Save creator profile
+            {L("Salvar perfil do Creator", "Save creator profile")}
           </Button>
         </div>
       </details>
@@ -1140,18 +1174,18 @@ function CreatorStudio() {
         <summary className="flex cursor-pointer list-none items-center gap-3 rounded-[1.3rem] px-4 py-4">
           <WandSparkles className="h-5 w-5 text-muted-foreground" />
           <span>
-            <strong className="block">Strategy & goals</strong>
-            <span className="text-xs text-muted-foreground">Plan without crowding the daily workspace</span>
+            <strong className="block">{L("Estratégia e metas", "Strategy & goals")}</strong>
+            <span className="text-xs text-muted-foreground">{L("Planeje sem sobrecarregar o espaço de trabalho diário", "Plan without crowding the daily workspace")}</span>
           </span>
         </summary>
         <div className="grid gap-5 border-t border-border p-4 lg:grid-cols-2">
           <Card>
             <CardHeader>
-              <CardTitle>Content strategy</CardTitle>
+              <CardTitle>{L("Estratégia de conteúdo", "Content strategy")}</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-3">
               <div className="space-y-1.5">
-                <Label>Platform</Label>
+                <Label>{L("Plataforma", "Platform")}</Label>
                 <select
                   className="h-10 w-full rounded-md border bg-background px-3"
                   value={strategy.platform}
@@ -1164,46 +1198,58 @@ function CreatorStudio() {
                   ))}
                 </select>
               </div>
-              <Field label="Niche" value={strategy.niche} onChange={(value) => setStrategy({ ...strategy, niche: value })} />
-              <Field label="Goal" value={strategy.goal} onChange={(value) => setStrategy({ ...strategy, goal: value })} />
+              <Field label={L("Nicho", "Niche")} value={strategy.niche} onChange={(value) => setStrategy({ ...strategy, niche: value })} />
+              <Field label={L("Objetivo", "Goal")} value={strategy.goal} onChange={(value) => setStrategy({ ...strategy, goal: value })} />
               <Field
-                label="Publishing frequency"
+                label={L("Frequência de publicação", "Publishing frequency")}
                 type="number"
                 value={String(strategy.publishingFrequency)}
                 onChange={(value) => setStrategy({ ...strategy, publishingFrequency: Number(value) })}
               />
               <Field
-                label="Target markets"
+                label={L("Mercados-alvo", "Target markets")}
                 value={strategy.targetMarkets.join(", ")}
                 onChange={(value) => setStrategy({ ...strategy, targetMarkets: split(value) })}
               />
               <Field
-                label="Formats"
+                label={L("Formatos", "Formats")}
                 value={strategy.preferredContentFormats.join(", ")}
                 onChange={(value) => setStrategy({ ...strategy, preferredContentFormats: split(value) })}
               />
               <Field
-                label="Content pillars"
+                label={L("Pilares de conteúdo", "Content pillars")}
                 value={strategy.contentPillars.join(", ")}
                 onChange={(value) => setStrategy({ ...strategy, contentPillars: split(value) })}
               />
-              <Button onClick={() => void mutate(() => saveCreatorStrategy(userId, strategy), "Strategy saved")}>
-                Save strategy
+              <Button
+                onClick={() =>
+                  void mutate(
+                    () => saveCreatorStrategy(userId, strategy),
+                    L("Estratégia salva", "Strategy saved"),
+                  )
+                }
+              >
+                {L("Salvar estratégia", "Save strategy")}
               </Button>
             </CardContent>
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle>Creator goals</CardTitle>
+              <CardTitle>{L("Metas do Creator", "Creator goals")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Field label="Goal title" value={goal} onChange={setGoal} />
-              <Field label="Manual milestones" value={milestones} onChange={setMilestones} />
+              <Field label={L("Título da meta", "Goal title")} value={goal} onChange={setGoal} />
+              <Field label={L("Marcos manuais", "Manual milestones")} value={milestones} onChange={setMilestones} />
               <Button
                 disabled={!goal.trim()}
-                onClick={() => void mutate(() => saveCreatorGoal(userId, goal, split(milestones)), "Goal saved")}
+                onClick={() =>
+                  void mutate(
+                    () => saveCreatorGoal(userId, goal, split(milestones)),
+                    L("Meta salva", "Goal saved"),
+                  )
+                }
               >
-                Create goal
+                {L("Criar meta", "Create goal")}
               </Button>
               {(resources.creator_goals ?? []).map((row) => (
                 <div key={String(row.id)} className="flex items-center justify-between gap-3 rounded-xl border p-3">
@@ -1211,9 +1257,14 @@ function CreatorStudio() {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => void mutate(() => deleteCreatorGoal(userId, String(row.id)), "Goal deleted")}
+                    onClick={() =>
+                      void mutate(
+                        () => deleteCreatorGoal(userId, String(row.id)),
+                        L("Meta excluída", "Goal deleted"),
+                      )
+                    }
                   >
-                    Delete
+                    {L("Excluir", "Delete")}
                   </Button>
                 </div>
               ))}
