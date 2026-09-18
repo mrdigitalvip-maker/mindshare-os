@@ -51,5 +51,8 @@ jobs:
       - name: Run E31/E32 Billing and push source parity
         run: bun test tests/billing-push-e31-e32-source-parity.test.ts
 
+      - name: Run E33/E34 Journey and Creator source parity
+        run: bun test tests/journey-creator-e33-e34-source-parity.test.ts
+
       - name: Run existing Creator engine and intelligence contracts
         run: bun test tests/creator-video-engine-revision-14.test.ts tests/creator-intelligence-revision-14.test.ts
