@@ -8,7 +8,10 @@ import {
   GraduationCap,
   Link2,
   Loader2,
+  RefreshCw,
+  Scissors,
   Settings2,
+  Unplug,
   Upload,
   WandSparkles,
 } from "lucide-react";
@@ -31,6 +34,7 @@ import {
 import type { CreatorContent, CreatorProfile, CreatorStrategy } from "@/lib/creator";
 import {
   appendCreatorMetricSnapshot,
+  cancelCreatorJob,
   createCreatorTask,
   createCreatorVideoProject,
   deleteCreatorContent,
@@ -48,8 +52,12 @@ import {
   saveCreatorStrategy,
   setLessonCompletion,
   signedCreatorOutput,
+  rerenderCreatorClip,
+  startCreatorProviderConnection,
+  syncCreatorProviderAnalytics,
+  disconnectCreatorProvider,
 } from "@/services/creator-service";
-import type { CreatorYouTubeMetadata } from "@/services/creator-service";
+import type { CreatorProvider, CreatorYouTubeMetadata } from "@/services/creator-service";
 
 export const Route = createFileRoute("/_shell/creator")({
   head: () => ({ meta: [{ title: "Creator Studio — KIVRYN" }] }),
@@ -101,6 +109,29 @@ function formatBytes(value: unknown) {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
+type ClipRerenderDraft = {
+  startSeconds: string;
+  endSeconds: string;
+  aspectRatio: "9:16" | "1:1" | "16:9";
+  captionsEnabled: boolean;
+};
+
+function metricRecord(value: unknown): Record<string, number> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).filter(
+      (entry): entry is [string, number] =>
+        typeof entry[1] === "number" && Number.isFinite(entry[1]),
+    ),
+  );
+}
+
+function creatorJobActive(status: unknown) {
+  return ["queued", "analyzing", "transcribing", "selecting_clips", "rendering"].includes(
+    String(status),
+  );
+}
+
 function CreatorStudio() {
   const { user } = useAuth();
   const { t } = useLanguage();
@@ -143,6 +174,10 @@ function CreatorStudio() {
   const [sourceAuthorized, setSourceAuthorized] = useState(false);
   const [sourceBusy, setSourceBusy] = useState(false);
   const [youtubeMetadata, setYoutubeMetadata] = useState<CreatorYouTubeMetadata | null>(null);
+  const [cancelConfirmJobId, setCancelConfirmJobId] = useState<string | null>(null);
+  const [rerenderDrafts, setRerenderDrafts] = useState<Record<string, ClipRerenderDraft>>({});
+  const [providerBusy, setProviderBusy] = useState<string | null>(null);
+  const [disconnectConfirmId, setDisconnectConfirmId] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
     if (!userId) return;
@@ -164,6 +199,23 @@ function CreatorStudio() {
     });
   }, [reload]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const current = new URL(window.location.href);
+    const connectionStatus = current.searchParams.get("creator_connection");
+    const connectionError = current.searchParams.get("error");
+    if (!connectionStatus && !connectionError) return;
+    if (connectionStatus === "connected") {
+      toast.success("Creator provider connected. Sync analytics when ready.");
+    } else if (connectionError) {
+      toast.error(`Provider connection failed: ${connectionError.replaceAll("_", " ")}.`);
+    }
+    current.searchParams.delete("creator_connection");
+    current.searchParams.delete("error");
+    window.history.replaceState({}, "", `${current.pathname}${current.search}${current.hash}`);
+    void reload();
+  }, [reload]);
+
   const action = useMemo(
     () =>
       creatorNextAction({
@@ -177,11 +229,52 @@ function CreatorStudio() {
 
   const projectCount = resources.creator_projects?.length ?? 0;
   const clipCount = resources.creator_clips?.length ?? 0;
-  const activeJobs = (resources.creator_jobs ?? []).filter((job) =>
-    ["queued", "analyzing", "transcribing", "selecting_clips", "rendering"].includes(
-      String(job.status),
-    ),
-  ).length;
+  const creatorJobs = useMemo(
+    () =>
+      [...(resources.creator_jobs ?? [])].sort(
+        (a, b) =>
+          Date.parse(String(b.created_at ?? 0)) - Date.parse(String(a.created_at ?? 0)),
+      ),
+    [resources.creator_jobs],
+  );
+  const activeJobs = creatorJobs.filter((job) => creatorJobActive(job.status)).length;
+  const providerConnections = resources.creator_platform_connections ?? [];
+  const providerAnalytics = useMemo(() => {
+    const snapshots = resources.creator_analytics_snapshots ?? [];
+    const latest = new Map<string, Record<string, unknown>>();
+    for (const snapshot of snapshots) {
+      const contentId = String(snapshot.provider_content_id ?? "");
+      if (!contentId) continue;
+      const current = latest.get(contentId);
+      if (
+        !current ||
+        Date.parse(String(snapshot.captured_at ?? 0)) >
+          Date.parse(String(current.captured_at ?? 0))
+      ) {
+        latest.set(contentId, snapshot);
+      }
+    }
+    return (resources.creator_analytics_content ?? [])
+      .map((item) => {
+        const snapshot = latest.get(String(item.provider_content_id ?? ""));
+        return {
+          content: item,
+          snapshot,
+          metrics: metricRecord(snapshot?.metrics),
+        };
+      })
+      .sort(
+        (a, b) =>
+          Date.parse(String(b.content.published_at ?? 0)) -
+          Date.parse(String(a.content.published_at ?? 0)),
+      );
+  }, [resources.creator_analytics_content, resources.creator_analytics_snapshots]);
+  const maxProviderViews = Math.max(
+    0,
+    ...providerAnalytics
+      .map((row) => row.metrics.views)
+      .filter((value): value is number => typeof value === "number"),
+  );
 
   const mutate = async (work: () => Promise<unknown>, message: string) => {
     try {
@@ -274,6 +367,116 @@ function CreatorStudio() {
       toast.error("The video could not be uploaded. No fake processing state was created.");
     } finally {
       setSourceBusy(false);
+    }
+  };
+
+  const handleCancelJob = async (jobId: string) => {
+    if (cancelConfirmJobId !== jobId) {
+      setCancelConfirmJobId(jobId);
+      return;
+    }
+    try {
+      await cancelCreatorJob(jobId);
+      setCancelConfirmJobId(null);
+      await reload();
+      toast.success("Creator processing cancelled.");
+    } catch (error) {
+      console.error("creator_job_cancel_failed", error);
+      toast.error("This Creator job could not be cancelled.");
+    }
+  };
+
+  const draftForClip = (clip: Record<string, unknown>): ClipRerenderDraft =>
+    rerenderDrafts[String(clip.id)] ?? {
+      startSeconds: String(Number(clip.start_ms ?? 0) / 1000),
+      endSeconds: String(Number(clip.end_ms ?? 0) / 1000),
+      aspectRatio:
+        clip.aspect_ratio === "1:1" || clip.aspect_ratio === "16:9" ? clip.aspect_ratio : "9:16",
+      captionsEnabled: clip.captions_enabled !== false,
+    };
+
+  const updateClipDraft = (
+    clip: Record<string, unknown>,
+    patch: Partial<ClipRerenderDraft>,
+  ) => {
+    const id = String(clip.id);
+    setRerenderDrafts((current) => ({
+      ...current,
+      [id]: { ...(current[id] ?? draftForClip(clip)), ...patch },
+    }));
+  };
+
+  const handleRerenderClip = async (clip: Record<string, unknown>) => {
+    const id = String(clip.id);
+    const draft = draftForClip(clip);
+    try {
+      await rerenderCreatorClip({
+        clipId: id,
+        startMs: Math.round(Number(draft.startSeconds) * 1000),
+        endMs: Math.round(Number(draft.endSeconds) * 1000),
+        aspectRatio: draft.aspectRatio,
+        captionsEnabled: draft.captionsEnabled,
+      });
+      await reload();
+      toast.success("Rerender queued in the canonical Creator worker.");
+    } catch (error) {
+      console.error("creator_rerender_failed", error);
+      toast.error("Could not queue this rerender. Check the clip range and retry.");
+    }
+  };
+
+  const handleConnectProvider = async (provider: CreatorProvider) => {
+    if (typeof window === "undefined") return;
+    setProviderBusy(provider);
+    try {
+      const authorizationUrl = await startCreatorProviderConnection({
+        provider,
+        redirectUri: `${window.location.origin}/creator`,
+      });
+      window.location.assign(authorizationUrl);
+    } catch (error) {
+      console.error("creator_provider_connect_failed", error);
+      toast.error(
+        provider === "youtube"
+          ? "YouTube connection is not configured or available."
+          : "TikTok connection requires an approved provider app.",
+      );
+      setProviderBusy(null);
+    }
+  };
+
+  const handleSyncProvider = async (connectionId?: string) => {
+    setProviderBusy(connectionId ?? "all");
+    try {
+      const result = await syncCreatorProviderAnalytics(connectionId);
+      await reload();
+      toast.success(
+        `Provider analytics synced: ${result.content ?? 0} content records, ${result.snapshots ?? 0} new snapshots.`,
+      );
+    } catch (error) {
+      console.error("creator_analytics_sync_failed", error);
+      toast.error("Provider analytics could not be synced.");
+    } finally {
+      setProviderBusy(null);
+    }
+  };
+
+  const handleDisconnectProvider = async (connectionId: string) => {
+    if (disconnectConfirmId !== connectionId) {
+      setDisconnectConfirmId(connectionId);
+      return;
+    }
+    setProviderBusy(connectionId);
+    try {
+      await disconnectCreatorProvider(connectionId);
+      setDisconnectConfirmId(null);
+      await reload();
+      toast.success("Provider disconnected. Existing analytics history was retained.");
+    } catch (error) {
+      console.error("creator_provider_disconnect_failed", error);
+      toast.error("Provider could not be disconnected.");
+    } finally {
+      setProviderBusy(null);
     }
   };
 
