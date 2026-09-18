@@ -71,7 +71,9 @@ test("E62 has real Google write adapters but no silent retry loop",()=>{
   assert.match(executor,/gmail\.googleapis\.com\/gmail\/v1\/users\/me\/messages\/send/);
   assert.match(executor,/googleapis\.com\/calendar\/v3\/calendars\/primary\/events/);
   assert.match(executor,/googleapis\.com\/upload\/drive\/v3\/files/);
-  assert.doesNotMatch(executor,/for \(let attempt|while \(|retryDelay|setTimeout\(/);
+  assert.doesNotMatch(executor,/for \(let attempt|while \(|retryDelay/);
+  assert.match(executor,/AbortController/);
+  assert.match(executor,/20_000/);
   assert.match(executor,/response\.status === 429 \|\| response\.status >= 500/);
   assert.match(executor,/status: uncertain \? "uncertain" : "failed"/);
 });
