@@ -1087,10 +1087,174 @@ function CreatorStudio() {
           <BarChart3 className="h-5 w-5 text-muted-foreground" />
           <span>
             <strong className="block">Content log & real analytics</strong>
-            <span className="text-xs text-muted-foreground">Manual observations only until E24 connects chart-ready evidence</span>
+            <span className="text-xs text-muted-foreground">Provider evidence and manual observations stay visibly separated</span>
           </span>
         </summary>
         <div className="space-y-5 border-t border-border p-4">
+          <Card className="border-intelligence/20">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5" /> Provider-verified analytics
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <p className="text-sm leading-6 text-muted-foreground">
+                KIVRYN stores only metrics actually returned by an authorized provider. Missing fields stay unknown;
+                provider zeroes remain zero.
+              </p>
+              <div className="grid gap-3 md:grid-cols-2">
+                {(["youtube", "tiktok"] as const).map((provider) => {
+                  const connected = providerConnections.find(
+                    (row) => row.platform === provider && row.status === "connected",
+                  );
+                  const latestConnection = providerConnections.find((row) => row.platform === provider);
+                  const label = provider === "youtube" ? "YouTube" : "TikTok";
+                  return (
+                    <div key={provider} className="rounded-2xl border border-border bg-background/35 p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <strong>{label}</strong>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {connected
+                              ? `Connected as ${String(connected.provider_display_name ?? connected.external_account_id ?? label)}`
+                              : latestConnection
+                                ? `Status: ${String(latestConnection.status).replaceAll("_", " ")}`
+                                : "Not connected"}
+                          </p>
+                        </div>
+                        <StatusPill value={connected ? "connected" : String(latestConnection?.status ?? "not_connected")} />
+                      </div>
+                      {connected ? (
+                        <div className="mt-4 space-y-2">
+                          <p className="text-xs text-muted-foreground">
+                            Granted evidence:{" "}
+                            {Array.isArray(connected.granted_metrics) && connected.granted_metrics.length
+                              ? connected.granted_metrics.map(String).join(", ")
+                              : "No metrics observed yet"}
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              size="sm"
+                              disabled={providerBusy !== null}
+                              onClick={() => void handleSyncProvider(String(connected.id))}
+                            >
+                              {providerBusy === String(connected.id) ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <RefreshCw className="h-4 w-4" />
+                              )}
+                              Sync analytics
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant={disconnectConfirmId === String(connected.id) ? "destructive" : "outline"}
+                              disabled={providerBusy !== null}
+                              onClick={() => void handleDisconnectProvider(String(connected.id))}
+                            >
+                              <Unplug className="h-4 w-4" />
+                              {disconnectConfirmId === String(connected.id) ? "Confirm disconnect" : "Disconnect"}
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <Button
+                          className="mt-4 w-full"
+                          variant="outline"
+                          disabled={providerBusy !== null}
+                          onClick={() => void handleConnectProvider(provider)}
+                        >
+                          {providerBusy === provider && <Loader2 className="h-4 w-4 animate-spin" />}
+                          Connect {label}
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+                <div>
+                  <strong className="text-sm">Verified content performance</strong>
+                  <p className="text-xs text-muted-foreground">
+                    Latest persisted provider snapshot per content item.
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={providerBusy !== null || !providerConnections.some((row) => row.status === "connected")}
+                  onClick={() => void handleSyncProvider()}
+                >
+                  {providerBusy === "all" ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" />
+                  )}
+                  Sync analytics
+                </Button>
+              </div>
+
+              {providerAnalytics.length === 0 ? (
+                <EmptyState text="No provider-verified analytics yet. Connect an approved provider and sync; KIVRYN will not draw sample charts." />
+              ) : (
+                <div className="space-y-3">
+                  {providerAnalytics.slice(0, 20).map(({ content: item, snapshot, metrics: verified }) => {
+                    const views = verified.views;
+                    const width =
+                      typeof views === "number" && maxProviderViews > 0
+                        ? Math.max(2, Math.round((views / maxProviderViews) * 100))
+                        : 0;
+                    return (
+                      <div
+                        key={`${String(item.connection_id)}:${String(item.provider_content_id)}`}
+                        className="rounded-2xl border border-border p-4"
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <strong className="block truncate text-sm">
+                              {String(item.title ?? item.provider_content_id)}
+                            </strong>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {String(item.platform)} · {new Date(String(item.published_at)).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-300">
+                            provider verified
+                          </span>
+                        </div>
+                        {typeof views === "number" && (
+                          <div className="mt-3">
+                            <div className="mb-1 flex justify-between text-xs text-muted-foreground">
+                              <span>views</span>
+                              <span>{views.toLocaleString()}</span>
+                            </div>
+                            <div className="h-1.5 overflow-hidden rounded-full bg-border">
+                              <div className="h-full rounded-full bg-intelligence/70" style={{ width: `${width}%` }} />
+                            </div>
+                          </div>
+                        )}
+                        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                          {Object.entries(verified)
+                            .filter(([name]) => name !== "views")
+                            .map(([name, value]) => (
+                              <span key={name}>
+                                {name.replaceAll("_", " ")}: {value.toLocaleString()}
+                              </span>
+                            ))}
+                        </div>
+                        {snapshot && (snapshot.period_start || snapshot.period_end) && (
+                          <p className="mt-2 text-[11px] text-muted-foreground">
+                            Period: {String(snapshot.period_start ?? "—")} → {String(snapshot.period_end ?? "—")}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           <Card id="content">
             <CardHeader>
               <CardTitle>Manual content log</CardTitle>
@@ -1223,7 +1387,7 @@ function CreatorStudio() {
                     </p>
                   ))}
                   <p className="text-xs text-muted-foreground">
-                    Provider-verified charts are intentionally deferred to E24; no fabricated chart data is shown.
+                    Provider snapshots above are provider-owned evidence. Country observations here remain explicitly manual until a provider returns that dimension.
                   </p>
                 </div>
               </CardContent>
