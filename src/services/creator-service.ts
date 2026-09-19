@@ -440,6 +440,55 @@ export async function importCreatorVideoFromUrl(input: {
 
 export type CreatorProvider = "youtube" | "tiktok";
 
+export type CreatorProviderConnectionErrorCode =
+  | "origin_not_allowed"
+  | "redirect_not_allowed"
+  | "provider_not_configured"
+  | "oauth_state_failed"
+  | "provider_pending_approval"
+  | "connection_unavailable";
+
+export class CreatorProviderConnectionError extends Error {
+  constructor(public readonly code: CreatorProviderConnectionErrorCode) {
+    super(code);
+    this.name = "CreatorProviderConnectionError";
+  }
+}
+
+const CREATOR_PROVIDER_CONNECTION_CODES = new Set<CreatorProviderConnectionErrorCode>([
+  "origin_not_allowed",
+  "redirect_not_allowed",
+  "provider_not_configured",
+  "oauth_state_failed",
+  "provider_pending_approval",
+  "connection_unavailable",
+]);
+
+async function creatorProviderConnectionInvokeError(error: unknown) {
+  const context =
+    error && typeof error === "object" && "context" in error
+      ? (error as { context?: unknown }).context
+      : null;
+  if (context instanceof Response) {
+    try {
+      const payload = (await context.clone().json()) as {
+        error?: { code?: unknown };
+        code?: unknown;
+      };
+      const code = payload?.error?.code ?? payload?.code;
+      if (
+        typeof code === "string" &&
+        CREATOR_PROVIDER_CONNECTION_CODES.has(code as CreatorProviderConnectionErrorCode)
+      ) {
+        return new CreatorProviderConnectionError(code as CreatorProviderConnectionErrorCode);
+      }
+    } catch {
+      // Never expose provider response bodies.
+    }
+  }
+  return new CreatorProviderConnectionError("connection_unavailable");
+}
+
 export async function cancelCreatorJob(jobId: string) {
   const { data, error } = await db.rpc("cancel_creator_job", { p_job_id: jobId });
   if (error) throw error;
@@ -485,8 +534,9 @@ export async function startCreatorProviderConnection(input: {
   }>("creator-oauth-start", {
     body: { provider: input.provider, redirectUri: input.redirectUri },
   });
-  if (error || !data?.authorizationUrl) {
-    throw error ?? new Error("Provider connection is unavailable.");
+  if (error) throw await creatorProviderConnectionInvokeError(error);
+  if (!data?.authorizationUrl) {
+    throw new CreatorProviderConnectionError("connection_unavailable");
   }
   return data.authorizationUrl;
 }
