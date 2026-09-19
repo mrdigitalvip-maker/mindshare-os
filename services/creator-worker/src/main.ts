@@ -19,21 +19,93 @@ const url = process.env.SUPABASE_URL,
   key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 if (!url || !key) throw new Error("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required");
 const db = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } }),
-  worker = process.env.WORKER_ID ?? randomUUID(),
+  worker = process.env.WORKER_ID ?? process.env.RAILWAY_REPLICA_ID ?? randomUUID(),
   lease = Number(process.env.LEASE_SECONDS ?? 120),
-  maxAttempts = Number(process.env.MAX_ATTEMPTS ?? 3);
+  maxAttempts = Number(process.env.MAX_ATTEMPTS ?? 3),
+  heartbeatEveryMs = Number(process.env.WORKER_HEARTBEAT_MS ?? 15_000),
+  healthPort = Number(process.env.PORT ?? 8080),
+  runtimeStartedAt = new Date().toISOString(),
+  deploymentId = process.env.RAILWAY_DEPLOYMENT_ID ?? null,
+  commitSha = process.env.RAILWAY_GIT_COMMIT_SHA ?? process.env.OTEL_SERVICE_VERSION ?? null,
+  region = process.env.RAILWAY_REPLICA_REGION ?? null;
+
+type WorkerRuntimeState = "starting" | "idle" | "busy" | "stopping" | "error";
+
 let stopping = false,
-  active: AbortController | undefined;
+  active: AbortController | undefined,
+  currentJobId: string | null = null,
+  runtimeState: WorkerRuntimeState = "starting",
+  lastDbHeartbeatAt = 0,
+  lastRuntimeError: string | null = null;
+
+const log = (event: string, details: Record<string, unknown> = {}) =>
+  console.log(JSON.stringify({ time: new Date().toISOString(), event, ...details }));
+
+async function heartbeatRuntime(
+  status: WorkerRuntimeState = runtimeState,
+  errorCode: string | null = lastRuntimeError,
+) {
+  const now = new Date().toISOString();
+  const { error } = await db.from("creator_worker_instances").upsert(
+    {
+      worker_id: worker,
+      status,
+      current_job_id: currentJobId,
+      deployment_id: deploymentId,
+      commit_sha: commitSha,
+      region,
+      last_error_code: errorCode,
+      started_at: runtimeStartedAt,
+      last_heartbeat_at: now,
+      updated_at: now,
+    },
+    { onConflict: "worker_id" },
+  );
+  if (error) {
+    log("worker_heartbeat_failed", { errorCode: "DATABASE_UNAVAILABLE" });
+    return false;
+  }
+  lastDbHeartbeatAt = Date.now();
+  return true;
+}
+
+const healthServer = Bun.serve({
+  port: healthPort,
+  hostname: "0.0.0.0",
+  fetch(request) {
+    const pathname = new URL(request.url).pathname;
+    if (pathname !== "/healthz") return new Response("Not Found", { status: 404 });
+    const heartbeatAgeMs =
+      lastDbHeartbeatAt > 0 ? Math.max(0, Date.now() - lastDbHeartbeatAt) : null;
+    const healthy =
+      !stopping &&
+      runtimeState !== "stopping" &&
+      lastDbHeartbeatAt > 0 &&
+      heartbeatAgeMs !== null &&
+      heartbeatAgeMs <= Math.max(60_000, heartbeatEveryMs * 3);
+    return Response.json(
+      {
+        status: healthy ? "ok" : "unhealthy",
+        state: runtimeState,
+        heartbeatAgeMs,
+      },
+      { status: healthy ? 200 : 503 },
+    );
+  },
+});
+
 process.on("SIGTERM", () => {
   stopping = true;
+  runtimeState = "stopping";
+  void heartbeatRuntime("stopping");
   active?.abort();
 });
 process.on("SIGINT", () => {
   stopping = true;
+  runtimeState = "stopping";
+  void heartbeatRuntime("stopping");
   active?.abort();
 });
-const log = (event: string, details: Record<string, unknown> = {}) =>
-  console.log(JSON.stringify({ time: new Date().toISOString(), event, ...details }));
 type CreatorJobRow = {
   id: string;
   user_id: string;
@@ -71,6 +143,10 @@ async function cancelled(id: string) {
   return data === true;
 }
 async function processJob(job: CreatorJobRow) {
+  currentJobId = job.id;
+  runtimeState = "busy";
+  lastRuntimeError = null;
+  await heartbeatRuntime("busy", null);
   const dir = await mkdtemp(join(tmpdir(), "nexora-creator-"));
   active = new AbortController();
   let heartbeat: ReturnType<typeof setInterval> | undefined;
@@ -292,14 +368,38 @@ async function processJob(job: CreatorJobRow) {
       p_retryable: retryable(code),
       p_max_attempts: maxAttempts,
     });
+    lastRuntimeError = code;
+    runtimeState = "error";
+    await heartbeatRuntime("error", code);
     log("job_failed", { jobId: job.id, errorCode: code });
   } finally {
     if (heartbeat) clearInterval(heartbeat);
     active = undefined;
+    currentJobId = null;
+    runtimeState = stopping ? "stopping" : "idle";
+    await heartbeatRuntime(runtimeState, lastRuntimeError);
     await rm(dir, { recursive: true, force: true });
   }
 }
-log("worker_started", { worker });
+
+const initialHeartbeat = await heartbeatRuntime("starting", null);
+runtimeState = initialHeartbeat ? "idle" : "error";
+lastRuntimeError = initialHeartbeat ? null : "DATABASE_UNAVAILABLE";
+await heartbeatRuntime(runtimeState, lastRuntimeError);
+
+const runtimeHeartbeat = setInterval(
+  () => void heartbeatRuntime(),
+  Math.max(5_000, heartbeatEveryMs),
+);
+
+log("worker_started", {
+  worker,
+  healthPort,
+  deploymentId,
+  commitSha,
+  region,
+});
+
 while (!stopping) {
   const { data, error } = await db.rpc("creator_claim_job", {
     p_lease_owner: worker,
@@ -307,11 +407,29 @@ while (!stopping) {
     p_max_attempts: maxAttempts,
   });
   if (error) {
+    lastRuntimeError = "DATABASE_UNAVAILABLE";
+    runtimeState = "error";
+    await heartbeatRuntime("error", lastRuntimeError);
     log("claim_failed", { errorCode: "DATABASE_UNAVAILABLE" });
     await Bun.sleep(5000);
     continue;
   }
-  if (data?.length) await processJob(data[0]);
-  else await Bun.sleep(Number(process.env.POLL_INTERVAL_MS ?? 3000));
+
+  if (data?.length) {
+    await processJob(data[0]);
+    continue;
+  }
+
+  if (runtimeState !== "idle" || lastRuntimeError) {
+    runtimeState = "idle";
+    lastRuntimeError = null;
+    await heartbeatRuntime("idle", null);
+  }
+  await Bun.sleep(Number(process.env.POLL_INTERVAL_MS ?? 3000));
 }
+
+clearInterval(runtimeHeartbeat);
+runtimeState = "stopping";
+await heartbeatRuntime("stopping", lastRuntimeError);
+healthServer.stop(true);
 log("worker_stopped");
