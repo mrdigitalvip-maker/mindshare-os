@@ -29,6 +29,7 @@ import {
   CREATOR_ACADEMY,
   CREATOR_METRICS,
   CREATOR_PLATFORMS,
+  creatorEvidenceIntelligence,
   creatorNextAction,
 } from "@/lib/creator";
 import type { CreatorContent, CreatorProfile, CreatorStrategy } from "@/lib/creator";
@@ -483,6 +484,48 @@ function CreatorStudio() {
       .map((row) => row.metrics.views)
       .filter((value): value is number => typeof value === "number"),
   );
+  const creatorIntelligence = useMemo(() => {
+    const manualContent = (resources.creator_content_log ?? []).map((row) => ({
+      id: String(row.id ?? ""),
+      platform: String(row.platform ?? "other"),
+      contentType: String(row.content_type ?? "other"),
+      title: String(row.title ?? ""),
+      publishedAt: String(row.published_at ?? ""),
+      timezone: String(row.timezone ?? "UTC"),
+      referenceUrl: typeof row.reference_url === "string" ? row.reference_url : undefined,
+      contentPillar: typeof row.content_pillar === "string" ? row.content_pillar : undefined,
+      durationMs: typeof row.duration_ms === "number" ? row.duration_ms : undefined,
+      notes: typeof row.notes === "string" ? row.notes : undefined,
+    }));
+    const manualSnapshots = (resources.creator_manual_metric_snapshots ?? []).map((row) => ({
+      contentId: String(row.content_id ?? ""),
+      capturedAt: String(row.captured_at ?? ""),
+      metrics: Object.fromEntries(
+        CREATOR_METRICS.flatMap((metric) => {
+          const value = row[metric];
+          return typeof value === "number" ? [[metric, value]] : [];
+        }),
+      ),
+    }));
+    const verifiedSnapshots = (resources.creator_analytics_snapshots ?? []).map((row) => ({
+      providerContentId:
+        typeof row.provider_content_id === "string" ? row.provider_content_id : undefined,
+      platform: String(row.platform ?? ""),
+      capturedAt: String(row.captured_at ?? ""),
+      publishedAt: typeof row.published_at === "string" ? row.published_at : undefined,
+      contentType: typeof row.content_type === "string" ? row.content_type : undefined,
+      metrics: metricRecord(row.metrics),
+    }));
+    return creatorEvidenceIntelligence({
+      content: manualContent,
+      manualSnapshots,
+      providerAnalytics: verifiedSnapshots,
+    });
+  }, [
+    resources.creator_analytics_snapshots,
+    resources.creator_content_log,
+    resources.creator_manual_metric_snapshots,
+  ]);
 
   const mutate = async (work: () => Promise<unknown>, message: string) => {
     try {
@@ -507,6 +550,21 @@ function CreatorStudio() {
         goals: resources.creator_goals ?? [],
         contentHistory: resources.creator_content_log ?? [],
         manualMetrics: resources.creator_manual_metric_snapshots ?? [],
+        providerAnalytics: resources.creator_analytics_snapshots ?? [],
+        creatorIntelligence: {
+          metric: creatorIntelligence.metric,
+          evidence: {
+            source: creatorIntelligence.source,
+            sampleCount: creatorIntelligence.sampleCount,
+            providerSampleCount: creatorIntelligence.providerSampleCount,
+            manualSampleCount: creatorIntelligence.manualSampleCount,
+            confidence: creatorIntelligence.confidence,
+          },
+          strongestPostingWindow: creatorIntelligence.strongestPostingWindow,
+          strongestWeekday: creatorIntelligence.strongestWeekday,
+          byPlatform: creatorIntelligence.byPlatform,
+          byContentType: creatorIntelligence.byContentType,
+        },
         creatorProjects: resources.creator_projects ?? [],
       };
       const result = await AIService.sendChat({
@@ -1482,6 +1540,31 @@ function CreatorStudio() {
                   "KIVRYN stores only metrics actually returned by an authorized provider. Missing fields stay unknown; provider zeroes remain zero.",
                 )}
               </p>
+              <div className="rounded-2xl border border-intelligence/25 bg-intelligence/5 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <strong className="text-sm">{L("Creator Intelligence baseada em evidência", "Evidence-based Creator Intelligence")}</strong>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {creatorIntelligence.source === "provider_verified"
+                        ? L("Prioridade: analytics verificados pelo provedor.", "Priority: provider-verified analytics.")
+                        : L("Prioridade temporária: observações manuais; analytics verificados ainda não têm amostra suficiente.", "Temporary priority: manual observations; verified analytics do not have enough samples yet.")}
+                    </p>
+                  </div>
+                  <span className="rounded-full border border-border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider">
+                    {L("confiança", "confidence")}: {creatorIntelligence.confidence}
+                  </span>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                  <span>{L("Amostra usada", "Selected sample")}: {creatorIntelligence.sampleCount}</span>
+                  <span>{L("Verificada", "Verified")}: {creatorIntelligence.providerSampleCount}</span>
+                  <span>{L("Manual", "Manual")}: {creatorIntelligence.manualSampleCount}</span>
+                  <span>
+                    {creatorIntelligence.strongestPostingWindow
+                      ? `${L("Janela histórica forte", "Strong historical window")}: ${creatorIntelligence.strongestPostingWindow.key} (n=${creatorIntelligence.strongestPostingWindow.sampleCount})`
+                      : L("Sem amostra suficiente para afirmar uma janela histórica forte.", "Not enough evidence to claim a strong historical window.")}
+                  </span>
+                </div>
+              </div>
               <div className="grid gap-3 md:grid-cols-2">
                 {(["youtube", "tiktok"] as const).map((provider) => {
                   const connected = providerConnections.find(
