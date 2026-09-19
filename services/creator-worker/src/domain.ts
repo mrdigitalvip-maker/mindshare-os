@@ -198,6 +198,20 @@ export function diversify(items: Candidate[], limit = 3, threshold = 0.65) {
     }
   return out;
 }
+
+export function selectQualityCandidates(
+  items: Candidate[],
+  options: { limit?: number; minScore?: number; overlapThreshold?: number } = {},
+) {
+  const limit = Math.max(1, Math.min(8, options.limit ?? 5));
+  const minScore = Math.max(0, Math.min(100, options.minScore ?? 55));
+  const overlapThreshold = Math.max(0.1, Math.min(0.95, options.overlapThreshold ?? 0.65));
+  return diversify(
+    items.filter((item) => typeof item.score === "number" && item.score >= minScore),
+    limit,
+    overlapThreshold,
+  );
+}
 export function captionSegments(segments: Segment[], start: number, end: number) {
   return segments
     .filter((s) => s.endMs > start && s.startMs < end && s.text.trim())

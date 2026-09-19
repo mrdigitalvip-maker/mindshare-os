@@ -24,9 +24,35 @@ export type CreatorJob = {
   id: string;
   status: string;
   progressStage: string | null;
+  progressPercent: number | null;
   errorCode: string | null;
   cancellationRequestedAt: string | null;
 };
+export type CreatorTranscript = {
+  id: string;
+  jobId: string;
+  language: string;
+  fullText: string;
+  segmentCount: number;
+  segments: Array<{ startMs: number; endMs: number; text: string }>;
+};
+
+export type CreatorClipCandidate = {
+  id: string;
+  jobId: string;
+  startMs: number;
+  endMs: number;
+  durationMs: number;
+  rank: number;
+  score: number;
+  scoreReason: string;
+  transcriptExcerpt: string;
+  hookExcerpt?: string;
+  titleSuggestion?: string;
+  aspectRatio: string;
+  status: "candidate" | "rendering" | "rendered" | "failed";
+};
+
 export type CreatorClip = {
   id: string;
   startMs: number;
@@ -537,7 +563,7 @@ export async function getLatestCreatorJob(
 ): Promise<CreatorJob | null> {
   const { data, error } = await supabase
     .from("creator_jobs")
-    .select("id,status,progress_stage,error_code,cancellation_requested_at")
+    .select("id,status,progress_stage,progress_percent,error_code,cancellation_requested_at")
     .eq("user_id", userId)
     .eq("project_id", projectId)
     .order("created_at", { ascending: false })
@@ -549,11 +575,76 @@ export async function getLatestCreatorJob(
         id: data.id,
         status: data.status,
         progressStage: data.progress_stage,
+        progressPercent: data.progress_percent == null ? null : Number(data.progress_percent),
         errorCode: data.error_code,
         cancellationRequestedAt: data.cancellation_requested_at,
       }
     : null;
 }
+export async function getCreatorTranscript(
+  userId: string,
+  jobId: string,
+): Promise<CreatorTranscript | null> {
+  const { data, error } = await supabase
+    .from("creator_transcripts")
+    .select("id,job_id,language,full_text,segment_count,segments")
+    .eq("user_id", userId)
+    .eq("job_id", jobId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  return {
+    id: data.id,
+    jobId: data.job_id,
+    language: data.language,
+    fullText: data.full_text,
+    segmentCount: Number(data.segment_count),
+    segments: Array.isArray(data.segments)
+      ? data.segments.map((segment) => {
+          const value =
+            segment && typeof segment === "object" && !Array.isArray(segment)
+              ? (segment as Record<string, unknown>)
+              : {};
+          return {
+            startMs: Number(value.startMs ?? 0),
+            endMs: Number(value.endMs ?? 0),
+            text: String(value.text ?? ""),
+          };
+        })
+      : [],
+  };
+}
+
+export async function listCreatorClipCandidates(
+  userId: string,
+  projectId: string,
+): Promise<CreatorClipCandidate[]> {
+  const { data, error } = await supabase
+    .from("creator_clip_candidates")
+    .select(
+      "id,job_id,start_ms,end_ms,duration_ms,rank,score,score_reason,transcript_excerpt,hook_excerpt,title_suggestion,aspect_ratio,candidate_status",
+    )
+    .eq("user_id", userId)
+    .eq("project_id", projectId)
+    .order("rank");
+  if (error) throw error;
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    jobId: row.job_id,
+    startMs: Number(row.start_ms),
+    endMs: Number(row.end_ms),
+    durationMs: Number(row.duration_ms),
+    rank: Number(row.rank ?? 0),
+    score: Number(row.score ?? 0),
+    scoreReason: row.score_reason ?? "",
+    transcriptExcerpt: row.transcript_excerpt ?? "",
+    hookExcerpt: row.hook_excerpt ?? undefined,
+    titleSuggestion: row.title_suggestion ?? undefined,
+    aspectRatio: row.aspect_ratio,
+    status: row.candidate_status,
+  }));
+}
+
 export async function listCreatorClips(userId: string, projectId: string): Promise<CreatorClip[]> {
   const { data, error } = await supabase
     .from("creator_clips")

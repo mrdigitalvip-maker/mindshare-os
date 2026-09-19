@@ -9,6 +9,7 @@ import {
   retryable,
   safeOutputPath,
   scoreCandidate,
+  selectQualityCandidates,
 } from "../src/domain";
 import { mkdtemp, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -62,6 +63,27 @@ describe("creator domain", () => {
         3,
       ),
     ).toHaveLength(2));
+  test("selects only quality candidates and never fills a fixed count", () => {
+    const selected = selectQualityCandidates(
+      [
+        { startMs: 0, endMs: 15000, text: "strong", score: 92 },
+        { startMs: 16000, endMs: 31000, text: "useful", score: 72 },
+        { startMs: 32000, endMs: 45000, text: "weak", score: 40 },
+      ],
+      { limit: 5, minScore: 55 },
+    );
+    expect(selected.map((item) => item.score)).toEqual([92, 72]);
+    expect(selected).toHaveLength(2);
+  });
+  test("quality candidate selection keeps a bounded maximum", () => {
+    const items = Array.from({ length: 12 }, (_, index) => ({
+      startMs: index * 20_000,
+      endMs: index * 20_000 + 15_000,
+      text: `candidate-${index}`,
+      score: 100 - index,
+    }));
+    expect(selectQualityCandidates(items, { limit: 5, minScore: 55 })).toHaveLength(5);
+  });
   test("score deterministic and bounded", () => {
     const c = { startMs: 0, endMs: 15000, text: "x" };
     const a = scoreCandidate(c, seg, [], "en");

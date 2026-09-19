@@ -156,6 +156,8 @@ export async function listCreatorResources(userId: string) {
     "creator_platform_connections",
     "creator_projects",
     "creator_jobs",
+    "creator_transcripts",
+    "creator_clip_candidates",
     "creator_clips",
   ] as const;
   const results = await Promise.all(

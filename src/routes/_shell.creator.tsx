@@ -196,10 +196,15 @@ const creatorStatusPt: Record<string, string> = {
   available: "disponível",
   failed: "falhou",
   queued: "na fila",
+  ingesting: "ingerindo mídia",
   analyzing: "analisando",
   transcribing: "transcrevendo",
+  detecting_segments: "detectando segmentos",
+  generating_candidates: "gerando candidatos",
   selecting_clips: "selecionando cortes",
   rendering: "renderizando",
+  candidate: "candidato",
+  rendered: "renderizado",
   completed: "concluído",
   cancelled: "cancelado",
   cancel_requested: "cancelamento solicitado",
@@ -991,7 +996,10 @@ function CreatorStudio() {
           <div>
             <h2 className="font-display text-3xl">{L("Fluxo de cortes", "Clipping workflow")}</h2>
             <p className="text-sm text-muted-foreground">
-              {L("Apenas etapas reais do worker: analisar → transcrever → selecionar cortes → renderizar.", "Real worker stages only: analyze → transcribe → select clips → render.")}
+              {L(
+                "Etapas reais do worker: ingerir → transcrever → analisar → detectar segmentos → gerar candidatos → renderizar.",
+                "Real worker stages: ingest → transcribe → analyze → detect segments → generate candidates → render.",
+              )}
             </p>
           </div>
         </div>
@@ -1020,6 +1028,26 @@ function CreatorStudio() {
                         {job.error_code ? `${L("Erro", "Error")}: ${String(job.error_code)}` : L("Sem erro do worker", "No worker error")}
                       </span>
                     </div>
+                    {job.progress_percent != null ? (
+                      <p className="text-xs text-muted-foreground">
+                        {L("Progresso confirmado pelo backend", "Backend-confirmed progress")}: {String(job.progress_percent)}%
+                      </p>
+                    ) : null}
+                    {(() => {
+                      const transcript = (resources.creator_transcripts ?? []).find(
+                        (row) => String(row.job_id) === jobId,
+                      );
+                      return transcript ? (
+                        <details className="rounded-xl border border-border p-3">
+                          <summary className="cursor-pointer text-xs font-medium">
+                            {L("Transcrição timestamped", "Timestamped transcript")} · {String(transcript.language)} · {String(transcript.segment_count)} {L("segmentos", "segments")}
+                          </summary>
+                          <p className="mt-2 line-clamp-5 whitespace-pre-wrap text-xs leading-5 text-muted-foreground">
+                            {String(transcript.full_text)}
+                          </p>
+                        </details>
+                      ) : null;
+                    })()}
                     {active && (
                       <Button
                         variant={cancelConfirmJobId === jobId ? "destructive" : "outline"}
@@ -1033,6 +1061,56 @@ function CreatorStudio() {
                 </Card>
               );
             })}
+          </div>
+        )}
+      </section>
+
+      <section className="space-y-3">
+        <div className="flex items-center gap-2">
+          <WandSparkles className="h-5 w-5 text-intelligence" />
+          <h2 className="font-display text-3xl">{L("Candidatos de corte", "Clip candidates")}</h2>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          {L(
+            "Candidates são timestamps/análise persistidos antes do render. Só a biblioteca abaixo representa arquivos de vídeo reais.",
+            "Candidates are persisted timestamps/analysis before render. Only the library below represents real video files.",
+          )}
+        </p>
+        {(resources.creator_clip_candidates ?? []).length === 0 ? (
+          <EmptyState text={L("Nenhum candidate persistido ainda.", "No persisted candidate yet.")} />
+        ) : (
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {(resources.creator_clip_candidates ?? []).map((candidate) => (
+              <Card key={String(candidate.id)}>
+                <CardContent className="space-y-3 pt-6">
+                  <div className="flex items-center justify-between gap-2">
+                    <strong>{L("Candidate", "Candidate")} #{String(candidate.rank ?? "—")}</strong>
+                    <StatusPill value={String(candidate.candidate_status)} locale={resolvedLocale} />
+                  </div>
+                  <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                    {candidate.score != null ? <span>Creator Score: {String(candidate.score)}</span> : null}
+                    {candidate.duration_ms != null ? <span>{(Number(candidate.duration_ms) / 1000).toFixed(1)}s</span> : null}
+                    <span>{(Number(candidate.start_ms) / 1000).toFixed(1)}s → {(Number(candidate.end_ms) / 1000).toFixed(1)}s</span>
+                  </div>
+                  {candidate.hook_excerpt ? (
+                    <p className="text-sm font-medium">{String(candidate.hook_excerpt)}</p>
+                  ) : null}
+                  {candidate.score_reason ? (
+                    <p className="text-sm leading-5 text-muted-foreground">{String(candidate.score_reason)}</p>
+                  ) : null}
+                  {candidate.transcript_excerpt ? (
+                    <p className="line-clamp-4 rounded-xl border border-border bg-background/40 p-3 text-xs leading-5 text-muted-foreground">
+                      {String(candidate.transcript_excerpt)}
+                    </p>
+                  ) : null}
+                  {candidate.title_suggestion ? (
+                    <p className="text-xs text-muted-foreground">
+                      {L("Título sugerido", "Suggested title")}: {String(candidate.title_suggestion)}
+                    </p>
+                  ) : null}
+                </CardContent>
+              </Card>
+            ))}
           </div>
         )}
       </section>
