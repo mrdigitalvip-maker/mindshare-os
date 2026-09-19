@@ -524,7 +524,7 @@ function localClock(now: Date, timezone?: string | null) {
       minute: "2-digit",
       hourCycle: "h23",
     }).formatToParts(now);
-    const value = (type: Intl.DateTimeFormatPartTypes) =>
+    const value = (type: string) =>
       parts.find((part) => part.type === type)?.value ?? "";
     const year = value("year"), month = value("month"), day = value("day");
     const hour = Number(value("hour")), minute = Number(value("minute"));
@@ -545,7 +545,7 @@ function localDay(value: string | null | undefined, timezone?: string | null) {
       month: "2-digit",
       day: "2-digit",
     }).formatToParts(date);
-    const get = (type: Intl.DateTimeFormatPartTypes) =>
+    const get = (type: string) =>
       parts.find((part) => part.type === type)?.value ?? "";
     return `${get("year")}-${get("month")}-${get("day")}`;
   } catch {
