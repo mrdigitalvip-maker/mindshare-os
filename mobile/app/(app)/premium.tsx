@@ -38,6 +38,7 @@ export default function Premium() {
   const premium = isPremiumEntitlement(subscription.data?.entitlement ?? "free");
   const purchaseAvailability = getAndroidPurchaseAvailability();
   const reward = subscription.data?.activityReward;
+  const rewardProgressDays = reward?.eligible ? 90 : Math.min(90, reward?.currentStreak ?? 0);
   return (
     <ScrollView contentContainerStyle={s.page}>
       <NexoraAgent size={76} state="attention" />
@@ -103,7 +104,7 @@ export default function Premium() {
             )}
           </Text>
           <View style={s.rewardRow}>
-            <Text style={s.rewardValue}>{Math.min(90, reward.currentStreak)}/90</Text>
+            <Text style={s.rewardValue}>{rewardProgressDays}/90</Text>
             <Text style={s.rewardStatus}>
               {reward.active
                 ? L("Premium de recompensa ativo", "Reward Premium active")
@@ -123,7 +124,7 @@ export default function Premium() {
             <View
               style={[
                 s.rewardFill,
-                { width: `${Math.min(100, (Math.min(90, reward.currentStreak) / 90) * 100)}%` },
+                { width: `${Math.min(100, (rewardProgressDays / 90) * 100)}%` },
               ]}
             />
           </View>
