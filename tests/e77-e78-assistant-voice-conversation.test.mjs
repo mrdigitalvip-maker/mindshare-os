@@ -27,7 +27,8 @@ test("E78 voice conversation pauses for pending action review and never auto-con
   assert.match(assistant, /item\.status === "pending" \|\| item\.status === "failed"/);
   assert.match(assistant, /confirmed: true/);
   assert.match(assistant, /onConfirm=\{\(item\) => void confirmAction\(item\)\}/);
-  assert.doesNotMatch(assistant, /send\([^)]*\).*confirmAction/s);
+  assert.doesNotMatch(assistant, /confirmAction\(result/);
+  assert.doesNotMatch(assistant, /applyNexoraAction\(\{[^}]*fromVoice/s);
 });
 
 test("E78 switching chats ends the local voice session", () => {
