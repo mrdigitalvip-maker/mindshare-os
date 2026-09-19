@@ -85,6 +85,7 @@ test("E84 language provider hydrates deterministically before reading browser st
 
 test("E84 telemetry ignores only explicit browser-extension fingerprints", () => {
   assert.match(runtimeErrors, /__firefox__/);
+  assert.match(runtimeErrors, /window\.ethereum\./);
   assert.match(runtimeErrors, /moz-extension:\/\//);
   assert.match(runtimeErrors, /chrome-extension:\/\//);
   assert.match(runtimeErrors, /safari-web-extension:\/\//);
