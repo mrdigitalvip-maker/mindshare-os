@@ -12,6 +12,40 @@ import { supabase } from "@/lib/supabase";
 import { translate, type ResolvedLocale } from "@/i18n";
 
 export type { NativePermission } from "@/lib/notification-contract";
+export type MobileNotificationPreferences = {
+  tasks_enabled: boolean;
+  projects_enabled: boolean;
+  studies_enabled: boolean;
+  studio_enabled: boolean;
+  agents_enabled: boolean;
+  journeys_enabled: boolean;
+  community_enabled: boolean;
+  integrations_enabled: boolean;
+  approvals_enabled: boolean;
+  premium_enabled: boolean;
+  daily_summary_enabled: boolean;
+  timezone: string;
+  quiet_hours_start: string | null;
+  quiet_hours_end: string | null;
+};
+
+const notificationPreferenceDefaults: MobileNotificationPreferences = {
+  tasks_enabled: true,
+  projects_enabled: true,
+  studies_enabled: true,
+  studio_enabled: true,
+  agents_enabled: true,
+  journeys_enabled: true,
+  community_enabled: true,
+  integrations_enabled: true,
+  approvals_enabled: true,
+  premium_enabled: true,
+  daily_summary_enabled: false,
+  timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+  quiet_hours_start: "22:00",
+  quiet_hours_end: "08:00",
+};
+
 export type NotificationDiagnostic =
   | "permission"
   | "channel"
@@ -226,4 +260,36 @@ export async function cancelTaskReminder(taskId: string) {
       .filter(({ content }) => content.data?.kind === "task" && content.data.resourceId === taskId)
       .map(({ identifier }) => Notifications.cancelScheduledNotificationAsync(identifier)),
   );
+}
+
+
+export async function getNotificationPreferences(
+  userId: string,
+): Promise<MobileNotificationPreferences> {
+  const db = supabase as any;
+  const { data, error } = await db
+    .from("notification_preferences")
+    .select(
+      "tasks_enabled,projects_enabled,studies_enabled,studio_enabled,agents_enabled,journeys_enabled,community_enabled,integrations_enabled,approvals_enabled,premium_enabled,daily_summary_enabled,timezone,quiet_hours_start,quiet_hours_end",
+    )
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) throw error;
+  return data ?? notificationPreferenceDefaults;
+}
+
+export async function saveNotificationPreferences(
+  userId: string,
+  patch: Partial<MobileNotificationPreferences>,
+): Promise<MobileNotificationPreferences> {
+  const db = supabase as any;
+  const current = await getNotificationPreferences(userId);
+  const next = { ...current, ...patch };
+  const { error } = await db.from("notification_preferences").upsert({
+    user_id: userId,
+    ...next,
+    updated_at: new Date().toISOString(),
+  });
+  if (error) throw error;
+  return next;
 }
