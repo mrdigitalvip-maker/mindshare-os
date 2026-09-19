@@ -104,9 +104,17 @@ function recordingFilename(blob: Blob): string {
   return "kivryn-voice.webm";
 }
 
+function transcriptionLanguage(locale: string) {
+  const normalized = locale.trim().toLowerCase();
+  if (normalized.startsWith("pt")) return "pt";
+  if (normalized.startsWith("es")) return "es";
+  if (normalized.startsWith("fr")) return "fr";
+  return "en";
+}
+
 export async function transcribeVoiceAudio(
   audio: Blob,
-  locale: "pt-BR" | "en" | "en-US",
+  locale: string,
 ): Promise<string> {
   if (!audio.size || audio.size > MAX_AUDIO_BYTES) {
     throw new Error("A gravação precisa ter até 6 MB.");
@@ -114,7 +122,7 @@ export async function transcribeVoiceAudio(
 
   const form = new FormData();
   form.append("action", "transcribe");
-  form.append("language", locale === "pt-BR" ? "pt" : "en");
+  form.append("language", transcriptionLanguage(locale));
   form.append("audio", audio, recordingFilename(audio));
 
   const { data, error } = await supabase.functions.invoke<{ text?: string }>("nexora-voice", {
