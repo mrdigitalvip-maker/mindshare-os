@@ -697,3 +697,58 @@ export async function requestClipRerender(
   if (error) throw error;
   return String(data);
 }
+
+
+export type CreatorWorkerStatus = {
+  available: boolean;
+  state: "online" | "busy" | "offline";
+  activeWorkers: number;
+  busyWorkers: number;
+  ownQueue: {
+    queued: number;
+    processing: number;
+  };
+};
+
+export async function getCreatorWorkerStatus(): Promise<CreatorWorkerStatus> {
+  const { data, error } = await supabase.functions.invoke<
+    CreatorWorkerStatus | { error?: { code?: string } }
+  >("creator-worker-status", { body: {} });
+  if (error) throw error;
+  if (!data || ("error" in data && data.error)) {
+    throw new Error(
+      data && "error" in data && data.error?.code
+        ? data.error.code
+        : "worker_status_unavailable",
+    );
+  }
+  if (
+    !("available" in data) ||
+    typeof data.available !== "boolean" ||
+    !("state" in data) ||
+    !["online", "busy", "offline"].includes(String(data.state)) ||
+    !("activeWorkers" in data) ||
+    typeof data.activeWorkers !== "number" ||
+    !("busyWorkers" in data) ||
+    typeof data.busyWorkers !== "number" ||
+    !("ownQueue" in data) ||
+    !data.ownQueue ||
+    typeof data.ownQueue !== "object"
+  ) {
+    throw new Error("worker_status_unavailable");
+  }
+  const ownQueue = data.ownQueue as { queued?: unknown; processing?: unknown };
+  if (typeof ownQueue.queued !== "number" || typeof ownQueue.processing !== "number") {
+    throw new Error("worker_status_unavailable");
+  }
+  return {
+    available: data.available,
+    state: data.state as CreatorWorkerStatus["state"],
+    activeWorkers: data.activeWorkers,
+    busyWorkers: data.busyWorkers,
+    ownQueue: {
+      queued: ownQueue.queued,
+      processing: ownQueue.processing,
+    },
+  };
+}

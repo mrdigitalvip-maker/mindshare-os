@@ -11,7 +11,9 @@ import {
   listCreatorProjects,
   loadCreatorProfile,
   loadCreatorStrategy,
+  getCreatorWorkerStatus,
   type CreatorProject,
+  type CreatorWorkerStatus,
 } from "@/services/creator-service";
 import { creatorNextAction, type CreatorNextAction } from "@/lib/creator";
 import { createTask } from "@/services/workspace-service";
@@ -82,6 +84,12 @@ const copy = {
     signalCopy: "Um retrato visual dos sinais que já existem no seu sistema.",
     studioMode: "STUDIO MODE",
     liveData: "dados reais",
+    worker: "WORKER DE MÍDIA",
+    workerOnline: "Online",
+    workerBusy: "Ocupado",
+    workerOffline: "Offline",
+    workerUnknown: "Indefinido",
+    workerOfflineCopy: "O pipeline pesado está offline. Novos jobs podem ficar na fila até um worker saudável registrar heartbeat.",
   },
   en: {
     eyebrow: "CREATOR OPERATING CENTER",
@@ -132,6 +140,12 @@ const copy = {
     signalCopy: "A visual snapshot of the signals already living in your system.",
     studioMode: "STUDIO MODE",
     liveData: "real data",
+    worker: "MEDIA WORKER",
+    workerOnline: "Online",
+    workerBusy: "Busy",
+    workerOffline: "Offline",
+    workerUnknown: "Unknown",
+    workerOfflineCopy: "The heavy-media pipeline is offline. New jobs may remain queued until a healthy worker reports a heartbeat.",
   },
 } as const;
 
@@ -177,12 +191,13 @@ export default function CreatorCenter() {
   const [contentCount, setContentCount] = useState(0);
   const [sampleCount, setSampleCount] = useState(0);
   const [connectedCount, setConnectedCount] = useState(0);
+  const [workerStatus, setWorkerStatus] = useState<CreatorWorkerStatus | null>(null);
 
   const load = useCallback(async () => {
     const userId = session?.user.id;
     if (!userId) return;
     setError(false);
-    const [projectResult, profileResult, strategyResult, contentResult, analyticsResult, connectionResult] =
+    const [projectResult, profileResult, strategyResult, contentResult, analyticsResult, connectionResult, workerResult] =
       await Promise.allSettled([
         listCreatorProjects(userId),
         loadCreatorProfile(userId),
@@ -190,6 +205,7 @@ export default function CreatorCenter() {
         listCreatorContent(userId),
         listCreatorManualSnapshots(userId),
         listCreatorConnections(userId),
+        getCreatorWorkerStatus(),
       ]);
     if (projectResult.status === "fulfilled") setProjects(projectResult.value);
     else setError(true);
@@ -198,6 +214,7 @@ export default function CreatorCenter() {
     const content = contentResult.status === "fulfilled" ? contentResult.value : [];
     const analytics = analyticsResult.status === "fulfilled" ? analyticsResult.value : [];
     const connections = connectionResult.status === "fulfilled" ? connectionResult.value : [];
+    setWorkerStatus(workerResult.status === "fulfilled" ? workerResult.value : null);
     setContentCount(content.length);
     setSampleCount(analytics.length);
     setConnectedCount(connections.filter((item) => item.status === "connected").length);
@@ -291,6 +308,50 @@ export default function CreatorCenter() {
         <Metric tone={C.pink} value={completedProjects} label={c.completed} />
         <Metric tone={C.orange} value={contentCount} label={c.published} />
         <Metric tone={C.lime} value={sampleCount} label={c.samples} />
+      </View>
+
+      <View
+        style={[
+          s.softCard,
+          workerStatus?.state === "offline" ? { borderColor: "#6C4A2C" } : null,
+        ]}
+      >
+        <View
+          style={[
+            s.softSignal,
+            {
+              backgroundColor:
+                workerStatus?.state === "online"
+                  ? C.lime
+                  : workerStatus?.state === "busy"
+                    ? C.cyan
+                    : workerStatus?.state === "offline"
+                      ? C.orange
+                      : C.muted,
+            },
+          ]}
+        />
+        <View style={s.flex}>
+          <Text style={s.eyebrow}>{c.worker}</Text>
+          <Text style={s.cardTitle}>
+            {workerStatus
+              ? workerStatus.state === "online"
+                ? c.workerOnline
+                : workerStatus.state === "busy"
+                  ? c.workerBusy
+                  : c.workerOffline
+              : c.workerUnknown}
+          </Text>
+          {workerStatus ? (
+            <Text style={s.muted}>
+              {workerStatus.activeWorkers} active · queued {workerStatus.ownQueue.queued} · processing{" "}
+              {workerStatus.ownQueue.processing}
+            </Text>
+          ) : null}
+          {workerStatus?.state === "offline" ? (
+            <Text style={[s.muted, { color: C.orange }]}>{c.workerOfflineCopy}</Text>
+          ) : null}
+        </View>
       </View>
 
       <SectionTitle title={c.pipeline} />
