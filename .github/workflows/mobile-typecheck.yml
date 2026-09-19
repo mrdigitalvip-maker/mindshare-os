@@ -135,5 +135,8 @@ jobs:
       - name: Run E81/E82 leaderboard and Premium reward source parity
         run: bun test tests/leaderboard-premium-reward-e81-e82-source-parity.test.ts
 
+      - name: Run E83/E84 final release hardening source parity
+        run: bun test tests/final-release-e83-e84-source-parity.test.ts
+
       - name: Run existing Creator engine and intelligence contracts
         run: bun test tests/creator-video-engine-revision-14.test.ts tests/creator-intelligence-revision-14.test.ts
