@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Alert, Text, View } from "react-native";
+import { Alert, Image, Linking, Text, View } from "react-native";
 import {
   CreatorButton,
   CreatorField,
@@ -15,6 +15,7 @@ import {
   parseOptionalMetric,
   type CreatorContentLog,
   type CreatorManualSnapshot,
+  type CreatorPlatformConnection,
 } from "@/lib/creator";
 import { useAuth } from "@/providers/auth-provider";
 import { useLanguage } from "@/providers/language-provider";
@@ -24,6 +25,9 @@ import {
   listCreatorContent,
   listCreatorManualSnapshots,
   listCreatorConnections,
+  startCreatorOAuth,
+  syncCreatorAnalytics,
+  disconnectCreatorConnection,
   saveCreatorContent,
 } from "@/services/creator-service";
 type ContentForm = Omit<CreatorContentLog, "id" | "createdAt" | "updatedAt">;
@@ -38,15 +42,25 @@ const blank = (): ContentForm => ({
   durationMs: undefined,
   notes: "",
 });
+function connectionState(connection?: CreatorPlatformConnection) {
+  if (!connection) return "not_connected";
+  if (connection.safeErrorCode === "insufficient_scope") return "needs_permission";
+  if (connection.status === "revoked") return "disconnected";
+  return connection.status;
+}
+
 export default function Analytics() {
   const { session } = useAuth(),
-    { t } = useLanguage();
+    { t, resolvedLocale } = useLanguage();
+  const copy = (pt: string, en: string) => (resolvedLocale === "en" ? en : pt);
   const [content, setContent] = useState<CreatorContentLog[]>([]),
     [snapshots, setSnapshots] = useState<CreatorManualSnapshot[]>([]);
   const [form, setForm] = useState(blank()),
     [metrics, setMetrics] = useState<Record<string, string>>({}),
     [editing, setEditing] = useState<string>();
   const [connectedCount, setConnectedCount] = useState(0);
+  const [connections, setConnections] = useState<CreatorPlatformConnection[]>([]);
+  const [providerBusy, setProviderBusy] = useState<string | null>(null);
   const load = useCallback(async () => {
     if (!session?.user.id) return;
     const [items, history, connections] = await Promise.all([
@@ -56,11 +70,81 @@ export default function Analytics() {
     ]);
     setContent(items);
     setSnapshots(history);
-    setConnectedCount(connections.filter((x) => x.status === "connected").length);
+    setConnections(connections);
+    setConnectedCount(
+      connections.filter((item) => connectionState(item) === "connected").length,
+    );
   }, [session?.user.id]);
   useEffect(() => {
     void load();
   }, [load]);
+  const connectYouTube = async () => {
+    setProviderBusy("youtube");
+    try {
+      const result = await startCreatorOAuth("youtube", "https://kivryn.co/creator");
+      if (!result?.authorizationUrl) throw new Error("authorization_unavailable");
+      await Linking.openURL(result.authorizationUrl);
+      Alert.alert(
+        copy("Autorização aberta", "Authorization opened"),
+        copy(
+          "Conclua a autorização no navegador. Depois volte ao KIVRYN e toque em Atualizar estado.",
+          "Complete authorization in the browser. Then return to KIVRYN and tap Refresh status.",
+        ),
+      );
+    } catch {
+      Alert.alert(
+        copy("Não foi possível conectar", "Couldn't connect"),
+        copy(
+          "A conexão do YouTube não pôde ser iniciada. Tente novamente pela Web ou revise a configuração OAuth.",
+          "The YouTube connection couldn't be started. Retry on Web or review OAuth configuration.",
+        ),
+      );
+    } finally {
+      setProviderBusy(null);
+    }
+  };
+
+  const syncYouTube = async (connectionId: string) => {
+    setProviderBusy(connectionId);
+    try {
+      const result = await syncCreatorAnalytics(connectionId);
+      await load();
+      Alert.alert(
+        copy("YouTube sincronizado", "YouTube synced"),
+        copy(
+          `${result.content ?? 0} vídeos e ${result.snapshots ?? 0} snapshots novos.`,
+          `${result.content ?? 0} videos and ${result.snapshots ?? 0} new snapshots.`,
+        ),
+      );
+    } catch {
+      await load();
+      Alert.alert(
+        copy("Sincronização incompleta", "Sync incomplete"),
+        copy(
+          "Verifique as permissões da conexão e tente novamente.",
+          "Check the connection permissions and retry.",
+        ),
+      );
+    } finally {
+      setProviderBusy(null);
+    }
+  };
+
+  const disconnectYouTube = async (connectionId: string) => {
+    setProviderBusy(connectionId);
+    try {
+      await disconnectCreatorConnection(connectionId);
+      await load();
+    } catch {
+      Alert.alert(
+        copy("Não foi possível desconectar", "Couldn't disconnect"),
+        copy("Tente novamente.", "Please retry."),
+      );
+    } finally {
+      setProviderBusy(null);
+    }
+  };
+
   const save = async () => {
     if (!session?.user.id || !form.title.trim()) return;
     const item = await saveCreatorContent(session.user.id, { ...form, id: editing });
@@ -82,6 +166,79 @@ export default function Analytics() {
         <Text style={s.heading}>{t("creator.connectedOptional")}</Text>
         <Text style={s.copy}>{t("creator.connectLater")}</Text>
         <Text style={s.copy}>{t("creator.connectedCount", { count: connectedCount })}</Text>
+        {(() => {
+          const youtube = connections.find((item) => item.platform === "youtube");
+          const state = connectionState(youtube);
+          const issue =
+            youtube?.safeErrorCode === "insufficient_scope"
+              ? copy("Precisa de permissão. Atualize a conexão.", "Needs permission. Update the connection.")
+              : youtube?.safeErrorCode === "credential_expired"
+                ? copy("Autorização expirada. Reconecte o canal.", "Authorization expired. Reconnect the channel.")
+                : youtube?.safeErrorCode
+                  ? copy("A conexão precisa de atenção.", "The connection needs attention.")
+                  : null;
+          return (
+            <View style={s.card}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                {youtube?.avatarUrl ? (
+                  <Image
+                    source={{ uri: youtube.avatarUrl }}
+                    style={{ width: 40, height: 40, borderRadius: 20 }}
+                  />
+                ) : null}
+                <View style={{ flex: 1 }}>
+                  <Text style={s.heading}>YouTube</Text>
+                  <Text style={s.copy}>
+                    {youtube?.displayName
+                      ? `${youtube.displayName} · ${state.replaceAll("_", " ")}`
+                      : state.replaceAll("_", " ")}
+                  </Text>
+                  {youtube?.lastSuccessAt ? (
+                    <Text style={s.copy}>
+                      {copy("Última sincronização", "Last sync")}:{" "}
+                      {new Date(youtube.lastSuccessAt).toLocaleString()}
+                    </Text>
+                  ) : null}
+                </View>
+              </View>
+              {issue ? <Text style={s.copy}>{issue}</Text> : null}
+              {state === "connected" && youtube ? (
+                <>
+                  <CreatorButton
+                    label={copy("Sincronizar analytics", "Sync analytics")}
+                    disabled={providerBusy !== null}
+                    onPress={() => void syncYouTube(youtube.id)}
+                  />
+                  <CreatorButton
+                    label={copy("Atualizar permissões", "Update permissions")}
+                    disabled={providerBusy !== null}
+                    onPress={() => void connectYouTube()}
+                  />
+                  <CreatorButton
+                    label={copy("Desconectar", "Disconnect")}
+                    disabled={providerBusy !== null}
+                    onPress={() => void disconnectYouTube(youtube.id)}
+                  />
+                </>
+              ) : (
+                <CreatorButton
+                  label={
+                    youtube
+                      ? copy("Reconectar / atualizar YouTube", "Reconnect / update YouTube")
+                      : copy("Conectar YouTube", "Connect YouTube")
+                  }
+                  disabled={providerBusy !== null}
+                  onPress={() => void connectYouTube()}
+                />
+              )}
+              <CreatorButton
+                label={copy("Atualizar estado", "Refresh status")}
+                disabled={providerBusy !== null}
+                onPress={() => void load()}
+              />
+            </View>
+          );
+        })()}
       </View>
       <Text style={s.heading}>{editing ? t("creator.editContent") : t("creator.addContent")}</Text>
       <ChoiceRow
