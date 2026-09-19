@@ -40,6 +40,7 @@ import {
   type Task,
 } from "@/services";
 import { useAuth } from "@/lib/auth-context";
+import { workspaceMutationError } from "@/lib/mutation-errors";
 
 export const Route = createFileRoute("/_shell/projects/$projectId")({
   component: ProjectWorkspace,
@@ -80,7 +81,7 @@ function ProjectWorkspace() {
       await refresh();
       toast.success("Tarefa atualizada");
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (error: unknown) => toast.error(workspaceMutationError(error).message),
   });
   const remove = useMutation({
     mutationFn: TaskService.removeTask,
@@ -88,7 +89,7 @@ function ProjectWorkspace() {
       await refresh();
       toast.success("Tarefa excluída");
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (error: unknown) => toast.error(workspaceMutationError(error).message),
   });
   const destroy = useMutation({
     mutationFn: () => ProjectService.remove(projectId),
@@ -100,7 +101,7 @@ function ProjectWorkspace() {
       toast.success("Projeto excluído");
       navigate({ to: "/projects", replace: true });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (error: unknown) => toast.error(workspaceMutationError(error).message),
   });
   const completeProject = useMutation({
     mutationFn: () => ProjectService.update(projectId, { status: "completed" }),
@@ -109,7 +110,7 @@ function ProjectWorkspace() {
       setCompletion(false);
       toast.success("Projeto concluído");
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (error: unknown) => toast.error(workspaceMutationError(error).message),
   });
   const open = useMemo(
     () => sortOpen((tasks.data ?? []).filter((t) => t.status === "open")),
@@ -782,7 +783,7 @@ function TaskForm({
       toast.success(task ? "Tarefa atualizada" : "Tarefa criada");
       await saved();
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (error: unknown) => toast.error(workspaceMutationError(error).message),
   });
   return (
     <Dialog open={task !== undefined} onOpenChange={(o) => !o && !save.isPending && close()}>
@@ -883,7 +884,7 @@ function ProjectForm({
       toast.success("Projeto atualizado");
       close();
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (error: unknown) => toast.error(workspaceMutationError(error).message),
   });
   return (
     <Dialog open={open} onOpenChange={(o) => !o && close()}>
@@ -1007,12 +1008,13 @@ function PlanDialog({
       setSuggestions([]);
       close();
     },
-    onError: async (e: Error) => {
+    onError: async (error: unknown) => {
       // A provider-independent insert can fail after an earlier selected item
       // was persisted. Always reconcile the shared task repository so the
       // workspace never hides a partial, real result behind stale cache data.
       await refresh();
-      toast.error(`${e.message}. Confira as tarefas visíveis antes de tentar novamente.`);
+      const mapped = workspaceMutationError(error);
+      toast.error(`${mapped.message} Confira as tarefas visíveis antes de tentar novamente.`);
     },
   });
   return (
