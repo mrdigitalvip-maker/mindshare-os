@@ -182,9 +182,12 @@ export default function AssistantChat() {
 
   useEffect(
     () => () => {
+      voiceSession.current += 1;
       void Speech.stop();
+      void audioRecorder.stop().catch(() => undefined);
+      void setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }).catch(() => undefined);
     },
-    [],
+    [audioRecorder],
   );
 
   const validateDraft = (next: LocalChatAttachment) => {
