@@ -41,6 +41,16 @@ function describe(error: unknown) {
   return { name: "UnknownError", message: clean(String(error), 500), stack: undefined };
 }
 
+function isKnownExternalBrowserNoise(detail: ReturnType<typeof describe>): boolean {
+  const haystack = `${detail.message} ${detail.stack ?? ""}`.toLowerCase();
+  return (
+    haystack.includes("__firefox__") ||
+    haystack.includes("moz-extension://") ||
+    haystack.includes("chrome-extension://") ||
+    haystack.includes("safari-web-extension://")
+  );
+}
+
 export const RuntimeErrorService = {
   referenceFor,
 
@@ -48,6 +58,9 @@ export const RuntimeErrorService = {
     const reference = referenceFor(error);
     if (typeof window === "undefined") return reference;
     const detail = describe(error);
+    // Browser extensions can throw into the page's global error channel.
+    // Ignore only explicit extension fingerprints; generic Script error remains reportable.
+    if (isKnownExternalBrowserNoise(detail)) return reference;
     const safeContext = {
       reference,
       boundary: context.boundary?.slice(0, 80),

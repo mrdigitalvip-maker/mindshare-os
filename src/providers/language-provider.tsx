@@ -27,32 +27,24 @@ const LanguageContext = createContext<LanguageContextValue | null>(null);
 const validPreference = (value: unknown): value is LanguagePreference =>
   value === "system" || value === "pt-BR" || value === "en";
 
-function initialPreference(): LanguagePreference {
-  if (typeof window === "undefined") return "system";
-  let stored: string | null = null;
-  try {
-    stored = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
-  } catch {
-    // Storage may be unavailable in hardened/private browser contexts.
-  }
-  return validPreference(stored) ? stored : "system";
-}
-
 export function LanguageProvider({ children }: PropsWithChildren) {
-  const [languagePreference, setPreference] = useState<LanguagePreference>(initialPreference);
-  const [browserLocales, setBrowserLocales] = useState<readonly string[]>(() =>
-    typeof navigator === "undefined"
-      ? ["en"]
-      : navigator.languages?.length
-        ? navigator.languages
-        : [navigator.language],
-  );
+  // The first client render must exactly match SSR. Browser/localStorage-derived
+  // language is applied only after hydration to avoid React text mismatch (#418).
+  const [languagePreference, setPreference] = useState<LanguagePreference>("system");
+  const [browserLocales, setBrowserLocales] = useState<readonly string[]>(["en"]);
 
-  useEffect(
-    () =>
-      setBrowserLocales(navigator.languages?.length ? navigator.languages : [navigator.language]),
-    [],
-  );
+  useEffect(() => {
+    let stored: string | null = null;
+    try {
+      stored = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
+    } catch {
+      // Storage may be unavailable in hardened/private browser contexts.
+    }
+    if (validPreference(stored)) setPreference(stored);
+    setBrowserLocales(
+      navigator.languages?.length ? navigator.languages : [navigator.language || "en"],
+    );
+  }, []);
   const resolvedLocale = resolveLocale(languagePreference, browserLocales);
   useEffect(() => {
     document.documentElement.lang = resolvedLocale;

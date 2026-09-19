@@ -4,9 +4,11 @@ import test from "node:test";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
-test("web locale restoration is deterministic and storage failures are non-fatal", () => {
+test("web locale restoration is deterministic, hydration-safe and storage failures are non-fatal", () => {
   const provider = read("src/providers/language-provider.tsx");
-  assert.match(provider, /validPreference\(stored\) \? stored : "system"/);
+  assert.match(provider, /useState<LanguagePreference>\("system"\)/);
+  assert.match(provider, /useState<readonly string\[]>\(\["en"\]\)/);
+  assert.match(provider, /if \(validPreference\(stored\)\) setPreference\(stored\)/);
   assert.match(provider, /navigator\.languages\?\.length/);
   assert.match(provider, /localStorage\.getItem[\s\S]*?catch/);
   assert.match(provider, /localStorage\.setItem[\s\S]*?catch/);

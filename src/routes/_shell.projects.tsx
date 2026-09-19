@@ -11,6 +11,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Textarea } from "@/components/ui/textarea";
 import { ProjectService, TaskService, workspaceQueryKeys } from "@/services";
 import { useAuth } from "@/lib/auth-context";
+import { workspaceMutationError } from "@/lib/mutation-errors";
 import { useLanguage } from "@/providers/language-provider";
 
 export const Route = createFileRoute("/_shell/projects")({
@@ -245,25 +246,6 @@ function ErrorState({ retry }: { retry: () => void }) {
   );
 }
 
-function projectCreationErrorMessage(error: unknown): string {
-  const candidate =
-    error && typeof error === "object"
-      ? (error as { code?: unknown; message?: unknown; details?: unknown })
-      : null;
-  const code = typeof candidate?.code === "string" ? candidate.code : "";
-  const message = typeof candidate?.message === "string" ? candidate.message : "";
-  const details = typeof candidate?.details === "string" ? candidate.details : "";
-
-  if (
-    message === "FREE_CREATION_LIMIT_REACHED" ||
-    (code === "P0001" && details.includes('"resource":"projects"'))
-  ) {
-    return "O plano gratuito permite até 3 projetos ativos.";
-  }
-
-  return "Não foi possível criar o projeto. Tente novamente.";
-}
-
 function CreateProject({
   open,
   onOpenChange,
@@ -296,7 +278,7 @@ function CreateProject({
       setDescription("");
       navigate({ to: "/projects/$projectId", params: { projectId: project.id } });
     },
-    onError: (error: unknown) => toast.error(projectCreationErrorMessage(error)),
+    onError: (error: unknown) => toast.error(workspaceMutationError(error).message),
   });
 
   return (

@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
+import { workspaceMutationError } from "@/lib/mutation-errors";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
@@ -103,7 +104,7 @@ function Workspace() {
       setActivity("");
       toast.success("Sessão registrada");
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (error: unknown) => toast.error(workspaceMutationError(error).message),
   });
   const addGoal = useMutation({
     mutationFn: () =>
@@ -118,7 +119,7 @@ function Workspace() {
       setGoalTitle("");
       toast.success("Meta criada");
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (error: unknown) => toast.error(workspaceMutationError(error).message),
   });
   const addNote = useMutation({
     mutationFn: () =>
@@ -133,7 +134,7 @@ function Workspace() {
       setNoteContent("");
       toast.success("Nota salva");
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (error: unknown) => toast.error(workspaceMutationError(error).message),
   });
   const ai = useMutation({
     mutationFn: (operation: (typeof ops)[number]) =>
@@ -215,7 +216,7 @@ function Workspace() {
                   await StudyService.removeSubject(subjectId);
                   nav({ to: "/studies" });
                 } catch (e) {
-                  toast.error((e as Error).message);
+                  toast.error(workspaceMutationError(e).message);
                 }
               }
             }}

@@ -18,17 +18,20 @@ export const Route = createFileRoute("/_shell/premium")({
 });
 
 const FREE_FEATURES = [
-  ["Acesso ao Assistente principal", "Core Assistant access"],
-  ["Projetos, tarefas e espaços pessoais", "Projects, tasks and personal workspaces"],
-  ["Conteúdo padrão de aprendizagem", "Standard learning content"],
-  ["Requisições de IA medidas pelo backend", "Backend-metered AI requests"],
+  ["Assistant — 10 mensagens por dia", "Assistant — 10 messages per day"],
+  ["2 análises de imagem/arquivo por dia", "2 image/file analyses per day"],
+  ["Até 3 projetos ativos", "Up to 3 active projects"],
+  ["Até 30 tarefas em aberto", "Up to 30 open tasks"],
+  ["Até 3 matérias de estudo ativas", "Up to 3 active study subjects"],
+  ["1 Journey ativa", "1 active Journey"],
 ] as const;
 const PRO_FEATURES = [
-  ["Uso de IA ampliado e controlado pelo backend", "Higher backend-enforced AI usage"],
-  ["Agents de IA reutilizáveis", "Reusable AI Agents"],
-  ["Fluxos avançados de IA", "Advanced AI workflows"],
-  ["Lições Premium do Studio", "Premium Studio lessons"],
-  ["Recursos mais profundos para conteúdo, estudos e documentos", "Deeper content, study and document capabilities"],
+  ["Assistant — 100 mensagens por dia", "Assistant — 100 messages per day"],
+  ["20 análises de imagem/arquivo por dia", "20 image/file analyses per day"],
+  ["Projetos, tarefas, matérias e Journeys sem os limites do Free", "Projects, tasks, subjects and Journeys without Free caps"],
+  ["Agents: criação, execução e agendamento", "Agents: creation, execution and scheduling"],
+  ["Project Intelligence e execução inteligente em Tarefas", "Project Intelligence and intelligent Task execution"],
+  ["KIVRYN Tutor e Journeys adaptativas", "KIVRYN Tutor and adaptive Journeys"],
 ] as const;
 
 function Premium() {

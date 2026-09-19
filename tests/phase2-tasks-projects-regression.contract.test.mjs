@@ -8,6 +8,7 @@ const workspace = read("src/services/workspace-services.ts");
 const tasksRoute = read("src/routes/_shell.productivity.tsx");
 const projectsRoute = read("src/routes/_shell.projects.tsx");
 const mobileErrors = read("mobile/lib/mutation-errors.ts");
+const webErrors = read("src/lib/mutation-errors.ts");
 
 test("Tasks detached toggle mutation no longer depends on this binding", () => {
   assert.match(tasksRoute, /mutationFn:\s*TaskService\.toggleTask/);
@@ -16,10 +17,9 @@ test("Tasks detached toggle mutation no longer depends on this binding", () => {
 });
 
 test("Projects preserve the canonical backend Free limit instead of masking it", () => {
-  assert.match(projectsRoute, /projectCreationErrorMessage\(error\)/);
-  assert.match(projectsRoute, /FREE_CREATION_LIMIT_REACHED/);
-  assert.match(projectsRoute, /code === "P0001"/);
-  assert.match(projectsRoute, /O plano gratuito permite até 3 projetos ativos\./);
+  assert.match(projectsRoute, /workspaceMutationError\(error\)\.message/);
+  assert.match(webErrors, /FREE_CREATION_LIMIT_REACHED/);
+  assert.match(webErrors, /O plano gratuito permite até 3 projetos ativos\./);
   assert.doesNotMatch(
     projectsRoute,
     /onError:\s*\(\)\s*=>\s*toast\.error\("Não foi possível criar o projeto"\)/,
@@ -34,6 +34,7 @@ test("Projects continue to create through the canonical ProjectService only", ()
 
 test("Web and Android expose the same project Free-limit contract", () => {
   assert.match(mobileErrors, /FREE_CREATION_LIMIT_REACHED/);
+  assert.match(webErrors, /FREE_CREATION_LIMIT_REACHED/);
   assert.match(mobileErrors, /projects:\s*"O plano gratuito permite até 3 projetos ativos\."/);
-  assert.match(projectsRoute, /"O plano gratuito permite até 3 projetos ativos\."/);
+  assert.match(webErrors, /projects:\s*"O plano gratuito permite até 3 projetos ativos\."/);
 });
