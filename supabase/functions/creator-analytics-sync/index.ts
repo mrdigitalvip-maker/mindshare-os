@@ -569,7 +569,11 @@ Deno.serve(async (request) => {
       ) {
         await admin
           .from("creator_platform_connections")
-          .update({ safe_error_code: "insufficient_scope" })
+          .update({
+            status: "error",
+            safe_error_code: "insufficient_scope",
+            last_attempt_at: now,
+          })
           .eq("id", connection.id);
         continue;
       }
