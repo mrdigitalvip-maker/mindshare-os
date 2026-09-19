@@ -13,7 +13,7 @@ import {
   safeOutputPath,
   scoreCandidate,
 } from "./domain";
-import { extractAudio, probe, render, scenes, writeVtt } from "./media";
+import { extractAudio, probe, render, scenes, selfTestMediaPipeline, writeVtt } from "./media";
 import { OpenAITranscriptionProvider } from "./transcription";
 const url = process.env.SUPABASE_URL,
   key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -379,6 +379,24 @@ async function processJob(job: CreatorJobRow) {
     runtimeState = stopping ? "stopping" : "idle";
     await heartbeatRuntime(runtimeState, lastRuntimeError);
     await rm(dir, { recursive: true, force: true });
+  }
+}
+
+if (process.env.CREATOR_MEDIA_SELF_TEST !== "false") {
+  const selfTestDir = await mkdtemp(join(tmpdir(), "kivryn-creator-self-test-"));
+  try {
+    await selfTestMediaPipeline(selfTestDir);
+    log("media_self_test_passed");
+  } catch (error: unknown) {
+    const errorCode = String(
+      typeof error === "object" && error && "code" in error
+        ? error.code
+        : "MEDIA_SELF_TEST_FAILED",
+    );
+    log("media_self_test_failed", { errorCode });
+    throw error;
+  } finally {
+    await rm(selfTestDir, { recursive: true, force: true });
   }
 }
 
