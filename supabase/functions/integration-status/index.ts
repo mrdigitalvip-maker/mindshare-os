@@ -47,14 +47,46 @@ Deno.serve(async (req) => {
 
   const { data: rows, error } = await client
     .from("creator_platform_connections")
-    .select("id,platform,status,provider_display_name,last_success_at")
+    .select(
+      "id,platform,status,provider_display_name,provider_avatar_url,last_success_at,safe_error_code,granted_scopes",
+    )
     .eq("user_id", user.id);
   if (error) return jsonResponse(req, { error: { code: "connections_unavailable" } }, 500);
 
   const byProvider = new Map((rows ?? []).map((row) => [String(row.platform), row]));
   const providers = Object.values(KIVRYN_INTEGRATION_PROVIDERS).map((definition) => {
-    const connection = byProvider.get(definition.provider);
+    const connection = byProvider.get(definition.provider) as
+      | {
+          id?: string;
+          status?: string;
+          provider_display_name?: string | null;
+          provider_avatar_url?: string | null;
+          last_success_at?: string | null;
+          safe_error_code?: string | null;
+          granted_scopes?: string[] | null;
+        }
+      | undefined;
     const configured = runtimeConfigured(definition.provider);
+    const grantedScopes = Array.isArray(connection?.granted_scopes)
+      ? connection?.granted_scopes.map(String)
+      : [];
+    const availableCapabilities = definition.capabilities.filter((capability) => {
+      const required = definition.capabilityScopes[capability] ?? [];
+      return required.length > 0 && required.every((scope) => grantedScopes.includes(scope));
+    });
+    const safeErrorCode = connection?.safe_error_code ?? null;
+    const connectionState =
+      safeErrorCode === "insufficient_scope"
+        ? "needs_permission"
+        : connection?.status === "expired"
+          ? "expired"
+          : connection?.status === "error"
+            ? "error"
+            : connection?.status === "revoked"
+              ? "disconnected"
+              : connection?.status === "connected"
+                ? "connected"
+                : connection?.status ?? "not_connected";
     return {
       provider: definition.provider,
       implemented: definition.implemented,
@@ -62,11 +94,16 @@ Deno.serve(async (req) => {
       authMode: definition.authMode,
       credentialBoundary: definition.credentialBoundary,
       capabilities: definition.capabilities,
+      availableCapabilities,
       runtimeConfigured: configured,
       connectionStatus: connection?.status ?? "not_connected",
+      connectionState,
       connectionId: connection?.id ?? null,
       displayName: connection?.provider_display_name ?? null,
+      avatarUrl: connection?.provider_avatar_url ?? null,
       lastSuccessAt: connection?.last_success_at ?? null,
+      safeErrorCode,
+      grantedScopes,
       canConnect: definition.implemented && definition.authMode === "oauth" && configured,
     };
   });
