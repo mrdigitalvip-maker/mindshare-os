@@ -455,6 +455,9 @@ export type CreatorProviderConnectionErrorCode =
   | "identity_failed"
   | "connection_persistence_failed"
   | "credential_persistence_failed"
+  | "credential_expired"
+  | "rate_limited"
+  | "provider_unavailable"
   | "provider_request_failed";
 
 const CREATOR_PROVIDER_CONNECTION_ERROR_CODES = new Set<CreatorProviderConnectionErrorCode>([
@@ -472,6 +475,9 @@ const CREATOR_PROVIDER_CONNECTION_ERROR_CODES = new Set<CreatorProviderConnectio
   "identity_failed",
   "connection_persistence_failed",
   "credential_persistence_failed",
+  "credential_expired",
+  "rate_limited",
+  "provider_unavailable",
   "provider_request_failed",
 ]);
 
