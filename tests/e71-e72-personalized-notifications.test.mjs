@@ -34,10 +34,14 @@ test("E71 Web exposes all personalized domains through the existing PushService"
 
 test("E72 derives reminders from real KIVRYN state and preserves approval boundaries",()=>{
   for (const source of [
-    "tasks","study_goals","journey_missions","subscriptions","agent_runs",
+    "tasks","projects","study_goals","journey_missions","subscriptions","agent_runs",
+    "creator_platform_connections",
   ]) assert.match(reminders,new RegExp(`\.from\\("${source}"\\)`));
   assert.match(reminders,/action_plan_status", "pending_approval"/);
+  assert.match(reminders,/projects_enabled !== false/);
   assert.match(reminders,/integrations_enabled !== false/);
+  assert.match(reminders,/pref\.tasks_enabled !== false && overdueTasks/);
+  assert.match(reminders,/pref\.integrations_enabled !== false && connections\?\.length/);
   assert.match(reminders,/Nothing will execute without your approval/);
   assert.match(reminders,/Nada será executado sem sua aprovação/);
   assert.doesNotMatch(reminders,/executeAgent|agent-action-review|google-workspace-action/);
