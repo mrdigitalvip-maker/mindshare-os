@@ -95,6 +95,12 @@ export const PROVIDERS = {
   },
 } as const;
 
+const CANONICAL_KIVRYN_ORIGIN = "https://kivryn.co";
+const DEVELOPMENT_REDIRECT_ORIGINS = new Set([
+  "http://localhost:5173",
+  "http://localhost:8080",
+]);
+
 export const allowedRedirect = (value: string) => {
   const allowlist = (Deno.env.get("CREATOR_OAUTH_REDIRECT_ALLOWLIST") ?? "")
     .split(",")
@@ -104,12 +110,23 @@ export const allowedRedirect = (value: string) => {
 
   try {
     const target = new URL(value);
+    const allowedOrigins = new Set<string>([
+      CANONICAL_KIVRYN_ORIGIN,
+      ...DEVELOPMENT_REDIRECT_ORIGINS,
+    ]);
     const appUrl = Deno.env.get("APP_URL");
-    if (!appUrl) return false;
-    const app = new URL(appUrl);
+    if (appUrl) {
+      try {
+        allowedOrigins.add(new URL(appUrl).origin);
+      } catch {
+        // Invalid APP_URL must never broaden the redirect boundary.
+      }
+    }
     return (
-      target.origin === app.origin &&
-      (target.pathname === "/creator" || target.pathname === "/settings")
+      allowedOrigins.has(target.origin) &&
+      (target.pathname === "/creator" || target.pathname === "/settings") &&
+      !target.username &&
+      !target.password
     );
   } catch {
     return false;
