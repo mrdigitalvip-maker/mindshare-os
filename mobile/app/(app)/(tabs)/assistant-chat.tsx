@@ -128,6 +128,7 @@ export default function AssistantChat() {
   const submitting = useRef(false);
   const applyingActions = useRef(new Set<string>());
   const handledPrompt = useRef<string | undefined>(undefined);
+  const voiceSession = useRef(0);
   const history = useConversation(conversationId);
   const conversations = useConversations();
   const send = useSendChat();
@@ -253,7 +254,10 @@ export default function AssistantChat() {
   };
 
   const startNewChat = useCallback(() => {
+    voiceSession.current += 1;
     void Speech.stop();
+    if (recorderState.isRecording) void audioRecorder.stop().catch(() => undefined);
+    void setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }).catch(() => undefined);
     applyingActions.current.clear();
     handledPrompt.current = undefined;
     setProposal(null);
@@ -263,22 +267,32 @@ export default function AssistantChat() {
     setOptimistic(null);
     setHistoryOpen(false);
     router.replace("/(app)/(tabs)/assistant-chat");
-  }, []);
+  }, [audioRecorder, recorderState.isRecording]);
 
   const openConversation = useCallback((id: string) => {
+    voiceSession.current += 1;
     void Speech.stop();
+    if (recorderState.isRecording) void audioRecorder.stop().catch(() => undefined);
+    void setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }).catch(() => undefined);
     applyingActions.current.clear();
     setProposal(null);
     setFailed(null);
     setOptimistic(null);
     setHistoryOpen(false);
     router.replace({ pathname: "/(app)/(tabs)/assistant-chat", params: { conversationId: id } });
-  }, []);
+  }, [audioRecorder, recorderState.isRecording]);
 
   const submit = useCallback(
     async (value: string, retryId?: string, retryAttachment?: ChatAttachment) => {
       const content = value.trim();
-      if ((!content && !attachment) || submitting.current || send.isPending || uploading) return;
+      if (
+        (!content && !attachment) ||
+        submitting.current ||
+        send.isPending ||
+        uploading ||
+        transcribing ||
+        recorderState.isRecording
+      ) return;
       submitting.current = true;
       setProposal(null);
       const id = retryId ?? createAssistantRequestId();
@@ -346,7 +360,7 @@ export default function AssistantChat() {
         setUploading(false);
       }
     },
-    [attachment, conversationId, send, uploading],
+    [attachment, conversationId, recorderState.isRecording, send, transcribing, uploading],
   );
 
   useEffect(() => {
@@ -390,6 +404,7 @@ export default function AssistantChat() {
       await Speech.stop();
       setSpeakingId(null);
       await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+      voiceSession.current += 1;
       await audioRecorder.prepareToRecordAsync();
       audioRecorder.record();
     } catch {
@@ -400,13 +415,14 @@ export default function AssistantChat() {
 
   const stopVoiceInput = async () => {
     if (!recorderState.isRecording || transcribing) return;
+    const session = voiceSession.current;
     setTranscribing(true);
     try {
       await audioRecorder.stop();
       const uri = audioRecorder.uri;
       if (!uri) throw new Error("missing_recording");
       const transcript = await transcribeAssistantRecording(uri, resolvedLocale);
-      if (transcript) {
+      if (transcript && session === voiceSession.current) {
         setDraft((current) => {
           const base = current.trim();
           return base ? `${base} ${transcript}` : transcript;
