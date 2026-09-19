@@ -366,6 +366,64 @@ export type CreatorPerformanceObservation = {
   contentPillar?: string;
 };
 
+const CREATOR_WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
+
+function creatorPublicationSlot(input: {
+  publishedAt: string;
+  timezone?: string;
+  providerWeekday?: number;
+  providerHour?: number;
+}) {
+  if (
+    Number.isInteger(input.providerWeekday) &&
+    Number.isInteger(input.providerHour) &&
+    Number(input.providerWeekday) >= 0 &&
+    Number(input.providerWeekday) <= 6 &&
+    Number(input.providerHour) >= 0 &&
+    Number(input.providerHour) <= 23
+  ) {
+    const hour = Number(input.providerHour);
+    const start = Math.floor(hour / 4) * 4;
+    return {
+      weekday: Number(input.providerWeekday),
+      hourWindow: `${String(start).padStart(2, "0")}:00–${String((start + 4) % 24).padStart(2, "0")}:00`,
+    };
+  }
+
+  const date = new Date(input.publishedAt);
+  if (!Number.isFinite(date.getTime())) return null;
+
+  if (input.timezone?.trim()) {
+    try {
+      const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone: input.timezone.trim(),
+        weekday: "short",
+        hour: "2-digit",
+        hourCycle: "h23",
+      }).formatToParts(date);
+      const weekdayName = parts.find((part) => part.type === "weekday")?.value;
+      const weekday = CREATOR_WEEKDAYS.indexOf(weekdayName as (typeof CREATOR_WEEKDAYS)[number]);
+      const hour = Number(parts.find((part) => part.type === "hour")?.value);
+      if (weekday >= 0 && Number.isInteger(hour) && hour >= 0 && hour <= 23) {
+        const start = Math.floor(hour / 4) * 4;
+        return {
+          weekday,
+          hourWindow: `${String(start).padStart(2, "0")}:00–${String((start + 4) % 24).padStart(2, "0")}:00`,
+        };
+      }
+    } catch {
+      // Invalid or unsupported timezone: fall back to UTC, never device-local time.
+    }
+  }
+
+  const hour = date.getUTCHours();
+  const start = Math.floor(hour / 4) * 4;
+  return {
+    weekday: date.getUTCDay(),
+    hourWindow: `${String(start).padStart(2, "0")}:00–${String((start + 4) % 24).padStart(2, "0")}:00`,
+  };
+}
+
 function performanceGroups(observations: CreatorPerformanceObservation[]) {
   const group = (
     key: "weekday" | "hourWindow" | "platform" | "contentType" | "contentPillar",
@@ -441,16 +499,18 @@ export function creatorEvidenceIntelligence(input: {
   const manualObservations: CreatorPerformanceObservation[] = input.content.flatMap((item) => {
     const value = latestManual.get(item.id)?.metrics[metric];
     if (typeof value !== "number") return [];
-    const date = new Date(item.publishedAt);
-    if (!Number.isFinite(date.getTime())) return [];
-    const start = Math.floor(date.getHours() / 4) * 4;
+    const slot = creatorPublicationSlot({
+      publishedAt: item.publishedAt,
+      timezone: item.timezone,
+    });
+    if (!slot) return [];
     return [{
       contentId: item.id,
       source: "manual" as const,
       value,
       publishedAt: item.publishedAt,
-      weekday: date.getDay(),
-      hourWindow: `${String(start).padStart(2, "0")}:00–${String((start + 4) % 24).padStart(2, "0")}:00`,
+      weekday: slot.weekday,
+      hourWindow: slot.hourWindow,
       platform: item.platform,
       contentType: item.contentType,
       contentPillar: item.contentPillar,
@@ -468,16 +528,19 @@ export function creatorEvidenceIntelligence(input: {
     ([evidenceKey, snapshot]) => {
       const value = snapshot.metrics[metric];
       if (typeof value !== "number" || !snapshot.publishedAt) return [];
-      const date = new Date(snapshot.publishedAt);
-      if (!Number.isFinite(date.getTime())) return [];
-      const start = Math.floor(date.getHours() / 4) * 4;
+      const slot = creatorPublicationSlot({
+        publishedAt: snapshot.publishedAt,
+        providerWeekday: snapshot.weekday,
+        providerHour: snapshot.hour,
+      });
+      if (!slot) return [];
       return [{
         contentId: evidenceKey,
         source: "provider_verified" as const,
         value,
         publishedAt: snapshot.publishedAt,
-        weekday: date.getDay(),
-        hourWindow: `${String(start).padStart(2, "0")}:00–${String((start + 4) % 24).padStart(2, "0")}:00`,
+        weekday: slot.weekday,
+        hourWindow: slot.hourWindow,
         platform: snapshot.platform,
         contentType: snapshot.contentType,
       }];
