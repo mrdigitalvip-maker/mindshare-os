@@ -351,20 +351,29 @@ function Settings() {
                             : provider.provider === "whatsapp"
                               ? "WhatsApp"
                               : provider.provider.charAt(0).toUpperCase() + provider.provider.slice(1);
-                const connected = provider.connectionStatus === "connected";
-                const state = connected
-                  ? c("Conectado", "Connected")
-                  : provider.readiness === "coming_soon"
-                    ? "Coming Soon"
-                    : !provider.runtimeConfigured
-                      ? c("Configuração necessária", "Configuration required")
-                      : provider.readiness === "app_review_required"
-                        ? c("Revisão do provider necessária", "Provider review required")
-                        : provider.provider === "gmail" ||
-                            provider.provider === "google_calendar" ||
-                            provider.provider === "google_drive"
-                          ? c("Disponível para conectar", "Ready to connect")
-                          : c("Disponível no Creator", "Available in Creator");
+                const connected = provider.connectionState === "connected";
+                const state =
+                  provider.connectionState === "needs_permission"
+                    ? c("Precisa de permissão", "Needs permission")
+                    : provider.connectionState === "expired"
+                      ? c("Expirado", "Expired")
+                      : provider.connectionState === "error"
+                        ? c("Erro de conexão", "Connection error")
+                        : provider.connectionState === "disconnected"
+                          ? c("Desconectado", "Disconnected")
+                          : connected
+                            ? c("Conectado", "Connected")
+                            : provider.readiness === "coming_soon"
+                              ? "Coming Soon"
+                              : !provider.runtimeConfigured
+                                ? c("Configuração necessária", "Configuration required")
+                                : provider.readiness === "app_review_required"
+                                  ? c("Revisão do provider necessária", "Provider review required")
+                                  : provider.provider === "gmail" ||
+                                      provider.provider === "google_calendar" ||
+                                      provider.provider === "google_drive"
+                                    ? c("Disponível para conectar", "Ready to connect")
+                                    : c("Disponível no Creator", "Available in Creator");
                 return (
                   <div key={provider.provider} className="flex flex-wrap items-center justify-between gap-4 px-4 py-4">
                     <div>
@@ -372,6 +381,17 @@ function Settings() {
                       <p className="mt-1 text-xs text-muted-foreground">{state}</p>
                       {provider.displayName ? (
                         <p className="mt-1 text-xs text-muted-foreground">{provider.displayName}</p>
+                      ) : null}
+                      {provider.lastSuccessAt ? (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {c("Última sincronização", "Last sync")}:{" "}
+                          {new Date(provider.lastSuccessAt).toLocaleString()}
+                        </p>
+                      ) : null}
+                      {provider.safeErrorCode === "insufficient_scope" ? (
+                        <p className="mt-1 text-xs text-amber-600">
+                          {c("Atualize as permissões da conexão.", "Update the connection permissions.")}
+                        </p>
                       ) : null}
                       {(
                         provider.provider === "gmail" ||
