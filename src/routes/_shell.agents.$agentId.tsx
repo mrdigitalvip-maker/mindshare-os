@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { copyText } from "@/lib/clipboard";
 import { PageShell, EmptyState } from "@/components/page-shell";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,6 +16,10 @@ import {
   AgentRuntimeService,
   AgentScheduleService,
   AgentService,
+  WEB_AGENT_EXTERNAL_CONNECTORS,
+  WEB_AGENT_SKILLS,
+  externalConnectorStatus,
+  listIntegrationReadiness,
   type AgentActionAuditStatus,
   type AgentSchedule,
   type PendingAgentPlan,
@@ -161,6 +166,15 @@ function AgentWorkspace() {
               {a.instructions || "Não informado"}
             </p>
             <p className="mt-4 text-sm">Skills: {a.capabilities.join(", ") || "nenhuma"}</p>
+            <p className="mt-2 text-sm">
+              Connectors:{" "}
+              {(a.external_connector_ids ?? [])
+                .map(
+                  (id) =>
+                    WEB_AGENT_EXTERNAL_CONNECTORS.find((connector) => connector.id === id)?.name ?? id,
+                )
+                .join(", ") || "nenhum externo"}
+            </p>
             <div className="mt-6 grid gap-3 text-sm sm:grid-cols-3">
               <div className="rounded-xl border p-3">
                 <span className="text-muted-foreground">Status</span>
@@ -721,8 +735,31 @@ function Settings({
   const [goal, setGoal] = useState(agent.goal ?? "");
   const [instructions, setInstructions] = useState(agent.instructions ?? "");
   const [active, setActive] = useState(!!agent.active);
+  const [capabilities, setCapabilities] = useState<string[]>(
+    Array.isArray(agent.capabilities) ? agent.capabilities : [],
+  );
+  const [externalConnectorIds, setExternalConnectorIds] = useState<string[]>(
+    Array.isArray(agent.external_connector_ids) ? agent.external_connector_ids : [],
+  );
+  const integrationReadiness = useQuery({
+    queryKey: ["integrations", "readiness", "agent-settings", agent.id],
+    queryFn: listIntegrationReadiness,
+    enabled: capabilities.includes("integrations"),
+    staleTime: 30_000,
+  });
   const save = useMutation({
-    mutationFn: () => AgentService.update(agent.id, { name, description, goal, instructions, active }),
+    mutationFn: () =>
+      AgentService.update(agent.id, {
+        name,
+        description,
+        goal,
+        instructions,
+        active,
+        capabilities,
+        external_connector_ids: capabilities.includes("integrations")
+          ? externalConnectorIds
+          : [],
+      }),
     onSuccess: async () => {
       await onSaved();
       toast.success("Agente atualizado");
@@ -739,6 +776,72 @@ function Settings({
       <Textarea value={goal} onChange={(e) => setGoal(e.target.value)} />
       <Label>Instruções</Label>
       <Textarea value={instructions} onChange={(e) => setInstructions(e.target.value)} />
+      <div className="space-y-2">
+        <Label>Skills especializadas</Label>
+        {WEB_AGENT_SKILLS.map((skill) => (
+          <label key={skill.id} className="flex items-start gap-3 rounded-xl border p-3">
+            <Checkbox
+              checked={capabilities.includes(skill.capability)}
+              onCheckedChange={(checked) => {
+                setCapabilities((current) =>
+                  checked
+                    ? [...current, skill.capability]
+                    : current.filter((capability) => capability !== skill.capability),
+                );
+                if (skill.capability === "integrations" && !checked) setExternalConnectorIds([]);
+              }}
+            />
+            <span>
+              <span className="block text-sm font-medium">{skill.name}</span>
+              <span className="mt-1 block text-xs text-muted-foreground">{skill.description}</span>
+            </span>
+          </label>
+        ))}
+      </div>
+      {capabilities.includes("integrations") ? (
+        <div className="space-y-2">
+          <Label>Connectors externos de leitura</Label>
+          <p className="text-xs text-muted-foreground">
+            Esses connectors fornecem somente contexto. Qualquer ação externa continua exigindo aprovação explícita.
+          </p>
+          {WEB_AGENT_EXTERNAL_CONNECTORS.map((connector) => {
+            const status = externalConnectorStatus(connector, integrationReadiness.data);
+            const label =
+              status === "connected"
+                ? "Conectado"
+                : status === "configuration_required"
+                  ? "Configuração necessária"
+                  : "Não conectado";
+            return (
+              <label key={connector.id} className="flex items-start gap-3 rounded-xl border p-3">
+                <Checkbox
+                  checked={externalConnectorIds.includes(connector.id)}
+                  onCheckedChange={(checked) =>
+                    setExternalConnectorIds((current) =>
+                      checked
+                        ? [...current, connector.id]
+                        : current.filter((id) => id !== connector.id),
+                    )
+                  }
+                />
+                <span>
+                  <span className="block text-sm font-medium">
+                    {connector.name} · {label}
+                  </span>
+                  <span className="mt-1 block text-xs text-muted-foreground">
+                    {connector.description}
+                  </span>
+                </span>
+              </label>
+            );
+          })}
+          {integrationReadiness.isError ? (
+            <p className="text-xs text-destructive">
+              Não foi possível verificar o estado das conexões agora.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
       <label className="flex items-center justify-between rounded-xl border p-3">
         Agente ativo
         <Switch
