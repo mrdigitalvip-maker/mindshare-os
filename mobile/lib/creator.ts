@@ -353,6 +353,175 @@ export function creatorHistoricalPerformance(
   };
 }
 
+
+export type CreatorPerformanceObservation = {
+  contentId: string;
+  source: "manual" | "provider_verified";
+  value: number;
+  publishedAt: string;
+  weekday: number;
+  hourWindow: string;
+  platform: string;
+  contentType?: string;
+  contentPillar?: string;
+};
+
+function performanceGroups(observations: CreatorPerformanceObservation[]) {
+  const group = (
+    key: "weekday" | "hourWindow" | "platform" | "contentType" | "contentPillar",
+  ) =>
+    Object.values(
+      observations.reduce<Record<string, { key: string; sampleCount: number; total: number }>>(
+        (all, row) => {
+          const value = String(row[key] ?? "");
+          if (!value) return all;
+          const entry = all[value] ?? { key: value, sampleCount: 0, total: 0 };
+          entry.sampleCount += 1;
+          entry.total += row.value;
+          all[value] = entry;
+          return all;
+        },
+        {},
+      ),
+    ).map((item) => ({ ...item, average: item.total / item.sampleCount }));
+
+  const strongest = (rows: ReturnType<typeof group>) =>
+    rows
+      .filter((item) => item.sampleCount >= CREATOR_MINIMUM_SAMPLE)
+      .sort((a, b) => b.average - a.average || a.key.localeCompare(b.key))[0] ?? null;
+
+  const byWeekday = group("weekday");
+  const byPostingWindow = group("hourWindow");
+  return {
+    byWeekday,
+    byPostingWindow,
+    byPlatform: group("platform"),
+    byContentType: group("contentType"),
+    byContentPillar: group("contentPillar"),
+    strongestWeekday: strongest(byWeekday),
+    strongestPostingWindow: strongest(byPostingWindow),
+  };
+}
+
+function performanceConfidence(
+  observations: CreatorPerformanceObservation[],
+  completeness: number,
+  nowMs: number,
+) {
+  if (!observations.length) return "insufficient" as const;
+  const values = observations.map((item) => item.value);
+  const average = values.reduce((sum, value) => sum + value, 0) / values.length;
+  const variance =
+    values.reduce((sum, value) => sum + (value - average) ** 2, 0) / values.length;
+  const coefficientOfVariation = average > 0 ? Math.sqrt(variance) / average : 0;
+  const newest = Math.max(...observations.map((item) => Date.parse(item.publishedAt) || 0));
+  const ageDays = Math.max(0, (nowMs - newest) / 86_400_000);
+  return creatorConfidence({
+    sampleSize: observations.length,
+    ageDays,
+    coefficientOfVariation,
+    completeness,
+  });
+}
+
+export function creatorEvidenceIntelligence(input: {
+  content: CreatorContentLog[];
+  manualSnapshots: CreatorManualSnapshot[];
+  providerAnalytics: CreatorAnalyticsSnapshot[];
+  metric?: CreatorManualMetric;
+  now?: string | number | Date;
+}) {
+  const metric = input.metric ?? "views";
+  const latestManual = new Map<string, CreatorManualSnapshot>();
+  for (const snapshot of [...input.manualSnapshots].sort((a, b) =>
+    a.capturedAt.localeCompare(b.capturedAt),
+  )) {
+    latestManual.set(snapshot.contentId, snapshot);
+  }
+  const manualObservations: CreatorPerformanceObservation[] = input.content.flatMap((item) => {
+    const value = latestManual.get(item.id)?.metrics[metric];
+    if (typeof value !== "number") return [];
+    const date = new Date(item.publishedAt);
+    if (!Number.isFinite(date.getTime())) return [];
+    const start = Math.floor(date.getHours() / 4) * 4;
+    return [{
+      contentId: item.id,
+      source: "manual" as const,
+      value,
+      publishedAt: item.publishedAt,
+      weekday: date.getDay(),
+      hourWindow: `${String(start).padStart(2, "0")}:00–${String((start + 4) % 24).padStart(2, "0")}:00`,
+      platform: item.platform,
+      contentType: item.contentType,
+      contentPillar: item.contentPillar,
+    }];
+  });
+
+  const latestProvider = new Map<string, CreatorAnalyticsSnapshot>();
+  for (const snapshot of [...input.providerAnalytics].sort((a, b) =>
+    a.capturedAt.localeCompare(b.capturedAt),
+  )) {
+    const providerContentId = snapshot.providerContentId?.trim();
+    if (providerContentId) latestProvider.set(`${snapshot.platform}:${providerContentId}`, snapshot);
+  }
+  const providerObservations: CreatorPerformanceObservation[] = [...latestProvider.entries()].flatMap(
+    ([evidenceKey, snapshot]) => {
+      const value = snapshot.metrics[metric];
+      if (typeof value !== "number" || !snapshot.publishedAt) return [];
+      const date = new Date(snapshot.publishedAt);
+      if (!Number.isFinite(date.getTime())) return [];
+      const start = Math.floor(date.getHours() / 4) * 4;
+      return [{
+        contentId: evidenceKey,
+        source: "provider_verified" as const,
+        value,
+        publishedAt: snapshot.publishedAt,
+        weekday: date.getDay(),
+        hourWindow: `${String(start).padStart(2, "0")}:00–${String((start + 4) % 24).padStart(2, "0")}:00`,
+        platform: snapshot.platform,
+        contentType: snapshot.contentType,
+      }];
+    },
+  );
+
+  const providerCompleteness = latestProvider.size
+    ? providerObservations.length / latestProvider.size
+    : 0;
+  const manualCompleteness = input.content.length
+    ? manualObservations.length / input.content.length
+    : 0;
+  const selected =
+    providerObservations.length >= CREATOR_MINIMUM_SAMPLE
+      ? providerObservations
+      : manualObservations.length >= CREATOR_MINIMUM_SAMPLE
+        ? manualObservations
+        : providerObservations.length >= manualObservations.length
+          ? providerObservations
+          : manualObservations;
+  const source = selected === providerObservations ? "provider_verified" : "manual";
+  const completeness =
+    source === "provider_verified" ? providerCompleteness : manualCompleteness;
+  const nowMs =
+    input.now instanceof Date
+      ? input.now.getTime()
+      : typeof input.now === "number"
+        ? input.now
+        : typeof input.now === "string"
+          ? Date.parse(input.now)
+          : Date.now();
+
+  return {
+    metric,
+    source,
+    sampleCount: selected.length,
+    confidence: performanceConfidence(selected, completeness, nowMs),
+    observations: selected,
+    providerSampleCount: providerObservations.length,
+    manualSampleCount: manualObservations.length,
+    ...performanceGroups(selected),
+  };
+}
+
 export type CreatorNextAction =
   "complete_setup" | "build_strategy" | "add_content" | "update_results" | "review_intelligence";
 export function creatorNextAction(input: {
@@ -449,12 +618,34 @@ export function creatorCopilotContext(input: {
         evidence: { source: "manual", sampleCount: input.manualSnapshots.length },
       }
     : undefined;
+  const performance = creatorEvidenceIntelligence({
+    content: input.content ?? [],
+    manualSnapshots: input.manualSnapshots ?? [],
+    providerAnalytics: input.analytics ?? [],
+  });
+  const performanceIntelligence = performance.sampleCount
+    ? {
+        metric: performance.metric,
+        evidence: {
+          source: performance.source,
+          sampleCount: performance.sampleCount,
+          providerSampleCount: performance.providerSampleCount,
+          manualSampleCount: performance.manualSampleCount,
+          confidence: performance.confidence,
+        },
+        strongestPostingWindow: performance.strongestPostingWindow,
+        strongestWeekday: performance.strongestWeekday,
+        byPlatform: performance.byPlatform,
+        byContentType: performance.byContentType,
+      }
+    : undefined;
   return Object.fromEntries(
     Object.entries({
       profile: input.profile || undefined,
       strategy: input.strategy || undefined,
       creatorGoals: input.goals?.length ? input.goals : undefined,
       contentHistory: input.content?.length ? input.content : undefined,
+      performanceIntelligence,
       manualAnalytics,
       providerAnalytics: input.analytics?.length
         ? {
