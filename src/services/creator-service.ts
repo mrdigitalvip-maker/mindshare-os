@@ -578,3 +578,30 @@ export async function signedCreatorOutput(path: string) {
   if (error) throw error;
   return data.signedUrl;
 }
+
+
+export type CreatorWorkerStatus = {
+  available: boolean;
+  state: "online" | "busy" | "offline";
+  activeWorkers: number;
+  busyWorkers: number;
+  ownQueue: {
+    queued: number;
+    processing: number;
+  };
+};
+
+export async function getCreatorWorkerStatus(): Promise<CreatorWorkerStatus> {
+  const { data, error } = await supabase.functions.invoke<
+    CreatorWorkerStatus | { error?: { code?: string } }
+  >("creator-worker-status", { body: {} });
+  if (error) throw error;
+  if (!data || ("error" in data && data.error)) {
+    throw new Error(
+      data && "error" in data && data.error?.code
+        ? data.error.code
+        : "worker_status_unavailable",
+    );
+  }
+  return data;
+}
