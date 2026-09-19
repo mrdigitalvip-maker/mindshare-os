@@ -13,6 +13,7 @@ import {
   completeWebPassportLesson,
   finishWebRoleplay,
   getWebPassportProfile,
+  getWebPassportRetentionSummary,
   listWebDueVocabulary,
   listWebPassportLessons,
   listWebPassportMissions,
@@ -39,6 +40,7 @@ const passportKeys = {
   vocabulary: (userId: string, trackId: string) => ["web-passport", "vocabulary", userId, trackId] as const,
   missions: (userId: string, trackId: string) => ["web-passport", "missions", userId, trackId] as const,
   roleplay: (userId: string, trackId: string) => ["web-passport", "roleplay", userId, trackId] as const,
+  retention: (userId: string, trackId: string) => ["web-passport", "retention", userId, trackId] as const,
 };
 
 const copy = {
@@ -115,6 +117,12 @@ const copy = {
     shopping: "Compras",
     social: "Social",
     retry: "Tentar novamente",
+    streak: "Sequência",
+    streakDays: "dias",
+    activeWeek: "Atividade em 7 dias",
+    todayActive: "Hoje ativo",
+    todayPending: "Faça uma prática hoje",
+    longestStreak: "Melhor sequência",
   },
   en: {
     title: "KIVRYN Passport",
@@ -189,6 +197,12 @@ const copy = {
     shopping: "Shopping",
     social: "Social",
     retry: "Try again",
+    streak: "Streak",
+    streakDays: "days",
+    activeWeek: "Activity in 7 days",
+    todayActive: "Active today",
+    todayPending: "Practice today",
+    longestStreak: "Best streak",
   },
 } as const;
 
@@ -263,6 +277,11 @@ function PassportWorkspace() {
   const roleplay = useQuery({
     queryKey: passportKeys.roleplay(userId, trackId),
     queryFn: () => listWebRoleplaySessions(userId, trackId),
+    enabled: Boolean(userId && trackId && profile.data?.placementScore != null),
+  });
+  const retention = useQuery({
+    queryKey: passportKeys.retention(userId, trackId),
+    queryFn: () => getWebPassportRetentionSummary(userId, trackId),
     enabled: Boolean(userId && trackId && profile.data?.placementScore != null),
   });
 
@@ -369,7 +388,14 @@ function PassportWorkspace() {
               vocabulary={vocabulary.data ?? []}
               missions={missions.data ?? []}
               sessions={roleplay.data ?? []}
-              loading={lessons.isLoading || vocabulary.isLoading || missions.isLoading || roleplay.isLoading}
+              retention={retention.data}
+              loading={
+                lessons.isLoading ||
+                vocabulary.isLoading ||
+                missions.isLoading ||
+                roleplay.isLoading ||
+                retention.isLoading
+              }
               completeLesson={(id) => completeLesson.mutate(id)}
               reviewVocabulary={(id, grade) => reviewVocabulary.mutate({ id, grade })}
               addVocabulary={(term, translation, context) => addVocabulary.mutate({ term, translation, context })}
@@ -504,6 +530,7 @@ function PassportReady({
   vocabulary,
   missions,
   sessions,
+  retention,
   loading,
   completeLesson,
   reviewVocabulary,
@@ -522,6 +549,7 @@ function PassportReady({
   vocabulary: Awaited<ReturnType<typeof listWebDueVocabulary>>;
   missions: Awaited<ReturnType<typeof listWebPassportMissions>>;
   sessions: Awaited<ReturnType<typeof listWebRoleplaySessions>>;
+  retention?: Awaited<ReturnType<typeof getWebPassportRetentionSummary>>;
   loading: boolean;
   completeLesson(id: string): void;
   reviewVocabulary(id: string, grade: number): void;
@@ -577,6 +605,23 @@ function PassportReady({
           <div className="text-right"><p className="text-2xl font-semibold">{Math.round(progress)}%</p><p className="text-xs text-muted-foreground">{text.progress}</p></div>
         </div>
         <div className="mt-5"><WorkspaceProgress label={text.progress} value={progress} /></div>
+        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+          <div className="rounded-2xl border border-border bg-background/40 p-4">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">{text.streak}</p>
+            <p className="mt-2 text-xl font-semibold">{retention?.currentStreak ?? 0} {text.streakDays}</p>
+          </div>
+          <div className="rounded-2xl border border-border bg-background/40 p-4">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">{text.activeWeek}</p>
+            <p className="mt-2 text-xl font-semibold">{retention?.activeDaysLast7 ?? 0}/7</p>
+          </div>
+          <div className="rounded-2xl border border-border bg-background/40 p-4">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">{text.longestStreak}</p>
+            <p className="mt-2 text-xl font-semibold">{retention?.longestStreak ?? 0} {text.streakDays}</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {retention?.activeToday ? text.todayActive : text.todayPending}
+            </p>
+          </div>
+        </div>
       </section>
 
       {loading ? <p className="text-sm text-muted-foreground">{locale === "en" ? "Synchronizing Passport…" : "Sincronizando Passport…"}</p> : null}
