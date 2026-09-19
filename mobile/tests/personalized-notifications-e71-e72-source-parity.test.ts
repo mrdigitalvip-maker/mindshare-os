@@ -8,7 +8,7 @@ const migration=source("../../supabase/migrations/202609190225_e71_personalized_
 const notificationService=source("../services/notification-service.ts");
 const settings=source("../app/(app)/settings.tsx");
 const reminders=source("../../supabase/functions/scheduled-reminders/index.ts");
-const scheduledAgents=source("../../supabase/functions/scheduled-agent-runs/index.ts");
+const agentGuard=source("../../supabase/migrations/202609190240_e72_agent_notification_preference_guard.sql");
 
 describe("E71/E72 personalized notification source parity",()=>{
   test("Android uses the same persisted domain preferences",()=>{
@@ -38,10 +38,10 @@ describe("E71/E72 personalized notification source parity",()=>{
     expect(reminders).toContain('action_plan_status", "pending_approval"');
   });
 
-  test("Agent delivery respects the global Agent toggle",()=>{
-    expect(scheduledAgents).toContain(
-      'select("agents_enabled,timezone,quiet_hours_start,quiet_hours_end")',
-    );
-    expect(scheduledAgents).toContain("pref?.agents_enabled === false");
+  test("Agent delivery respects the global Agent toggle at the server-owned ledger",()=>{
+    expect(agentGuard).toContain("dedupe_key like 'agent-run:%'");
+    expect(agentGuard).toContain("p.agents_enabled = false");
+    expect(agentGuard).toContain("raise exception");
+    expect(agentGuard).toContain("security invoker");
   });
 });
