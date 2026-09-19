@@ -30,6 +30,22 @@ alter table public.agents
   );
 
 alter table public.agent_runs
+  drop constraint if exists agent_runs_skill_ids_check;
+
+alter table public.agent_runs
+  add constraint agent_runs_skill_ids_check
+  check (
+    skill_ids <@ array[
+      'writing.v1'::text,
+      'planning.v1'::text,
+      'summarization.v1'::text,
+      'study.v1'::text,
+      'productivity.v1'::text,
+      'integrations.v1'::text
+    ]
+  );
+
+alter table public.agent_runs
   drop constraint if exists agent_runs_connector_ids_check;
 
 alter table public.agent_runs
