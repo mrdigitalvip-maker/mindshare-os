@@ -45,3 +45,13 @@ describe("E71/E72 personalized notification source parity",()=>{
     expect(agentGuard).toContain("security invoker");
   });
 });
+
+
+describe("E72 Agent notification server guard",()=>{
+  test("suppresses Agent delivery without changing Agent execution",()=>{
+    const guard=source("../../supabase/migrations/202609190240_e72_notification_preference_guard.sql");
+    expect(guard).toContain("notification_delivery_preference_guard");
+    expect(guard).toContain("new.dedupe_key like 'agent-run:%'");
+    expect(guard).toContain("p.agents_enabled = false");
+  });
+});
