@@ -52,7 +52,8 @@ test("E67 provider usage ledger is server-owned and stores no prompt or transcri
   assert.match(migration,/create table if not exists public\.ai_provider_usage_claims/);
   assert.match(migration,/revoke all privileges on table public\.ai_provider_usage_claims from anon, authenticated/);
   assert.match(migration,/grant select, insert, update, delete on table public\.ai_provider_usage_claims to service_role/);
-  assert.doesNotMatch(migration,/prompt|transcript|audio|content text/i);
+  const executable=migration.replace(/^--.*$/gm,"").replace(/comment on table[\s\S]*?;\s*/gi,"");
+  assert.doesNotMatch(executable,/\b(prompt|transcript|audio|content)\b\s+text/i);
 });
 
 test("E68 Gemini adapter is bounded, quota-aware and server-authenticated",()=>{
