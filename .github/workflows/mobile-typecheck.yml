@@ -132,5 +132,8 @@ jobs:
       - name: Run E79/E80 Creator evidence intelligence source parity
         run: bun test tests/creator-evidence-intelligence-e79-e80-source-parity.test.ts
 
+      - name: Run E81/E82 leaderboard and Premium reward source parity
+        run: bun test tests/leaderboard-premium-reward-e81-e82-source-parity.test.ts
+
       - name: Run existing Creator engine and intelligence contracts
         run: bun test tests/creator-video-engine-revision-14.test.ts tests/creator-intelligence-revision-14.test.ts
