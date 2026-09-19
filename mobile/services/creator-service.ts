@@ -221,7 +221,7 @@ export async function listCreatorAnalytics(userId: string): Promise<CreatorAnaly
 export async function listCreatorConnections(userId: string): Promise<CreatorPlatformConnection[]> {
   const { data, error } = await supabase
     .from("creator_platform_connections")
-    .select("id,platform,status,provider_display_name,last_success_at,granted_metrics")
+    .select("id,platform,status,provider_display_name,last_success_at,safe_error_code,granted_scopes,granted_metrics")
     .eq("user_id", userId);
   if (error) throw error;
   return (data ?? []).map((row) => ({
@@ -230,6 +230,8 @@ export async function listCreatorConnections(userId: string): Promise<CreatorPla
     status: row.status,
     displayName: row.provider_display_name ?? undefined,
     lastSuccessAt: row.last_success_at ?? undefined,
+    safeErrorCode: row.safe_error_code ?? undefined,
+    grantedScopes: row.granted_scopes ?? [],
     grantedMetrics: row.granted_metrics ?? [],
   }));
 }
