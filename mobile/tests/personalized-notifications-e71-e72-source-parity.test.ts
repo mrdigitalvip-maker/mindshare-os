@@ -14,7 +14,7 @@ describe("E71/E72 personalized notification source parity",()=>{
   test("Android uses the same persisted domain preferences",()=>{
     for (const field of [
       "tasks_enabled","projects_enabled","studies_enabled","agents_enabled","journeys_enabled",
-      "community_enabled","integrations_enabled","approvals_enabled","premium_enabled","daily_summary_enabled",
+      "community_enabled","challenges_enabled","integrations_enabled","approvals_enabled","premium_enabled","daily_summary_enabled",
     ]) {
       expect(notificationService).toContain(field);
       expect(settings).toContain(field);
