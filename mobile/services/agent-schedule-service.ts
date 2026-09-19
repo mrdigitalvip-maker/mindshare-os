@@ -32,6 +32,7 @@ export type MobileAgent = {
   description: string;
   active: boolean;
   capabilities: string[];
+  externalConnectorIds: string[];
   skills: MobileAgentSkill[];
   contextScopes: MobileContextScope[];
   scheduleFrequency: "daily" | "weekly" | null;
@@ -66,7 +67,7 @@ export async function listMobileAgents(): Promise<MobileAgent[]> {
   const { data, error } = await (supabase as any)
     .from("agents")
     .select(
-      "id,name,goal,description,active,capabilities,schedule_frequency,schedule_time,schedule_weekdays,schedule_timezone,schedule_prompt,notify_on_run,next_run_at,last_run_at",
+      "id,name,goal,description,active,capabilities,external_connector_ids,schedule_frequency,schedule_time,schedule_weekdays,schedule_timezone,schedule_prompt,notify_on_run,next_run_at,last_run_at",
     )
     .eq("user_id", uid)
     .order("created_at", { ascending: false });
@@ -82,6 +83,11 @@ export async function listMobileAgents(): Promise<MobileAgent[]> {
       description: row.description ?? "",
       active: row.active !== false,
       capabilities,
+      externalConnectorIds: Array.isArray(row.external_connector_ids)
+        ? row.external_connector_ids.filter(
+            (value: unknown): value is string => typeof value === "string",
+          )
+        : [],
       skills: resolveMobileAgentSkills(capabilities),
       contextScopes: contextScopesForAgentCapabilities(capabilities),
       scheduleFrequency:
