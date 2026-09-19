@@ -20,6 +20,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
 import * as Speech from "expo-speech";
+import {
+  AudioModule,
+  RecordingPresets,
+  setAudioModeAsync,
+  useAudioRecorder,
+  useAudioRecorderState,
+} from "expo-audio";
 
 import { ErrorState, LoadingState } from "@/components/screen-state";
 import { useConversation, useConversations, useSendChat } from "@/hooks/use-chat";
@@ -50,6 +57,7 @@ import {
 import { colors, radius, spacing, typography } from "@/lib/theme";
 import { useLanguage } from "@/providers/language-provider";
 import { uploadChatAttachment } from "@/services/chat-attachment-service";
+import { transcribeAssistantRecording } from "@/services/assistant-voice-service";
 import { ChatServiceError, type ChatMessage } from "@/services/chat-service";
 import { applyNexoraAction, NexoraActionError } from "@/services/nexora-action-service";
 
@@ -79,6 +87,11 @@ const copy = {
     thinking: "KIVRYN está pensando…",
     activity: "Atualizada",
     generic: "Conversa com a KIVRYN",
+    speak: "Falar com a KIVRYN",
+    stopVoice: "Parar gravação",
+    transcribing: "Transcrevendo voz…",
+    microphoneDenied: "Permita o acesso ao microfone para usar a entrada de voz.",
+    transcriptionFailed: "Não foi possível transcrever o áudio.",
   },
   en: {
     title: "KIVRYN",
@@ -93,6 +106,11 @@ const copy = {
     thinking: "KIVRYN is thinking…",
     activity: "Updated",
     generic: "Conversation with KIVRYN",
+    speak: "Speak to KIVRYN",
+    stopVoice: "Stop recording",
+    transcribing: "Transcribing voice…",
+    microphoneDenied: "Allow microphone access to use voice input.",
+    transcriptionFailed: "The audio could not be transcribed.",
   },
 } as const;
 
@@ -114,6 +132,9 @@ export default function AssistantChat() {
   const conversations = useConversations();
   const send = useSendChat();
   const queryClient = useQueryClient();
+  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const recorderState = useAudioRecorderState(audioRecorder, 200);
+  const [transcribing, setTranscribing] = useState(false);
   const [draft, setDraft] = useState("");
   const [attachment, setAttachment] = useState<LocalChatAttachment | null>(null);
   const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
@@ -358,6 +379,48 @@ export default function AssistantChat() {
     return () => subscription.remove();
   }, []);
 
+  const startVoiceInput = async () => {
+    if (send.isPending || uploading || transcribing || recorderState.isRecording) return;
+    try {
+      const permission = await AudioModule.requestRecordingPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert(text.speak, text.microphoneDenied);
+        return;
+      }
+      await Speech.stop();
+      setSpeakingId(null);
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+      await audioRecorder.prepareToRecordAsync();
+      audioRecorder.record();
+    } catch {
+      await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }).catch(() => undefined);
+      Alert.alert(text.speak, text.transcriptionFailed);
+    }
+  };
+
+  const stopVoiceInput = async () => {
+    if (!recorderState.isRecording || transcribing) return;
+    setTranscribing(true);
+    try {
+      await audioRecorder.stop();
+      const uri = audioRecorder.uri;
+      if (!uri) throw new Error("missing_recording");
+      const transcript = await transcribeAssistantRecording(uri, resolvedLocale);
+      if (transcript) {
+        setDraft((current) => {
+          const base = current.trim();
+          return base ? `${base} ${transcript}` : transcript;
+        });
+        setFailed(null);
+      }
+    } catch {
+      Alert.alert(text.speak, text.transcriptionFailed);
+    } finally {
+      await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }).catch(() => undefined);
+      setTranscribing(false);
+    }
+  };
+
   const toggleSpeech = async (item: ChatMessage) => {
     try {
       await Speech.stop();
@@ -452,8 +515,12 @@ export default function AssistantChat() {
   }
 
   const errorCopy = failed ? assistantErrorCopy(failed.code) : null;
-  const busy = send.isPending || uploading;
-  const canSend = canSendAssistantMessage(draft, attachment, busy);
+  const busy = send.isPending || uploading || transcribing;
+  const canSend = canSendAssistantMessage(
+    draft,
+    attachment,
+    busy || recorderState.isRecording,
+  );
 
   return (
     <SafeAreaView edges={["top"]} style={styles.screen}>
@@ -734,6 +801,31 @@ export default function AssistantChat() {
               style={styles.input}
               textAlignVertical="top"
             />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={
+                recorderState.isRecording ? text.stopVoice : transcribing ? text.transcribing : text.speak
+              }
+              accessibilityState={{
+                disabled: send.isPending || uploading || transcribing,
+                busy: transcribing,
+              }}
+              disabled={send.isPending || uploading || transcribing}
+              onPress={() =>
+                recorderState.isRecording ? void stopVoiceInput() : void startVoiceInput()
+              }
+              style={({ pressed }) => [
+                styles.voiceButton,
+                recorderState.isRecording && styles.voiceRecording,
+                pressed && styles.pressed,
+              ]}
+            >
+              {transcribing ? (
+                <ActivityIndicator color={colors.primaryBright} />
+              ) : (
+                <Text style={styles.voiceText}>{recorderState.isRecording ? "■" : "●"}</Text>
+              )}
+            </Pressable>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Enviar mensagem"
@@ -1063,6 +1155,17 @@ const styles = StyleSheet.create({
     paddingBottom: 9,
     color: colors.text,
   },
+  voiceButton: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 22,
+  },
+  voiceRecording: {
+    backgroundColor: colors.surface,
+  },
+  voiceText: { color: colors.primaryBright, fontSize: 18, lineHeight: 20 },
   sendButton: {
     width: 44,
     height: 44,
