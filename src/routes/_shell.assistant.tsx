@@ -9,12 +9,15 @@ import {
   ListTodo,
   Loader2,
   Menu,
+  Mic,
   Plus,
   RefreshCw,
   Search,
   Send,
   Sparkles,
+  Square,
   Trash2,
+  Volume2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -50,6 +53,13 @@ import {
   type AiConversation,
 } from "@/services";
 import { applyNexoraAction, NexoraActionError } from "@/services/nexora-action-service";
+import {
+  createSpeechRecognition,
+  ElevenLabsVoiceProvider,
+  FallbackVoiceProvider,
+  transcribeVoiceAudio,
+  type SpeechRecognitionLike,
+} from "@/services/voice-provider";
 
 export const Route = createFileRoute("/_shell/assistant")({
   head: () => ({ meta: [{ title: "Assistente — KIVRYN" }] }),
@@ -101,6 +111,16 @@ function Assistant() {
   const [taskPreview, setTaskPreview] = useState<string | null>(null);
   const [contentPreview, setContentPreview] = useState<{ title: string; body: string } | null>(null);
   const [proposal, setProposal] = useState<ProposalState | null>(null);
+  const [voiceInputState, setVoiceInputState] = useState<"idle" | "recording" | "transcribing">("idle");
+  const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const mediaChunksRef = useRef<Blob[]>([]);
+  const speechRecognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const voiceTimerRef = useRef<number | null>(null);
+  const voiceSessionRef = useRef(0);
+  const serverVoiceRef = useRef<ElevenLabsVoiceProvider | null>(null);
+  const fallbackVoiceRef = useRef<FallbackVoiceProvider | null>(null);
   const { sendMessage, isSending, loadConversationHistory, startConversation } = useChat();
   const conversationsKey = ["workspace", user?.id, "ai-conversations"] as const;
   const conversations = useQuery({
@@ -115,6 +135,31 @@ function Assistant() {
   }, [messages, isSending, proposal]);
 
   useEffect(() => inputRef.current?.focus(), []);
+
+  useEffect(
+    () => () => {
+      if (voiceTimerRef.current !== null) window.clearTimeout(voiceTimerRef.current);
+      const recorder = mediaRecorderRef.current;
+      if (recorder && recorder.state !== "inactive") {
+        recorder.onstop = null;
+        recorder.stop();
+      }
+      mediaRecorderRef.current = null;
+      mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+      mediaStreamRef.current = null;
+      const recognition = speechRecognitionRef.current;
+      if (recognition) {
+        recognition.onresult = null;
+        recognition.onerror = null;
+        recognition.onend = null;
+        recognition.stop();
+      }
+      speechRecognitionRef.current = null;
+      serverVoiceRef.current?.stop();
+      fallbackVoiceRef.current?.stop();
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!conversation || openedFromSearch.current === conversation) return;
@@ -135,6 +180,8 @@ function Assistant() {
 
   async function openConversation(id: string) {
     if (isSending) return;
+    cancelVoiceInput();
+    stopSpeaking();
     setLoadError(null);
     setProposal(null);
     applyingActions.current.clear();
@@ -151,6 +198,8 @@ function Assistant() {
   }
 
   function createConversation() {
+    cancelVoiceInput();
+    stopSpeaking();
     startConversation();
     applyingActions.current.clear();
     setProposal(null);
@@ -166,9 +215,209 @@ function Assistant() {
     window.setTimeout(() => inputRef.current?.focus(), 0);
   }
 
+  function voiceLocale(): "pt-BR" | "en-US" {
+    if (typeof navigator !== "undefined" && navigator.language.toLowerCase().startsWith("en")) {
+      return "en-US";
+    }
+    return "pt-BR";
+  }
+
+  function appendTranscript(transcript: string) {
+    setInput((current) => {
+      const base = current.trim();
+      return base ? `${base} ${transcript.trim()}` : transcript.trim();
+    });
+    window.setTimeout(() => inputRef.current?.focus(), 0);
+  }
+
+  function releaseMediaStream() {
+    mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+    mediaStreamRef.current = null;
+  }
+
+  function clearVoiceTimer() {
+    if (voiceTimerRef.current !== null) {
+      window.clearTimeout(voiceTimerRef.current);
+      voiceTimerRef.current = null;
+    }
+  }
+
+  function cancelVoiceInput(updateState = true) {
+    voiceSessionRef.current += 1;
+    clearVoiceTimer();
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recorder.state !== "inactive") {
+      recorder.onstop = null;
+      recorder.stop();
+    }
+    mediaRecorderRef.current = null;
+    mediaChunksRef.current = [];
+    releaseMediaStream();
+
+    const recognition = speechRecognitionRef.current;
+    if (recognition) {
+      recognition.onresult = null;
+      recognition.onerror = null;
+      recognition.onend = null;
+      recognition.stop();
+    }
+    speechRecognitionRef.current = null;
+    if (updateState) setVoiceInputState("idle");
+  }
+
+  function startRecognitionFallback() {
+    const session = ++voiceSessionRef.current;
+    const recognition = createSpeechRecognition();
+    if (!recognition) return false;
+    recognition.lang = voiceLocale();
+    recognition.interimResults = false;
+    recognition.continuous = false;
+    recognition.onresult = (event) => {
+      const transcript = event.results[0]?.[0]?.transcript?.trim();
+      if (transcript && session === voiceSessionRef.current) appendTranscript(transcript);
+    };
+    recognition.onerror = () => {
+      toast.error("Não foi possível reconhecer sua voz.");
+    };
+    recognition.onend = () => {
+      speechRecognitionRef.current = null;
+      setVoiceInputState("idle");
+    };
+    speechRecognitionRef.current = recognition;
+    setVoiceInputState("recording");
+    recognition.start();
+    return true;
+  }
+
+  async function finishRecordedVoice(mimeType: string, session: number) {
+    clearVoiceTimer();
+    const chunks = mediaChunksRef.current;
+    mediaChunksRef.current = [];
+    mediaRecorderRef.current = null;
+    releaseMediaStream();
+    if (!chunks.length) {
+      setVoiceInputState("idle");
+      toast.error("Nenhum áudio foi capturado.");
+      return;
+    }
+
+    setVoiceInputState("transcribing");
+    try {
+      const transcript = await transcribeVoiceAudio(
+        new Blob(chunks, { type: mimeType || chunks[0]?.type || "audio/webm" }),
+        voiceLocale(),
+      );
+      if (session !== voiceSessionRef.current) return;
+      appendTranscript(transcript);
+      toast.success("Áudio transcrito. Revise antes de enviar.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível transcrever o áudio.");
+    } finally {
+      setVoiceInputState("idle");
+    }
+  }
+
+  async function startVoiceInput() {
+    if (isSending || voiceInputState !== "idle") return;
+    stopSpeaking();
+
+    const canRecord =
+      typeof navigator !== "undefined" &&
+      !!navigator.mediaDevices?.getUserMedia &&
+      typeof MediaRecorder !== "undefined";
+    if (!canRecord) {
+      if (!startRecognitionFallback()) {
+        toast.error("Entrada de voz não é compatível com este navegador.");
+      }
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const session = ++voiceSessionRef.current;
+      mediaStreamRef.current = stream;
+      const mimeType = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"].find((type) =>
+        MediaRecorder.isTypeSupported(type),
+      );
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      mediaChunksRef.current = [];
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) mediaChunksRef.current.push(event.data);
+      };
+      recorder.onerror = () => {
+        cancelVoiceInput();
+        toast.error("A gravação de voz foi interrompida.");
+      };
+      recorder.onstop = () => {
+        void finishRecordedVoice(recorder.mimeType, session);
+      };
+      mediaRecorderRef.current = recorder;
+      recorder.start(250);
+      setVoiceInputState("recording");
+      voiceTimerRef.current = window.setTimeout(() => {
+        const active = mediaRecorderRef.current;
+        if (active && active.state !== "inactive") active.stop();
+      }, 60_000);
+    } catch {
+      cancelVoiceInput();
+      toast.error("Permita o acesso ao microfone para usar a entrada de voz.");
+    }
+  }
+
+  function stopVoiceInput() {
+    clearVoiceTimer();
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recorder.state !== "inactive") {
+      recorder.stop();
+      return;
+    }
+    const recognition = speechRecognitionRef.current;
+    if (recognition) {
+      recognition.stop();
+      return;
+    }
+    setVoiceInputState("idle");
+  }
+
+  function stopSpeaking() {
+    serverVoiceRef.current?.stop();
+    fallbackVoiceRef.current?.stop();
+    setSpeakingMessageId(null);
+  }
+
+  async function toggleMessageSpeech(message: ChatMessage) {
+    if (speakingMessageId === message.id) {
+      stopSpeaking();
+      return;
+    }
+
+    stopSpeaking();
+    const server = serverVoiceRef.current ?? new ElevenLabsVoiceProvider();
+    const fallback = fallbackVoiceRef.current ?? new FallbackVoiceProvider();
+    serverVoiceRef.current = server;
+    fallbackVoiceRef.current = fallback;
+    setSpeakingMessageId(message.id);
+
+    try {
+      if (await server.isAvailable()) {
+        await server.speak(message.content);
+      } else {
+        await fallback.speak(message.content);
+      }
+    } catch {
+      try {
+        await fallback.speak(message.content);
+      } catch {
+        toast.error("Não foi possível reproduzir esta resposta.");
+      }
+    } finally {
+      setSpeakingMessageId((current) => (current === message.id ? null : current));
+    }
+  }
+
   async function send(text: string) {
     const normalized = text.trim();
-    if (!normalized || isSending) return;
+    if (!normalized || isSending || voiceInputState !== "idle") return;
     const optimistic: ChatMessage = { id: createClientId(), role: "user", content: normalized };
     setProposal(null);
     setMessages((current) => [...current, optimistic]);
@@ -355,6 +604,8 @@ function Assistant() {
                 <Message
                   key={message.id}
                   message={message}
+                  speaking={speakingMessageId === message.id}
+                  onSpeak={message.role === "assistant" ? () => void toggleMessageSpeech(message) : undefined}
                   onSaveTask={message.role === "assistant" ? () => setTaskPreview(message.content) : undefined}
                   onSaveContent={
                     message.role === "assistant"
@@ -456,9 +707,33 @@ function Assistant() {
             />
             <Button
               size="icon"
+              variant={voiceInputState === "recording" ? "secondary" : "ghost"}
+              className="h-11 w-11 shrink-0 rounded-full"
+              onClick={() =>
+                voiceInputState === "recording" ? stopVoiceInput() : void startVoiceInput()
+              }
+              disabled={isSending || voiceInputState === "transcribing"}
+              aria-label={
+                voiceInputState === "recording"
+                  ? "Parar gravação de voz"
+                  : voiceInputState === "transcribing"
+                    ? "Transcrevendo voz"
+                    : "Falar com a KIVRYN"
+              }
+            >
+              {voiceInputState === "transcribing" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : voiceInputState === "recording" ? (
+                <Square className="h-4 w-4" />
+              ) : (
+                <Mic className="h-4 w-4" />
+              )}
+            </Button>
+            <Button
+              size="icon"
               className="h-11 w-11 shrink-0 rounded-full"
               onClick={() => void send(input)}
-              disabled={!input.trim() || isSending}
+              disabled={!input.trim() || isSending || voiceInputState !== "idle"}
               aria-label="Enviar mensagem"
             >
               {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
@@ -661,11 +936,15 @@ function ProposalCard({
 
 function Message({
   message,
+  speaking,
+  onSpeak,
   onRegenerate,
   onSaveTask,
   onSaveContent,
 }: {
   message: ChatMessage;
+  speaking?: boolean;
+  onSpeak?: () => void;
   onRegenerate?: () => void;
   onSaveTask?: () => void;
   onSaveContent?: () => void;
@@ -702,6 +981,17 @@ function Message({
         <Button size="icon" variant="ghost" className="h-8 w-8" onClick={copy} aria-label="Copiar mensagem">
           {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
         </Button>
+        {onSpeak && (
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-8 w-8"
+            onClick={onSpeak}
+            aria-label={speaking ? "Parar áudio" : "Ouvir resposta"}
+          >
+            {speaking ? <Square className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
+          </Button>
+        )}
         {onRegenerate && (
           <Button size="icon" variant="ghost" className="h-8 w-8" onClick={onRegenerate} aria-label="Gerar resposta novamente">
             <RefreshCw className="h-3.5 w-3.5" />

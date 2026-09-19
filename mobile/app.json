@@ -69,7 +69,13 @@
           "cameraPermission": "Permita que a KIVRYN use a câmera para fotografar."
         }
       ],
-      "expo-document-picker"
+      "expo-document-picker",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Permita que a KIVRYN use o microfone para transformar sua fala em texto."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
