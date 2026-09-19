@@ -21,6 +21,14 @@ test("E79 never collapses manual and verified evidence into one unlabeled pool",
   assert.doesNotMatch(lib, /\[\.\.\.providerObservations,\s*\.\.\.manualObservations\]/);
 });
 
+test("E79 derives posting slots deterministically instead of from device-local time", () => {
+  assert.match(lib, /timeZone: input\.timezone\.trim\(\)/);
+  assert.match(lib, /providerWeekday/);
+  assert.match(lib, /providerHour/);
+  assert.match(lib, /date\.getUTCHours\(\)/);
+  assert.doesNotMatch(lib, /date\.getHours\(\)/);
+});
+
 test("E80 surfaces evidence provenance and confidence in Creator Web", () => {
   assert.match(route, /creatorEvidenceIntelligence/);
   assert.match(route, /Creator Intelligence baseada em evidência/);
