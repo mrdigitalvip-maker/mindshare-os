@@ -51,10 +51,18 @@ function normalizeLanguage(value: unknown): "pt" | "en" | "es" | "fr" | undefine
 }
 
 function supportedAudio(file: File): boolean {
-  const type = file.type.toLowerCase();
+  // MediaRecorder commonly emits values such as "audio/webm;codecs=opus".
+  // Validate the canonical MIME portion instead of rejecting valid codec parameters.
+  const type = file.type.toLowerCase().split(";")[0]?.trim() ?? "";
   const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
   if (SUPPORTED_AUDIO_TYPES.has(type)) return true;
-  if ((!type || type === "application/octet-stream") && SUPPORTED_AUDIO_EXTENSIONS.has(extension)) {
+  if (
+    SUPPORTED_AUDIO_EXTENSIONS.has(extension) &&
+    (!type ||
+      type === "application/octet-stream" ||
+      type.startsWith("audio/") ||
+      type.startsWith("video/"))
+  ) {
     return true;
   }
   return false;
@@ -136,7 +144,10 @@ Deno.serve(async (request) => {
       available: speechConfigured && entitled,
       speechAvailable: speechConfigured && entitled,
       transcriptionAvailable: transcriptionConfigured && entitled,
+      speechConfigured,
+      transcriptionConfigured,
       premiumOnly,
+      entitled,
     });
   }
 
