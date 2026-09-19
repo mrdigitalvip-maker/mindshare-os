@@ -154,7 +154,6 @@ export async function getChallengeRanking(userId: string, period: ChallengePerio
   requireUser(userId);
   const { data, error } = await supabase.rpc("get_challenge_ranking", {
     p_period: period,
-    p_timezone: deviceTimezone(),
     p_limit: 25,
   } as never);
   if (error) throw workspaceMutationError(error);

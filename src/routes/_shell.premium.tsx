@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Crown, Check, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { PageShell, PageHeader } from "@/components/page-shell";
@@ -10,6 +10,7 @@ import { subscriptionQueryKey, useSubscription } from "@/hooks/use-subscription"
 import { useAuth } from "@/lib/auth-context";
 import { BillingService } from "@/services/billing-service";
 import { LEGAL_URLS } from "@/lib/legal";
+import { SubscriptionStatusService } from "@/services/subscription-status-service";
 
 export const Route = createFileRoute("/_shell/premium")({
   head: () => ({ meta: [{ title: "Premium — KIVRYN" }] }),
@@ -40,6 +41,27 @@ function Premium() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { data: subscription, isLoading, isFetching, isError, refetch } = useSubscription();
+  const reward = subscription?.activityReward;
+  const rewardProgressDays = reward?.eligible ? 90 : Math.min(90, reward?.currentStreak ?? 0);
+  const claimReward = useMutation({
+    mutationFn: () => SubscriptionStatusService.claimActivityReward(),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: subscriptionQueryKey(user?.id) });
+      toast.success(
+        L(
+          "Recompensa ativada: 30 dias de Premium, sem renovação automática.",
+          "Reward activated: 30 days of Premium with no automatic renewal.",
+        ),
+      );
+    },
+    onError: () =>
+      toast.error(
+        L(
+          "A recompensa não pôde ser ativada. A elegibilidade será verificada novamente no servidor.",
+          "The reward could not be activated. Eligibility will be checked again on the server.",
+        ),
+      ),
+  });
   const checkoutResult =
     typeof window === "undefined"
       ? null
@@ -140,7 +162,9 @@ function Premium() {
           {L("Seu teste do Stripe está ativo", "Your Stripe trial is active")}{endDate ? ` ${L("até", "until")} ${endDate}` : ""}.
         </p>
       )}
-      {subscription?.cancelAtPeriodEnd && subscription.isPremium && (
+      {subscription?.cancelAtPeriodEnd &&
+        subscription.isPremium &&
+        subscription.source === "subscriptions" && (
         <p className="mt-3 text-sm text-muted-foreground">
           {L("O cancelamento está agendado. O Premium permanece disponível", "Cancellation is scheduled. Premium remains available")}{" "}{endDate ? `${L("até", "through")} ${endDate}` : L("até o fim do período", "until the period ends")}.
         </p>
@@ -150,7 +174,9 @@ function Premium() {
           {L("O pagamento falhou. Atualize sua forma de pagamento para restaurar o Premium.", "Payment failed. Update your payment method to restore Premium.")}
         </p>
       )}
-      {subscription?.isPremium && (
+      {subscription?.isPremium &&
+        subscription.source === "subscriptions" &&
+        subscription.provider === "stripe" && (
         <Button
           className="mt-4 rounded-full"
           variant="outline"
@@ -160,6 +186,88 @@ function Premium() {
           {openingPortal ? L("Abrindo…", "Opening…") : L("Gerenciar cobrança, pagamento ou cancelamento", "Manage billing, payment or cancellation")}
         </Button>
       )}
+      {!isLoading && !isError && reward && (
+        <section className="mt-8 rounded-3xl border border-intelligence/30 bg-intelligence/5 p-6">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-intelligence">
+                {L("RECOMPENSA DE CONSISTÊNCIA", "CONSISTENCY REWARD")}
+              </p>
+              <h2 className="mt-2 text-xl font-semibold">
+                {L("90 dias de atividade válida → 30 dias Premium", "90 valid activity days → 30 days Premium")}
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+                {L(
+                  "Apenas dias registrados pelo servidor contam, no máximo uma vez por dia. A recompensa não cria cobrança nem renovação automática.",
+                  "Only server-recorded days count, at most once per day. The reward creates no charge or automatic renewal.",
+                )}
+              </p>
+            </div>
+            <strong className="text-2xl">{rewardProgressDays}/90</strong>
+          </div>
+          <div className="mt-4 h-2 overflow-hidden rounded-full bg-surface-elevated">
+            <div
+              className="h-full rounded-full bg-intelligence"
+              style={{ width: `${Math.min(100, (rewardProgressDays / 90) * 100)}%` }}
+            />
+          </div>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm">
+            <div>
+              {reward.active ? (
+                <p className="text-intelligence">
+                  {L("Recompensa Premium ativa", "Premium reward active")}
+                  {reward.expiresAt
+                    ? ` · ${L("até", "until")} ${new Intl.DateTimeFormat(resolvedLocale, { dateStyle: "medium" }).format(new Date(reward.expiresAt))}`
+                    : ""}
+                  .
+                </p>
+              ) : reward.claimed ? (
+                <p className="text-muted-foreground">
+                  {L(
+                    "Esta recompensa única já foi utilizada. Não há renovação automática.",
+                    "This one-time reward has already been used. There is no automatic renewal.",
+                  )}
+                </p>
+              ) : reward.eligible ? (
+                <p className="text-intelligence">
+                  {reward.canClaim
+                    ? L("Você conquistou a recompensa.", "You earned the reward.")
+                    : L(
+                        "Recompensa conquistada. Ela poderá ser resgatada quando sua conta estiver no plano Free.",
+                        "Reward earned. It can be claimed when your account is on the Free plan.",
+                      )}
+                </p>
+              ) : (
+                <p className="text-muted-foreground">
+                  {L(
+                    `Faltam ${reward.daysRemaining} dias consecutivos de atividade válida.`,
+                    `${reward.daysRemaining} consecutive valid activity days remaining.`,
+                  )}
+                </p>
+              )}
+            </div>
+            {reward.canClaim && (
+              <Button
+                onClick={() => claimReward.mutate()}
+                disabled={claimReward.isPending}
+                className="rounded-full"
+              >
+                <Crown className="mr-1 h-4 w-4" />
+                {claimReward.isPending
+                  ? L("Ativando…", "Activating…")
+                  : L("Resgatar 30 dias Premium", "Claim 30 days Premium")}
+              </Button>
+            )}
+          </div>
+          <p className="mt-3 text-xs text-muted-foreground">
+            {L(
+              "Ao terminar o período gratuito, sua conta volta ao Free automaticamente, a menos que exista uma assinatura Premium paga separada.",
+              "When the free period ends, your account returns to Free automatically unless a separate paid Premium subscription exists.",
+            )}
+          </p>
+        </section>
+      )}
+
       <div className="mt-10 grid gap-6 md:grid-cols-2">
         <Card
           badge={!isLoading && !isError && !subscription?.isPremium ? L("Atual", "Current") : undefined}
