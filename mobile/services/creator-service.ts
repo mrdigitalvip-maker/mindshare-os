@@ -388,12 +388,12 @@ export async function startCreatorOAuth(
   if (error) throw error;
   return data as { authorizationUrl: string; status: "authorizing" };
 }
-export async function syncCreatorAnalytics() {
+export async function syncCreatorAnalytics(connectionId?: string) {
   const { data, error } = await supabase.functions.invoke("creator-analytics-sync", {
-    body: { action: "sync" },
+    body: { action: "sync", ...(connectionId ? { connectionId } : {}) },
   });
   if (error) throw error;
-  return data;
+  return data as { synced?: number; snapshots?: number; content?: number };
 }
 export async function disconnectCreatorConnection(connectionId: string) {
   const { data, error } = await supabase.functions.invoke("creator-analytics-sync", {
