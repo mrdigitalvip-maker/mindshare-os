@@ -1,4 +1,11 @@
 import * as Speech from "expo-speech";
+import {
+  AudioModule,
+  RecordingPresets,
+  setAudioModeAsync,
+  useAudioRecorder,
+  useAudioRecorderState,
+} from "expo-audio";
 import { router } from "expo-router";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -9,6 +16,7 @@ import { ErrorState, LoadingState } from "@/components/screen-state";
 import { usePassportHome } from "@/hooks/use-passport";
 import { colors, radius, spacing, typography } from "@/lib/theme";
 import { useLanguage } from "@/providers/language-provider";
+import { transcribeAssistantRecording } from "@/services/assistant-voice-service";
 
 const copy = {
   "pt-BR": {
@@ -46,6 +54,14 @@ const copy = {
     speechError: "Não foi possível reproduzir esta frase neste aparelho.",
     lessonSource: "Lição",
     vocabularySource: "Vocabulário",
+    repeat: "Repetir e comparar",
+    stopRecording: "Parar gravação",
+    transcribing: "Transcrevendo sua fala…",
+    heard: "A KIVRYN ouviu",
+    textMatch: "Correspondência de texto",
+    pronunciationNote: "A comparação usa somente a transcrição reconhecida. Não é uma nota de sotaque ou pronúncia.",
+    microphoneDenied: "Permita o acesso ao microfone para praticar repetição.",
+    repeatError: "Não foi possível analisar esta gravação.",
   },
   en: {
     title: "Passport Listening",
@@ -82,6 +98,14 @@ const copy = {
     speechError: "This phrase could not be played on this device.",
     lessonSource: "Lesson",
     vocabularySource: "Vocabulary",
+    repeat: "Repeat and compare",
+    stopRecording: "Stop recording",
+    transcribing: "Transcribing your speech…",
+    heard: "KIVRYN heard",
+    textMatch: "Text match",
+    pronunciationNote: "The comparison uses recognized transcription only. It is not an accent or pronunciation score.",
+    microphoneDenied: "Allow microphone access to practice repetition.",
+    repeatError: "This recording could not be analyzed.",
   },
 } as const;
 
@@ -119,6 +143,32 @@ function textValue(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : "";
 }
 
+function normalizedWords(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+function textMatchPercent(expected: string, heard: string) {
+  const target = normalizedWords(expected);
+  const actual = normalizedWords(heard);
+  if (!target.length || !actual.length) return 0;
+  const remaining = [...actual];
+  let matched = 0;
+  for (const word of target) {
+    const index = remaining.indexOf(word);
+    if (index >= 0) {
+      matched += 1;
+      remaining.splice(index, 1);
+    }
+  }
+  return Math.round((matched / Math.max(target.length, actual.length)) * 100);
+}
+
 function speechLocale(trackSlug: string) {
   const slug = trackSlug.trim().toLowerCase();
   if (slug === "spanish") return "es-ES";
@@ -132,6 +182,12 @@ export default function PassportListening() {
   const text = copy[resolvedLocale];
   const missionDate = useMemo(localDateKey, []);
   const passport = usePassportHome(missionDate);
+  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const recorderState = useAudioRecorderState(audioRecorder, 200);
+  const [transcribing, setTranscribing] = useState(false);
+  const [heardText, setHeardText] = useState("");
+  const [matchPercent, setMatchPercent] = useState<number | null>(null);
+  const [repeatError, setRepeatError] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
   const [rate, setRate] = useState<0.72 | 0.94>(0.94);
@@ -189,6 +245,9 @@ export default function PassportListening() {
     setCurrentIndex(0);
     setRevealed(false);
     setSpeechError(false);
+    setHeardText("");
+    setMatchPercent(null);
+    setRepeatError(false);
     void Speech.stop();
     setSpeaking(false);
   }, [profile?.trackId]);
@@ -250,11 +309,53 @@ export default function PassportListening() {
     });
   }
 
+  async function startRepeat() {
+    if (!current || transcribing || recorderState.isRecording) return;
+    setRepeatError(false);
+    setHeardText("");
+    setMatchPercent(null);
+    const permission = await AudioModule.requestRecordingPermissionsAsync();
+    if (!permission.granted) {
+      setRepeatError(true);
+      return;
+    }
+    await Speech.stop();
+    setSpeaking(false);
+    await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+    await audioRecorder.prepareToRecordAsync();
+    audioRecorder.record();
+  }
+
+  async function stopRepeat() {
+    if (!current || !recorderState.isRecording || transcribing) return;
+    setTranscribing(true);
+    setRepeatError(false);
+    try {
+      await audioRecorder.stop();
+      const uri = audioRecorder.uri;
+      if (!uri) throw new Error("missing_recording");
+      const transcript = await transcribeAssistantRecording(
+        uri,
+        locale === "pt-BR" ? "pt-BR" : "en",
+      );
+      setHeardText(transcript);
+      setMatchPercent(textMatchPercent(current.text, transcript));
+    } catch {
+      setRepeatError(true);
+    } finally {
+      await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }).catch(() => undefined);
+      setTranscribing(false);
+    }
+  }
+
   async function move(delta: number) {
     await Speech.stop();
     setSpeaking(false);
     setSpeechError(false);
     setRevealed(false);
+    setHeardText("");
+    setMatchPercent(null);
+    setRepeatError(false);
     setCurrentIndex((value) => Math.min(items.length - 1, Math.max(0, value + delta)));
   }
 
@@ -315,7 +416,13 @@ export default function PassportListening() {
         </View>
 
         {speechError ? <Text style={styles.errorText}>{text.speechError}</Text> : null}
+        {repeatError ? (
+          <Text style={styles.errorText}>
+            {recorderState.isRecording ? text.microphoneDenied : text.repeatError}
+          </Text>
+        ) : null}
         {speaking ? <Text style={styles.speakingText}>{text.speaking}</Text> : null}
+        {transcribing ? <Text style={styles.speakingText}>{text.transcribing}</Text> : null}
 
         <View style={styles.actionRow}>
           <Pressable
@@ -360,6 +467,31 @@ export default function PassportListening() {
             <Text style={[styles.modeActionText, rate === 0.94 && styles.modeActionTextSelected]}>{text.normal}</Text>
           </Pressable>
         </View>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ disabled: transcribing }}
+          disabled={transcribing}
+          onPress={() => (recorderState.isRecording ? void stopRepeat() : void startRepeat())}
+          style={({ pressed }) => [
+            styles.repeatButton,
+            recorderState.isRecording && styles.repeatButtonRecording,
+            pressed && styles.pressed,
+          ]}
+        >
+          <Text style={styles.repeatButtonText}>
+            {recorderState.isRecording ? text.stopRecording : text.repeat}
+          </Text>
+        </Pressable>
+
+        {heardText ? (
+          <View style={styles.repeatResult}>
+            <Text style={styles.repeatLabel}>{text.heard}</Text>
+            <Text style={styles.repeatTranscript}>{heardText}</Text>
+            <Text style={styles.repeatScore}>{text.textMatch}: {matchPercent ?? 0}%</Text>
+            <Text style={styles.repeatNote}>{text.pronunciationNote}</Text>
+          </View>
+        ) : null}
 
         <Pressable
           accessibilityRole="button"
@@ -510,6 +642,30 @@ const styles = StyleSheet.create({
   modeActionSelected: { borderColor: colors.primaryBright, backgroundColor: colors.surfaceRaised },
   modeActionText: { ...typography.label, color: colors.textMuted },
   modeActionTextSelected: { color: colors.primaryBright },
+  repeatButton: {
+    minHeight: 50,
+    marginTop: spacing.md,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.primaryBright,
+    backgroundColor: colors.surfaceRaised,
+  },
+  repeatButtonRecording: { borderColor: colors.danger },
+  repeatButtonText: { ...typography.label, color: colors.primaryBright },
+  repeatResult: {
+    marginTop: spacing.md,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  repeatLabel: { ...typography.eyebrow, color: colors.textMuted },
+  repeatTranscript: { ...typography.body, color: colors.text, marginTop: spacing.sm },
+  repeatScore: { ...typography.heading, color: colors.primaryBright, marginTop: spacing.md },
+  repeatNote: { ...typography.caption, color: colors.textMuted, marginTop: spacing.sm },
   revealButton: {
     minHeight: 48,
     marginTop: spacing.md,
