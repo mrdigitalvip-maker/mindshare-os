@@ -95,6 +95,12 @@ export const PROVIDERS = {
   },
 } as const;
 
+const CANONICAL_KIVRYN_ORIGINS = new Set([
+  "https://kivryn.co",
+  "http://localhost:5173",
+  "http://localhost:8080",
+]);
+
 export const allowedRedirect = (value: string) => {
   const allowlist = (Deno.env.get("CREATOR_OAUTH_REDIRECT_ALLOWLIST") ?? "")
     .split(",")
@@ -104,12 +110,19 @@ export const allowedRedirect = (value: string) => {
 
   try {
     const target = new URL(value);
+    const pathname = target.pathname.replace(/\/+$/, "") || "/";
+    const allowedOrigins = new Set(CANONICAL_KIVRYN_ORIGINS);
     const appUrl = Deno.env.get("APP_URL");
-    if (!appUrl) return false;
-    const app = new URL(appUrl);
+    if (appUrl) {
+      try {
+        allowedOrigins.add(new URL(appUrl).origin);
+      } catch {
+        // Invalid optional APP_URL must not break the canonical production origin.
+      }
+    }
     return (
-      target.origin === app.origin &&
-      (target.pathname === "/creator" || target.pathname === "/settings")
+      allowedOrigins.has(target.origin) &&
+      (pathname === "/creator" || pathname === "/settings")
     );
   } catch {
     return false;
