@@ -59,6 +59,7 @@ import {
 } from "@/services/creator-service";
 import {
   CreatorYouTubeMetadataError,
+  CreatorProviderConnectionError,
   type CreatorProvider,
   type CreatorYouTubeMetadata,
   type CreatorYouTubeMetadataErrorCode,
@@ -635,17 +636,36 @@ function CreatorStudio() {
       window.location.assign(authorizationUrl);
     } catch (error) {
       console.error("creator_provider_connect_failed", error);
-      toast.error(
-        provider === "youtube"
+      const code =
+        error instanceof CreatorProviderConnectionError
+          ? error.code
+          : "connection_unavailable";
+      const message =
+        code === "redirect_not_allowed"
           ? L(
-              "A conexão com o YouTube não está configurada ou disponível.",
-              "YouTube connection is not configured or available.",
+              "O retorno OAuth do KIVRYN não está autorizado.",
+              "The KIVRYN OAuth return is not authorized.",
             )
-          : L(
-              "A conexão com o TikTok exige um aplicativo de provedor aprovado.",
-              "TikTok connection requires an approved provider app.",
-            ),
-      );
+          : code === "provider_not_configured"
+            ? L(
+                "O OAuth do YouTube ainda não está configurado no servidor.",
+                "YouTube OAuth is not configured on the server.",
+              )
+            : code === "oauth_state_failed"
+              ? L(
+                  "Não foi possível iniciar uma sessão OAuth segura.",
+                  "A secure OAuth session could not be started.",
+                )
+              : provider === "youtube"
+                ? L(
+                    "Não foi possível iniciar a conexão com o YouTube.",
+                    "The YouTube connection could not be started.",
+                  )
+                : L(
+                    "A conexão com o TikTok exige um aplicativo de provedor aprovado.",
+                    "TikTok connection requires an approved provider app.",
+                  );
+      toast.error(message);
       setProviderBusy(null);
     }
   };
