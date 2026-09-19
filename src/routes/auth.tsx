@@ -235,7 +235,7 @@ function AuthPage() {
         >
           <div className="mb-8 lg:hidden">
             <Link to="/" className="inline-flex items-center gap-2">
-              <img src="/nexora-icon.png" alt="" width={28} height={28} className="rounded-md" />
+              <img src="/icon-512.png" alt="" width={28} height={28} className="rounded-md" />
               <span className="font-display text-xl">KIVRYN</span>
             </Link>
           </div>
