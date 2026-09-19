@@ -82,6 +82,36 @@ describe("E79/E80 evidence-aware Creator intelligence", () => {
     expect(result.strongestPostingWindow).toBeNull();
   });
 
+  test("publication slots are deterministic and provider fields remain authoritative", () => {
+    const manualResult = creatorEvidenceIntelligence({
+      content: content.map((item, index) => ({
+        ...item,
+        publishedAt: `2026-09-${String(10 + index).padStart(2, "0")}T01:30:00Z`,
+        timezone: "America/Bahia",
+      })),
+      manualSnapshots,
+      providerAnalytics: [],
+      now: "2026-09-19T00:00:00Z",
+    });
+    expect(manualResult.observations[0]?.hourWindow).toBe("20:00–00:00");
+
+    const verified = provider(5).map((item) => ({
+      ...item,
+      weekday: 2,
+      hour: 9,
+      publishedAt: "2026-01-01T23:30:00Z",
+    }));
+    const providerResult = creatorEvidenceIntelligence({
+      content,
+      manualSnapshots,
+      providerAnalytics: verified,
+      now: "2026-09-19T00:00:00Z",
+    });
+    expect(providerResult.source).toBe("provider_verified");
+    expect(providerResult.observations.every((item) => item.weekday === 2)).toBe(true);
+    expect(providerResult.observations.every((item) => item.hourWindow === "08:00–12:00")).toBe(true);
+  });
+
   test("Copilot receives derived evidence intelligence and the UI exposes provenance", () => {
     const context = creatorCopilotContext({
       analytics: provider(5),
