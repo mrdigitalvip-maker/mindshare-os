@@ -14,21 +14,22 @@ import { useLanguage } from "@/providers/language-provider";
 // Billing contracts: Assinaturas Premium estarão disponíveis em breve.
 // Failure contract: Não foi possível verificar seu plano.
 const FREE = [
-  "Assistant básico — 10 mensagens/dia",
-  "2 análises de imagem/arquivo por dia",
-  "Até 3 projetos ativos e 30 tarefas abertas",
-  "Até 3 matérias de estudo",
-  "Sincronização da conta",
-];
+  ["Assistant — 10 mensagens por dia", "Assistant — 10 messages per day"],
+  ["2 análises de imagem/arquivo por dia", "2 image/file analyses per day"],
+  ["Até 3 projetos ativos", "Up to 3 active projects"],
+  ["Até 30 tarefas em aberto", "Up to 30 open tasks"],
+  ["Até 3 matérias de estudo ativas", "Up to 3 active study subjects"],
+  ["1 Journey ativa", "1 active Journey"],
+] as const;
 
 const PREMIUM = [
-  "KIVRYN Assistant avançado — 100 mensagens/dia",
-  "20 análises de imagens/arquivos por dia",
-  "Project Intelligence",
-  "Execução inteligente em Tarefas",
-  "KIVRYN Tutor / Estudos avançados",
-  "Limites ampliados para o Core KIVRYN",
-];
+  ["Assistant — 100 mensagens por dia", "Assistant — 100 messages per day"],
+  ["20 análises de imagem/arquivo por dia", "20 image/file analyses per day"],
+  ["Projetos, tarefas, matérias e Journeys sem os limites do Free", "Projects, tasks, subjects and Journeys without Free caps"],
+  ["Agents: criação, execução e agendamento", "Agents: creation, execution and scheduling"],
+  ["Project Intelligence e execução inteligente em Tarefas", "Project Intelligence and intelligent Task execution"],
+  ["KIVRYN Tutor e Journeys adaptativas", "KIVRYN Tutor and adaptive Journeys"],
+] as const;
 
 export default function Premium() {
   const { resolvedLocale } = useLanguage();
@@ -177,9 +178,9 @@ export default function Premium() {
         <Text style={s.item}>
           <LocalizedCopy copyKey="legacy.06654ed8ea9e" />
         </Text>
-        {FREE.map((x) => (
-          <Text key={x} style={s.item}>
-            ✓ {x}
+        {FREE.map(([pt, en]) => (
+          <Text key={pt} style={s.item}>
+            ✓ {L(pt, en)}
           </Text>
         ))}
       </PremiumSurface>
@@ -187,9 +188,9 @@ export default function Premium() {
         <Text style={s.cardTitle}>
           <LocalizedCopy copyKey="legacy.1db0c4bef0db" />
         </Text>
-        {PREMIUM.map((x) => (
-          <Text key={x} style={s.item}>
-            ✓ {x}
+        {PREMIUM.map(([pt, en]) => (
+          <Text key={pt} style={s.item}>
+            ✓ {L(pt, en)}
           </Text>
         ))}
         {!premium && purchaseAvailability === "unavailable_for_tester_build" && (
