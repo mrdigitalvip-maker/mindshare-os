@@ -618,12 +618,34 @@ export function creatorCopilotContext(input: {
         evidence: { source: "manual", sampleCount: input.manualSnapshots.length },
       }
     : undefined;
+  const performance = creatorEvidenceIntelligence({
+    content: input.content ?? [],
+    manualSnapshots: input.manualSnapshots ?? [],
+    providerAnalytics: input.analytics ?? [],
+  });
+  const performanceIntelligence = performance.sampleCount
+    ? {
+        metric: performance.metric,
+        evidence: {
+          source: performance.source,
+          sampleCount: performance.sampleCount,
+          providerSampleCount: performance.providerSampleCount,
+          manualSampleCount: performance.manualSampleCount,
+          confidence: performance.confidence,
+        },
+        strongestPostingWindow: performance.strongestPostingWindow,
+        strongestWeekday: performance.strongestWeekday,
+        byPlatform: performance.byPlatform,
+        byContentType: performance.byContentType,
+      }
+    : undefined;
   return Object.fromEntries(
     Object.entries({
       profile: input.profile || undefined,
       strategy: input.strategy || undefined,
       creatorGoals: input.goals?.length ? input.goals : undefined,
       contentHistory: input.content?.length ? input.content : undefined,
+      performanceIntelligence,
       manualAnalytics,
       providerAnalytics: input.analytics?.length
         ? {
