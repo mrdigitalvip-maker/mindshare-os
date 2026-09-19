@@ -207,6 +207,9 @@ const creatorStatusPt: Record<string, string> = {
   not_connected: "não conectado",
   revoked: "revogado",
   expired: "expirado",
+  needs_permission: "precisa de permissão",
+  error: "erro",
+  authorizing: "autorizando",
   unknown: "desconhecido",
   authorized_direct: "fonte direta autorizada",
   local_video: "vídeo local",
@@ -348,15 +351,65 @@ function CreatorStudio() {
     const current = new URL(window.location.href);
     const connectionStatus = current.searchParams.get("creator_connection");
     const connectionError = current.searchParams.get("error");
+    const connectionProvider = current.searchParams.get("creator_provider") as CreatorProvider | null;
     if (!connectionStatus && !connectionError) return;
-    if (connectionStatus === "connected") {
-      toast.success(L("Provedor do Creator conectado. Sincronize os analytics quando quiser.", "Creator provider connected. Sync analytics when ready."));
-    } else if (connectionError) {
-      toast.error(`${L("Falha ao conectar provedor", "Provider connection failed")}: ${connectionError.replaceAll("_", " ")}.`);
-    }
+
     current.searchParams.delete("creator_connection");
+    current.searchParams.delete("creator_provider");
     current.searchParams.delete("error");
     window.history.replaceState({}, "", `${current.pathname}${current.search}${current.hash}`);
+
+    if (connectionStatus === "connected" && connectionProvider === "youtube") {
+      toast.success(
+        L(
+          "Canal do YouTube conectado. Fazendo a primeira sincronização…",
+          "YouTube channel connected. Running the first sync…",
+        ),
+      );
+      void syncCreatorProviderAnalytics(undefined, "youtube")
+        .then((result) => {
+          if ((result.synced ?? 0) > 0) {
+            toast.success(
+              L(
+                `YouTube sincronizado: ${result.content ?? 0} vídeos e ${result.snapshots ?? 0} novos snapshots.`,
+                `YouTube synced: ${result.content ?? 0} videos and ${result.snapshots ?? 0} new snapshots.`,
+              ),
+            );
+          } else {
+            toast.error(
+              L(
+                "O canal foi conectado, mas a primeira sincronização não concluiu. Veja o estado da conexão abaixo.",
+                "The channel connected, but the first sync did not complete. Check the connection state below.",
+              ),
+            );
+          }
+          return reload();
+        })
+        .catch(() => {
+          toast.error(
+            L(
+              "O canal foi conectado, mas a primeira sincronização falhou. Tente sincronizar novamente.",
+              "The channel connected, but the first sync failed. Try syncing again.",
+            ),
+          );
+          return reload();
+        });
+      return;
+    }
+
+    if (connectionStatus === "connected") {
+      toast.success(L("Provedor do Creator conectado.", "Creator provider connected."));
+    } else if (connectionError) {
+      const safeError =
+        connectionError === "access_denied"
+          ? L("Permissão negada pelo usuário.", "Permission was denied.")
+          : connectionError === "redirect_not_allowed"
+            ? L("O retorno OAuth desta instalação não está autorizado.", "This installation OAuth return is not authorized.")
+            : connectionError === "provider_not_configured"
+              ? L("A configuração OAuth do provedor está incompleta.", "Provider OAuth configuration is incomplete.")
+              : connectionError.replaceAll("_", " ");
+      toast.error(`${L("Falha ao conectar provedor", "Provider connection failed")}: ${safeError}.`);
+    }
     void reload();
   }, [reload]);
 
@@ -1305,15 +1358,30 @@ function CreatorStudio() {
                   return (
                     <div key={provider} className="rounded-2xl border border-border bg-background/35 p-4">
                       <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <strong>{label}</strong>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            {connected
-                              ? `${L("Conectado como", "Connected as")} ${String(connected.provider_display_name ?? connected.external_account_id ?? label)}`
-                              : latestConnection
-                                ? `${L("Status", "Status")}: ${creatorStatusLabel(latestConnection.status, resolvedLocale)}`
-                                : L("Não conectado", "Not connected")}
-                          </p>
+                        <div className="flex min-w-0 items-center gap-3">
+                          {provider === "youtube" && latestConnection?.provider_avatar_url ? (
+                            <img
+                              src={String(latestConnection.provider_avatar_url)}
+                              alt=""
+                              className="h-10 w-10 rounded-full border border-border object-cover"
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : null}
+                          <div className="min-w-0">
+                            <strong>{label}</strong>
+                            <p className="mt-1 truncate text-xs text-muted-foreground">
+                              {connected
+                                ? `${L("Conectado como", "Connected as")} ${String(connected.provider_display_name ?? connected.external_account_id ?? label)}`
+                                : latestConnection
+                                  ? `${L("Status", "Status")}: ${creatorStatusLabel(latestConnection.status, resolvedLocale)}`
+                                  : L("Não conectado", "Not connected")}
+                            </p>
+                            {provider === "youtube" && latestConnection?.last_success_at ? (
+                              <p className="mt-1 text-xs text-muted-foreground">
+                                {L("Última sincronização", "Last sync")}: {new Date(String(latestConnection.last_success_at)).toLocaleString()}
+                              </p>
+                            ) : null}
+                          </div>
                         </div>
                         <StatusPill value={connected ? "connected" : String(latestConnection?.status ?? "not_connected")} locale={resolvedLocale} />
                       </div>
@@ -1360,7 +1428,9 @@ function CreatorStudio() {
                         >
                           {providerBusy === provider && <Loader2 className="h-4 w-4 animate-spin" />}
                           {provider === "youtube"
-                            ? L("Conectar YouTube", "Connect YouTube")
+                            ? latestConnection?.status === "needs_permission"
+                              ? L("Atualizar permissões do YouTube", "Update YouTube permissions")
+                              : L("Conectar YouTube", "Connect YouTube")
                             : L("Conectar TikTok", "Connect TikTok")}
                         </Button>
                       )}
