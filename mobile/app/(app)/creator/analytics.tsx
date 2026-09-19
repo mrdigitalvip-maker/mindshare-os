@@ -11,9 +11,10 @@ import {
   CREATOR_CONTENT_PLATFORMS,
   CREATOR_CONTENT_TYPES,
   CREATOR_MANUAL_METRICS,
-  creatorHistoricalPerformance,
+  creatorEvidenceIntelligence,
   parseOptionalMetric,
   type CreatorContentLog,
+  type CreatorAnalyticsSnapshot,
   type CreatorManualSnapshot,
   type CreatorPlatformConnection,
 } from "@/lib/creator";
@@ -24,6 +25,7 @@ import {
   deleteCreatorContent,
   listCreatorContent,
   listCreatorManualSnapshots,
+  listCreatorAnalytics,
   listCreatorConnections,
   saveCreatorContent,
   syncCreatorAnalytics,
@@ -44,7 +46,8 @@ export default function Analytics() {
   const { session } = useAuth(),
     { t, resolvedLocale } = useLanguage();
   const [content, setContent] = useState<CreatorContentLog[]>([]),
-    [snapshots, setSnapshots] = useState<CreatorManualSnapshot[]>([]);
+    [snapshots, setSnapshots] = useState<CreatorManualSnapshot[]>([]),
+    [providerAnalytics, setProviderAnalytics] = useState<CreatorAnalyticsSnapshot[]>([]);
   const [form, setForm] = useState(blank()),
     [metrics, setMetrics] = useState<Record<string, string>>({}),
     [editing, setEditing] = useState<string>();
@@ -53,13 +56,15 @@ export default function Analytics() {
   const [syncingConnectionId, setSyncingConnectionId] = useState<string>();
   const load = useCallback(async () => {
     if (!session?.user.id) return;
-    const [items, history, connections] = await Promise.all([
+    const [items, history, verifiedAnalytics, connections] = await Promise.all([
       listCreatorContent(session.user.id),
       listCreatorManualSnapshots(session.user.id),
+      listCreatorAnalytics(session.user.id),
       listCreatorConnections(session.user.id),
     ]);
     setContent(items);
     setSnapshots(history);
+    setProviderAnalytics(verifiedAnalytics);
     setConnections(connections);
     setConnectedCount(connections.filter((x) => x.status === "connected").length);
   }, [session?.user.id]);
@@ -130,8 +135,30 @@ export default function Analytics() {
     setEditing(undefined);
     await load();
   };
-  const analysis = creatorHistoricalPerformance(content, snapshots);
+  const analysis = creatorEvidenceIntelligence({
+    content,
+    manualSnapshots: snapshots,
+    providerAnalytics,
+  });
   const knownViews = analysis.observations.reduce((sum, row) => sum + row.value, 0);
+  const evidenceLabel =
+    analysis.source === "provider_verified"
+      ? resolvedLocale === "en"
+        ? "Provider verified"
+        : "Verificado pelo provedor"
+      : resolvedLocale === "en"
+        ? "Manual"
+        : "Manual";
+  const confidenceLabel =
+    resolvedLocale === "en"
+      ? analysis.confidence
+      : analysis.confidence === "high"
+        ? "alta"
+        : analysis.confidence === "medium"
+          ? "média"
+          : analysis.confidence === "low"
+            ? "baixa"
+            : "insuficiente";
   return (
     <CreatorPage title={t("creator.analytics")} description={t("creator.standaloneHelp")}>
       <View style={s.card}>
@@ -248,6 +275,16 @@ export default function Analytics() {
         <Text style={s.copy}>{t("creator.contentAnalyzed", { count: content.length })}</Text>
         <Text style={s.copy}>{t("creator.totalKnownViews", { count: knownViews })}</Text>
         <Text style={s.copy}>{t("creator.realObservationsOnly")}</Text>
+        <Text style={s.copy}>
+          {resolvedLocale === "en"
+            ? `Evidence: ${evidenceLabel} · sample ${analysis.sampleCount} · confidence ${confidenceLabel}`
+            : `Evidência: ${evidenceLabel} · amostra ${analysis.sampleCount} · confiança ${confidenceLabel}`}
+        </Text>
+        <Text style={s.copy}>
+          {resolvedLocale === "en"
+            ? `Provider sample: ${analysis.providerSampleCount} · manual sample: ${analysis.manualSampleCount}`
+            : `Amostra do provedor: ${analysis.providerSampleCount} · amostra manual: ${analysis.manualSampleCount}`}
+        </Text>
         <Text style={s.copy}>
           {analysis.strongestPostingWindow
             ? t("creator.strongestWindow", {
