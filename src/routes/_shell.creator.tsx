@@ -207,6 +207,9 @@ const creatorStatusPt: Record<string, string> = {
   not_connected: "não conectado",
   revoked: "revogado",
   expired: "expirado",
+  error: "erro",
+  needs_permission: "permissão necessária",
+  sync_pending: "sincronização pendente",
   unknown: "desconhecido",
   authorized_direct: "fonte direta autorizada",
   local_video: "vídeo local",
@@ -216,6 +219,57 @@ function creatorStatusLabel(value: unknown, locale: "pt-BR" | "en") {
   const normalized = String(value ?? "unknown");
   if (locale === "pt-BR") return creatorStatusPt[normalized] ?? normalized.replaceAll("_", " ");
   return normalized.replaceAll("_", " ");
+}
+
+const YOUTUBE_REQUIRED_SCOPES = [
+  "https://www.googleapis.com/auth/youtube.readonly",
+  "https://www.googleapis.com/auth/yt-analytics.readonly",
+] as const;
+
+function creatorProviderConnectionState(
+  row: Record<string, unknown> | undefined,
+  provider: CreatorProvider,
+) {
+  if (!row) return "not_connected";
+  const status = String(row.status ?? "not_connected");
+  if (status !== "connected") return status;
+  if (provider === "youtube") {
+    const granted = new Set(
+      Array.isArray(row.granted_scopes) ? row.granted_scopes.map(String) : [],
+    );
+    if (YOUTUBE_REQUIRED_SCOPES.some((scope) => !granted.has(scope))) {
+      return "needs_permission";
+    }
+  }
+  return row.last_success_at ? "connected" : "sync_pending";
+}
+
+function creatorOAuthErrorMessage(
+  code: string,
+  locale: "pt-BR" | "en",
+) {
+  const pt: Record<string, string> = {
+    consent_denied: "A autorização foi cancelada. Nenhuma conexão foi alterada.",
+    redirect_not_allowed: "O retorno OAuth do KIVRYN não está autorizado.",
+    provider_not_configured: "A credencial OAuth do provedor não está configurada no servidor.",
+    authorization_code_missing: "O provedor não retornou um código de autorização válido.",
+    token_exchange_failed: "O provedor não concluiu a troca segura do token.",
+    identity_failed: "Não foi possível identificar a conta autorizada.",
+    credential_persistence_failed: "A credencial autorizada não pôde ser armazenada com segurança.",
+    connection_persistence_failed: "A conexão autorizada não pôde ser persistida.",
+  };
+  const en: Record<string, string> = {
+    consent_denied: "Authorization was cancelled. No connection was changed.",
+    redirect_not_allowed: "KIVRYN's OAuth return URL is not authorized.",
+    provider_not_configured: "The provider OAuth credential is not configured on the server.",
+    authorization_code_missing: "The provider did not return a valid authorization code.",
+    token_exchange_failed: "The provider did not complete the secure token exchange.",
+    identity_failed: "The authorized account could not be identified.",
+    credential_persistence_failed: "The authorized credential could not be stored securely.",
+    connection_persistence_failed: "The authorized connection could not be persisted.",
+  };
+  const dictionary = locale === "pt-BR" ? pt : en;
+  return dictionary[code] ?? code.replaceAll("_", " ");
 }
 
 const creatorMetricPt: Record<string, string> = {
@@ -348,17 +402,55 @@ function CreatorStudio() {
     const current = new URL(window.location.href);
     const connectionStatus = current.searchParams.get("creator_connection");
     const connectionError = current.searchParams.get("error");
+    const provider = current.searchParams.get("creator_provider") as CreatorProvider | null;
     if (!connectionStatus && !connectionError) return;
-    if (connectionStatus === "connected") {
-      toast.success(L("Provedor do Creator conectado. Sincronize os analytics quando quiser.", "Creator provider connected. Sync analytics when ready."));
-    } else if (connectionError) {
-      toast.error(`${L("Falha ao conectar provedor", "Provider connection failed")}: ${connectionError.replaceAll("_", " ")}.`);
-    }
+
     current.searchParams.delete("creator_connection");
+    current.searchParams.delete("creator_provider");
     current.searchParams.delete("error");
     window.history.replaceState({}, "", `${current.pathname}${current.search}${current.hash}`);
+
+    if (connectionStatus === "connected") {
+      toast.success(
+        provider === "youtube"
+          ? L(
+              "YouTube conectado. A KIVRYN está fazendo a primeira sincronização.",
+              "YouTube connected. KIVRYN is running the first sync.",
+            )
+          : L(
+              "Provedor do Creator conectado. A KIVRYN está fazendo a primeira sincronização.",
+              "Creator provider connected. KIVRYN is running the first sync.",
+            ),
+      );
+      void (async () => {
+        try {
+          const result = await syncCreatorProviderAnalytics();
+          await reload();
+          toast.success(
+            L(
+              `Primeira sincronização concluída: ${result.content ?? 0} conteúdos e ${result.snapshots ?? 0} snapshots.`,
+              `First sync completed: ${result.content ?? 0} content records and ${result.snapshots ?? 0} snapshots.`,
+            ),
+          );
+        } catch (error) {
+          console.error("creator_first_sync_failed", error);
+          await reload();
+          toast.warning(
+            L(
+              "A conexão foi salva, mas a primeira sincronização não concluiu. Você pode tentar novamente sem reconectar.",
+              "The connection was saved, but the first sync did not finish. You can retry without reconnecting.",
+            ),
+          );
+        }
+      })();
+      return;
+    }
+
+    if (connectionError) {
+      toast.error(creatorOAuthErrorMessage(connectionError, resolvedLocale));
+    }
     void reload();
-  }, [reload]);
+  }, [reload, resolvedLocale]);
 
   const action = useMemo(
     () =>
@@ -1301,6 +1393,10 @@ function CreatorStudio() {
                     (row) => row.platform === provider && row.status === "connected",
                   );
                   const latestConnection = providerConnections.find((row) => row.platform === provider);
+                  const connectionState = creatorProviderConnectionState(
+                    latestConnection as Record<string, unknown> | undefined,
+                    provider,
+                  );
                   const label = provider === "youtube" ? "YouTube" : "TikTok";
                   return (
                     <div key={provider} className="rounded-2xl border border-border bg-background/35 p-4">
@@ -1315,7 +1411,7 @@ function CreatorStudio() {
                                 : L("Não conectado", "Not connected")}
                           </p>
                         </div>
-                        <StatusPill value={connected ? "connected" : String(latestConnection?.status ?? "not_connected")} locale={resolvedLocale} />
+                        <StatusPill value={connectionState} locale={resolvedLocale} />
                       </div>
                       {connected ? (
                         <div className="mt-4 space-y-2">
@@ -1338,6 +1434,17 @@ function CreatorStudio() {
                               )}
                               {L("Sincronizar analytics", "Sync analytics")}
                             </Button>
+                            {provider === "youtube" && connectionState === "needs_permission" ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={providerBusy !== null}
+                                onClick={() => void handleConnectProvider("youtube")}
+                              >
+                                <RefreshCw className="h-4 w-4" />
+                                {L("Revisar permissões", "Review permissions")}
+                              </Button>
+                            ) : null}
                             <Button
                               size="sm"
                               variant={disconnectConfirmId === String(connected.id) ? "destructive" : "outline"}
@@ -1667,7 +1774,7 @@ function StatusCard({ label, value, detail }: { label: string; value: number; de
 }
 
 function StatusPill({ value, locale }: { value: string; locale: "pt-BR" | "en" }) {
-  const complete = ["completed", "available", "ready"].includes(value);
+  const complete = ["completed", "available", "ready", "connected"].includes(value);
   return (
     <span
       className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider ${
