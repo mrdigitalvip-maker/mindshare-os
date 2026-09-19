@@ -333,6 +333,13 @@ function Assistant() {
 
   async function startVoiceInput() {
     if (isSending || voiceInputState !== "idle") return;
+    if (
+      voiceConversationMode &&
+      proposal?.items.some((item) => item.status === "pending" || item.status === "failed")
+    ) {
+      toast.info("Revise a ação proposta antes de continuar a conversa por voz.");
+      return;
+    }
     stopSpeaking();
 
     const canRecord =
