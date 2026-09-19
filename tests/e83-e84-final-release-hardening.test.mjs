@@ -17,6 +17,7 @@ const studyDetail = read("src/routes/_shell.studies.$subjectId.tsx");
 const journeysService = read("src/services/parity-service.ts");
 const webPremium = read("src/routes/_shell.premium.tsx");
 const mobilePremium = read("mobile/app/(app)/premium.tsx");
+const languageProvider = read("src/providers/language-provider.tsx");
 
 test("E83 keeps canonical Free workspace caps server-authoritative", () => {
   assert.match(freeLimits, /resource := 'projects'; cap := 3/);
@@ -71,4 +72,12 @@ test("E84 plan matrix tells the truth about workspace caps and Agents", () => {
   }
   assert.match(agentPremium, /public\.has_premium\(new\.user_id\)/);
   assert.match(agentPremium, /premium_required/);
+});
+
+test("E84 language provider hydrates deterministically before reading browser state", () => {
+  assert.match(languageProvider, /useState<LanguagePreference>\("system"\)/);
+  assert.match(languageProvider, /useState<readonly string\[]>\(\["en"\]\)/);
+  assert.match(languageProvider, /window\.localStorage\.getItem\(LANGUAGE_STORAGE_KEY\)/);
+  assert.match(languageProvider, /navigator\.languages/);
+  assert.doesNotMatch(languageProvider, /useState<LanguagePreference>\(initialPreference\)/);
 });
