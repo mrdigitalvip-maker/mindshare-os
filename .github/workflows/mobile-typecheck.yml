@@ -108,5 +108,8 @@ jobs:
       - name: Run E63/E64 YouTube OAuth source parity
         run: bun test tests/youtube-oauth-e63-e64-source-parity.test.ts
 
+      - name: Run E65/E66 Creator transcript and candidates source parity
+        run: bun test tests/creator-transcript-candidates-e65-e66-source-parity.test.ts
+
       - name: Run existing Creator engine and intelligence contracts
         run: bun test tests/creator-video-engine-revision-14.test.ts tests/creator-intelligence-revision-14.test.ts
