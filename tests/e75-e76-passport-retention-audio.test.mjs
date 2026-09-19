@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
 const migration = read("supabase/migrations/202609190310_e75_passport_retention_summary.sql");
+const retentionAcl = read("supabase/migrations/202609190315_e75_passport_retention_acl.sql");
 const webPassport = read("src/routes/_shell.passport.tsx");
 const webService = read("src/services/passport-web-service.ts");
 const voiceEdge = read("supabase/functions/nexora-voice/index.ts");
@@ -18,6 +19,7 @@ test("E75 derives Passport retention from persisted owner activity", () => {
   assert.match(migration, /passport_roleplay_sessions/);
   assert.match(migration, /where p\.user_id = uid/);
   assert.match(migration, /grant execute on function public\.get_passport_retention_summary\(uuid\) to authenticated/);
+  assert.match(retentionAcl, /revoke all on function public\.get_passport_retention_summary\(uuid\) from anon/);
   assert.doesNotMatch(migration, /create table .*streak/i);
 });
 
