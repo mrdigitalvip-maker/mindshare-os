@@ -198,18 +198,18 @@ export function creatorEvidenceIntelligence(input: {
   for (const snapshot of [...input.providerAnalytics].sort((a, b) =>
     a.capturedAt.localeCompare(b.capturedAt),
   )) {
-    const key = snapshot.providerContentId?.trim();
-    if (key) latestProvider.set(key, snapshot);
+    const providerContentId = snapshot.providerContentId?.trim();
+    if (providerContentId) latestProvider.set(`${snapshot.platform}:${providerContentId}`, snapshot);
   }
   const providerObservations: CreatorEvidenceObservation[] = [...latestProvider.entries()].flatMap(
-    ([contentId, snapshot]) => {
+    ([evidenceKey, snapshot]) => {
       const value = snapshot.metrics[metric];
       if (typeof value !== "number" || !Number.isFinite(value) || !snapshot.publishedAt) return [];
       const date = new Date(snapshot.publishedAt);
       if (!Number.isFinite(date.getTime())) return [];
       const start = Math.floor(date.getHours() / 4) * 4;
       return [{
-        contentId,
+        contentId: evidenceKey,
         source: "provider_verified" as const,
         value,
         publishedAt: snapshot.publishedAt,
