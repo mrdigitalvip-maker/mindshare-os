@@ -81,6 +81,7 @@ const settingsCopy = {
     agents: "Agents",
     journeys: "Journeys",
     community: "Comunidade",
+    challenges: "Desafios",
     integrations: "Integrações",
     approvals: "Aprovações",
     premiumLifecycle: "Premium e assinatura",
@@ -186,6 +187,7 @@ const settingsCopy = {
     agents: "Agents",
     journeys: "Journeys",
     community: "Community",
+    challenges: "Challenges",
     integrations: "Integrations",
     approvals: "Approvals",
     premiumLifecycle: "Premium & subscription",
@@ -432,6 +434,7 @@ export default function Settings() {
       | "agents_enabled"
       | "journeys_enabled"
       | "community_enabled"
+      | "challenges_enabled"
       | "integrations_enabled"
       | "approvals_enabled"
       | "premium_enabled"
@@ -703,6 +706,7 @@ export default function Settings() {
                 ["agents_enabled", text.agents],
                 ["journeys_enabled", text.journeys],
                 ["community_enabled", text.community],
+                ["challenges_enabled", text.challenges],
                 ["integrations_enabled", text.integrations],
                 ["approvals_enabled", text.approvals],
                 ["premium_enabled", text.premiumLifecycle],
