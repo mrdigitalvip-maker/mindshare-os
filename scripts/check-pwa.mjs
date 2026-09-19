@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { access, readFile } from "node:fs/promises";
 
-const EXPECTED_PACKAGE = "app.vercel.nexora_os_eosin.twa";
+const EXPECTED_PACKAGE = "kivryn.app";
 const REQUIRED_SIGNING_FINGERPRINTS = [
   "C0:5B:11:7A:2A:93:B8:5C:EC:A9:61:3C:76:97:7E:D7:BB:FC:38:09:50:DF:16:65:04:5A:FD:A3:D6:92:AB:3F",
   "24:11:49:B1:2D:2C:07:5A:E9:00:D8:36:A9:BB:5F:7F:BA:9F:F9:43:71:28:21:70:13:B5:BA:01:96:CD:BF:CD",
