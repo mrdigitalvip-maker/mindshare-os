@@ -39,6 +39,9 @@ const copy = {
     lessons: "Lições",
     vocabulary: "Revisões",
     missions: "Missões",
+    streak: "Sequência",
+    streakDays: "dias",
+    activeWeek: "7 dias",
     placement: "TESTE DE NÍVEL PENDENTE",
     placementTitle: "Defina seu ponto de partida",
     placementBody: "O Passport precisa descobrir seu nível real antes de montar sua rota de aprendizado.",
@@ -94,6 +97,9 @@ const copy = {
     lessons: "Lessons",
     vocabulary: "Reviews",
     missions: "Missions",
+    streak: "Streak",
+    streakDays: "days",
+    activeWeek: "7 days",
     placement: "PLACEMENT TEST PENDING",
     placementTitle: "Set your starting point",
     placementBody: "Passport needs your real level before it can build the right learning route.",
@@ -274,6 +280,12 @@ export default function PassportHome() {
             <Metric accent={P.blue} label={c.lessons} value={`${data?.completedLessons ?? 0}/${data?.lessons.length ?? 0}`} detail={c.completed} />
             <Metric accent={P.purple} label={c.vocabulary} value={String(dueVocabulary.length)} detail={c.pending} />
             <Metric accent={P.mint} label={c.missions} value={`${data?.completedMissions ?? 0}/${data?.missions.length ?? 0}`} detail={c.completed} />
+            <Metric
+              accent={P.gold}
+              label={c.streak}
+              value={`${data?.retention.currentStreak ?? 0} ${c.streakDays}`}
+              detail={`${data?.retention.activeDaysLast7 ?? 0}/7 ${c.activeWeek}`}
+            />
           </View>
 
           <View style={styles.routeCard}>
