@@ -375,7 +375,10 @@ export type CreatorPlatformConnection = {
   platform: "youtube" | "tiktok" | "instagram";
   status: CreatorConnectionStatus;
   displayName?: string;
+  avatarUrl?: string;
   lastSuccessAt?: string;
+  safeErrorCode?: string;
+  grantedScopes: string[];
   grantedMetrics: string[];
 };
 export const CREATOR_PROVIDER_CAPABILITIES = {
