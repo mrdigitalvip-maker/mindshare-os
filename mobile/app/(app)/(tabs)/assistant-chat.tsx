@@ -473,6 +473,18 @@ export default function AssistantChat() {
 
   const startVoiceInput = async () => {
     if (send.isPending || uploading || transcribing || recorderState.isRecording) return;
+    if (
+      voiceConversationMode &&
+      proposal?.items.some((item) => item.status === "pending" || item.status === "failed")
+    ) {
+      Alert.alert(
+        text.voiceConversation,
+        resolvedLocale === "en"
+          ? "Review the proposed action before continuing the voice conversation."
+          : "Revise a ação proposta antes de continuar a conversa por voz.",
+      );
+      return;
+    }
     try {
       const permission = await AudioModule.requestRecordingPermissionsAsync();
       if (!permission.granted) {
