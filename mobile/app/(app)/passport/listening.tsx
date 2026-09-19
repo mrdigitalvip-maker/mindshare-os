@@ -16,7 +16,7 @@ import { ErrorState, LoadingState } from "@/components/screen-state";
 import { usePassportHome } from "@/hooks/use-passport";
 import { colors, radius, spacing, typography } from "@/lib/theme";
 import { useLanguage } from "@/providers/language-provider";
-import { transcribeAssistantRecording } from "@/services/assistant-voice-service";
+import { transcribeVoiceRecording } from "@/services/assistant-voice-service";
 
 const copy = {
   "pt-BR": {
@@ -187,7 +187,7 @@ export default function PassportListening() {
   const [transcribing, setTranscribing] = useState(false);
   const [heardText, setHeardText] = useState("");
   const [matchPercent, setMatchPercent] = useState<number | null>(null);
-  const [repeatError, setRepeatError] = useState(false);
+  const [repeatErrorMessage, setRepeatErrorMessage] = useState("");
   const [currentIndex, setCurrentIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
   const [rate, setRate] = useState<0.72 | 0.94>(0.94);
@@ -247,7 +247,7 @@ export default function PassportListening() {
     setSpeechError(false);
     setHeardText("");
     setMatchPercent(null);
-    setRepeatError(false);
+    setRepeatErrorMessage("");
     void Speech.stop();
     setSpeaking(false);
   }, [profile?.trackId]);
@@ -311,12 +311,12 @@ export default function PassportListening() {
 
   async function startRepeat() {
     if (!current || transcribing || recorderState.isRecording) return;
-    setRepeatError(false);
+    setRepeatErrorMessage("");
     setHeardText("");
     setMatchPercent(null);
     const permission = await AudioModule.requestRecordingPermissionsAsync();
     if (!permission.granted) {
-      setRepeatError(true);
+      setRepeatErrorMessage(text.microphoneDenied);
       return;
     }
     await Speech.stop();
@@ -329,19 +329,16 @@ export default function PassportListening() {
   async function stopRepeat() {
     if (!current || !recorderState.isRecording || transcribing) return;
     setTranscribing(true);
-    setRepeatError(false);
+    setRepeatErrorMessage("");
     try {
       await audioRecorder.stop();
       const uri = audioRecorder.uri;
       if (!uri) throw new Error("missing_recording");
-      const transcript = await transcribeAssistantRecording(
-        uri,
-        locale === "pt-BR" ? "pt-BR" : "en",
-      );
+      const transcript = await transcribeVoiceRecording(uri, locale);
       setHeardText(transcript);
       setMatchPercent(textMatchPercent(current.text, transcript));
     } catch {
-      setRepeatError(true);
+      setRepeatErrorMessage(text.repeatError);
     } finally {
       await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }).catch(() => undefined);
       setTranscribing(false);
@@ -355,7 +352,7 @@ export default function PassportListening() {
     setRevealed(false);
     setHeardText("");
     setMatchPercent(null);
-    setRepeatError(false);
+    setRepeatErrorMessage("");
     setCurrentIndex((value) => Math.min(items.length - 1, Math.max(0, value + delta)));
   }
 
@@ -416,11 +413,7 @@ export default function PassportListening() {
         </View>
 
         {speechError ? <Text style={styles.errorText}>{text.speechError}</Text> : null}
-        {repeatError ? (
-          <Text style={styles.errorText}>
-            {recorderState.isRecording ? text.microphoneDenied : text.repeatError}
-          </Text>
-        ) : null}
+        {repeatErrorMessage ? <Text style={styles.errorText}>{repeatErrorMessage}</Text> : null}
         {speaking ? <Text style={styles.speakingText}>{text.speaking}</Text> : null}
         {transcribing ? <Text style={styles.speakingText}>{text.transcribing}</Text> : null}
 
