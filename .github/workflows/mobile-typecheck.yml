@@ -105,5 +105,8 @@ jobs:
       - name: Run E61/E62 approved Google action source parity
         run: bun test tests/approved-google-actions-e61-e62-source-parity.test.ts
 
+      - name: Run E63/E64 YouTube connection source parity
+        run: bun test tests/youtube-connection-e63-e64-source-parity.test.ts
+
       - name: Run existing Creator engine and intelligence contracts
         run: bun test tests/creator-video-engine-revision-14.test.ts tests/creator-intelligence-revision-14.test.ts
