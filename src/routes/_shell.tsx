@@ -45,6 +45,12 @@ const navigationGroups = [
 
 export const Route = createFileRoute("/_shell")({
   ssr: false,
+  head: () => ({
+    meta: [
+      { name: "robots", content: "noindex,nofollow,noarchive" },
+      { name: "googlebot", content: "noindex,nofollow,noarchive" },
+    ],
+  }),
   component: ShellLayout,
 });
 
