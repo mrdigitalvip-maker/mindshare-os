@@ -156,13 +156,6 @@ async function notifyResult({
   title: string;
   message: string;
 }): Promise<NotificationDeliveryResult> {
-  const { data: pref, error: prefError } = await admin
-    .from("notification_preferences")
-    .select("agents_enabled,timezone,quiet_hours_start,quiet_hours_end")
-    .eq("user_id", run.user_id)
-    .maybeSingle();
-  if (prefError || pref?.agents_enabled === false) return emptyDeliveryResult();
-
   const dedupeKey = `agent-run:${run.run_id}`;
   const deliveredOn = new Date().toISOString().slice(0, 10);
   const { error: dedupeError } = await admin.from("notification_deliveries").insert({
@@ -183,6 +176,12 @@ async function notifyResult({
   if (notificationError) return emptyDeliveryResult();
 
   const recorded = { ...emptyDeliveryResult(), recorded: true };
+  const { data: pref, error: prefError } = await admin
+    .from("notification_preferences")
+    .select("timezone,quiet_hours_start,quiet_hours_end")
+    .eq("user_id", run.user_id)
+    .maybeSingle();
+  if (prefError) return recorded;
   if (pref && insideQuietHours(pref.timezone, pref.quiet_hours_start, pref.quiet_hours_end)) {
     return { ...recorded, quietHoursSuppressed: true };
   }
