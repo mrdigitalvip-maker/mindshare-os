@@ -114,5 +114,8 @@ jobs:
       - name: Run E67/E68 AI provider and Gemini base source parity
         run: bun test tests/ai-provider-gemini-e67-e68-source-parity.test.ts
 
+      - name: Run E69/E70 Creator worker runtime source parity
+        run: bun test tests/creator-worker-e69-e70-source-parity.test.ts
+
       - name: Run existing Creator engine and intelligence contracts
         run: bun test tests/creator-video-engine-revision-14.test.ts tests/creator-intelligence-revision-14.test.ts
