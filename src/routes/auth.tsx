@@ -190,7 +190,7 @@ function AuthPage() {
         <div className="absolute inset-0 bg-[radial-gradient(120%_80%_at_20%_10%,oklch(0.35_0.05_60/0.4),transparent_60%)]" />
         <div className="relative flex h-full flex-col justify-between p-12">
           <Link to="/" className="flex items-center gap-2">
-            <img src="/nexora-icon.png" alt="" width={32} height={32} className="rounded-lg" />
+            <img src="/icon-512.png" alt="" width={32} height={32} className="rounded-lg" />
             <span className="font-display text-2xl">KIVRYN</span>
           </Link>
           <div className="max-w-xl">
