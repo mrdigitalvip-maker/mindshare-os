@@ -11,7 +11,8 @@ test("public discovery metadata uses the KIVRYN production origin", async () => 
   ]);
 
   assert.match(robots, /Sitemap: https:\/\/kivryn\.co\/sitemap\.xml/);
-  assert.match(sitemap, /VITE_PUBLIC_SITE_URL \?\? "https:\/\/kivryn\.co"/);
+  assert.match(sitemap, /const BASE_URL = "https:\/\/kivryn\.co"/);
+  assert.doesNotMatch(sitemap, /VITE_PUBLIC_SITE_URL/);
   assert.doesNotMatch(`${robots}\n${sitemap}`, /https:\/\/nexora\.app/i);
 });
 
