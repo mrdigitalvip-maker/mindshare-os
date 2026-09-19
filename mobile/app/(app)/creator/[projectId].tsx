@@ -8,11 +8,15 @@ import {
   cancelCreatorJob,
   getCreatorProject,
   getLatestCreatorJob,
+  getCreatorTranscript,
+  listCreatorClipCandidates,
   listCreatorClips,
   requestClipRerender,
   type CreatorClip,
+  type CreatorClipCandidate,
   type CreatorJob,
   type CreatorProject,
+  type CreatorTranscript,
 } from "@/services/creator-service";
 import { requestCreatorExport, shareCreatorExport } from "@/services/creator-export-service";
 import { colors, radius, shadows, spacing, typography } from "@/lib/theme";
@@ -25,8 +29,11 @@ const copy = {
     processing: "Processando seu vídeo",
     processingCopy: "A KIVRYN está transformando o arquivo em sinais, transcrição e cortes renderizados.",
     cancel: "Cancelar processamento",
-    clips: "CORTES ENCONTRADOS",
-    noClips: "Os cortes aparecerão aqui quando a seleção estiver pronta.",
+    transcript: "TRANSCRIÇÃO",
+    candidates: "CANDIDATOS",
+    candidateNote: "Candidates são análise/timestamps. Só cortes renderizados têm arquivo real.",
+    clips: "CORTES RENDERIZADOS",
+    noClips: "Os vídeos renderizados aparecerão aqui quando o worker terminar.",
     potential: "Content Potential",
     signal: "Sinal interno — não é garantia de viralidade.",
     excerpt: "TRECHO",
@@ -55,8 +62,11 @@ const copy = {
     processing: "Processing your video",
     processingCopy: "KIVRYN is turning the file into signals, transcript and rendered clips.",
     cancel: "Cancel processing",
-    clips: "FOUND CLIPS",
-    noClips: "Clips will appear here when selection is ready.",
+    transcript: "TRANSCRIPT",
+    candidates: "CANDIDATES",
+    candidateNote: "Candidates are analysis/timestamps. Only rendered clips have a real file.",
+    clips: "RENDERED CLIPS",
+    noClips: "Rendered videos will appear here when the worker finishes.",
     potential: "Content Potential",
     signal: "Internal signal — not a virality guarantee.",
     excerpt: "EXCERPT",
@@ -80,7 +90,6 @@ const copy = {
   },
 } as const;
 
-const stageOrder = ["queued", "analyzing", "transcribing", "selecting_clips", "rendering", "completed"] as const;
 const activeStages = new Set(["queued", "analyzing", "transcribing", "selecting_clips", "rendering"]);
 
 export default function CreatorProjectScreen() {
@@ -93,6 +102,8 @@ export default function CreatorProjectScreen() {
   const [project, setProject] = useState<CreatorProject | null>();
   const [job, setJob] = useState<CreatorJob | null>(null);
   const [clips, setClips] = useState<CreatorClip[]>([]);
+  const [candidates, setCandidates] = useState<CreatorClipCandidate[]>([]);
+  const [transcript, setTranscript] = useState<CreatorTranscript | null>(null);
   const [exportingClip, setExportingClip] = useState<string | null>(null);
   const [sharingClip, setSharingClip] = useState<string | null>(null);
   const [rerenderingClip, setRerenderingClip] = useState<string | null>(null);
@@ -107,12 +118,18 @@ export default function CreatorProjectScreen() {
       Promise.all([
         getCreatorProject(session.user.id, id),
         getLatestCreatorJob(session.user.id, id),
+        listCreatorClipCandidates(session.user.id, id),
         listCreatorClips(session.user.id, id),
       ])
-        .then(([nextProject, current, results]) => {
+        .then(async ([nextProject, current, nextCandidates, results]) => {
+          const nextTranscript = current
+            ? await getCreatorTranscript(session.user.id, current.id)
+            : null;
           if (!mounted) return;
           setProject(nextProject);
           setJob(current);
+          setCandidates(nextCandidates);
+          setTranscript(nextTranscript);
           setClips(results);
         })
         .catch(() => mounted && setProject(null));
@@ -125,8 +142,12 @@ export default function CreatorProjectScreen() {
   }, [id, session?.user.id]);
 
   const stage = job?.progressStage ?? job?.status ?? project?.status ?? "draft";
-  const stageIndex = stageOrder.indexOf(stage as (typeof stageOrder)[number]);
-  const pipelineProgress = stage === "completed" ? 100 : stageIndex >= 0 ? Math.max(8, Math.round(((stageIndex + 1) / stageOrder.length) * 100)) : 0;
+  const pipelineProgress =
+    job?.progressPercent != null
+      ? Math.max(0, Math.min(100, job.progressPercent))
+      : job?.status === "completed"
+        ? 100
+        : 0;
   const bestClip = useMemo(() => [...clips].sort((a, b) => a.rank - b.rank)[0] ?? null, [clips]);
 
   const downloadExport = async (clip: CreatorClip) => {
@@ -230,6 +251,37 @@ export default function CreatorProjectScreen() {
                 <Text style={s.cancelText}>{c.cancel}</Text>
               </Pressable>
             ) : null}
+          </View>
+
+          {transcript ? (
+            <View style={s.pipelineCard}>
+              <Text style={s.eyebrow}>{c.transcript}</Text>
+              <Text style={s.cardTitle}>
+                {transcript.language} · {transcript.segmentCount} {language === "en" ? "segments" : "segmentos"}
+              </Text>
+              <Text numberOfLines={8} style={s.copy}>{transcript.fullText}</Text>
+            </View>
+          ) : null}
+
+          <View style={s.pipelineCard}>
+            <Text style={s.eyebrow}>{c.candidates}</Text>
+            <Text style={s.copy}>{c.candidateNote}</Text>
+            {candidates.length === 0 ? (
+              <Text style={s.copy}>{language === "en" ? "No candidates persisted yet." : "Nenhum candidate persistido ainda."}</Text>
+            ) : (
+              candidates.map((candidate) => (
+                <View key={candidate.id} style={s.excerptBox}>
+                  <Text style={s.cardTitle}>
+                    #{candidate.rank} · Creator Score {candidate.score}/100 · {candidate.status}
+                  </Text>
+                  <Text style={s.meta}>
+                    {(candidate.startMs / 1000).toFixed(1)}s → {(candidate.endMs / 1000).toFixed(1)}s · {Math.round(candidate.durationMs / 1000)}s · {candidate.aspectRatio}
+                  </Text>
+                  {candidate.hookExcerpt ? <Text style={s.signalNotice}>{candidate.hookExcerpt}</Text> : null}
+                  <Text numberOfLines={4} style={s.copy}>{candidate.transcriptExcerpt}</Text>
+                </View>
+              ))
+            )}
           </View>
 
           <View style={s.aiCard}>
