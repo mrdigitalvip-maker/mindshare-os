@@ -172,7 +172,6 @@ export async function getWebChallengeRanking(
   requireUser(userId);
   const { data, error } = await supabase.rpc("get_challenge_ranking" as never, {
     p_period: period,
-    p_timezone: timezone(),
     p_limit: 25,
   } as never);
   if (error) throw error;
