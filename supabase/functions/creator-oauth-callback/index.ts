@@ -15,8 +15,9 @@ Deno.serve(async (request) => {
   if (request.method !== "GET") return new Response("Method not allowed", { status: 405 });
   const requestUrl = new URL(request.url),
     state = requestUrl.searchParams.get("state") ?? "",
-    code = requestUrl.searchParams.get("code") ?? "";
-  if (!state || !code || state.length > 512 || code.length > 4096)
+    code = requestUrl.searchParams.get("code") ?? "",
+    providerError = requestUrl.searchParams.get("error") ?? "";
+  if (!state || state.length > 512 || code.length > 4096 || providerError.length > 256)
     return new Response("Invalid OAuth callback", { status: 400 });
   const url = Deno.env.get("SUPABASE_URL"),
     service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -42,11 +43,20 @@ Deno.serve(async (request) => {
   const provider = oauth.provider as CreatorProvider,
     config = PROVIDERS[provider];
   if (provider === "instagram" || !("tokenUrl" in config))
-    return redirect(oauth.redirect_uri, "error", "provider_pending_approval");
+    return redirect(oauth.redirect_uri, "error", "provider_pending_approval", provider);
+  if (providerError) {
+    return redirect(
+      oauth.redirect_uri,
+      "error",
+      providerError === "access_denied" ? "permission_denied" : "oauth_provider_error",
+      provider,
+    );
+  }
+  if (!code) return redirect(oauth.redirect_uri, "error", "invalid_oauth_callback", provider);
   const clientId = providerClientId(provider),
     clientSecret = providerClientSecret(provider);
   if (!clientId || !clientSecret)
-    return redirect(oauth.redirect_uri, "error", "provider_not_configured");
+    return redirect(oauth.redirect_uri, "error", "provider_not_configured", provider);
   const verifier = await decryptServerSecret(oauth.pkce_verifier_ciphertext),
     callback = `${url}/functions/v1/creator-oauth-callback`;
   const body = new URLSearchParams(
@@ -74,15 +84,15 @@ Deno.serve(async (request) => {
     body,
   });
   if (!tokenResponse.ok)
-    return redirect(oauth.redirect_uri, "error", safeProviderError(tokenResponse.status));
+    return redirect(oauth.redirect_uri, "error", safeProviderError(tokenResponse.status), provider);
   const token = (await tokenResponse.json()) as Record<string, unknown>,
     accessToken = String(token.access_token ?? "");
-  if (!accessToken) return redirect(oauth.redirect_uri, "error", "token_exchange_failed");
+  if (!accessToken) return redirect(oauth.redirect_uri, "error", "token_exchange_failed", provider);
   const identityResponse = await fetch(config.identityUrl, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   if (!identityResponse.ok)
-    return redirect(oauth.redirect_uri, "error", safeProviderError(identityResponse.status));
+    return redirect(oauth.redirect_uri, "error", safeProviderError(identityResponse.status), provider);
   const identity = (await identityResponse.json()) as Record<string, any>;
   const account = provider === "youtube"
     ? identity.items?.[0]
@@ -96,13 +106,24 @@ Deno.serve(async (request) => {
         ? (account?.open_id ?? "")
         : (account?.sub ?? ""),
   );
-  if (!accountId) return redirect(oauth.redirect_uri, "error", "identity_failed");
+  if (!accountId) return redirect(oauth.redirect_uri, "error", "identity_failed", provider);
   const displayName =
     provider === "youtube"
       ? account?.snippet?.title
       : provider === "tiktok"
         ? account?.display_name
         : account?.email ?? account?.name ?? "Google Account";
+  const avatarUrl =
+    provider === "youtube"
+      ? account?.snippet?.thumbnails?.default?.url ??
+        account?.snippet?.thumbnails?.medium?.url ??
+        account?.snippet?.thumbnails?.high?.url ??
+        null
+      : provider === "tiktok"
+        ? account?.avatar_url ?? null
+        : account?.picture ?? null;
+  const safeAvatarUrl =
+    typeof avatarUrl === "string" && avatarUrl.startsWith("https://") ? avatarUrl.slice(0, 2048) : null;
   const scopes = String(token.scope ?? "")
       .split(/[ ,]+/)
       .filter(Boolean),
@@ -115,8 +136,11 @@ Deno.serve(async (request) => {
         platform: provider,
         external_account_id: accountId,
         provider_display_name: displayName,
+        provider_avatar_url: safeAvatarUrl,
+        provider_account_type: provider === "youtube" ? "channel" : "account",
         status: "connected",
         granted_scopes: scopes,
+        last_attempt_at: now,
         // A connection grants scopes, not evidence. Metrics become granted only
         // after creator-analytics-sync actually observes them from the provider.
         granted_metrics: [],
@@ -129,7 +153,7 @@ Deno.serve(async (request) => {
     .select("id")
     .single();
   if (connection.error)
-    return redirect(oauth.redirect_uri, "error", "connection_persistence_failed");
+    return redirect(oauth.redirect_uri, "error", "connection_persistence_failed", provider);
   const { data: existingCredential } = await admin
     .from("creator_provider_credentials")
     .select("refresh_token_ciphertext")
@@ -152,12 +176,18 @@ Deno.serve(async (request) => {
       updated_at: now,
     });
   if (credential.error)
-    return redirect(oauth.redirect_uri, "error", "credential_persistence_failed");
-  return redirect(oauth.redirect_uri, "connected");
+    return redirect(oauth.redirect_uri, "error", "credential_persistence_failed", provider);
+  return redirect(oauth.redirect_uri, "connected", undefined, provider);
 });
-function redirect(base: string, status: string, error?: string) {
+function redirect(
+  base: string,
+  status: string,
+  error?: string,
+  provider?: CreatorProvider,
+) {
   const target = new URL(base);
   target.searchParams.set("creator_connection", status);
+  if (provider) target.searchParams.set("provider", provider);
   if (error) target.searchParams.set("error", error);
   return new Response(null, {
     status: 302,
