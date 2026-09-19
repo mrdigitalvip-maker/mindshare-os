@@ -39,7 +39,8 @@ Deno.serve(async (request) => {
     admin
       .from("creator_worker_instances")
       .select("status,last_heartbeat_at")
-      .gte("last_heartbeat_at", cutoff),
+      .gte("last_heartbeat_at", cutoff)
+      .in("status", ["starting", "idle", "busy"]),
     admin
       .from("creator_jobs")
       .select("id", { count: "exact", head: true })
