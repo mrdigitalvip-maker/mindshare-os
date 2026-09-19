@@ -15,6 +15,7 @@ import {
   parseOptionalMetric,
   type CreatorContentLog,
   type CreatorManualSnapshot,
+  type CreatorPlatformConnection,
 } from "@/lib/creator";
 import { useAuth } from "@/providers/auth-provider";
 import { useLanguage } from "@/providers/language-provider";
@@ -25,6 +26,7 @@ import {
   listCreatorManualSnapshots,
   listCreatorConnections,
   saveCreatorContent,
+  syncCreatorAnalytics,
 } from "@/services/creator-service";
 type ContentForm = Omit<CreatorContentLog, "id" | "createdAt" | "updatedAt">;
 const blank = (): ContentForm => ({
@@ -40,13 +42,16 @@ const blank = (): ContentForm => ({
 });
 export default function Analytics() {
   const { session } = useAuth(),
-    { t } = useLanguage();
+    { t, resolvedLocale } = useLanguage();
+  const L = (pt: string, en: string) => (resolvedLocale === "pt-BR" ? pt : en);
   const [content, setContent] = useState<CreatorContentLog[]>([]),
     [snapshots, setSnapshots] = useState<CreatorManualSnapshot[]>([]);
   const [form, setForm] = useState(blank()),
     [metrics, setMetrics] = useState<Record<string, string>>({}),
     [editing, setEditing] = useState<string>();
   const [connectedCount, setConnectedCount] = useState(0);
+  const [connections, setConnections] = useState<CreatorPlatformConnection[]>([]);
+  const [syncBusy, setSyncBusy] = useState(false);
   const load = useCallback(async () => {
     if (!session?.user.id) return;
     const [items, history, connections] = await Promise.all([
@@ -56,11 +61,35 @@ export default function Analytics() {
     ]);
     setContent(items);
     setSnapshots(history);
+    setConnections(connections);
     setConnectedCount(connections.filter((x) => x.status === "connected").length);
   }, [session?.user.id]);
   useEffect(() => {
     void load();
   }, [load]);
+  const syncConnected = async () => {
+    if (syncBusy) return;
+    setSyncBusy(true);
+    try {
+      await syncCreatorAnalytics();
+      await load();
+      Alert.alert(
+        L("Sincronização concluída", "Sync completed"),
+        L("Os analytics conectados foram atualizados.", "Connected analytics were updated."),
+      );
+    } catch {
+      Alert.alert(
+        L("Sincronização não concluída", "Sync not completed"),
+        L(
+          "A conexão foi preservada. Tente novamente depois ou revise as permissões na Web.",
+          "The connection was preserved. Retry later or review permissions on Web.",
+        ),
+      );
+    } finally {
+      setSyncBusy(false);
+    }
+  };
+
   const save = async () => {
     if (!session?.user.id || !form.title.trim()) return;
     const item = await saveCreatorContent(session.user.id, { ...form, id: editing });
@@ -82,6 +111,51 @@ export default function Analytics() {
         <Text style={s.heading}>{t("creator.connectedOptional")}</Text>
         <Text style={s.copy}>{t("creator.connectLater")}</Text>
         <Text style={s.copy}>{t("creator.connectedCount", { count: connectedCount })}</Text>
+        {connections
+          .filter((connection) => connection.platform === "youtube")
+          .map((connection) => {
+            const required = [
+              "https://www.googleapis.com/auth/youtube.readonly",
+              "https://www.googleapis.com/auth/yt-analytics.readonly",
+            ];
+            const granted = new Set(connection.grantedScopes);
+            const missingPermission =
+              connection.status === "connected" &&
+              required.some((scope) => !granted.has(scope));
+            const state = missingPermission
+              ? L("Permissão necessária", "Permission required")
+              : connection.status === "connected" && !connection.lastSuccessAt
+                ? L("Sincronização pendente", "Sync pending")
+                : connection.status;
+            return (
+              <View key={connection.id} style={s.card}>
+                <Text style={s.heading}>YouTube · {state}</Text>
+                <Text style={s.copy}>
+                  {connection.displayName ?? L("Canal conectado", "Connected channel")}
+                </Text>
+                {connection.safeErrorCode ? (
+                  <Text style={s.copy}>
+                    {L("Diagnóstico", "Diagnostic")}: {connection.safeErrorCode.replaceAll("_", " ")}
+                  </Text>
+                ) : null}
+                {connection.status === "connected" ? (
+                  <CreatorButton
+                    label={syncBusy ? L("Sincronizando…", "Syncing…") : L("Sincronizar YouTube", "Sync YouTube")}
+                    disabled={syncBusy}
+                    onPress={() => void syncConnected()}
+                  />
+                ) : null}
+                {missingPermission ? (
+                  <Text style={s.copy}>
+                    {L(
+                      "Atualize as permissões do YouTube no Creator Web antes de sincronizar.",
+                      "Update YouTube permissions in Web Creator before syncing.",
+                    )}
+                  </Text>
+                ) : null}
+              </View>
+            );
+          })}
       </View>
       <Text style={s.heading}>{editing ? t("creator.editContent") : t("creator.addContent")}</Text>
       <ChoiceRow
