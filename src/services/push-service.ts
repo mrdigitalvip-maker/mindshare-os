@@ -12,6 +12,12 @@ export type NotificationPreferences = {
   projects_enabled: boolean;
   studies_enabled: boolean;
   studio_enabled: boolean;
+  agents_enabled: boolean;
+  journeys_enabled: boolean;
+  community_enabled: boolean;
+  integrations_enabled: boolean;
+  approvals_enabled: boolean;
+  premium_enabled: boolean;
   daily_summary_enabled: boolean;
   timezone: string;
   quiet_hours_start: string | null;
@@ -38,6 +44,12 @@ const defaults: NotificationPreferences = {
   projects_enabled: true,
   studies_enabled: true,
   studio_enabled: true,
+  agents_enabled: true,
+  journeys_enabled: true,
+  community_enabled: true,
+  integrations_enabled: true,
+  approvals_enabled: true,
+  premium_enabled: true,
   daily_summary_enabled: false,
   timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
   quiet_hours_start: "22:00",
@@ -87,7 +99,7 @@ export const PushService = {
     const { data, error } = await db
       .from("notification_preferences")
       .select(
-        "tasks_enabled,projects_enabled,studies_enabled,studio_enabled,daily_summary_enabled,timezone,quiet_hours_start,quiet_hours_end",
+        "tasks_enabled,projects_enabled,studies_enabled,studio_enabled,agents_enabled,journeys_enabled,community_enabled,integrations_enabled,approvals_enabled,premium_enabled,daily_summary_enabled,timezone,quiet_hours_start,quiet_hours_end",
       )
       .eq("user_id", userId)
       .maybeSingle();
