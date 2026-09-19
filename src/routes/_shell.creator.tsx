@@ -54,6 +54,7 @@ import {
   setLessonCompletion,
   signedCreatorOutput,
   rerenderCreatorClip,
+  retryCreatorProject,
   startCreatorProviderConnection,
   syncCreatorProviderAnalytics,
   disconnectCreatorProvider,
@@ -676,6 +677,27 @@ function CreatorStudio() {
     }));
   };
 
+  const handleRetryProject = async (projectId: string) => {
+    try {
+      await retryCreatorProject(projectId);
+      await reload();
+      toast.success(
+        L(
+          "Novo processamento colocado na fila usando a mesma mídia original.",
+          "A new processing job was queued using the same original media.",
+        ),
+      );
+    } catch (error) {
+      console.error("creator_retry_failed", error);
+      toast.error(
+        L(
+          "Não foi possível reprocessar agora. Confirme que a fonte ainda está disponível e que não existe outro job ativo.",
+          "Could not reprocess right now. Confirm the source is still available and no other job is active.",
+        ),
+      );
+    }
+  };
+
   const handleRerenderClip = async (clip: Record<string, unknown>) => {
     const id = String(clip.id);
     const draft = draftForClip(clip);
@@ -1151,6 +1173,15 @@ function CreatorStudio() {
                         onClick={() => void handleCancelJob(jobId)}
                       >
                         {cancelConfirmJobId === jobId ? L("Confirmar cancelamento", "Confirm cancel") : L("Cancelar processamento", "Cancel processing")}
+                      </Button>
+                    )}
+                    {String(job.status) === "failed" && (
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => void handleRetryProject(String(job.project_id))}
+                      >
+                        <RefreshCw className="h-4 w-4" /> {L("Reprocessar mesma fonte", "Reprocess same source")}
                       </Button>
                     )}
                   </CardContent>
