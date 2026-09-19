@@ -278,6 +278,37 @@ function creatorStatusLabel(value: unknown, locale: "pt-BR" | "en") {
   return normalized.replaceAll("_", " ");
 }
 
+function creatorConnectionState(row: Record<string, unknown> | undefined) {
+  if (!row) return "not_connected";
+  if (row.safe_error_code === "insufficient_scope") return "needs_permission";
+  if (row.status === "revoked") return "disconnected";
+  return String(row.status ?? "not_connected");
+}
+
+function creatorConnectionIssueCopy(
+  row: Record<string, unknown> | undefined,
+  locale: "pt-BR" | "en",
+) {
+  const code = String(row?.safe_error_code ?? "");
+  if (!code) return null;
+  const pt: Record<string, string> = {
+    insufficient_scope: "A conexão existe, mas faltam permissões necessárias. Atualize as permissões.",
+    credential_expired: "A autorização expirou. Reconecte o canal.",
+    provider_unavailable: "O YouTube está temporariamente indisponível.",
+    rate_limited: "O YouTube limitou temporariamente as solicitações.",
+    youtube_channel_unavailable: "A conta conectada não retornou um canal do YouTube disponível.",
+  };
+  const en: Record<string, string> = {
+    insufficient_scope: "The connection exists, but required permissions are missing. Update permissions.",
+    credential_expired: "Authorization expired. Reconnect the channel.",
+    provider_unavailable: "YouTube is temporarily unavailable.",
+    rate_limited: "YouTube temporarily rate-limited requests.",
+    youtube_channel_unavailable: "The connected account did not return an available YouTube channel.",
+  };
+  return (locale === "pt-BR" ? pt : en)[code] ??
+    (locale === "pt-BR" ? "A conexão precisa de atenção." : "The connection needs attention.");
+}
+
 const creatorMetricPt: Record<string, string> = {
   views: "visualizações",
   reach: "alcance",
@@ -1386,26 +1417,45 @@ function CreatorStudio() {
               </p>
               <div className="grid gap-3 md:grid-cols-2">
                 {(["youtube", "tiktok"] as const).map((provider) => {
-                  const connected = providerConnections.find(
-                    (row) => row.platform === provider && row.status === "connected",
-                  );
                   const latestConnection = providerConnections.find((row) => row.platform === provider);
+                  const connectionState = creatorConnectionState(latestConnection);
+                  const connected =
+                    latestConnection && connectionState === "connected" ? latestConnection : undefined;
+                  const issue = creatorConnectionIssueCopy(latestConnection, resolvedLocale);
                   const label = provider === "youtube" ? "YouTube" : "TikTok";
                   return (
                     <div key={provider} className="rounded-2xl border border-border bg-background/35 p-4">
                       <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <strong>{label}</strong>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            {connected
-                              ? `${L("Conectado como", "Connected as")} ${String(connected.provider_display_name ?? connected.external_account_id ?? label)}`
-                              : latestConnection
-                                ? `${L("Status", "Status")}: ${creatorStatusLabel(latestConnection.status, resolvedLocale)}`
-                                : L("Não conectado", "Not connected")}
-                          </p>
+                        <div className="flex min-w-0 items-start gap-3">
+                          {typeof latestConnection?.provider_avatar_url === "string" &&
+                          latestConnection.provider_avatar_url.startsWith("https://") ? (
+                            <img
+                              src={latestConnection.provider_avatar_url}
+                              alt=""
+                              className="h-10 w-10 shrink-0 rounded-full border border-border object-cover"
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : null}
+                          <div className="min-w-0">
+                            <strong>{label}</strong>
+                            <p className="mt-1 truncate text-xs text-muted-foreground">
+                              {latestConnection?.provider_display_name
+                                ? `${String(latestConnection.provider_display_name)} · ${creatorStatusLabel(connectionState, resolvedLocale)}`
+                                : creatorStatusLabel(connectionState, resolvedLocale)}
+                            </p>
+                            {latestConnection?.last_success_at ? (
+                              <p className="mt-1 text-xs text-muted-foreground">
+                                {L("Última sincronização", "Last sync")}:{" "}
+                                {new Date(String(latestConnection.last_success_at)).toLocaleString()}
+                              </p>
+                            ) : null}
+                          </div>
                         </div>
-                        <StatusPill value={connected ? "connected" : String(latestConnection?.status ?? "not_connected")} locale={resolvedLocale} />
+                        <StatusPill value={connectionState} locale={resolvedLocale} />
                       </div>
+                      {issue ? (
+                        <p className="mt-3 text-xs text-amber-600">{issue}</p>
+                      ) : null}
                       {connected ? (
                         <div className="mt-4 space-y-2">
                           <p className="text-xs text-muted-foreground">
@@ -1429,6 +1479,14 @@ function CreatorStudio() {
                             </Button>
                             <Button
                               size="sm"
+                              variant="outline"
+                              disabled={providerBusy !== null}
+                              onClick={() => void handleConnectProvider(provider)}
+                            >
+                              {L("Atualizar permissões", "Update permissions")}
+                            </Button>
+                            <Button
+                              size="sm"
                               variant={disconnectConfirmId === String(connected.id) ? "destructive" : "outline"}
                               disabled={providerBusy !== null}
                               onClick={() => void handleDisconnectProvider(String(connected.id))}
@@ -1449,7 +1507,9 @@ function CreatorStudio() {
                         >
                           {providerBusy === provider && <Loader2 className="h-4 w-4 animate-spin" />}
                           {provider === "youtube"
-                            ? L("Conectar YouTube", "Connect YouTube")
+                            ? latestConnection
+                              ? L("Reconectar / atualizar YouTube", "Reconnect / update YouTube")
+                              : L("Conectar YouTube", "Connect YouTube")
                             : L("Conectar TikTok", "Connect TikTok")}
                         </Button>
                       )}
