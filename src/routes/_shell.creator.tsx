@@ -58,6 +58,7 @@ import {
   disconnectCreatorProvider,
 } from "@/services/creator-service";
 import {
+  CreatorProviderConnectionError,
   CreatorYouTubeMetadataError,
   type CreatorProvider,
   type CreatorYouTubeMetadata,
@@ -153,6 +154,62 @@ function creatorYouTubeMetadataErrorMessage(
   return youtubeMetadataErrorCopy[locale][code];
 }
 
+function creatorProviderConnectionErrorMessage(
+  error: unknown,
+  locale: "pt-BR" | "en",
+) {
+  const rawCode =
+    error instanceof CreatorProviderConnectionError
+      ? error.code
+      : typeof error === "string"
+        ? error
+        : "provider_request_failed";
+  const pt: Record<string, string> = {
+    configuration_error: "A configuração do OAuth do Creator está incompleta no servidor.",
+    origin_not_allowed: "Este domínio não está autorizado a iniciar a conexão.",
+    redirect_not_allowed: "O retorno OAuth do KIVRYN não está autorizado.",
+    provider_not_configured: "O cliente OAuth do YouTube não está configurado no servidor.",
+    oauth_state_failed: "Não foi possível iniciar uma sessão OAuth segura. Tente novamente.",
+    provider_pending_approval: "Este provedor ainda exige aprovação externa.",
+    unauthorized: "Sua sessão expirou. Entre novamente e tente de novo.",
+    permission_denied: "A permissão do YouTube não foi concedida.",
+    oauth_provider_error: "O Google não concluiu a autorização.",
+    invalid_oauth_callback: "O retorno do OAuth foi inválido. Tente conectar novamente.",
+    token_exchange_failed: "O Google não concluiu a troca segura de credenciais.",
+    identity_failed: "A conta Google não retornou um canal do YouTube disponível.",
+    connection_persistence_failed: "A conexão foi autorizada, mas não pôde ser salva.",
+    credential_persistence_failed: "As credenciais foram recebidas, mas não puderam ser armazenadas.",
+    credential_expired: "A autorização do provedor expirou. Reconecte a conta.",
+    rate_limited: "O provedor limitou temporariamente as solicitações. Tente novamente depois.",
+    provider_unavailable: "O provedor está temporariamente indisponível.",
+    provider_request_failed: "O provedor rejeitou a solicitação de conexão.",
+  };
+  const en: Record<string, string> = {
+    configuration_error: "Creator OAuth configuration is incomplete on the server.",
+    origin_not_allowed: "This domain is not authorized to start the connection.",
+    redirect_not_allowed: "The KIVRYN OAuth return URL is not authorized.",
+    provider_not_configured: "The YouTube OAuth client is not configured on the server.",
+    oauth_state_failed: "KIVRYN could not start a secure OAuth session. Please retry.",
+    provider_pending_approval: "This provider still requires external approval.",
+    unauthorized: "Your session expired. Sign in again and retry.",
+    permission_denied: "YouTube permission was not granted.",
+    oauth_provider_error: "Google did not complete authorization.",
+    invalid_oauth_callback: "The OAuth callback was invalid. Please connect again.",
+    token_exchange_failed: "Google did not complete the secure credential exchange.",
+    identity_failed: "The Google account did not return an available YouTube channel.",
+    connection_persistence_failed: "Authorization completed, but the connection could not be saved.",
+    credential_persistence_failed: "Credentials were received but could not be stored.",
+    credential_expired: "Provider authorization expired. Reconnect the account.",
+    rate_limited: "The provider temporarily rate-limited requests. Retry later.",
+    provider_unavailable: "The provider is temporarily unavailable.",
+    provider_request_failed: "The provider rejected the connection request.",
+  };
+  return (locale === "pt-BR" ? pt : en)[rawCode] ??
+    (locale === "pt-BR"
+      ? "Não foi possível concluir a conexão do provedor."
+      : "The provider connection could not be completed.");
+}
+
 function isYouTubeUrl(value: string) {
   try {
     const host = new URL(value.trim()).hostname.toLowerCase();
@@ -204,7 +261,10 @@ const creatorStatusPt: Record<string, string> = {
   cancel_requested: "cancelamento solicitado",
   retry_wait: "aguardando nova tentativa",
   connected: "conectado",
+  needs_permission: "precisa de permissão",
   not_connected: "não conectado",
+  disconnected: "desconectado",
+  error: "erro",
   revoked: "revogado",
   expired: "expirado",
   unknown: "desconhecido",
@@ -348,16 +408,48 @@ function CreatorStudio() {
     const current = new URL(window.location.href);
     const connectionStatus = current.searchParams.get("creator_connection");
     const connectionError = current.searchParams.get("error");
+    const provider = current.searchParams.get("provider");
     if (!connectionStatus && !connectionError) return;
-    if (connectionStatus === "connected") {
-      toast.success(L("Provedor do Creator conectado. Sincronize os analytics quando quiser.", "Creator provider connected. Sync analytics when ready."));
-    } else if (connectionError) {
-      toast.error(`${L("Falha ao conectar provedor", "Provider connection failed")}: ${connectionError.replaceAll("_", " ")}.`);
-    }
+
     current.searchParams.delete("creator_connection");
     current.searchParams.delete("error");
+    current.searchParams.delete("provider");
     window.history.replaceState({}, "", `${current.pathname}${current.search}${current.hash}`);
-    void reload();
+
+    void (async () => {
+      if (connectionStatus === "connected") {
+        toast.success(
+          provider === "youtube"
+            ? L("Canal do YouTube conectado. Validando dados do canal…", "YouTube channel connected. Validating channel data…")
+            : L("Provedor do Creator conectado.", "Creator provider connected."),
+        );
+        if (provider === "youtube") {
+          setProviderBusy("youtube");
+          try {
+            const result = await syncCreatorProviderAnalytics();
+            toast.success(
+              L(
+                `YouTube sincronizado: ${result.content ?? 0} vídeos e ${result.snapshots ?? 0} snapshots novos.`,
+                `YouTube synced: ${result.content ?? 0} videos and ${result.snapshots ?? 0} new snapshots.`,
+              ),
+            );
+          } catch (error) {
+            console.error("creator_youtube_first_sync_failed", error);
+            toast.error(
+              L(
+                "O canal conectou, mas a primeira sincronização não terminou. Verifique permissões e tente Sincronizar analytics.",
+                "The channel connected, but the first sync did not finish. Check permissions and retry Sync analytics.",
+              ),
+            );
+          } finally {
+            setProviderBusy(null);
+          }
+        }
+      } else if (connectionError) {
+        toast.error(creatorProviderConnectionErrorMessage(connectionError, resolvedLocale));
+      }
+      await reload();
+    })();
   }, [reload]);
 
   const action = useMemo(
@@ -584,10 +676,7 @@ function CreatorStudio() {
       console.error("creator_provider_connect_failed", error);
       toast.error(
         provider === "youtube"
-          ? L(
-              "A conexão com o YouTube não está configurada ou disponível.",
-              "YouTube connection is not configured or available.",
-            )
+          ? creatorProviderConnectionErrorMessage(error, resolvedLocale)
           : L(
               "A conexão com o TikTok exige um aplicativo de provedor aprovado.",
               "TikTok connection requires an approved provider app.",
