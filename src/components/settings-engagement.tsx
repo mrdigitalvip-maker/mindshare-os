@@ -28,6 +28,14 @@ const copy = {
     retry: "Tentar novamente",
     tasks: "Tarefas",
     projects: "Projetos",
+    studies: "Estudos",
+    agents: "Agents",
+    journeys: "Journeys",
+    community: "Comunidade",
+    integrations: "Integrações",
+    approvals: "Aprovações",
+    premiumLifecycle: "Premium e assinatura",
+    dailySummary: "Resumo diário",
     timezone: "Fuso horário",
     timezoneError: "Informe um fuso IANA válido, por exemplo America/Sao_Paulo.",
     quietFrom: "Silêncio a partir de",
@@ -70,6 +78,14 @@ const copy = {
     retry: "Retry",
     tasks: "Tasks",
     projects: "Projects",
+    studies: "Studies",
+    agents: "Agents",
+    journeys: "Journeys",
+    community: "Community",
+    integrations: "Integrations",
+    approvals: "Approvals",
+    premiumLifecycle: "Premium & subscription",
+    dailySummary: "Daily summary",
     timezone: "Timezone",
     timezoneError: "Enter a valid IANA timezone, for example America/Sao_Paulo.",
     quietFrom: "Quiet from",
@@ -170,12 +186,30 @@ export function NotificationSettings() {
       {actionError && <p role="alert" className="rounded-xl border border-destructive/30 p-3 text-sm text-destructive">{actionError}</p>}
       {p && (
         <>
-          {([ ["tasks_enabled", text.tasks], ["projects_enabled", text.projects] ] as const).map(([key, label]) => (
-            <div key={key} className="flex min-h-11 items-center justify-between">
-              <Label htmlFor={key}>{label}</Label>
-              <Switch id={key} checked={p[key]} onCheckedChange={(value) => save.mutate({ [key]: value })} />
-            </div>
-          ))}
+          <div className="grid gap-x-6 gap-y-2 sm:grid-cols-2">
+            {([
+              ["tasks_enabled", text.tasks],
+              ["projects_enabled", text.projects],
+              ["studies_enabled", text.studies],
+              ["agents_enabled", text.agents],
+              ["journeys_enabled", text.journeys],
+              ["community_enabled", text.community],
+              ["integrations_enabled", text.integrations],
+              ["approvals_enabled", text.approvals],
+              ["premium_enabled", text.premiumLifecycle],
+              ["daily_summary_enabled", text.dailySummary],
+            ] as const).map(([key, label]) => (
+              <div key={key} className="flex min-h-11 items-center justify-between gap-4">
+                <Label htmlFor={key}>{label}</Label>
+                <Switch
+                  id={key}
+                  checked={p[key]}
+                  disabled={save.isPending}
+                  onCheckedChange={(value) => save.mutate({ [key]: value })}
+                />
+              </div>
+            ))}
+          </div>
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="sm:col-span-1">
               <Label htmlFor="timezone">{text.timezone}</Label>
