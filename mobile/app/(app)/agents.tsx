@@ -21,6 +21,7 @@ import {
   type MobileAgent,
 } from "@/services/agent-schedule-service";
 import { listMobileActionHistory } from "@/services/action-history-service";
+import { mobileAgentConnectorName } from "@/services/agent-connector-service";
 import {
   listMobilePendingAgentPlans,
   reviewMobileAgentPlan,
@@ -176,6 +177,17 @@ export default function Agents() {
               {agent.skills.map((skill) => (
                 <View key={skill.id} style={styles.skillBadge}>
                   <Text style={styles.skillBadgeText}>{skill.name}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+          {!!agent.externalConnectorIds.length && (
+            <View style={styles.skillWrap}>
+              {agent.externalConnectorIds.map((connectorId) => (
+                <View key={connectorId} style={styles.connectorBadge}>
+                  <Text style={styles.connectorBadgeText}>
+                    {mobileAgentConnectorName(connectorId)}
+                  </Text>
                 </View>
               ))}
             </View>
@@ -622,6 +634,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceRaised,
   },
   skillBadgeText: { ...typography.caption, color: colors.primaryBright, fontSize: 10 },
+  connectorBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.warning,
+  },
+  connectorBadgeText: { ...typography.caption, color: colors.warning, fontSize: 10 },
   runnerWrap: { gap: spacing.sm },
   runner: {
     gap: spacing.sm,
