@@ -106,6 +106,7 @@ export type Database = {
           tone: string | null;
           expected_output: string | null;
           capabilities: string[];
+          external_connector_ids: string[];
           updated_at: string;
         };
         Insert: {
@@ -123,6 +124,7 @@ export type Database = {
           tone?: string | null;
           expected_output?: string | null;
           capabilities?: string[];
+          external_connector_ids?: string[];
           updated_at?: string;
         };
         Update: {
@@ -140,6 +142,7 @@ export type Database = {
           tone?: string | null;
           expected_output?: string | null;
           capabilities?: string[];
+          external_connector_ids?: string[];
           updated_at?: string;
         };
         Relationships: [
