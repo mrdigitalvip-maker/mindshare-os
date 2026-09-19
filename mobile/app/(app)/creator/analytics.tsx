@@ -15,6 +15,7 @@ import {
   parseOptionalMetric,
   type CreatorContentLog,
   type CreatorManualSnapshot,
+  type CreatorPlatformConnection,
 } from "@/lib/creator";
 import { useAuth } from "@/providers/auth-provider";
 import { useLanguage } from "@/providers/language-provider";
@@ -25,6 +26,7 @@ import {
   listCreatorManualSnapshots,
   listCreatorConnections,
   saveCreatorContent,
+  syncCreatorAnalytics,
 } from "@/services/creator-service";
 type ContentForm = Omit<CreatorContentLog, "id" | "createdAt" | "updatedAt">;
 const blank = (): ContentForm => ({
@@ -40,13 +42,15 @@ const blank = (): ContentForm => ({
 });
 export default function Analytics() {
   const { session } = useAuth(),
-    { t } = useLanguage();
+    { t, resolvedLocale } = useLanguage();
   const [content, setContent] = useState<CreatorContentLog[]>([]),
     [snapshots, setSnapshots] = useState<CreatorManualSnapshot[]>([]);
   const [form, setForm] = useState(blank()),
     [metrics, setMetrics] = useState<Record<string, string>>({}),
     [editing, setEditing] = useState<string>();
   const [connectedCount, setConnectedCount] = useState(0);
+  const [connections, setConnections] = useState<CreatorPlatformConnection[]>([]);
+  const [syncingConnectionId, setSyncingConnectionId] = useState<string>();
   const load = useCallback(async () => {
     if (!session?.user.id) return;
     const [items, history, connections] = await Promise.all([
@@ -56,11 +60,63 @@ export default function Analytics() {
     ]);
     setContent(items);
     setSnapshots(history);
+    setConnections(connections);
     setConnectedCount(connections.filter((x) => x.status === "connected").length);
   }, [session?.user.id]);
   useEffect(() => {
     void load();
   }, [load]);
+  const syncConnection = async (connection: CreatorPlatformConnection) => {
+    if (connection.platform !== "youtube" && connection.platform !== "tiktok") return;
+    setSyncingConnectionId(connection.id);
+    try {
+      const result = (await syncCreatorAnalytics({
+        connectionId: connection.id,
+        provider: connection.platform,
+      })) as { synced?: number; content?: number; snapshots?: number };
+      await load();
+      Alert.alert(
+        resolvedLocale === "en" ? "Sync completed" : "Sincronização concluída",
+        resolvedLocale === "en"
+          ? `${result.content ?? 0} content item(s), ${result.snapshots ?? 0} new snapshot(s).`
+          : `${result.content ?? 0} conteúdo(s), ${result.snapshots ?? 0} novo(s) snapshot(s).`,
+      );
+    } catch {
+      await load();
+      Alert.alert(
+        resolvedLocale === "en" ? "Sync failed" : "Falha na sincronização",
+        resolvedLocale === "en"
+          ? "Check the connection state and permissions."
+          : "Verifique o estado da conexão e as permissões.",
+      );
+    } finally {
+      setSyncingConnectionId(undefined);
+    }
+  };
+
+  const connectionStatus = (value: CreatorPlatformConnection["status"]) => {
+    const labels = resolvedLocale === "en"
+      ? {
+          not_connected: "Not connected",
+          authorizing: "Authorizing",
+          connected: "Connected",
+          needs_permission: "Needs permission",
+          expired: "Expired",
+          revoked: "Revoked",
+          error: "Error",
+        }
+      : {
+          not_connected: "Não conectado",
+          authorizing: "Autorizando",
+          connected: "Conectado",
+          needs_permission: "Precisa de permissão",
+          expired: "Expirado",
+          revoked: "Revogado",
+          error: "Erro",
+        };
+    return labels[value];
+  };
+
   const save = async () => {
     if (!session?.user.id || !form.title.trim()) return;
     const item = await saveCreatorContent(session.user.id, { ...form, id: editing });
@@ -82,6 +138,49 @@ export default function Analytics() {
         <Text style={s.heading}>{t("creator.connectedOptional")}</Text>
         <Text style={s.copy}>{t("creator.connectLater")}</Text>
         <Text style={s.copy}>{t("creator.connectedCount", { count: connectedCount })}</Text>
+        {connections
+          .filter((connection) => connection.platform === "youtube" || connection.platform === "tiktok")
+          .map((connection) => (
+            <View key={connection.id} style={{ marginTop: 12, gap: 6 }}>
+              <Text style={s.heading}>
+                {connection.platform === "youtube" ? "YouTube" : "TikTok"} · {connectionStatus(connection.status)}
+              </Text>
+              {connection.displayName ? <Text style={s.copy}>{connection.displayName}</Text> : null}
+              {connection.platform === "youtube" && connection.lastSuccessAt ? (
+                <Text style={s.copy}>
+                  {resolvedLocale === "en" ? "Last sync" : "Última sincronização"}:{" "}
+                  {new Date(connection.lastSuccessAt).toLocaleString()}
+                </Text>
+              ) : null}
+              {connection.safeErrorCode ? (
+                <Text style={s.copy}>
+                  {resolvedLocale === "en" ? "State" : "Estado"}: {connection.safeErrorCode.replaceAll("_", " ")}
+                </Text>
+              ) : null}
+              {connection.status === "connected" ? (
+                <CreatorButton
+                  label={
+                    syncingConnectionId === connection.id
+                      ? resolvedLocale === "en"
+                        ? "Syncing…"
+                        : "Sincronizando…"
+                      : resolvedLocale === "en"
+                        ? "Sync analytics"
+                        : "Sincronizar analytics"
+                  }
+                  onPress={() => void syncConnection(connection)}
+                  disabled={Boolean(syncingConnectionId)}
+                />
+              ) : null}
+            </View>
+          ))}
+        {!connections.some((connection) => connection.platform === "youtube") ? (
+          <Text style={s.copy}>
+            {resolvedLocale === "en"
+              ? "YouTube connection is completed on KIVRYN Web in this Web-first phase."
+              : "A conexão do YouTube é concluída no KIVRYN Web nesta fase Web-first."}
+          </Text>
+        ) : null}
       </View>
       <Text style={s.heading}>{editing ? t("creator.editContent") : t("creator.addContent")}</Text>
       <ChoiceRow
