@@ -194,6 +194,7 @@ export async function registerNativeNotifications(
   if (error) throw new NotificationSetupError("registration");
   // Never report ready based only on the write response: read the canonical row back.
   if (!(await isCurrentDeviceRegistered(userId))) throw new NotificationSetupError("registration");
+  await saveNotificationPreferences(userId, {});
   await SecureStore.setItemAsync(DEVICE_OWNER_KEY, userId);
   return { permission, registered: true };
 }
