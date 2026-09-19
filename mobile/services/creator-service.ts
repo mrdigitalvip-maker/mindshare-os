@@ -221,15 +221,23 @@ export async function listCreatorAnalytics(userId: string): Promise<CreatorAnaly
 export async function listCreatorConnections(userId: string): Promise<CreatorPlatformConnection[]> {
   const { data, error } = await supabase
     .from("creator_platform_connections")
-    .select("id,platform,status,provider_display_name,last_success_at,granted_metrics")
-    .eq("user_id", userId);
+    .select(
+      "id,platform,status,external_account_id,provider_display_name,provider_avatar_url,provider_account_type,last_success_at,safe_error_code,granted_scopes,granted_metrics",
+    )
+    .eq("user_id", userId)
+    .in("platform", ["youtube", "tiktok", "instagram"]);
   if (error) throw error;
   return (data ?? []).map((row) => ({
     id: row.id,
     platform: row.platform,
     status: row.status,
     displayName: row.provider_display_name ?? undefined,
+    externalAccountId: row.external_account_id ?? undefined,
+    avatarUrl: row.provider_avatar_url ?? undefined,
+    accountType: row.provider_account_type ?? undefined,
     lastSuccessAt: row.last_success_at ?? undefined,
+    safeErrorCode: row.safe_error_code ?? undefined,
+    grantedScopes: row.granted_scopes ?? [],
     grantedMetrics: row.granted_metrics ?? [],
   }));
 }
@@ -385,9 +393,16 @@ export async function startCreatorOAuth(
   if (error) throw error;
   return data as { authorizationUrl: string; status: "authorizing" };
 }
-export async function syncCreatorAnalytics() {
+export async function syncCreatorAnalytics(input?: {
+  connectionId?: string;
+  provider?: "youtube" | "tiktok";
+}) {
   const { data, error } = await supabase.functions.invoke("creator-analytics-sync", {
-    body: { action: "sync" },
+    body: {
+      action: "sync",
+      ...(input?.connectionId ? { connectionId: input.connectionId } : {}),
+      ...(input?.provider ? { provider: input.provider } : {}),
+    },
   });
   if (error) throw error;
   return data;
