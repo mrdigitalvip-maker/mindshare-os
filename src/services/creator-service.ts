@@ -491,6 +491,13 @@ async function creatorProviderConnectionInvokeError(error: unknown) {
   return new CreatorProviderConnectionError("connection_unavailable");
 }
 
+export async function retryCreatorProject(projectId: string) {
+  const { data, error } = await db.rpc("enqueue_creator_job", { p_project_id: projectId });
+  if (error) throw error;
+  if (!data) throw new Error("Creator retry could not be queued.");
+  return String(data);
+}
+
 export async function cancelCreatorJob(jobId: string) {
   const { data, error } = await db.rpc("cancel_creator_job", { p_job_id: jobId });
   if (error) throw error;
