@@ -89,6 +89,8 @@ test("E82 Web and Android explain progress, claim, expiry and no automatic renew
   assert.match(webPremium, /90 valid activity days → 30 days Premium/);
   assert.match(webPremium, /Claim 30 days Premium/);
   assert.match(webPremium, /no automatic renewal/i);
+  assert.match(webPremium, /subscription\.source === "subscriptions"/);
+  assert.match(webPremium, /subscription\.provider === "stripe"/);
   assert.match(mobilePremium, /90 valid activity days → 30 days Premium/);
   assert.match(mobilePremium, /Claim 30 days Premium/);
   assert.match(mobilePremium, /No automatic renewal/);
