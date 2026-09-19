@@ -238,8 +238,10 @@ export default function PassportListening() {
   useEffect(() => {
     return () => {
       void Speech.stop();
+      void audioRecorder.stop().catch(() => undefined);
+      void setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }).catch(() => undefined);
     };
-  }, []);
+  }, [audioRecorder]);
 
   useEffect(() => {
     setCurrentIndex(0);
@@ -292,7 +294,7 @@ export default function PassportListening() {
   }
 
   async function speakCurrent() {
-    if (!current) return;
+    if (!current || recorderState.isRecording || transcribing) return;
     setSpeechError(false);
     await Speech.stop();
     speakWithOptions(current.text, {
@@ -346,6 +348,7 @@ export default function PassportListening() {
   }
 
   async function move(delta: number) {
+    if (recorderState.isRecording || transcribing) return;
     await Speech.stop();
     setSpeaking(false);
     setSpeechError(false);
