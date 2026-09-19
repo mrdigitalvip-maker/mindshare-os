@@ -41,7 +41,7 @@ Deno.serve(async (request) => {
         : "pt";
 
     if (clock.hour === 8 && pref.daily_summary_enabled === true) {
-      const summary = await buildDailySummary(db, pref.user_id, clock.day, pref.timezone, locale);
+      const summary = await buildDailySummary(db, pref.user_id, clock.day, pref.timezone, locale, pref);
       if (summary) {
         queued += Number(
           await deliver({
@@ -148,6 +148,38 @@ Deno.serve(async (request) => {
       }
     }
 
+    if (clock.hour === 10 && pref.projects_enabled !== false) {
+      const { data: projects } = await db
+        .from("projects")
+        .select("id,title,due_date,status")
+        .eq("user_id", pref.user_id)
+        .neq("status", "completed")
+        .not("due_date", "is", null)
+        .lte("due_date", clock.day)
+        .order("due_date", { ascending: true })
+        .limit(1);
+      const project = projects?.[0];
+      if (project?.due_date) {
+        queued += Number(
+          await deliver({
+            db,
+            url,
+            schedulerSecret,
+            userId: pref.user_id,
+            day: clock.day,
+            dedupeKey: `project-due:${project.id}`,
+            kind: "projects",
+            title: project.title || tr(locale, "Projeto KIVRYN", "KIVRYN project"),
+            body:
+              project.due_date < clock.day
+                ? tr(locale, "Este projeto está com o prazo vencido.", "This project is overdue.")
+                : tr(locale, "O prazo deste projeto é hoje.", "This project is due today."),
+            route: `/projects/${project.id}`,
+          }),
+        );
+      }
+    }
+
     if (clock.hour === 12 && pref.premium_enabled !== false) {
       const { data: subscription } = await db
         .from("subscriptions")
@@ -198,6 +230,43 @@ Deno.serve(async (request) => {
             }),
           );
         }
+      }
+    }
+
+    if (clock.hour === 14 && pref.integrations_enabled !== false) {
+      const { data: connections } = await db
+        .from("creator_platform_connections")
+        .select("id,platform,status,provider_display_name,safe_error_code")
+        .eq("user_id", pref.user_id)
+        .in("status", ["needs_permission", "expired", "error"])
+        .order("updated_at", { ascending: false })
+        .limit(1);
+      const connection = connections?.[0];
+      if (connection) {
+        const provider =
+          connection.provider_display_name ||
+          String(connection.platform ?? "KIVRYN").replaceAll("_", " ");
+        queued += Number(
+          await deliver({
+            db,
+            url,
+            schedulerSecret,
+            userId: pref.user_id,
+            day: clock.day,
+            dedupeKey: `integration-attention:${connection.id}:${connection.status}`,
+            kind: "integrations",
+            title: tr(locale, "Conexão precisa de atenção", "Connection needs attention"),
+            body: tr(
+              locale,
+              `Revise a conexão ${provider}. A KIVRYN não fará nenhuma ação externa sem sua aprovação.`,
+              `Review the ${provider} connection. KIVRYN will not perform an external action without your approval.`,
+            ),
+            route:
+              connection.platform === "youtube" || connection.platform === "tiktok"
+                ? "/creator"
+                : "/settings",
+          }),
+        );
       }
     }
 
@@ -361,57 +430,92 @@ async function buildDailySummary(
   day: string,
   timezone: string,
   locale: "pt" | "en",
+  pref: Record<string, unknown>,
 ): Promise<string | null> {
-  const [{ data: tasks }, { data: approvals }, { data: missions }, { data: goals }] =
-    await Promise.all([
-      db
-        .from("tasks")
-        .select("id,due_date")
-        .eq("user_id", userId)
-        .eq("completed", false)
-        .not("due_date", "is", null)
-        .order("due_date", { ascending: true })
-        .limit(100),
-      db
-        .from("agent_runs")
-        .select("id")
-        .eq("user_id", userId)
-        .eq("action_plan_status", "pending_approval")
-        .limit(50),
-      db
-        .from("journey_missions")
-        .select("id,scheduled_date")
-        .eq("user_id", userId)
-        .eq("status", "active")
-        .lte("scheduled_date", day)
-        .limit(50),
-      db
-        .from("study_goals")
-        .select("id,due_at")
-        .eq("user_id", userId)
-        .eq("completed", false)
-        .lte("due_at", day)
-        .limit(50),
-    ]);
+  const [
+    { data: tasks },
+    { data: projects },
+    { data: approvals },
+    { data: missions },
+    { data: goals },
+    { data: connections },
+  ] = await Promise.all([
+    db
+      .from("tasks")
+      .select("id,due_date")
+      .eq("user_id", userId)
+      .eq("completed", false)
+      .not("due_date", "is", null)
+      .order("due_date", { ascending: true })
+      .limit(100),
+    db
+      .from("projects")
+      .select("id,due_date,status")
+      .eq("user_id", userId)
+      .neq("status", "completed")
+      .not("due_date", "is", null)
+      .lte("due_date", day)
+      .limit(50),
+    db
+      .from("agent_runs")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("action_plan_status", "pending_approval")
+      .limit(50),
+    db
+      .from("journey_missions")
+      .select("id,scheduled_date")
+      .eq("user_id", userId)
+      .eq("status", "active")
+      .lte("scheduled_date", day)
+      .limit(50),
+    db
+      .from("study_goals")
+      .select("id,due_at")
+      .eq("user_id", userId)
+      .eq("completed", false)
+      .lte("due_at", day)
+      .limit(50),
+    db
+      .from("creator_platform_connections")
+      .select("id")
+      .eq("user_id", userId)
+      .in("status", ["needs_permission", "expired", "error"])
+      .limit(50),
+  ]);
 
-  let overdue = 0;
-  let dueToday = 0;
+  let overdueTasks = 0;
+  let dueTodayTasks = 0;
   for (const task of tasks ?? []) {
     const taskDay = localDay(task.due_date, timezone);
-    if (taskDay < day) overdue++;
-    else if (taskDay === day) dueToday++;
+    if (taskDay < day) overdueTasks++;
+    else if (taskDay === day) dueTodayTasks++;
   }
+  const overdueProjects = (projects ?? []).filter(
+    (project: { due_date?: string | null }) => project.due_date && project.due_date < day,
+  ).length;
+  const dueTodayProjects = (projects ?? []).filter(
+    (project: { due_date?: string | null }) => project.due_date === day,
+  ).length;
 
   const pieces: string[] = [];
-  if (overdue)
+  if (pref.tasks_enabled !== false && overdueTasks)
     pieces.push(
-      tr(locale, `${overdue} tarefa(s) atrasada(s)`, `${overdue} overdue task(s)`),
+      tr(locale, `${overdueTasks} tarefa(s) atrasada(s)`, `${overdueTasks} overdue task(s)`),
     );
-  if (dueToday)
+  if (pref.tasks_enabled !== false && dueTodayTasks)
     pieces.push(
-      tr(locale, `${dueToday} tarefa(s) vence(m) hoje`, `${dueToday} task(s) due today`),
+      tr(locale, `${dueTodayTasks} tarefa(s) vence(m) hoje`, `${dueTodayTasks} task(s) due today`),
     );
-  if (approvals?.length)
+  if (pref.projects_enabled !== false && overdueProjects)
+    pieces.push(
+      tr(locale, `${overdueProjects} projeto(s) atrasado(s)`, `${overdueProjects} overdue project(s)`),
+    );
+  if (pref.projects_enabled !== false && dueTodayProjects)
+    pieces.push(
+      tr(locale, `${dueTodayProjects} projeto(s) vence(m) hoje`, `${dueTodayProjects} project(s) due today`),
+    );
+  if (pref.approvals_enabled !== false && approvals?.length)
     pieces.push(
       tr(
         locale,
@@ -419,7 +523,7 @@ async function buildDailySummary(
         `${approvals.length} approval(s) awaiting review`,
       ),
     );
-  if (missions?.length)
+  if (pref.journeys_enabled !== false && missions?.length)
     pieces.push(
       tr(
         locale,
@@ -427,12 +531,20 @@ async function buildDailySummary(
         `${missions.length} active Journey mission(s)`,
       ),
     );
-  if (goals?.length)
+  if (pref.studies_enabled !== false && goals?.length)
     pieces.push(
       tr(
         locale,
         `${goals.length} meta(s) de estudo no prazo`,
         `${goals.length} study goal(s) due`,
+      ),
+    );
+  if (pref.integrations_enabled !== false && connections?.length)
+    pieces.push(
+      tr(
+        locale,
+        `${connections.length} conexão(ões) precisa(m) de atenção`,
+        `${connections.length} connection(s) need attention`,
       ),
     );
 
