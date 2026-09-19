@@ -23,12 +23,15 @@ describe("E73/E74 Assistant voice source parity", () => {
     expect(assistant).toContain("await audioRecorder.stop()");
   });
 
-  test("Android sends audio only to the authenticated voice edge and puts transcription in the draft", () => {
+  test("Android sends audio only to the authenticated voice edge and normal mic mode keeps transcription in the draft", () => {
     expect(voiceService).toContain('form.append("action", "transcribe")');
     expect(voiceService).toContain('supabase.functions.invoke<{ text?: string }>("nexora-voice"');
     expect(assistant).toContain("transcribeAssistantRecording(uri, resolvedLocale)");
+    expect(assistant).toContain("if (voiceConversationMode)");
+    expect(assistant).toContain("transcriptToSend = transcript");
+    expect(assistant).toContain("} else {");
     expect(assistant).toContain("setDraft((current) =>");
-    expect(assistant).not.toContain("submit(transcript");
+    expect(assistant).toContain('submit(transcriptToSend, undefined, undefined, { fromVoice: true })');
   });
 
   test("server transcription is bounded, authenticated and does not store raw audio", () => {
