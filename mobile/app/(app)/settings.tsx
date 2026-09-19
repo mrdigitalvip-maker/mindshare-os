@@ -657,26 +657,49 @@ export default function Settings() {
                             : provider.provider === "whatsapp"
                               ? "WhatsApp"
                               : provider.provider.charAt(0).toUpperCase() + provider.provider.slice(1);
-                const connected = provider.connectionStatus === "connected";
-                const state = connected
-                  ? text.connected
-                  : provider.readiness === "coming_soon"
-                    ? text.comingSoon
-                    : !provider.runtimeConfigured
-                      ? text.configRequired
-                      : provider.readiness === "app_review_required"
-                        ? text.reviewRequired
-                        : provider.provider === "gmail" ||
-                            provider.provider === "google_calendar" ||
-                            provider.provider === "google_drive"
-                          ? text.readyToConnect
-                          : text.creatorAvailable;
+                const connected = provider.connectionState === "connected";
+                const state =
+                  provider.connectionState === "needs_permission"
+                    ? resolvedLocale === "en"
+                      ? "Needs permission"
+                      : "Precisa de permissão"
+                    : provider.connectionState === "expired"
+                      ? resolvedLocale === "en"
+                        ? "Expired"
+                        : "Expirado"
+                      : provider.connectionState === "error"
+                        ? resolvedLocale === "en"
+                          ? "Connection error"
+                          : "Erro de conexão"
+                        : provider.connectionState === "disconnected"
+                          ? resolvedLocale === "en"
+                            ? "Disconnected"
+                            : "Desconectado"
+                          : connected
+                            ? text.connected
+                            : provider.readiness === "coming_soon"
+                              ? text.comingSoon
+                              : !provider.runtimeConfigured
+                                ? text.configRequired
+                                : provider.readiness === "app_review_required"
+                                  ? text.reviewRequired
+                                  : provider.provider === "gmail" ||
+                                      provider.provider === "google_calendar" ||
+                                      provider.provider === "google_drive"
+                                    ? text.readyToConnect
+                                    : text.creatorAvailable;
                 return (
                   <View key={provider.provider} style={s.integrationRow}>
                     <View style={s.flex}>
                       <Text style={s.value}>{label}</Text>
                       <Text style={s.help}>{state}</Text>
                       {provider.displayName ? <Text style={s.help}>{provider.displayName}</Text> : null}
+                      {provider.lastSuccessAt ? (
+                        <Text style={s.help}>
+                          {resolvedLocale === "en" ? "Last sync" : "Última sincronização"}:{" "}
+                          {new Date(provider.lastSuccessAt).toLocaleString()}
+                        </Text>
+                      ) : null}
                     </View>
                     <View style={[s.statusDot, connected ? s.statusReady : s.statusPending]} />
                   </View>
@@ -687,7 +710,7 @@ export default function Settings() {
           {(integrations.data ?? [])
             .filter(
               (provider) =>
-                provider.connectionStatus === "connected" &&
+                provider.connectionState === "connected" &&
                 (provider.provider === "gmail" ||
                   provider.provider === "google_calendar" ||
                   provider.provider === "google_drive"),
