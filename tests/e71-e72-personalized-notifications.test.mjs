@@ -23,7 +23,7 @@ test("E71 extends the existing notification preference row instead of creating a
 test("E71 Web exposes all personalized domains through the existing PushService",()=>{
   for (const field of [
     "tasks_enabled","projects_enabled","studies_enabled","agents_enabled","journeys_enabled",
-    "community_enabled","integrations_enabled","approvals_enabled","premium_enabled","daily_summary_enabled",
+    "community_enabled","challenges_enabled","integrations_enabled","approvals_enabled","premium_enabled","daily_summary_enabled",
   ]) {
     assert.match(pushService,new RegExp(field));
     assert.match(settings,new RegExp(field));
