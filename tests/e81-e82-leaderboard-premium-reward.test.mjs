@@ -88,6 +88,9 @@ test("E82 Premium runtime recognizes the reward without changing paid provider r
 test("E82 Web and Android explain progress, claim, expiry and no automatic renewal", () => {
   assert.match(webPremium, /90 valid activity days → 30 days Premium/);
   assert.match(webPremium, /Claim 30 days Premium/);
+  assert.match(webPremium, /reward\?\.eligible \? 90/);
+  assert.match(mobilePremium, /reward\?\.eligible \? 90/);
+
   assert.match(webPremium, /no automatic renewal/i);
   assert.match(webPremium, /subscription\.source === "subscriptions"/);
   assert.match(webPremium, /subscription\.provider === "stripe"/);
