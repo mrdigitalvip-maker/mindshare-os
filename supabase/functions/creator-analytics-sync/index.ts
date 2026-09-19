@@ -524,6 +524,9 @@ Deno.serve(async (request) => {
   if (typeof input.connectionId === "string") {
     connectionQuery = connectionQuery.eq("id", input.connectionId);
   }
+  if (input.provider === "youtube" || input.provider === "tiktok") {
+    connectionQuery = connectionQuery.eq("platform", input.provider);
+  }
   const { data: connections, error: connectionError } = await connectionQuery;
   if (connectionError) {
     return jsonResponse(request, { error: { code: "connection_lookup_failed" } }, 500);
@@ -569,7 +572,10 @@ Deno.serve(async (request) => {
       ) {
         await admin
           .from("creator_platform_connections")
-          .update({ safe_error_code: "insufficient_scope" })
+          .update({
+            status: "needs_permission",
+            safe_error_code: "insufficient_scope",
+          })
           .eq("id", connection.id);
         continue;
       }
