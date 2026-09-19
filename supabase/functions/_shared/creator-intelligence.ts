@@ -95,6 +95,11 @@ export const PROVIDERS = {
   },
 } as const;
 
+const CANONICAL_OAUTH_APP_ORIGINS = new Set([
+  "https://kivryn.co",
+  "https://www.kivryn.co",
+]);
+
 export const allowedRedirect = (value: string) => {
   const allowlist = (Deno.env.get("CREATOR_OAUTH_REDIRECT_ALLOWLIST") ?? "")
     .split(",")
@@ -104,13 +109,12 @@ export const allowedRedirect = (value: string) => {
 
   try {
     const target = new URL(value);
+    if (target.pathname !== "/creator" && target.pathname !== "/settings") return false;
+    if (CANONICAL_OAUTH_APP_ORIGINS.has(target.origin)) return true;
+
     const appUrl = Deno.env.get("APP_URL");
     if (!appUrl) return false;
-    const app = new URL(appUrl);
-    return (
-      target.origin === app.origin &&
-      (target.pathname === "/creator" || target.pathname === "/settings")
-    );
+    return target.origin === new URL(appUrl).origin;
   } catch {
     return false;
   }
