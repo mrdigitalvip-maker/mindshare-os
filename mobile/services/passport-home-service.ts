@@ -4,6 +4,7 @@ import type {
   PassportLesson,
   PassportLevel,
   PassportProfile,
+  PassportRetentionSummary,
   PassportVocabularyItem,
 } from "@/lib/passport";
 import { workspaceMutationError } from "@/lib/mutation-errors";
@@ -25,6 +26,7 @@ export type PassportHomeSnapshot = {
   completedLessons: number;
   progressPercent: number;
   completedMissions: number;
+  retention: PassportRetentionSummary;
 };
 
 const passportLevelRank: Record<PassportLevel, number> = {
@@ -72,6 +74,13 @@ export async function loadPassportHomeSnapshot(
       completedLessons: 0,
       progressPercent: 0,
       completedMissions: 0,
+      retention: {
+        currentStreak: 0,
+        longestStreak: 0,
+        activeDaysLast7: 0,
+        activeToday: false,
+        lastActiveDate: null,
+      },
     };
   }
 
@@ -84,11 +93,27 @@ export async function loadPassportHomeSnapshot(
   );
   if (missionEnsureError) throw workspaceMutationError(missionEnsureError);
 
-  const [allLessons, dueVocabulary, missions] = await Promise.all([
+  const [allLessons, dueVocabulary, missions, retentionResult] = await Promise.all([
     listPassportLessons(uid, profile.trackId),
     listPassportDueVocabulary(uid, profile.trackId, 20),
     listPassportDailyMissions(uid, profile.trackId, date),
+    supabase.rpc("get_passport_retention_summary" as never, {
+      p_track_id: profile.trackId,
+    } as never),
   ]);
+  if (retentionResult.error) throw workspaceMutationError(retentionResult.error);
+  const retentionRow =
+    retentionResult.data && typeof retentionResult.data === "object" && !Array.isArray(retentionResult.data)
+      ? (retentionResult.data as Record<string, unknown>)
+      : {};
+  const retention: PassportRetentionSummary = {
+    currentStreak: Math.max(0, Number(retentionRow.currentStreak ?? 0)),
+    longestStreak: Math.max(0, Number(retentionRow.longestStreak ?? 0)),
+    activeDaysLast7: Math.max(0, Math.min(7, Number(retentionRow.activeDaysLast7 ?? 0))),
+    activeToday: retentionRow.activeToday === true,
+    lastActiveDate:
+      typeof retentionRow.lastActiveDate === "string" ? retentionRow.lastActiveDate : null,
+  };
 
   const lessons =
     profile.placementScore == null
@@ -109,5 +134,6 @@ export async function loadPassportHomeSnapshot(
     completedLessons,
     progressPercent,
     completedMissions,
+    retention,
   };
 }
