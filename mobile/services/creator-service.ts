@@ -600,11 +600,17 @@ export async function getCreatorTranscript(
     fullText: data.full_text,
     segmentCount: Number(data.segment_count),
     segments: Array.isArray(data.segments)
-      ? data.segments.map((segment) => ({
-          startMs: Number(segment.startMs ?? 0),
-          endMs: Number(segment.endMs ?? 0),
-          text: String(segment.text ?? ""),
-        }))
+      ? data.segments.map((segment) => {
+          const value =
+            segment && typeof segment === "object" && !Array.isArray(segment)
+              ? (segment as Record<string, unknown>)
+              : {};
+          return {
+            startMs: Number(value.startMs ?? 0),
+            endMs: Number(value.endMs ?? 0),
+            text: String(value.text ?? ""),
+          };
+        })
       : [],
   };
 }
