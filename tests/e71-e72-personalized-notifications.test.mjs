@@ -8,7 +8,7 @@ const migration=read("supabase/migrations/202609190225_e71_personalized_notifica
 const pushService=read("src/services/push-service.ts");
 const settings=read("src/components/settings-engagement.tsx");
 const reminders=read("supabase/functions/scheduled-reminders/index.ts");
-const scheduledAgents=read("supabase/functions/scheduled-agent-runs/index.ts");
+const agentGuard=read("supabase/migrations/202609190240_e72_agent_notification_preference_guard.sql");
 
 test("E71 extends the existing notification preference row instead of creating a parallel system",()=>{
   for (const field of [
@@ -56,8 +56,11 @@ test("E72 reuses the existing dedupe, in-app and push pipeline",()=>{
   assert.match(reminders,/community_enabled !== false/);
 });
 
-test("E72 scheduled Agent results honor the global Agent preference without altering execution",()=>{
-  assert.match(scheduledAgents,/select\("agents_enabled,timezone,quiet_hours_start,quiet_hours_end"\)/);
-  assert.match(scheduledAgents,/pref\?\.agents_enabled === false/);
-  assert.match(scheduledAgents,/executeAgentRun/);
+test("E72 Agent notification preference is fail-closed at the server-owned delivery ledger",()=>{
+  assert.match(agentGuard,/dedupe_key like 'agent-run:%'/);
+  assert.match(agentGuard,/p\.agents_enabled = false/);
+  assert.match(agentGuard,/raise exception/);
+  assert.match(agentGuard,/security invoker/);
+  assert.match(agentGuard,/grant execute on function public\.guard_agent_notification_preference\(\) to service_role/);
+  assert.doesNotMatch(agentGuard,/agent_runs|action_plan_status|executeAgent/);
 });
