@@ -42,6 +42,7 @@ function Premium() {
   const queryClient = useQueryClient();
   const { data: subscription, isLoading, isFetching, isError, refetch } = useSubscription();
   const reward = subscription?.activityReward;
+  const rewardProgressDays = reward?.eligible ? 90 : Math.min(90, reward?.currentStreak ?? 0);
   const claimReward = useMutation({
     mutationFn: () => SubscriptionStatusService.claimActivityReward(),
     onSuccess: async () => {
@@ -202,12 +203,12 @@ function Premium() {
                 )}
               </p>
             </div>
-            <strong className="text-2xl">{Math.min(90, reward.currentStreak)}/90</strong>
+            <strong className="text-2xl">{rewardProgressDays}/90</strong>
           </div>
           <div className="mt-4 h-2 overflow-hidden rounded-full bg-surface-elevated">
             <div
               className="h-full rounded-full bg-intelligence"
-              style={{ width: `${Math.min(100, (Math.min(90, reward.currentStreak) / 90) * 100)}%` }}
+              style={{ width: `${Math.min(100, (rewardProgressDays / 90) * 100)}%` }}
             />
           </div>
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm">
