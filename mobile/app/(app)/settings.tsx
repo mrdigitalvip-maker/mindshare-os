@@ -6,6 +6,7 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   View,
 } from "react-native";
@@ -33,9 +34,12 @@ import { useAuth } from "@/providers/auth-provider";
 import {
   disableCurrentPushDevice,
   getNotificationDeviceState,
+  getNotificationPreferences,
   registerNativeNotifications,
+  saveNotificationPreferences,
   scheduleLocalNotificationTest,
   sendTestNotification,
+  type MobileNotificationPreferences,
   type NotificationDeviceState,
 } from "@/services/notification-service";
 import { updateProfileName } from "@/services/profile-service";
@@ -67,6 +71,20 @@ const settingsCopy = {
     nameUpdateError: "Não foi possível atualizar o nome. Tente novamente.",
     notifications: "NOTIFICAÇÕES",
     notificationCheckError: "Não foi possível verificar as notificações.",
+    personalizedNotifications: "LEMBRETES PERSONALIZADOS",
+    personalizedHelp: "Escolha quais áreas podem gerar acompanhamentos reais. Silêncio e deduplicação continuam sendo respeitados no servidor.",
+    preferenceLoadError: "Não foi possível carregar suas preferências de notificações.",
+    preferenceUpdateError: "Não foi possível atualizar esta preferência.",
+    tasks: "Tarefas",
+    projects: "Projetos",
+    studies: "Estudos",
+    agents: "Agents",
+    journeys: "Journeys",
+    community: "Comunidade",
+    integrations: "Integrações",
+    approvals: "Aprovações",
+    premiumLifecycle: "Premium e assinatura",
+    dailySummary: "Resumo diário",
     permission: "Permissão do sistema",
     channel: "Canal KIVRYN",
     expoProject: "Projeto Expo/EAS",
@@ -158,6 +176,20 @@ const settingsCopy = {
     nameUpdateError: "We couldn't update your name. Please try again.",
     notifications: "NOTIFICATIONS",
     notificationCheckError: "We couldn't check notifications.",
+    personalizedNotifications: "PERSONALIZED REMINDERS",
+    personalizedHelp: "Choose which areas may generate real follow-ups. Server quiet hours and deduplication still apply.",
+    preferenceLoadError: "We couldn't load your notification preferences.",
+    preferenceUpdateError: "We couldn't update this preference.",
+    tasks: "Tasks",
+    projects: "Projects",
+    studies: "Studies",
+    agents: "Agents",
+    journeys: "Journeys",
+    community: "Community",
+    integrations: "Integrations",
+    approvals: "Approvals",
+    premiumLifecycle: "Premium & subscription",
+    dailySummary: "Daily summary",
     permission: "System permission",
     channel: "KIVRYN channel",
     expoProject: "Expo/EAS project",
@@ -244,6 +276,11 @@ export default function Settings() {
     queryFn: listIntegrationReadiness,
     staleTime: 60_000,
   });
+  const notificationPreferences = useQuery({
+    queryKey: ["notification-preferences", session?.user.id],
+    queryFn: () => getNotificationPreferences(session!.user.id),
+    enabled: !!session?.user.id,
+  });
   const logout = useLogout();
   const client = useQueryClient();
   const [busy, setBusy] = useState(false),
@@ -282,13 +319,21 @@ export default function Settings() {
   const refetchProfile = profile.refetch;
   const refetchSubscription = subscription.refetch;
   const refetchIntegrations = integrations.refetch;
+  const refetchNotificationPreferences = notificationPreferences.refetch;
   useFocusEffect(
     useCallback(() => {
       void refreshNotifications();
       void refetchProfile();
       void refetchSubscription();
       void refetchIntegrations();
-    }, [refreshNotifications, refetchProfile, refetchSubscription, refetchIntegrations]),
+      void refetchNotificationPreferences();
+    }, [
+      refreshNotifications,
+      refetchProfile,
+      refetchSubscription,
+      refetchIntegrations,
+      refetchNotificationPreferences,
+    ]),
   );
 
   async function refresh() {
@@ -298,6 +343,7 @@ export default function Settings() {
       profile.refetch(),
       subscription.refetch(),
       integrations.refetch(),
+      notificationPreferences.refetch(),
     ]);
     setRefreshing(false);
   }
@@ -372,6 +418,35 @@ export default function Settings() {
                 ? text.registrationError
                 : text.activationError,
       );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function updateNotificationPreference(
+    key: keyof Pick<
+      MobileNotificationPreferences,
+      | "tasks_enabled"
+      | "projects_enabled"
+      | "studies_enabled"
+      | "agents_enabled"
+      | "journeys_enabled"
+      | "community_enabled"
+      | "integrations_enabled"
+      | "approvals_enabled"
+      | "premium_enabled"
+      | "daily_summary_enabled"
+    >,
+    value: boolean,
+  ) {
+    if (!session || busy) return;
+    setBusy(true);
+    setNoticeMessage(undefined);
+    try {
+      await saveNotificationPreferences(session.user.id, { [key]: value });
+      await notificationPreferences.refetch();
+    } catch {
+      setNoticeMessage(text.preferenceUpdateError);
     } finally {
       setBusy(false);
     }
@@ -608,6 +683,41 @@ export default function Settings() {
             <Text style={s.help}>{text.noticeUnavailable}</Text>
           )}
           {noticeMessage ? <Feedback text={noticeMessage} /> : null}
+
+          <Text style={s.subheading}>{text.personalizedNotifications}</Text>
+          <Text style={s.help}>{text.personalizedHelp}</Text>
+          {notificationPreferences.isPending ? (
+            <Text style={s.help}>{text.loading}</Text>
+          ) : notificationPreferences.isError ? (
+            <Retry
+              text={text.preferenceLoadError}
+              action={() => void notificationPreferences.refetch()}
+              retryLabel={text.retry}
+            />
+          ) : notificationPreferences.data ? (
+            <View style={s.preferenceList}>
+              {([
+                ["tasks_enabled", text.tasks],
+                ["projects_enabled", text.projects],
+                ["studies_enabled", text.studies],
+                ["agents_enabled", text.agents],
+                ["journeys_enabled", text.journeys],
+                ["community_enabled", text.community],
+                ["integrations_enabled", text.integrations],
+                ["approvals_enabled", text.approvals],
+                ["premium_enabled", text.premiumLifecycle],
+                ["daily_summary_enabled", text.dailySummary],
+              ] as const).map(([key, label]) => (
+                <PreferenceToggle
+                  key={key}
+                  label={label}
+                  value={notificationPreferences.data[key]}
+                  disabled={busy}
+                  onChange={(value) => void updateNotificationPreference(key, value)}
+                />
+              ))}
+            </View>
+          ) : null}
         </Section>
 
         <Section title={text.premium}>
@@ -815,6 +925,30 @@ function DiagnosticRow({ label, value, ready }: { label: string; value: string; 
   );
 }
 
+function PreferenceToggle({
+  label,
+  value,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  value: boolean;
+  disabled?: boolean;
+  onChange(value: boolean): void;
+}) {
+  return (
+    <View style={s.preferenceRow}>
+      <Text style={s.diagnosticLabel}>{label}</Text>
+      <Switch
+        accessibilityLabel={label}
+        disabled={disabled}
+        value={value}
+        onValueChange={onChange}
+      />
+    </View>
+  );
+}
+
 function Feedback({ text, error }: { text: string; error?: boolean }) {
   return (
     <Text accessibilityLiveRegion="polite" style={error ? s.error : s.success}>
@@ -909,6 +1043,23 @@ const s = StyleSheet.create({
   success: { ...typography.body, color: colors.success },
   error: { ...typography.body, color: colors.danger },
   inline: { gap: spacing.sm },
+  preferenceList: {
+    overflow: "hidden",
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+  },
+  preferenceRow: {
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.md,
+    paddingHorizontal: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
   diagnostics: {
     overflow: "hidden",
     borderRadius: radius.md,
