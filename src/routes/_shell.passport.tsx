@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { PageHeader, PageShell } from "@/components/page-shell";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { WorkspaceProgress, WorkspaceShell } from "@/components/workspace-ui";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage } from "@/providers/language-provider";
+import { transcribeVoiceAudio } from "@/services/voice-provider";
 import {
   addWebPassportVocabulary,
   completeWebPassportLesson,
@@ -83,6 +84,12 @@ const copy = {
     routeReady: "Pronto para ir",
     listening: "Listening",
     listen: "Ouvir exemplo",
+    repeat: "Repetir e comparar",
+    stopRecording: "Parar gravação",
+    transcribing: "Transcrevendo sua fala…",
+    heard: "A KIVRYN ouviu",
+    textMatch: "Correspondência de texto",
+    pronunciationNote: "A comparação usa somente a transcrição reconhecida. Não é uma nota de sotaque ou pronúncia.",
     noListening: "Nenhum exemplo de áudio disponível na próxima lição.",
     vocabulary: "Vocabulário para revisar",
     noVocabulary: "Tudo revisado por enquanto.",
@@ -163,6 +170,12 @@ const copy = {
     routeReady: "Ready to go",
     listening: "Listening",
     listen: "Play example",
+    repeat: "Repeat and compare",
+    stopRecording: "Stop recording",
+    transcribing: "Transcribing your speech…",
+    heard: "KIVRYN heard",
+    textMatch: "Text match",
+    pronunciationNote: "The comparison uses recognized transcription only. It is not an accent or pronunciation score.",
     noListening: "No listening example is available in the next lesson.",
     vocabulary: "Vocabulary to review",
     noVocabulary: "You're all caught up for now.",
@@ -238,6 +251,40 @@ function destinationsForTrack(track?: Track) {
     { flag: "🇬🇧", label: "UK" },
     { flag: "🇨🇦", label: "Canada" },
   ];
+}
+
+function normalizedWords(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+function textMatchPercent(expected: string, heard: string) {
+  const target = normalizedWords(expected);
+  const actual = normalizedWords(heard);
+  if (!target.length || !actual.length) return 0;
+  const remaining = [...actual];
+  let matched = 0;
+  for (const word of target) {
+    const index = remaining.indexOf(word);
+    if (index >= 0) {
+      matched += 1;
+      remaining.splice(index, 1);
+    }
+  }
+  return Math.round((matched / Math.max(target.length, actual.length)) * 100);
+}
+
+function passportSpeechLocale(track?: Track) {
+  const slug = track?.slug.toLowerCase() ?? "english";
+  if (slug === "spanish") return "es-ES";
+  if (slug === "portuguese") return "pt-BR";
+  if (slug === "french") return "fr-FR";
+  return "en-US";
 }
 
 function PassportWorkspace() {
@@ -572,17 +619,112 @@ function PassportReady({
   const [vocabularyTerm, setVocabularyTerm] = useState("");
   const [vocabularyTranslation, setVocabularyTranslation] = useState("");
   const [vocabularyContext, setVocabularyContext] = useState("");
+  const [listeningRecording, setListeningRecording] = useState(false);
+  const [listeningTranscribing, setListeningTranscribing] = useState(false);
+  const [listeningTranscript, setListeningTranscript] = useState("");
+  const [listeningMatch, setListeningMatch] = useState<number | null>(null);
+  const listeningRecorderRef = useRef<MediaRecorder | null>(null);
+  const listeningStreamRef = useRef<MediaStream | null>(null);
+  const listeningChunksRef = useRef<Blob[]>([]);
+  const listeningTimerRef = useRef<number | null>(null);
   const destinations = useMemo(() => destinationsForTrack(track), [track?.slug, track?.title]);
   const routeStages = [text.routeStart, text.routePractice, text.routeReal, text.routeReady];
   const studioTitle = `${(track?.title ?? text.language).toUpperCase()} LEARNING STUDIO`;
 
+  const speechLocale = passportSpeechLocale(track);
+
+  useEffect(
+    () => () => {
+      if (listeningTimerRef.current !== null) window.clearTimeout(listeningTimerRef.current);
+      const recorder = listeningRecorderRef.current;
+      if (recorder && recorder.state !== "inactive") {
+        recorder.onstop = null;
+        recorder.stop();
+      }
+      listeningStreamRef.current?.getTracks().forEach((item) => item.stop());
+      window.speechSynthesis?.cancel();
+    },
+    [],
+  );
+
   const playListening = () => {
     if (!listeningText || typeof window === "undefined" || !("speechSynthesis" in window)) return;
     const utterance = new SpeechSynthesisUtterance(listeningText);
-    const slug = track?.slug.toLowerCase() ?? "english";
-    utterance.lang = slug === "spanish" ? "es-ES" : slug === "portuguese" ? "pt-BR" : slug === "french" ? "fr-FR" : "en-US";
+    utterance.lang = speechLocale;
     window.speechSynthesis.cancel();
     window.speechSynthesis.speak(utterance);
+  };
+
+  const releaseListeningStream = () => {
+    listeningStreamRef.current?.getTracks().forEach((item) => item.stop());
+    listeningStreamRef.current = null;
+  };
+
+  const startListeningRepeat = async () => {
+    if (!listeningText || listeningRecording || listeningTranscribing) return;
+    if (
+      typeof navigator === "undefined" ||
+      !navigator.mediaDevices?.getUserMedia ||
+      typeof MediaRecorder === "undefined"
+    ) {
+      toast.error(locale === "en" ? "Microphone recording is not supported in this browser." : "A gravação de microfone não é compatível com este navegador.");
+      return;
+    }
+    try {
+      window.speechSynthesis?.cancel();
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      listeningStreamRef.current = stream;
+      const mimeType = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"].find((type) =>
+        MediaRecorder.isTypeSupported(type),
+      );
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      listeningChunksRef.current = [];
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) listeningChunksRef.current.push(event.data);
+      };
+      recorder.onstop = async () => {
+        if (listeningTimerRef.current !== null) window.clearTimeout(listeningTimerRef.current);
+        listeningTimerRef.current = null;
+        setListeningRecording(false);
+        releaseListeningStream();
+        const chunks = listeningChunksRef.current;
+        listeningChunksRef.current = [];
+        if (!chunks.length) return;
+        setListeningTranscribing(true);
+        try {
+          const transcript = await transcribeVoiceAudio(
+            new Blob(chunks, { type: recorder.mimeType || "audio/webm" }),
+            speechLocale,
+          );
+          setListeningTranscript(transcript);
+          setListeningMatch(textMatchPercent(listeningText, transcript));
+        } catch {
+          toast.error(locale === "en" ? "This recording could not be analyzed." : "Não foi possível analisar esta gravação.");
+        } finally {
+          setListeningTranscribing(false);
+        }
+      };
+      listeningRecorderRef.current = recorder;
+      setListeningTranscript("");
+      setListeningMatch(null);
+      recorder.start(250);
+      setListeningRecording(true);
+      listeningTimerRef.current = window.setTimeout(() => {
+        const active = listeningRecorderRef.current;
+        if (active && active.state !== "inactive") active.stop();
+      }, 45_000);
+    } catch {
+      releaseListeningStream();
+      setListeningRecording(false);
+      toast.error(locale === "en" ? "Allow microphone access to practice repetition." : "Permita o acesso ao microfone para praticar repetição.");
+    }
+  };
+
+  const stopListeningRepeat = () => {
+    if (listeningTimerRef.current !== null) window.clearTimeout(listeningTimerRef.current);
+    listeningTimerRef.current = null;
+    const recorder = listeningRecorderRef.current;
+    if (recorder && recorder.state !== "inactive") recorder.stop();
   };
 
   const saveVocabulary = () => {
@@ -693,7 +835,30 @@ function PassportReady({
         <article className="v2-surface rounded-2xl p-5">
           <h3 className="text-lg font-semibold">{text.listening}</h3>
           <p className="mt-2 text-sm text-muted-foreground">{listeningText || text.noListening}</p>
-          {listeningText ? <Button className="mt-4" onClick={playListening}>{text.listen}</Button> : null}
+          {listeningText ? (
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button onClick={playListening}>{text.listen}</Button>
+              <Button
+                variant="outline"
+                disabled={listeningTranscribing}
+                onClick={() => (listeningRecording ? stopListeningRepeat() : void startListeningRepeat())}
+              >
+                {listeningTranscribing
+                  ? text.transcribing
+                  : listeningRecording
+                    ? text.stopRecording
+                    : text.repeat}
+              </Button>
+            </div>
+          ) : null}
+          {listeningTranscript ? (
+            <div className="mt-4 rounded-xl border border-border bg-background/40 p-4">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">{text.heard}</p>
+              <p className="mt-2 text-sm">{listeningTranscript}</p>
+              <p className="mt-3 font-semibold">{text.textMatch}: {listeningMatch ?? 0}%</p>
+              <p className="mt-2 text-xs text-muted-foreground">{text.pronunciationNote}</p>
+            </div>
+          ) : null}
         </article>
 
         <article className="v2-surface rounded-2xl p-5">
