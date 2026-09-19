@@ -15,6 +15,7 @@ export type NotificationPreferences = {
   agents_enabled: boolean;
   journeys_enabled: boolean;
   community_enabled: boolean;
+  challenges_enabled: boolean;
   integrations_enabled: boolean;
   approvals_enabled: boolean;
   premium_enabled: boolean;
@@ -47,6 +48,7 @@ const defaults: NotificationPreferences = {
   agents_enabled: true,
   journeys_enabled: true,
   community_enabled: true,
+  challenges_enabled: true,
   integrations_enabled: true,
   approvals_enabled: true,
   premium_enabled: true,
@@ -99,7 +101,7 @@ export const PushService = {
     const { data, error } = await db
       .from("notification_preferences")
       .select(
-        "tasks_enabled,projects_enabled,studies_enabled,studio_enabled,agents_enabled,journeys_enabled,community_enabled,integrations_enabled,approvals_enabled,premium_enabled,daily_summary_enabled,timezone,quiet_hours_start,quiet_hours_end",
+        "tasks_enabled,projects_enabled,studies_enabled,studio_enabled,agents_enabled,journeys_enabled,community_enabled,challenges_enabled,integrations_enabled,approvals_enabled,premium_enabled,daily_summary_enabled,timezone,quiet_hours_start,quiet_hours_end",
       )
       .eq("user_id", userId)
       .maybeSingle();
