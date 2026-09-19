@@ -369,13 +369,24 @@ export function creatorNextAction(input: {
 }
 
 export type CreatorConnectionStatus =
-  "not_connected" | "authorizing" | "connected" | "expired" | "revoked" | "error";
+  | "not_connected"
+  | "authorizing"
+  | "connected"
+  | "needs_permission"
+  | "expired"
+  | "revoked"
+  | "error";
 export type CreatorPlatformConnection = {
   id: string;
   platform: "youtube" | "tiktok" | "instagram";
   status: CreatorConnectionStatus;
   displayName?: string;
+  externalAccountId?: string;
+  avatarUrl?: string;
+  accountType?: string;
   lastSuccessAt?: string;
+  safeErrorCode?: string;
+  grantedScopes: string[];
   grantedMetrics: string[];
 };
 export const CREATOR_PROVIDER_CAPABILITIES = {
