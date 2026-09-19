@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useLanguage } from "@/providers/language-provider";
 import { ProjectService, TaskService, workspaceQueryKeys, type Task } from "@/services";
 import { useAuth } from "@/lib/auth-context";
+import { workspaceMutationError } from "@/lib/mutation-errors";
 
 export const Route = createFileRoute("/_shell/productivity")({
   head: () => ({ meta: [{ title: "Tarefas — KIVRYN" }] }),
@@ -134,12 +135,12 @@ function Productivity() {
   const toggle = useMutation({
     mutationFn: TaskService.toggleTask,
     onSuccess: () => void refresh(),
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(workspaceMutationError(error).message),
   });
   const remove = useMutation({
     mutationFn: TaskService.removeTask,
     onSuccess: () => void refresh(),
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(workspaceMutationError(error).message),
   });
   const quickAdd = useMutation({
     mutationFn: (title: string) =>
@@ -150,7 +151,7 @@ function Productivity() {
       toast.success(text.created);
       void refresh();
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(workspaceMutationError(error).message),
   });
 
   const projects = Array.isArray(projectsQuery.data) ? projectsQuery.data : [];
@@ -437,7 +438,7 @@ function TaskDialog({
       toast.success(task ? labels.updated : labels.created);
       onSaved();
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(workspaceMutationError(error).message),
   });
 
   return (
