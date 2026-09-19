@@ -440,6 +440,81 @@ export async function importCreatorVideoFromUrl(input: {
 
 export type CreatorProvider = "youtube" | "tiktok";
 
+export type CreatorProviderConnectionErrorCode =
+  | "configuration_error"
+  | "origin_not_allowed"
+  | "redirect_not_allowed"
+  | "provider_not_configured"
+  | "oauth_state_failed"
+  | "provider_pending_approval"
+  | "unauthorized"
+  | "permission_denied"
+  | "oauth_provider_error"
+  | "invalid_oauth_callback"
+  | "token_exchange_failed"
+  | "identity_failed"
+  | "connection_persistence_failed"
+  | "credential_persistence_failed"
+  | "provider_request_failed";
+
+const CREATOR_PROVIDER_CONNECTION_ERROR_CODES = new Set<CreatorProviderConnectionErrorCode>([
+  "configuration_error",
+  "origin_not_allowed",
+  "redirect_not_allowed",
+  "provider_not_configured",
+  "oauth_state_failed",
+  "provider_pending_approval",
+  "unauthorized",
+  "permission_denied",
+  "oauth_provider_error",
+  "invalid_oauth_callback",
+  "token_exchange_failed",
+  "identity_failed",
+  "connection_persistence_failed",
+  "credential_persistence_failed",
+  "provider_request_failed",
+]);
+
+export class CreatorProviderConnectionError extends Error {
+  constructor(public readonly code: CreatorProviderConnectionErrorCode) {
+    super(code);
+    this.name = "CreatorProviderConnectionError";
+  }
+}
+
+function isCreatorProviderConnectionErrorCode(
+  value: unknown,
+): value is CreatorProviderConnectionErrorCode {
+  return (
+    typeof value === "string" &&
+    CREATOR_PROVIDER_CONNECTION_ERROR_CODES.has(value as CreatorProviderConnectionErrorCode)
+  );
+}
+
+async function creatorProviderInvokeError(error: unknown): Promise<CreatorProviderConnectionError> {
+  const context =
+    error && typeof error === "object" && "context" in error
+      ? (error as { context?: unknown }).context
+      : null;
+  if (context && typeof context === "object" && "clone" in context) {
+    try {
+      const response = (context as Response).clone();
+      const payload = (await response.json()) as { error?: { code?: unknown }; code?: unknown };
+      const code = payload?.error?.code ?? payload?.code;
+      if (isCreatorProviderConnectionErrorCode(code)) {
+        return new CreatorProviderConnectionError(code);
+      }
+    } catch {
+      // Never surface raw provider/server responses.
+    }
+  }
+  const message = error instanceof Error ? error.message : "";
+  const code = [...CREATOR_PROVIDER_CONNECTION_ERROR_CODES].find((candidate) =>
+    message.includes(candidate),
+  );
+  return new CreatorProviderConnectionError(code ?? "provider_request_failed");
+}
+
 export async function cancelCreatorJob(jobId: string) {
   const { data, error } = await db.rpc("cancel_creator_job", { p_job_id: jobId });
   if (error) throw error;
@@ -485,8 +560,9 @@ export async function startCreatorProviderConnection(input: {
   }>("creator-oauth-start", {
     body: { provider: input.provider, redirectUri: input.redirectUri },
   });
-  if (error || !data?.authorizationUrl) {
-    throw error ?? new Error("Provider connection is unavailable.");
+  if (error) throw await creatorProviderInvokeError(error);
+  if (!data?.authorizationUrl) {
+    throw new CreatorProviderConnectionError("provider_request_failed");
   }
   return data.authorizationUrl;
 }
