@@ -18,6 +18,7 @@ const journeysService = read("src/services/parity-service.ts");
 const webPremium = read("src/routes/_shell.premium.tsx");
 const mobilePremium = read("mobile/app/(app)/premium.tsx");
 const languageProvider = read("src/providers/language-provider.tsx");
+const runtimeErrors = read("src/services/runtime-error-service.ts");
 
 test("E83 keeps canonical Free workspace caps server-authoritative", () => {
   assert.match(freeLimits, /resource := 'projects'; cap := 3/);
@@ -80,4 +81,14 @@ test("E84 language provider hydrates deterministically before reading browser st
   assert.match(languageProvider, /window\.localStorage\.getItem\(LANGUAGE_STORAGE_KEY\)/);
   assert.match(languageProvider, /navigator\.languages/);
   assert.doesNotMatch(languageProvider, /useState<LanguagePreference>\(initialPreference\)/);
+});
+
+test("E84 telemetry ignores only explicit browser-extension fingerprints", () => {
+  assert.match(runtimeErrors, /__firefox__/);
+  assert.match(runtimeErrors, /moz-extension:\/\//);
+  assert.match(runtimeErrors, /chrome-extension:\/\//);
+  assert.match(runtimeErrors, /safari-web-extension:\/\//);
+  assert.match(runtimeErrors, /isKnownExternalBrowserNoise/);
+  assert.doesNotMatch(runtimeErrors, /message === "Script error\."/);
+  assert.doesNotMatch(runtimeErrors, /includes\("script error"\)/i);
 });
