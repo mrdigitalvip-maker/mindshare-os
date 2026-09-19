@@ -513,6 +513,8 @@ function CreatorStudio() {
       platform: String(row.platform ?? ""),
       capturedAt: String(row.captured_at ?? ""),
       publishedAt: typeof row.published_at === "string" ? row.published_at : undefined,
+      weekday: typeof row.weekday === "number" ? row.weekday : undefined,
+      hour: typeof row.hour === "number" ? row.hour : undefined,
       contentType: typeof row.content_type === "string" ? row.content_type : undefined,
       metrics: metricRecord(row.metrics),
     }));
