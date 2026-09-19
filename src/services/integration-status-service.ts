@@ -15,11 +15,23 @@ export type IntegrationProviderStatus = {
   authMode: "oauth" | "unconfigured";
   credentialBoundary: "server_only";
   capabilities: string[];
+  availableCapabilities: string[];
   runtimeConfigured: boolean;
   connectionStatus: string;
+  connectionState:
+    | "not_connected"
+    | "connected"
+    | "needs_permission"
+    | "expired"
+    | "disconnected"
+    | "error"
+    | string;
   connectionId: string | null;
   displayName: string | null;
+  avatarUrl: string | null;
   lastSuccessAt: string | null;
+  safeErrorCode: string | null;
+  grantedScopes: string[];
   canConnect: boolean;
 };
 
