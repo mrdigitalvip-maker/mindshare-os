@@ -78,7 +78,11 @@ Deno.serve(async (request) => {
     return jsonResponse(request, { error: { code: "oauth_state_failed" } }, 500);
   }
 
-  const callback = `${url}/functions/v1/creator-oauth-callback`;
+  const callbackFunction =
+    provider === "gmail" || provider === "google_calendar" || provider === "google_drive"
+      ? "google-oauth-callback"
+      : "creator-oauth-callback";
+  const callback = `${url}/functions/v1/${callbackFunction}`;
   const params = new URLSearchParams(
     isGoogleOAuthProvider(provider)
       ? {

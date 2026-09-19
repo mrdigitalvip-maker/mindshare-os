@@ -20,7 +20,11 @@ export function providerClientId(provider: CreatorProvider) {
   if (provider === "tiktok") return Deno.env.get("TIKTOK_CLIENT_KEY");
   if (provider === "youtube") return Deno.env.get("YOUTUBE_CLIENT_ID");
   if (isGoogleOAuthProvider(provider)) {
-    return Deno.env.get("GOOGLE_WORKSPACE_CLIENT_ID") ?? Deno.env.get("YOUTUBE_CLIENT_ID");
+    return (
+      Deno.env.get("GOOGLE_WORKSPACE_CLIENT_ID") ??
+      Deno.env.get("GOOGLE_OAUTH_CLIENT_ID") ??
+      Deno.env.get("YOUTUBE_CLIENT_ID")
+    );
   }
   return undefined;
 }
@@ -29,7 +33,11 @@ export function providerClientSecret(provider: CreatorProvider) {
   if (provider === "tiktok") return Deno.env.get("TIKTOK_CLIENT_SECRET");
   if (provider === "youtube") return Deno.env.get("YOUTUBE_CLIENT_SECRET");
   if (isGoogleOAuthProvider(provider)) {
-    return Deno.env.get("GOOGLE_WORKSPACE_CLIENT_SECRET") ?? Deno.env.get("YOUTUBE_CLIENT_SECRET");
+    return (
+      Deno.env.get("GOOGLE_WORKSPACE_CLIENT_SECRET") ??
+      Deno.env.get("GOOGLE_OAUTH_CLIENT_SECRET") ??
+      Deno.env.get("YOUTUBE_CLIENT_SECRET")
+    );
   }
   return undefined;
 }

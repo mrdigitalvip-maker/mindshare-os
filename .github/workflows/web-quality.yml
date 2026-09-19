@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - "src/**"
+      - "supabase/functions/**"
+      - ".env.example"
       - "tests/**"
       - "package.json"
       - "bun.lock"

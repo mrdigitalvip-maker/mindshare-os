@@ -42,6 +42,17 @@ Deno.serve(async (request) => {
   if (!consumed) return new Response("Expired or invalid OAuth state", { status: 400 });
   const provider = oauth.provider as CreatorProvider,
     config = PROVIDERS[provider];
+  const callbackFunction = new URL(request.url).pathname.endsWith("/google-oauth-callback")
+    ? "google-oauth-callback"
+    : "creator-oauth-callback";
+  if (
+    callbackFunction === "google-oauth-callback" &&
+    provider !== "gmail" &&
+    provider !== "google_calendar" &&
+    provider !== "google_drive"
+  ) {
+    return redirect(oauth.redirect_uri, "error", "unsupported_provider", provider);
+  }
   if (providerError || !code) {
     const safeError = providerError === "access_denied" ? "access_denied" : "oauth_callback_failed";
     return redirect(oauth.redirect_uri, "error", safeError, provider);
@@ -53,7 +64,7 @@ Deno.serve(async (request) => {
   if (!clientId || !clientSecret)
     return redirect(oauth.redirect_uri, "error", "provider_not_configured", provider);
   const verifier = await decryptServerSecret(oauth.pkce_verifier_ciphertext),
-    callback = `${url}/functions/v1/creator-oauth-callback`;
+    callback = `${url}/functions/v1/${callbackFunction}`;
   const body = new URLSearchParams(
     isGoogleOAuthProvider(provider)
       ? {
