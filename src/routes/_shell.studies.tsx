@@ -26,6 +26,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/lib/auth-context";
+import { workspaceMutationError } from "@/lib/mutation-errors";
 import { StudyService, workspaceQueryKeys } from "@/services";
 import { WorkspaceProgress } from "@/components/workspace-ui";
 
@@ -111,8 +112,10 @@ function StudiesIndex() {
       }
       nav({ to: "/studies/$subjectId", params: { subjectId: subject.id } });
     },
-    onError: (error: Error) =>
-      toast.error("Não foi possível criar a matéria", { description: error.message }),
+    onError: (error: unknown) => {
+      const mapped = workspaceMutationError(error);
+      toast.error(mapped.message);
+    },
   });
 
   useEffect(() => {
