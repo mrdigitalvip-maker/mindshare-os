@@ -20,9 +20,10 @@ test("E23 exposes the real clipping workflow instead of creating presentation-on
   assert.match(route, /rerenderCreatorClip/);
   assert.match(service, /rpc\("cancel_creator_job"/);
   assert.match(service, /rpc\("enqueue_creator_rerender"/);
-  assert.match(worker, /diversify\(scored, 3\)/);
+  assert.match(worker, /selectQualityCandidates\(scored/);
   assert.match(worker, /render_version:/);
   assert.match(workerDomain, /if \(out\.length\) return out/);
+  assert.match(workerDomain, /selectQualityCandidates/);
   assert.match(workerDomain, /const maxWindow = Math\.min\(60_000/);
   assert.match(workerDomain, /require spoken text|require spoken|text\) out\.push/i);
   assert.doesNotMatch(route, /const\s+(?:demo|sample|fake)Clips?\s*=/i);
