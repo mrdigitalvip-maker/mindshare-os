@@ -18,7 +18,8 @@ test("E63 accepts the canonical KIVRYN OAuth return without depending on APP_URL
   assert.match(intelligence,/allowedOrigins\.has\(target\.origin\)/);
   assert.match(intelligence,/target\.pathname === "\/creator"/);
   assert.match(intelligence,/target\.pathname === "\/settings"/);
-  assert.match(oauthStart,/callback = `\$\{url\}\/functions\/v1\/creator-oauth-callback`/);
+  assert.match(oauthStart,/provider === "gmail"[\s\S]*"google-oauth-callback"[\s\S]*"creator-oauth-callback"/);
+  assert.match(oauthStart,/callback = `\$\{url\}\/functions\/v1\/\$\{callbackFunction\}`/);
   assert.match(oauthStart,/code_challenge_method: "S256"/);
 });
 
