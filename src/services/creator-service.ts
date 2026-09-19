@@ -491,13 +491,20 @@ export async function startCreatorProviderConnection(input: {
   return data.authorizationUrl;
 }
 
-export async function syncCreatorProviderAnalytics(connectionId?: string) {
+export async function syncCreatorProviderAnalytics(
+  connectionId?: string,
+  provider?: CreatorProvider,
+) {
   const { data, error } = await supabase.functions.invoke<{
     synced?: number;
     snapshots?: number;
     content?: number;
   }>("creator-analytics-sync", {
-    body: { action: "sync", ...(connectionId ? { connectionId } : {}) },
+    body: {
+      action: "sync",
+      ...(connectionId ? { connectionId } : {}),
+      ...(provider ? { provider } : {}),
+    },
   });
   if (error || !data) throw error ?? new Error("Creator analytics sync failed.");
   return data;
