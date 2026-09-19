@@ -92,6 +92,12 @@ const copy = {
     transcribing: "Transcrevendo voz…",
     microphoneDenied: "Permita o acesso ao microfone para usar a entrada de voz.",
     transcriptionFailed: "Não foi possível transcrever o áudio.",
+    voiceConversation: "Conversa por voz",
+    voiceConversationActive: "Conversa por voz ativa",
+    voiceConversationBody: "Ative para enviar a fala transcrita e ouvir a resposta automaticamente.",
+    voiceConversationBodyActive: "Toque no microfone para cada turno. Ações continuam exigindo confirmação manual.",
+    activateVoiceConversation: "Ativar",
+    endVoiceConversation: "Encerrar",
   },
   en: {
     title: "KIVRYN",
@@ -111,6 +117,12 @@ const copy = {
     transcribing: "Transcribing voice…",
     microphoneDenied: "Allow microphone access to use voice input.",
     transcriptionFailed: "The audio could not be transcribed.",
+    voiceConversation: "Voice conversation",
+    voiceConversationActive: "Voice conversation active",
+    voiceConversationBody: "Enable to send transcribed speech and hear replies automatically.",
+    voiceConversationBodyActive: "Tap the microphone for each turn. Actions still require manual confirmation.",
+    activateVoiceConversation: "Enable",
+    endVoiceConversation: "End",
   },
 } as const;
 
@@ -136,6 +148,7 @@ export default function AssistantChat() {
   const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const recorderState = useAudioRecorderState(audioRecorder, 200);
   const [transcribing, setTranscribing] = useState(false);
+  const [voiceConversationMode, setVoiceConversationMode] = useState(false);
   const [draft, setDraft] = useState("");
   const [attachment, setAttachment] = useState<LocalChatAttachment | null>(null);
   const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
@@ -169,9 +182,12 @@ export default function AssistantChat() {
 
   useEffect(
     () => () => {
+      voiceSession.current += 1;
       void Speech.stop();
+      void audioRecorder.stop().catch(() => undefined);
+      void setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }).catch(() => undefined);
     },
-    [],
+    [audioRecorder],
   );
 
   const validateDraft = (next: LocalChatAttachment) => {
@@ -261,6 +277,7 @@ export default function AssistantChat() {
     applyingActions.current.clear();
     handledPrompt.current = undefined;
     setProposal(null);
+    setVoiceConversationMode(false);
     setDraft("");
     setAttachment(null);
     setFailed(null);
@@ -276,22 +293,74 @@ export default function AssistantChat() {
     void setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }).catch(() => undefined);
     applyingActions.current.clear();
     setProposal(null);
+    setVoiceConversationMode(false);
     setFailed(null);
     setOptimistic(null);
     setHistoryOpen(false);
     router.replace({ pathname: "/(app)/(tabs)/assistant-chat", params: { conversationId: id } });
   }, [audioRecorder, recorderState.isRecording]);
 
+  const speakAssistantMessage = useCallback(
+    async (item: ChatMessage) => {
+      await Speech.stop();
+      setSpeakingId(item.id);
+      Speech.speak(item.content, {
+        language: resolvedLocale === "pt-BR" ? "pt-BR" : "en-US",
+        onDone: () => setSpeakingId(null),
+        onStopped: () => setSpeakingId(null),
+        onError: () => {
+          setSpeakingId(null);
+          Alert.alert("Áudio indisponível", "Não foi possível reproduzir esta resposta.");
+        },
+      });
+    },
+    [resolvedLocale],
+  );
+
+  const toggleVoiceConversationMode = useCallback(() => {
+    if (send.isPending || uploading || transcribing || recorderState.isRecording) return;
+    if (voiceConversationMode) {
+      void Speech.stop();
+      setSpeakingId(null);
+      setVoiceConversationMode(false);
+      return;
+    }
+    if (attachment) {
+      Alert.alert(
+        text.voiceConversation,
+        resolvedLocale === "en"
+          ? "Remove the attachment before starting a voice conversation."
+          : "Remova o anexo antes de iniciar uma conversa por voz.",
+      );
+      return;
+    }
+    setVoiceConversationMode(true);
+  }, [
+    attachment,
+    recorderState.isRecording,
+    resolvedLocale,
+    send.isPending,
+    text.voiceConversation,
+    transcribing,
+    uploading,
+    voiceConversationMode,
+  ]);
+
   const submit = useCallback(
-    async (value: string, retryId?: string, retryAttachment?: ChatAttachment) => {
+    async (
+      value: string,
+      retryId?: string,
+      retryAttachment?: ChatAttachment,
+      options: { fromVoice?: boolean } = {},
+    ) => {
       const content = value.trim();
+      const currentAttachment = options.fromVoice ? null : attachment;
       if (
-        (!content && !attachment) ||
+        (!content && !currentAttachment) ||
         submitting.current ||
         send.isPending ||
         uploading ||
-        transcribing ||
-        recorderState.isRecording
+        (!options.fromVoice && (transcribing || recorderState.isRecording))
       ) return;
       submitting.current = true;
       setProposal(null);
@@ -299,12 +368,12 @@ export default function AssistantChat() {
       const preservedDraft = content;
       if (!retryId) setDraft("");
       setFailed(null);
-      setUploading(Boolean(attachment && !retryAttachment));
+      setUploading(Boolean(currentAttachment && !retryAttachment));
       let uploaded = retryAttachment;
       try {
-        uploaded ??= attachment ? await uploadChatAttachment(attachment, id) : undefined;
+        uploaded ??= currentAttachment ? await uploadChatAttachment(currentAttachment, id) : undefined;
         const finalContent =
-          content || (attachment?.kind === "image" ? "Analise esta imagem." : "Analise este arquivo.");
+          content || (currentAttachment?.kind === "image" ? "Analise esta imagem." : "Analise este arquivo.");
         setOptimistic({
           id,
           role: "user",
@@ -337,6 +406,9 @@ export default function AssistantChat() {
         setAttachment(null);
         if (!conversationId) router.setParams({ conversationId: result.conversationId });
         setOptimistic(null);
+        if (voiceConversationMode) {
+          await speakAssistantMessage(result.assistantMessage);
+        }
       } catch (error) {
         const code = error instanceof ChatServiceError ? error.code : undefined;
         if (__DEV__) {
@@ -360,7 +432,16 @@ export default function AssistantChat() {
         setUploading(false);
       }
     },
-    [attachment, conversationId, recorderState.isRecording, send, transcribing, uploading],
+    [
+      attachment,
+      conversationId,
+      recorderState.isRecording,
+      send,
+      speakAssistantMessage,
+      transcribing,
+      uploading,
+      voiceConversationMode,
+    ],
   );
 
   useEffect(() => {
@@ -395,6 +476,18 @@ export default function AssistantChat() {
 
   const startVoiceInput = async () => {
     if (send.isPending || uploading || transcribing || recorderState.isRecording) return;
+    if (
+      voiceConversationMode &&
+      proposal?.items.some((item) => item.status === "pending" || item.status === "failed")
+    ) {
+      Alert.alert(
+        text.voiceConversation,
+        resolvedLocale === "en"
+          ? "Review the proposed action before continuing the voice conversation."
+          : "Revise a ação proposta antes de continuar a conversa por voz.",
+      );
+      return;
+    }
     try {
       const permission = await AudioModule.requestRecordingPermissionsAsync();
       if (!permission.granted) {
@@ -416,6 +509,7 @@ export default function AssistantChat() {
   const stopVoiceInput = async () => {
     if (!recorderState.isRecording || transcribing) return;
     const session = voiceSession.current;
+    let transcriptToSend = "";
     setTranscribing(true);
     try {
       await audioRecorder.stop();
@@ -423,11 +517,16 @@ export default function AssistantChat() {
       if (!uri) throw new Error("missing_recording");
       const transcript = await transcribeAssistantRecording(uri, resolvedLocale);
       if (transcript && session === voiceSession.current) {
-        setDraft((current) => {
-          const base = current.trim();
-          return base ? `${base} ${transcript}` : transcript;
-        });
         setFailed(null);
+        if (voiceConversationMode) {
+          transcriptToSend = transcript;
+          setDraft("");
+        } else {
+          setDraft((current) => {
+            const base = current.trim();
+            return base ? `${base} ${transcript}` : transcript;
+          });
+        }
       }
     } catch {
       Alert.alert(text.speak, text.transcriptionFailed);
@@ -435,25 +534,19 @@ export default function AssistantChat() {
       await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }).catch(() => undefined);
       setTranscribing(false);
     }
+    if (transcriptToSend) {
+      await submit(transcriptToSend, undefined, undefined, { fromVoice: true });
+    }
   };
 
   const toggleSpeech = async (item: ChatMessage) => {
     try {
-      await Speech.stop();
       if (speakingId === item.id) {
+        await Speech.stop();
         setSpeakingId(null);
         return;
       }
-      setSpeakingId(item.id);
-      Speech.speak(item.content, {
-        language: resolvedLocale === "pt-BR" ? "pt-BR" : "en-US",
-        onDone: () => setSpeakingId(null),
-        onStopped: () => setSpeakingId(null),
-        onError: () => {
-          setSpeakingId(null);
-          Alert.alert("Áudio indisponível", "Não foi possível reproduzir esta resposta.");
-        },
-      });
+      await speakAssistantMessage(item);
     } catch {
       setSpeakingId(null);
       Alert.alert("Áudio indisponível", "Não foi possível reproduzir esta resposta.");
@@ -787,12 +880,37 @@ export default function AssistantChat() {
         ) : null}
 
         <View style={styles.composerWrap}>
+          <View style={styles.voiceConversationBar}>
+            <View style={styles.voiceConversationCopy}>
+              <Text style={styles.voiceConversationTitle}>
+                {voiceConversationMode ? text.voiceConversationActive : text.voiceConversation}
+              </Text>
+              <Text style={styles.voiceConversationBody}>
+                {voiceConversationMode ? text.voiceConversationBodyActive : text.voiceConversationBody}
+              </Text>
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ selected: voiceConversationMode }}
+              disabled={send.isPending || uploading || transcribing || recorderState.isRecording}
+              onPress={toggleVoiceConversationMode}
+              style={({ pressed }) => [
+                styles.voiceConversationToggle,
+                voiceConversationMode && styles.voiceConversationToggleActive,
+                pressed && styles.pressed,
+              ]}
+            >
+              <Text style={styles.voiceConversationToggleText}>
+                {voiceConversationMode ? text.endVoiceConversation : text.activateVoiceConversation}
+              </Text>
+            </Pressable>
+          </View>
           <View style={styles.composer}>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Adicionar anexo"
-              accessibilityState={{ disabled: busy, expanded: attachmentMenuOpen }}
-              disabled={busy}
+              accessibilityState={{ disabled: busy || voiceConversationMode, expanded: attachmentMenuOpen }}
+              disabled={busy || voiceConversationMode}
               onPress={() => {
                 Keyboard.dismiss();
                 setAttachmentMenuOpen(true);
@@ -1136,6 +1254,32 @@ const styles = StyleSheet.create({
   },
   menuActionIcon: { color: colors.primaryBright, fontSize: 22 },
   menuActionText: { ...typography.caption, color: colors.text },
+  voiceConversationBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    marginHorizontal: spacing.sm,
+    marginBottom: spacing.sm,
+    padding: spacing.sm,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  voiceConversationCopy: { flex: 1, minWidth: 0 },
+  voiceConversationTitle: { ...typography.label, color: colors.text },
+  voiceConversationBody: { ...typography.caption, color: colors.textMuted, marginTop: 2 },
+  voiceConversationToggle: {
+    minHeight: 36,
+    paddingHorizontal: spacing.md,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.borderActive,
+  },
+  voiceConversationToggleActive: { backgroundColor: colors.surfaceRaised },
+  voiceConversationToggleText: { ...typography.label, color: colors.primaryBright },
   composerWrap: {
     paddingHorizontal: spacing.sm,
     paddingTop: spacing.xs,

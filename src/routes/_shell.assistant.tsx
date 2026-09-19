@@ -112,6 +112,7 @@ function Assistant() {
   const [contentPreview, setContentPreview] = useState<{ title: string; body: string } | null>(null);
   const [proposal, setProposal] = useState<ProposalState | null>(null);
   const [voiceInputState, setVoiceInputState] = useState<"idle" | "recording" | "transcribing">("idle");
+  const [voiceConversationMode, setVoiceConversationMode] = useState(false);
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -182,6 +183,7 @@ function Assistant() {
     if (isSending) return;
     cancelVoiceInput();
     stopSpeaking();
+    setVoiceConversationMode(false);
     setLoadError(null);
     setProposal(null);
     applyingActions.current.clear();
@@ -200,6 +202,7 @@ function Assistant() {
   function createConversation() {
     cancelVoiceInput();
     stopSpeaking();
+    setVoiceConversationMode(false);
     startConversation();
     applyingActions.current.clear();
     setProposal(null);
@@ -274,7 +277,13 @@ function Assistant() {
     recognition.continuous = false;
     recognition.onresult = (event) => {
       const transcript = event.results[0]?.[0]?.transcript?.trim();
-      if (transcript && session === voiceSessionRef.current) appendTranscript(transcript);
+      if (transcript && session === voiceSessionRef.current) {
+        if (voiceConversationMode) {
+          void send(transcript, { fromVoice: true, speakReply: true });
+        } else {
+          appendTranscript(transcript);
+        }
+      }
     };
     recognition.onerror = () => {
       toast.error("Não foi possível reconhecer sua voz.");
@@ -308,8 +317,13 @@ function Assistant() {
         voiceLocale(),
       );
       if (session !== voiceSessionRef.current) return;
-      appendTranscript(transcript);
-      toast.success("Áudio transcrito. Revise antes de enviar.");
+      if (voiceConversationMode) {
+        setVoiceInputState("idle");
+        await send(transcript, { fromVoice: true, speakReply: true });
+      } else {
+        appendTranscript(transcript);
+        toast.success("Áudio transcrito. Revise antes de enviar.");
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Não foi possível transcrever o áudio.");
     } finally {
@@ -319,6 +333,13 @@ function Assistant() {
 
   async function startVoiceInput() {
     if (isSending || voiceInputState !== "idle") return;
+    if (
+      voiceConversationMode &&
+      proposal?.items.some((item) => item.status === "pending" || item.status === "failed")
+    ) {
+      toast.info("Revise a ação proposta antes de continuar a conversa por voz.");
+      return;
+    }
     stopSpeaking();
 
     const canRecord =
@@ -385,12 +406,7 @@ function Assistant() {
     setSpeakingMessageId(null);
   }
 
-  async function toggleMessageSpeech(message: ChatMessage) {
-    if (speakingMessageId === message.id) {
-      stopSpeaking();
-      return;
-    }
-
+  async function speakMessage(message: ChatMessage) {
     stopSpeaking();
     const server = serverVoiceRef.current ?? new ElevenLabsVoiceProvider();
     const fallback = fallbackVoiceRef.current ?? new FallbackVoiceProvider();
@@ -415,9 +431,32 @@ function Assistant() {
     }
   }
 
-  async function send(text: string) {
+  async function toggleMessageSpeech(message: ChatMessage) {
+    if (speakingMessageId === message.id) {
+      stopSpeaking();
+      return;
+    }
+    await speakMessage(message);
+  }
+
+  function toggleVoiceConversationMode() {
+    if (isSending || voiceInputState !== "idle") return;
+    if (voiceConversationMode) {
+      stopSpeaking();
+      setVoiceConversationMode(false);
+      toast.success("Conversa por voz encerrada.");
+      return;
+    }
+    setVoiceConversationMode(true);
+    toast.success("Conversa por voz ativa. Toque no microfone para cada turno.");
+  }
+
+  async function send(
+    text: string,
+    options: { fromVoice?: boolean; speakReply?: boolean } = {},
+  ) {
     const normalized = text.trim();
-    if (!normalized || isSending || voiceInputState !== "idle") return;
+    if (!normalized || isSending || (!options.fromVoice && voiceInputState !== "idle")) return;
     const optimistic: ChatMessage = { id: createClientId(), role: "user", content: normalized };
     setProposal(null);
     setMessages((current) => [...current, optimistic]);
@@ -448,6 +487,9 @@ function Assistant() {
           : null,
       );
       setActiveId(result.conversationId);
+      if (options.speakReply || voiceConversationMode) {
+        await speakMessage(result.assistantMessage);
+      }
       await queryClient.invalidateQueries({ queryKey: conversationsKey });
       await queryClient.invalidateQueries({ queryKey: workspaceQueryKeys.dashboard(user?.id) });
     } catch (error) {
@@ -677,6 +719,28 @@ function Assistant() {
         </div>
 
         <div className="px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 sm:px-4 md:px-8">
+          <div className="mx-auto mb-2 flex max-w-3xl items-center justify-between gap-3 rounded-xl border border-border/70 bg-surface-elevated/50 px-3 py-2">
+            <div className="min-w-0">
+              <p className="text-xs font-medium">
+                {voiceConversationMode ? "Conversa por voz ativa" : "Conversa por voz"}
+              </p>
+              <p className="truncate text-[10px] text-muted-foreground">
+                {voiceConversationMode
+                  ? "Toque no microfone para cada turno. Respostas são faladas; ações continuam exigindo confirmação."
+                  : "Ative para enviar a fala após a transcrição e ouvir a resposta automaticamente."}
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant={voiceConversationMode ? "secondary" : "outline"}
+              aria-pressed={voiceConversationMode}
+              disabled={isSending || voiceInputState !== "idle"}
+              onClick={toggleVoiceConversationMode}
+            >
+              <Volume2 className="h-4 w-4" />
+              {voiceConversationMode ? "Encerrar" : "Ativar"}
+            </Button>
+          </div>
           {loadError && (
             <div className="mx-auto mb-2 flex max-w-3xl items-center justify-between rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm">
               <span>{loadError}</span>
@@ -718,7 +782,9 @@ function Assistant() {
                   ? "Parar gravação de voz"
                   : voiceInputState === "transcribing"
                     ? "Transcrevendo voz"
-                    : "Falar com a KIVRYN"
+                    : voiceConversationMode
+                      ? "Falar e enviar para a KIVRYN"
+                      : "Falar com a KIVRYN"
               }
             >
               {voiceInputState === "transcribing" ? (
