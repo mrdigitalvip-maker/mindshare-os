@@ -64,3 +64,12 @@ test("E72 Agent notification preference is fail-closed at the server-owned deliv
   assert.match(agentGuard,/grant execute on function public\.guard_agent_notification_preference\(\) to service_role/);
   assert.doesNotMatch(agentGuard,/agent_runs|action_plan_status|executeAgent/);
 });
+
+
+test("E72 server ledger suppresses Agent delivery when Agents notifications are disabled",()=>{
+  const guard=read("supabase/migrations/202609190240_e72_notification_preference_guard.sql");
+  assert.match(guard,/notification_delivery_preference_guard/);
+  assert.match(guard,/new\.dedupe_key like 'agent-run:%'/);
+  assert.match(guard,/p\.agents_enabled = false/);
+  assert.match(guard,/raise exception 'notification domain disabled'/);
+});
