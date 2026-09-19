@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import { writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import type { Segment } from "./domain";
 export async function run(
   bin: string,
@@ -146,4 +147,50 @@ export async function writeVtt(path: string, segments: Segment[]) {
         )
         .join("\n"),
   );
+}
+
+
+export async function selfTestMediaPipeline(dir: string) {
+  const source = join(dir, "self-test-source.mp4");
+  const audio = join(dir, "self-test-audio.mp3");
+  const captions = join(dir, "self-test-captions.vtt");
+  const output = join(dir, "self-test-output.mp4");
+
+  await run(
+    "ffmpeg",
+    [
+      "-nostdin",
+      "-y",
+      "-f",
+      "lavfi",
+      "-i",
+      "testsrc2=size=640x360:rate=24",
+      "-f",
+      "lavfi",
+      "-i",
+      "sine=frequency=440:sample_rate=16000",
+      "-t",
+      "2",
+      "-shortest",
+      "-c:v",
+      "libx264",
+      "-preset",
+      "ultrafast",
+      "-pix_fmt",
+      "yuv420p",
+      "-c:a",
+      "aac",
+      source,
+    ],
+    undefined,
+    "MEDIA_SELF_TEST_GENERATE_FAILED",
+  );
+
+  await probe(source);
+  await extractAudio(source, audio);
+  await writeVtt(captions, [
+    { startMs: 0, endMs: 1500, text: "KIVRYN Creator media self-test" },
+  ]);
+  await render(source, output, 0, 1800, "9:16", captions);
+  await probe(output);
 }
