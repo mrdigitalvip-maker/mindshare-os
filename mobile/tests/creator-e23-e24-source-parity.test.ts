@@ -23,8 +23,8 @@ describe("E23 + E24 Android source parity", () => {
     expect(webCreator).toContain("Clipping workflow");
     expect(mobileProject).toContain("getLatestCreatorJob");
     expect(mobileProject).toContain("requestClipRerender");
-    expect(worker).toContain("diversify(scored, 3)");
-    expect(workerDomain).toContain("if (out.length) return out");
+    expect(worker).toContain("selectQualityCandidates(scored");
+    expect(workerDomain).toContain("if (out.length) return out");\n    expect(workerDomain).toContain("selectQualityCandidates");
     expect(workerDomain).toContain("const maxWindow = Math.min(60_000");
   });
 
