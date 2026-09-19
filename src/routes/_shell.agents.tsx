@@ -14,7 +14,10 @@ import { ActionHistoryPanel } from "@/components/action-history-panel";
 import {
   AgentService,
   BackgroundRunService,
+  WEB_AGENT_EXTERNAL_CONNECTORS,
   WEB_AGENT_SKILLS,
+  externalConnectorStatus,
+  listIntegrationReadiness,
   resolveWebAgentSkills,
   workspaceQueryKeys,
 } from "@/services";
@@ -36,6 +39,7 @@ const emptyAgentForm = () => ({
   tone: "Profissional",
   expected_output: "",
   capabilities: [] as string[],
+  external_connector_ids: [] as string[],
 });
 function Agents() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
@@ -248,6 +252,12 @@ function Builder({ open, close }: { open: boolean; close: () => void }) {
   const client = useQueryClient();
   const [step, setStep] = useState(1);
   const [form, setForm] = useState(emptyAgentForm);
+  const integrationReadiness = useQuery({
+    queryKey: ["integrations", "readiness", "agent-builder"],
+    queryFn: listIntegrationReadiness,
+    enabled: open && form.capabilities.includes("integrations"),
+    staleTime: 30_000,
+  });
   const resetAndClose = () => {
     setStep(1);
     setForm(emptyAgentForm());
@@ -321,6 +331,9 @@ function Builder({ open, close }: { open: boolean; close: () => void }) {
                       capabilities: checked
                         ? [...c.capabilities, value]
                         : c.capabilities.filter((x) => x !== value),
+                      ...(value === "integrations" && !checked
+                        ? { external_connector_ids: [] }
+                        : {}),
                     }))
                   }
                 />
@@ -330,6 +343,59 @@ function Builder({ open, close }: { open: boolean; close: () => void }) {
                 </span>
               </label>
             ))}
+            {form.capabilities.includes("integrations") ? (
+              <div className="space-y-2 rounded-xl border p-3">
+                <div>
+                  <Label>{L("Contexto externo permitido", "Allowed external context")}</Label>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {L(
+                      "Selecione quais conexões o Agent pode ler. Isso não autoriza envios ou alterações externas.",
+                      "Choose which connections the Agent may read. This does not authorize sends or external mutations.",
+                    )}
+                  </p>
+                </div>
+                {WEB_AGENT_EXTERNAL_CONNECTORS.map((connector) => {
+                  const status = externalConnectorStatus(connector, integrationReadiness.data);
+                  const statusLabel =
+                    status === "connected"
+                      ? L("Conectado", "Connected")
+                      : status === "configuration_required"
+                        ? L("Configuração necessária", "Configuration required")
+                        : L("Não conectado", "Not connected");
+                  return (
+                    <label className="flex items-start gap-3 rounded-lg border p-3" key={connector.id}>
+                      <Checkbox
+                        checked={form.external_connector_ids.includes(connector.id)}
+                        onCheckedChange={(checked) =>
+                          setForm((current) => ({
+                            ...current,
+                            external_connector_ids: checked
+                              ? [...current.external_connector_ids, connector.id]
+                              : current.external_connector_ids.filter((id) => id !== connector.id),
+                          }))
+                        }
+                      />
+                      <span className="min-w-0">
+                        <span className="block text-sm font-medium">
+                          {connector.name} · {statusLabel}
+                        </span>
+                        <span className="mt-1 block text-xs text-muted-foreground">
+                          {connector.description}
+                        </span>
+                      </span>
+                    </label>
+                  );
+                })}
+                {integrationReadiness.isError ? (
+                  <p className="text-xs text-destructive">
+                    {L(
+                      "Não foi possível verificar o estado das conexões agora.",
+                      "Couldn't verify connection status right now.",
+                    )}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         )}
         {step === 5 && (
@@ -339,6 +405,14 @@ function Builder({ open, close }: { open: boolean; close: () => void }) {
             <p className="mt-4 text-xs text-muted-foreground">
               {form.capabilities.map((v) => capabilities.find((c) => c[0] === v)?.[1]).join(" · ")}
             </p>
+            {form.external_connector_ids.length ? (
+              <p className="mt-2 text-xs text-muted-foreground">
+                {L("Connectors", "Connectors")}:{" "}
+                {form.external_connector_ids
+                  .map((id) => WEB_AGENT_EXTERNAL_CONNECTORS.find((connector) => connector.id === id)?.name ?? id)
+                  .join(" · ")}
+              </p>
+            ) : null}
           </div>
         )}
         <div className="mt-4 flex justify-between">
