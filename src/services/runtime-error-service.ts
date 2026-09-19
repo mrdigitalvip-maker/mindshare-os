@@ -45,6 +45,7 @@ function isKnownExternalBrowserNoise(detail: ReturnType<typeof describe>): boole
   const haystack = `${detail.message} ${detail.stack ?? ""}`.toLowerCase();
   return (
     haystack.includes("__firefox__") ||
+    haystack.includes("window.ethereum.") ||
     haystack.includes("moz-extension://") ||
     haystack.includes("chrome-extension://") ||
     haystack.includes("safari-web-extension://")
