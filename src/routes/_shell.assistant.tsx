@@ -118,6 +118,7 @@ function Assistant() {
   const mediaChunksRef = useRef<Blob[]>([]);
   const speechRecognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const voiceTimerRef = useRef<number | null>(null);
+  const voiceSessionRef = useRef(0);
   const serverVoiceRef = useRef<ElevenLabsVoiceProvider | null>(null);
   const fallbackVoiceRef = useRef<FallbackVoiceProvider | null>(null);
   const { sendMessage, isSending, loadConversationHistory, startConversation } = useChat();
@@ -179,6 +180,8 @@ function Assistant() {
 
   async function openConversation(id: string) {
     if (isSending) return;
+    cancelVoiceInput();
+    stopSpeaking();
     setLoadError(null);
     setProposal(null);
     applyingActions.current.clear();
@@ -240,6 +243,7 @@ function Assistant() {
   }
 
   function cancelVoiceInput(updateState = true) {
+    voiceSessionRef.current += 1;
     clearVoiceTimer();
     const recorder = mediaRecorderRef.current;
     if (recorder && recorder.state !== "inactive") {
@@ -262,6 +266,7 @@ function Assistant() {
   }
 
   function startRecognitionFallback() {
+    const session = ++voiceSessionRef.current;
     const recognition = createSpeechRecognition();
     if (!recognition) return false;
     recognition.lang = voiceLocale();
@@ -269,7 +274,7 @@ function Assistant() {
     recognition.continuous = false;
     recognition.onresult = (event) => {
       const transcript = event.results[0]?.[0]?.transcript?.trim();
-      if (transcript) appendTranscript(transcript);
+      if (transcript && session === voiceSessionRef.current) appendTranscript(transcript);
     };
     recognition.onerror = () => {
       toast.error("Não foi possível reconhecer sua voz.");
@@ -284,7 +289,7 @@ function Assistant() {
     return true;
   }
 
-  async function finishRecordedVoice(mimeType: string) {
+  async function finishRecordedVoice(mimeType: string, session: number) {
     clearVoiceTimer();
     const chunks = mediaChunksRef.current;
     mediaChunksRef.current = [];
@@ -302,6 +307,7 @@ function Assistant() {
         new Blob(chunks, { type: mimeType || chunks[0]?.type || "audio/webm" }),
         voiceLocale(),
       );
+      if (session !== voiceSessionRef.current) return;
       appendTranscript(transcript);
       toast.success("Áudio transcrito. Revise antes de enviar.");
     } catch (error) {
@@ -328,6 +334,7 @@ function Assistant() {
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const session = ++voiceSessionRef.current;
       mediaStreamRef.current = stream;
       const mimeType = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"].find((type) =>
         MediaRecorder.isTypeSupported(type),
@@ -342,7 +349,7 @@ function Assistant() {
         toast.error("A gravação de voz foi interrompida.");
       };
       recorder.onstop = () => {
-        void finishRecordedVoice(recorder.mimeType);
+        void finishRecordedVoice(recorder.mimeType, session);
       };
       mediaRecorderRef.current = recorder;
       recorder.start(250);
