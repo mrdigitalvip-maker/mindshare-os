@@ -42,9 +42,11 @@ type VoiceBody = {
   language?: unknown;
 };
 
-function normalizeLanguage(value: unknown): "pt" | "en" | undefined {
+function normalizeLanguage(value: unknown): "pt" | "en" | "es" | "fr" | undefined {
   if (value === "pt" || value === "pt-BR") return "pt";
   if (value === "en" || value === "en-US") return "en";
+  if (value === "es" || value === "es-ES") return "es";
+  if (value === "fr" || value === "fr-FR") return "fr";
   return undefined;
 }
 

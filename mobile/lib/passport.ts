@@ -101,6 +101,14 @@ export type PassportPlacementResult = {
   level: PassportLevel;
 };
 
+export type PassportRetentionSummary = {
+  currentStreak: number;
+  longestStreak: number;
+  activeDaysLast7: number;
+  activeToday: boolean;
+  lastActiveDate: string | null;
+};
+
 export type PassportDailyMission = {
   id: string;
   trackId: string;

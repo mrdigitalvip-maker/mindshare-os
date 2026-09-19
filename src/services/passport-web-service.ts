@@ -51,6 +51,14 @@ export type WebVocabularyItem = {
   nextReviewAt: string;
 };
 
+export type WebPassportRetentionSummary = {
+  currentStreak: number;
+  longestStreak: number;
+  activeDaysLast7: number;
+  activeToday: boolean;
+  lastActiveDate: string | null;
+};
+
 export type WebPassportMission = {
   id: string;
   title: string;
@@ -146,6 +154,26 @@ export async function getWebPassportProfile(userId: string): Promise<WebPassport
     currentLevel: String(row.current_level ?? "A0"),
     placementScore: row.placement_score == null ? null : Number(row.placement_score),
     planHorizonDays: Number(row.plan_horizon_days ?? 90),
+  };
+}
+
+export async function getWebPassportRetentionSummary(
+  userId: string,
+  trackId: string,
+): Promise<WebPassportRetentionSummary> {
+  requireUser(userId);
+  if (!trackId.trim()) throw new Error("Language track required.");
+  const { data, error } = await passportDb.rpc("get_passport_retention_summary", {
+    p_track_id: trackId,
+  });
+  if (error) throw error;
+  const row = record(data);
+  return {
+    currentStreak: Math.max(0, Number(row.currentStreak ?? 0)),
+    longestStreak: Math.max(0, Number(row.longestStreak ?? 0)),
+    activeDaysLast7: Math.max(0, Math.min(7, Number(row.activeDaysLast7 ?? 0))),
+    activeToday: row.activeToday === true,
+    lastActiveDate: typeof row.lastActiveDate === "string" ? row.lastActiveDate : null,
   };
 }
 
