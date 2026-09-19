@@ -126,5 +126,8 @@ jobs:
       - name: Run E75/E76 Passport retention and audio source parity
         run: bun test tests/passport-retention-audio-e75-e76-source-parity.test.ts
 
+      - name: Run E77/E78 Assistant voice conversation source parity
+        run: bun test tests/assistant-voice-conversation-e77-e78-source-parity.test.ts
+
       - name: Run existing Creator engine and intelligence contracts
         run: bun test tests/creator-video-engine-revision-14.test.ts tests/creator-intelligence-revision-14.test.ts
