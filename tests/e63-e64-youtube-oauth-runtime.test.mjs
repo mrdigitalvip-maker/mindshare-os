@@ -6,6 +6,7 @@ const read=(path)=>readFileSync(new URL(`../${path}`, import.meta.url),"utf8");
 
 const migration=read("supabase/migrations/202609180039_e64_youtube_connection_state.sql");
 const intelligence=read("supabase/functions/_shared/creator-intelligence.ts");
+const registry=read("supabase/functions/_shared/kivryn-integration-registry.ts");
 const oauthStart=read("supabase/functions/creator-oauth-start/index.ts");
 const oauthCallback=read("supabase/functions/creator-oauth-callback/index.ts");
 const sync=read("supabase/functions/creator-analytics-sync/index.ts");
@@ -25,7 +26,7 @@ test("E63 callback returns provider denial safely to KIVRYN instead of stranding
   assert.match(oauthCallback,/providerError = requestUrl\.searchParams\.get\("error"\)/);
   assert.match(oauthCallback,/providerError === "access_denied" \? "access_denied" : "oauth_callback_failed"/);
   assert.match(oauthCallback,/creator_provider/);
-  assert.match(oauthCallback,/cache-control",\s*"no-store"/);
+  assert.match(oauthCallback,/"cache-control": "no-store"/);
 });
 
 test("E64 persists real YouTube channel identity and honest permission state",()=>{
@@ -58,8 +59,8 @@ test("E63/E64 Web shows truthful states and safe start errors",()=>{
 });
 
 test("YouTube remains official-API-only with read and analytics scopes",()=>{
-  assert.match(intelligence,/youtube\.readonly/);
-  assert.match(intelligence,/yt-analytics\.readonly/);
+  assert.match(registry,/youtube\.readonly/);
+  assert.match(registry,/yt-analytics\.readonly/);
   assert.doesNotMatch(sync,/yt-dlp|youtube-dl/i);
   assert.doesNotMatch(oauthStart,/youtube\.upload/);
 });
