@@ -376,6 +376,8 @@ export type CreatorPlatformConnection = {
   status: CreatorConnectionStatus;
   displayName?: string;
   lastSuccessAt?: string;
+  safeErrorCode?: string;
+  grantedScopes: string[];
   grantedMetrics: string[];
 };
 export const CREATOR_PROVIDER_CAPABILITIES = {
