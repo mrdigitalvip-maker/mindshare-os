@@ -1,22 +1,26 @@
-import { File } from "expo-file-system";
-
 import { supabase } from "@/lib/supabase";
 
-const MAX_AUDIO_BYTES = 6 * 1024 * 1024;
+type ReactNativeFormFile = {
+  uri: string;
+  name: string;
+  type: string;
+};
 
 export async function transcribeAssistantRecording(
   uri: string,
   locale: "pt-BR" | "en",
 ): Promise<string> {
-  const audio = new File(uri);
-  if (!audio.exists || !audio.size || audio.size > MAX_AUDIO_BYTES) {
-    throw new Error("A gravação precisa ter até 6 MB.");
-  }
+  if (!uri) throw new Error("Nenhuma gravação foi encontrada.");
 
   const form = new FormData();
   form.append("action", "transcribe");
   form.append("language", locale === "pt-BR" ? "pt" : "en");
-  form.append("audio", audio as unknown as Blob, audio.name || "kivryn-voice.m4a");
+  const audio: ReactNativeFormFile = {
+    uri,
+    name: "kivryn-voice.m4a",
+    type: "audio/m4a",
+  };
+  form.append("audio", audio as unknown as Blob);
 
   const { data, error } = await supabase.functions.invoke<{ text?: string }>("nexora-voice", {
     body: form,
