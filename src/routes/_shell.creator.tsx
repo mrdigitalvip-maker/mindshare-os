@@ -56,6 +56,7 @@ import {
   startCreatorProviderConnection,
   syncCreatorProviderAnalytics,
   disconnectCreatorProvider,
+  getCreatorWorkerStatus,
 } from "@/services/creator-service";
 import {
   CreatorYouTubeMetadataError,
@@ -63,6 +64,7 @@ import {
   type CreatorProvider,
   type CreatorYouTubeMetadata,
   type CreatorYouTubeMetadataErrorCode,
+  type CreatorWorkerStatus,
 } from "@/services/creator-service";
 
 export const Route = createFileRoute("/_shell/creator")({
@@ -331,17 +333,20 @@ function CreatorStudio() {
   const [rerenderDrafts, setRerenderDrafts] = useState<Record<string, ClipRerenderDraft>>({});
   const [providerBusy, setProviderBusy] = useState<string | null>(null);
   const [disconnectConfirmId, setDisconnectConfirmId] = useState<string | null>(null);
+  const [workerStatus, setWorkerStatus] = useState<CreatorWorkerStatus | null>(null);
 
   const reload = useCallback(async () => {
     if (!userId) return;
-    const [savedProfile, savedStrategy, savedResources] = await Promise.all([
+    const [savedProfile, savedStrategy, savedResources, currentWorkerStatus] = await Promise.all([
       loadCreatorProfile(userId),
       loadCreatorStrategy(userId),
       listCreatorResources(userId),
+      getCreatorWorkerStatus().catch(() => null),
     ]);
     if (savedProfile) setProfile(savedProfile);
     if (savedStrategy) setStrategy(savedStrategy);
     setResources(savedResources);
+    setWorkerStatus(currentWorkerStatus);
     setLoading(false);
   }, [userId]);
 
@@ -734,11 +739,42 @@ function CreatorStudio() {
             )}
           </p>
         </div>
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <StatusCard label={L("Fontes", "Sources")} value={projectCount} detail={L("projetos reais do Creator", "real creator projects")} />
           <StatusCard label={L("Processando", "Processing")} value={activeJobs} detail={L("processamentos ativos no backend", "active backend jobs")} />
           <StatusCard label={L("Cortes", "Clips")} value={clipCount} detail={L("resultados renderizados", "rendered outputs")} />
+          <StatusCard
+            label={L("Worker", "Worker")}
+            value={
+              workerStatus
+                ? workerStatus.state === "online"
+                  ? L("ONLINE", "ONLINE")
+                  : workerStatus.state === "busy"
+                    ? L("OCUPADO", "BUSY")
+                    : L("OFFLINE", "OFFLINE")
+                : L("INDEFINIDO", "UNKNOWN")
+            }
+            detail={
+              workerStatus
+                ? L(
+                    `${workerStatus.activeWorkers} ativos · fila: ${workerStatus.ownQueue.queued} · processando: ${workerStatus.ownQueue.processing}`,
+                    `${workerStatus.activeWorkers} active · queued: ${workerStatus.ownQueue.queued} · processing: ${workerStatus.ownQueue.processing}`,
+                  )
+                : L(
+                    "O estado do worker não pôde ser consultado agora.",
+                    "Worker status could not be checked right now.",
+                  )
+            }
+          />
         </div>
+        {workerStatus?.state === "offline" && (
+          <p className="rounded-2xl border border-amber-400/20 bg-amber-400/5 px-4 py-3 text-xs leading-5 text-amber-200">
+            {L(
+              "O pipeline pesado do Creator está offline. Novos jobs podem permanecer na fila até um worker saudável registrar heartbeat.",
+              "The Creator heavy-media pipeline is offline. New jobs may remain queued until a healthy worker reports a heartbeat.",
+            )}
+          </p>
+        )}
         <p className="text-xs leading-5 text-muted-foreground">
           {L(
             "O Creator funciona sem credenciais sociais. Integrações de publicação só ficam conectadas quando existe uma conexão de provedor verificada.",
@@ -1824,7 +1860,7 @@ function CreatorStudio() {
   );
 }
 
-function StatusCard({ label, value, detail }: { label: string; value: number; detail: string }) {
+function StatusCard({ label, value, detail }: { label: string; value: number | string; detail: string }) {
   return (
     <div className="rounded-2xl border border-border bg-surface/55 p-4">
       <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">{label}</p>
