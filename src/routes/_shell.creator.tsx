@@ -568,7 +568,7 @@ function CreatorStudio() {
         creatorProjects: resources.creator_projects ?? [],
       };
       const result = await AIService.sendChat({
-        message: `Creator ${mode}. Request: ${assistantInput}\nAvailable creator context: ${JSON.stringify(context)}`,
+        message: `Creator ${mode}. Request: ${assistantInput}\nAvailable creator context: ${JSON.stringify(context)}\nUse only supplied evidence. Treat creatorIntelligence as historical evidence, not a guarantee of future reach. Distinguish provider-verified from manual observations, state sample size/confidence, and never invent benchmarks, audience-online activity, or a best posting time when strongestPostingWindow is absent.`,
         conversationId: null,
         requestId: crypto.randomUUID(),
       });
