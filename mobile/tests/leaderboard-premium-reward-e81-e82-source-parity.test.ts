@@ -49,6 +49,8 @@ describe("E81/E82 leaderboard authority and Premium activity reward", () => {
   test("Android surfaces transparent reward lifecycle", () => {
     expect(premium).toContain("90 valid activity days → 30 days Premium");
     expect(premium).toContain("Claim 30 days Premium");
+    expect(premium).toContain("reward?.eligible ? 90");
+
     expect(premium).toContain("No automatic renewal");
     expect(premium).toContain("returns to Free automatically");
   });
