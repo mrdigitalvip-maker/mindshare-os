@@ -161,7 +161,9 @@ function Premium() {
           {L("Seu teste do Stripe está ativo", "Your Stripe trial is active")}{endDate ? ` ${L("até", "until")} ${endDate}` : ""}.
         </p>
       )}
-      {subscription?.cancelAtPeriodEnd && subscription.isPremium && (
+      {subscription?.cancelAtPeriodEnd &&
+        subscription.isPremium &&
+        subscription.source === "subscriptions" && (
         <p className="mt-3 text-sm text-muted-foreground">
           {L("O cancelamento está agendado. O Premium permanece disponível", "Cancellation is scheduled. Premium remains available")}{" "}{endDate ? `${L("até", "through")} ${endDate}` : L("até o fim do período", "until the period ends")}.
         </p>
@@ -171,7 +173,9 @@ function Premium() {
           {L("O pagamento falhou. Atualize sua forma de pagamento para restaurar o Premium.", "Payment failed. Update your payment method to restore Premium.")}
         </p>
       )}
-      {subscription?.isPremium && (
+      {subscription?.isPremium &&
+        subscription.source === "subscriptions" &&
+        subscription.provider === "stripe" && (
         <Button
           className="mt-4 rounded-full"
           variant="outline"
